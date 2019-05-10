@@ -267,6 +267,10 @@
 //#define USE_MQTT_TLS                             // Use TLS for MQTT connection (+53k code, +15k mem)
 //  #define USE_MQTT_TLS_CA_CERT                   // Use LetsEncrypt Certificate from sonoff_letsencrypt.h - Not supported with core 2.3.0
 
+// -- MQTT - TLS - Special version for AWS IoT
+#define USE_MQTT_AWS_IOT                        // Enable MQTT for AWS IoT
+  #define USE_MQTT_AWS_IOT_CIPHER  BR_TLS_RSA_WITH_AES_128_CBC_SHA256 // Cipher, stay away from ECDH that are too CPU hungry
+
 // -- KNX IP Protocol -----------------------------
 //#define USE_KNX                                  // Enable KNX IP Protocol Support (+9.4k code, +3k7 mem)
   #define USE_KNX_WEB_MENU                       // Enable KNX WEB MENU (+8.3k code, +144 mem)
