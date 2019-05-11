@@ -124,7 +124,7 @@ const uint8_t SENSOR_MAX_MISS = 5;          // Max number of missed sensor reads
 #if defined(USE_MQTT_TLS) || defined(USE_MQTT_AWS_IOT)
   const uint16_t WEB_LOG_SIZE = 2000;       // Max number of characters in weblog
 #else
-  const uint16_t WEB_LOG_SIZE = 4000;       // Max number of characters in weblog
+  const uint16_t WEB_LOG_SIZE = 2000;       // Max number of characters in weblog
 #endif
 
 const uint8_t MAX_BACKLOG = 30;             // Max number of commands in backlog

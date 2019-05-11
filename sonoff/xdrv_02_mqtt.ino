@@ -46,6 +46,90 @@ uint8_t mqtt_initial_connection_state = 2;  // MQTT connection messages state
 bool mqtt_connected = false;                // MQTT virtual connection status
 bool mqtt_allowed = false;                  // MQTT enabled and parameters valid
 
+
+#ifdef USE_MQTT_AWS_IOT
+/*********************************************************************************************\
+ * LetsEncrypt IdenTrust DST Root CA X3 certificate valid until 20210930
+ *
+ * https://letsencrypt.org/certificates/
+ * Downloaded from https://www.identrust.com/support/downloads
+\*********************************************************************************************/
+
+
+const uint8_t AmazonRootCA1_DER[] PROGMEM = MQTT_AWS_IOT_AMAZON_ROOT_CA1;
+
+const char* AWS_endpoint = "a3pa4ktnq87yfu-ats.iot.eu-central-1.amazonaws.com"; //MQTT broker ip
+IPAddress AWS_endpoint_IP = IPAddress(54,93,150,22);
+uint16_t mqtt_port = 8883;
+
+
+uint16_t ciphers[] = { BR_TLS_RSA_WITH_AES_128_CBC_SHA256 };  // use cheaper ciphers than ECDH
+
+
+
+void testTls(void) {
+  AddLog_P2(LOG_LEVEL_INFO, "Heap1 %d",ESP.getFreeHeap());
+  BearSSL::WiFiClientSecure espClient;
+  //PubSubClient client(AWS_endpoint, 8883, callback, espClient); //set  MQTT port number to 8883 as per //standard
+
+  espClient.setBufferSizes(512, 512);
+  //bool mfln = espClient.probeMaxFragmentLength(endpoint, 8883, 512);
+  //AddLog_P2(LOG_LEVEL_INFO, "mfln= %d",mfln);
+  //AddLog_P2(LOG_LEVEL_INFO, "Heap= %d",ESP.getFreeHeap());
+
+  AddLog_P2(LOG_LEVEL_INFO, "Heap1.5 %d",ESP.getFreeHeap());
+  //X509List x509(AmazonRootCA1_PEM);
+  //X509List x509(AmazonRootCA1_DER, sizeof(AmazonRootCA1_DER));
+  X509List *x509 = new X509List(AmazonRootCA1_DER, sizeof(AmazonRootCA1_DER));
+  //x509.append(AmazonRootCA1);
+  //x509.append(VeriSign);
+
+  //espClient.setInsecure();
+
+  AddLog_P2(LOG_LEVEL_INFO, "Heap2 %d",ESP.getFreeHeap());
+
+  //X509List client_crt(AWS_IoT_client_cert);
+  X509List *client_crt = new X509List(AWS_IoT_client_cert);
+
+  AddLog_P2(LOG_LEVEL_INFO, "Heap2.5 %d",ESP.getFreeHeap());
+  //PrivateKey key(AWS_IoT_client_PrivKey);
+  PrivateKey *key = new PrivateKey(AWS_IoT_client_PrivKey);
+
+  AddLog_P2(LOG_LEVEL_INFO, "Heap3 %d",ESP.getFreeHeap());
+  //espClient.setFingerprint(fingerprint);
+  espClient.setTrustAnchors(x509);
+  AddLog_P2(LOG_LEVEL_INFO, "Heap3.1 %d",ESP.getFreeHeap());
+  espClient.setClientRSACert(client_crt, key);
+  AddLog_P2(LOG_LEVEL_INFO, "Heap3.2 %d",ESP.getFreeHeap());
+  espClient.setCiphers(ciphers, 1);
+  AddLog_P2(LOG_LEVEL_INFO, "Heap4 %d",ESP.getFreeHeap());
+  if (!espClient.connect(AWS_endpoint, mqtt_port)) {
+    //char ssl_error[32];
+    int err = espClient.getLastSSLError(nullptr, 0);
+    AddLog_P2(LOG_LEVEL_INFO, "WiFiClientSecure SSL error: %d", err);
+  } else {
+    AddLog_P2(LOG_LEVEL_INFO, "Connection OK");
+  }
+  AddLog_P2(LOG_LEVEL_INFO, "Heap5= %d",ESP.getFreeHeap());
+  //espClient.setClientRSACert(nullptr, nullptr);
+  espClient.setTrustAnchors(nullptr);
+
+  espClient.setClientRSACert(nullptr, nullptr);
+  delete(client_crt);
+  delete(x509);
+  delete(key);
+  AddLog_P2(LOG_LEVEL_INFO, "Heap6= %d",ESP.getFreeHeap());
+
+  // if fail
+  if (0) {
+    //AddLog_P2(LOG_LEVEL_INFO, "Failes rc=%s", client.state());
+    //espClient.getLastSSLError(buf,256);
+    //AddLog_P2(LOG_LEVEL_INFO, "WiFiClientSecure SSL error: %s", ssl_error);
+  }
+}
+
+#endif  // USE_MQTT_AWS_IOT
+
 /*********************************************************************************************\
  * MQTT driver specific code need to provide the following functions:
  *
