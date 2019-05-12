@@ -162,7 +162,7 @@ class SigningVerifier : public UpdaterVerifyClass {
   private:
     PublicKey *_pubKey;
 };
-
+  
 // Stack thunked versions of calls
 extern "C" {
 extern unsigned char *thunk_br_ssl_engine_recvapp_buf( const br_ssl_engine_context *cc, size_t *len);

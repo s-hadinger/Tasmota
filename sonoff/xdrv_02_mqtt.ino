@@ -23,9 +23,12 @@
 #ifdef USE_MQTT_TLS_CA_CERT
   #include "sonoff_letsencrypt.h"           // LetsEncrypt certificate
 #endif
-  WiFiClientSecure EspClient;               // Wifi Secure Client
+  WiFiClientSecure espClient;               // Wifi Secure Client
+#elif defined(USE_MQTT_AWS_IOT)
+  // Prefer to do a static allocation at start, to avoid heap fragmentation
+  BearSSL::WiFiClientSecure espClient;        // Consumes 5608 bytes
 #else
-  WiFiClient EspClient;                     // Wifi Client
+  WiFiClient espClient;                     // Wifi Client
 #endif
 
 enum MqttCommands {
@@ -48,6 +51,7 @@ bool mqtt_allowed = false;                  // MQTT enabled and parameters valid
 
 
 #ifdef USE_MQTT_AWS_IOT
+
 /*********************************************************************************************\
  * LetsEncrypt IdenTrust DST Root CA X3 certificate valid until 20210930
  *
@@ -68,8 +72,8 @@ uint16_t ciphers[] = { BR_TLS_RSA_WITH_AES_128_CBC_SHA256 };  // use cheaper cip
 
 
 void testTls(void) {
-  AddLog_P2(LOG_LEVEL_INFO, "Heap1 %d",ESP.getFreeHeap());
-  BearSSL::WiFiClientSecure espClient;
+  AddLog_P2(LOG_LEVEL_INFO, "Heap1=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
+
   //PubSubClient client(AWS_endpoint, 8883, callback, espClient); //set  MQTT port number to 8883 as per //standard
 
   espClient.setBufferSizes(512, 512);
@@ -77,7 +81,7 @@ void testTls(void) {
   //AddLog_P2(LOG_LEVEL_INFO, "mfln= %d",mfln);
   //AddLog_P2(LOG_LEVEL_INFO, "Heap= %d",ESP.getFreeHeap());
 
-  AddLog_P2(LOG_LEVEL_INFO, "Heap1.5 %d",ESP.getFreeHeap());
+  AddLog_P2(LOG_LEVEL_INFO, "Heap1.5=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
   //X509List x509(AmazonRootCA1_PEM);
   //X509List x509(AmazonRootCA1_DER, sizeof(AmazonRootCA1_DER));
   X509List *x509 = new X509List(AmazonRootCA1_DER, sizeof(AmazonRootCA1_DER));
@@ -86,23 +90,23 @@ void testTls(void) {
 
   //espClient.setInsecure();
 
-  AddLog_P2(LOG_LEVEL_INFO, "Heap2 %d",ESP.getFreeHeap());
+  AddLog_P2(LOG_LEVEL_INFO, "Heap2=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
 
   //X509List client_crt(AWS_IoT_client_cert);
   X509List *client_crt = new X509List(AWS_IoT_client_cert);
 
-  AddLog_P2(LOG_LEVEL_INFO, "Heap2.5 %d",ESP.getFreeHeap());
+  AddLog_P2(LOG_LEVEL_INFO, "Heap2.5=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
   //PrivateKey key(AWS_IoT_client_PrivKey);
   PrivateKey *key = new PrivateKey(AWS_IoT_client_PrivKey);
 
-  AddLog_P2(LOG_LEVEL_INFO, "Heap3 %d",ESP.getFreeHeap());
+  AddLog_P2(LOG_LEVEL_INFO, "Heap3=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
   //espClient.setFingerprint(fingerprint);
   espClient.setTrustAnchors(x509);
-  AddLog_P2(LOG_LEVEL_INFO, "Heap3.1 %d",ESP.getFreeHeap());
+  AddLog_P2(LOG_LEVEL_INFO, "Heap3.1=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
   espClient.setClientRSACert(client_crt, key);
-  AddLog_P2(LOG_LEVEL_INFO, "Heap3.2 %d",ESP.getFreeHeap());
+  AddLog_P2(LOG_LEVEL_INFO, "Heap3.2=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
   espClient.setCiphers(ciphers, 1);
-  AddLog_P2(LOG_LEVEL_INFO, "Heap4 %d",ESP.getFreeHeap());
+  AddLog_P2(LOG_LEVEL_INFO, "Heap4=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
   if (!espClient.connect(AWS_endpoint, mqtt_port)) {
     //char ssl_error[32];
     int err = espClient.getLastSSLError(nullptr, 0);
@@ -110,7 +114,7 @@ void testTls(void) {
   } else {
     AddLog_P2(LOG_LEVEL_INFO, "Connection OK");
   }
-  AddLog_P2(LOG_LEVEL_INFO, "Heap5= %d",ESP.getFreeHeap());
+  AddLog_P2(LOG_LEVEL_INFO, "Heap5=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
   //espClient.setClientRSACert(nullptr, nullptr);
   espClient.setTrustAnchors(nullptr);
 
@@ -118,7 +122,9 @@ void testTls(void) {
   delete(client_crt);
   delete(x509);
   delete(key);
-  AddLog_P2(LOG_LEVEL_INFO, "Heap6= %d",ESP.getFreeHeap());
+  AddLog_P2(LOG_LEVEL_INFO, "Heap6=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
+  espClient.stop();
+  AddLog_P2(LOG_LEVEL_INFO, "Heap-stop=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
 
   // if fail
   if (0) {
@@ -146,7 +152,7 @@ void testTls(void) {
   #error "MQTT_MAX_PACKET_SIZE is too small in libraries/PubSubClient/src/PubSubClient.h, increase it to at least 1000"
 #endif
 
-PubSubClient MqttClient(EspClient);
+PubSubClient MqttClient(espClient);
 
 bool MqttIsConnected(void)
 {
@@ -426,67 +432,6 @@ void MqttConnected(void)
   }
 }
 
-#ifdef USE_MQTT_TLS
-bool MqttCheckTls(void)
-{
-  char fingerprint1[60];
-  char fingerprint2[60];
-  bool result = false;
-
-  fingerprint1[0] = '\0';
-  fingerprint2[0] = '\0';
-  for (uint8_t i = 0; i < sizeof(Settings.mqtt_fingerprint[0]); i++) {
-    snprintf_P(fingerprint1, sizeof(fingerprint1), PSTR("%s%s%02X"), fingerprint1, (i) ? " " : "", Settings.mqtt_fingerprint[0][i]);
-    snprintf_P(fingerprint2, sizeof(fingerprint2), PSTR("%s%s%02X"), fingerprint2, (i) ? " " : "", Settings.mqtt_fingerprint[1][i]);
-  }
-
-  AddLog_P(LOG_LEVEL_INFO, S_LOG_MQTT, PSTR(D_FINGERPRINT));
-
-//#ifdef ARDUINO_ESP8266_RELEASE_2_4_1
-  EspClient = WiFiClientSecure();               // Wifi Secure Client reconnect issue 4497 (https://github.com/esp8266/Arduino/issues/4497)
-//#endif
-
-  if (!EspClient.connect(Settings.mqtt_host, Settings.mqtt_port)) {
-    AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_MQTT D_TLS_CONNECT_FAILED_TO " %s:%d. " D_RETRY_IN " %d " D_UNIT_SECOND), Settings.mqtt_host, Settings.mqtt_port, mqtt_retry_counter);
-  } else {
-#ifdef USE_MQTT_TLS_CA_CERT
-    unsigned char tls_ca_cert[] = MQTT_TLS_CA_CERT;
-    if (EspClient.setCACert(tls_ca_cert, MQTT_TLS_CA_CERT_LENGTH)) {
-      if (EspClient.verifyCertChain(Settings.mqtt_host)) {
-        AddLog_P(LOG_LEVEL_INFO, S_LOG_MQTT, PSTR(D_VERIFIED "CA"));
-        result = true;
-      }
-    }
-#else
-    if (EspClient.verify(fingerprint1, Settings.mqtt_host)) {
-      AddLog_P(LOG_LEVEL_INFO, S_LOG_MQTT, PSTR(D_VERIFIED "1"));
-      result = true;
-    }
-    else if (EspClient.verify(fingerprint2, Settings.mqtt_host)) {
-      AddLog_P(LOG_LEVEL_INFO, S_LOG_MQTT, PSTR(D_VERIFIED "2"));
-      result = true;
-    }
-#ifdef MDNS_HOSTNAME
-    // If the hostname is set, check that as well.
-    // This lets certs with the hostname for the CN be used.
-    else if (EspClient.verify(fingerprint1, MDNS_HOSTNAME)) {
-      AddLog_P(LOG_LEVEL_INFO, S_LOG_MQTT, PSTR(D_VERIFIED "1"));
-      result = true;
-    }
-    else if (EspClient.verify(fingerprint2, MDNS_HOSTNAME)) {
-      AddLog_P(LOG_LEVEL_INFO, S_LOG_MQTT, PSTR(D_VERIFIED "2"));
-      result = true;
-    }
-#endif  // MDNS_HOSTNAME
-#endif  // USE_MQTT_TLS_CA_CERT
-  }
-  if (!result) AddLog_P(LOG_LEVEL_INFO, S_LOG_MQTT, PSTR(D_FAILED));
-  EspClient.stop();
-  yield();
-  return result;
-}
-#endif  // USE_MQTT_TLS
-
 void MqttReconnect(void)
 {
   char stopic[TOPSZ];
@@ -527,6 +472,8 @@ void MqttReconnect(void)
 
 #ifdef USE_MQTT_TLS
   EspClient = WiFiClientSecure();         // Wifi Secure Client reconnect issue 4497 (https://github.com/esp8266/Arduino/issues/4497)
+#elif defined(USE_MQTT_AWS_IOT)
+  espClient.stop();
 #else
   EspClient = WiFiClient();               // Wifi Client reconnect issue 4497 (https://github.com/esp8266/Arduino/issues/4497)
 #endif

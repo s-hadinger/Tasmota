@@ -210,7 +210,7 @@ bool WiFiClientSecure::flush(unsigned int maxWaitMs) {
   return WiFiClient::flush(maxWaitMs);
 }
 
-int WiFiClientSecure::connect(CONST IPAddress& ip, uint16_t port) {
+int WiFiClientSecure::connect(IPAddress ip, uint16_t port) {
   if (!WiFiClient::connect(ip, port)) {
     return 0;
   }
@@ -783,10 +783,9 @@ extern "C" {
     BR_TLS_RSA_WITH_AES_256_CCM_8,
 #endif
     BR_TLS_RSA_WITH_AES_128_CBC_SHA256,
-    // TODO SH
-    //BR_TLS_RSA_WITH_AES_256_CBC_SHA256,
-    //BR_TLS_RSA_WITH_AES_128_CBC_SHA,
-    //BR_TLS_RSA_WITH_AES_256_CBC_SHA,
+    BR_TLS_RSA_WITH_AES_256_CBC_SHA256,
+    BR_TLS_RSA_WITH_AES_128_CBC_SHA,
+    BR_TLS_RSA_WITH_AES_256_CBC_SHA,
 #ifndef BEARSSL_SSL_BASIC
     BR_TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA,
     BR_TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA,
@@ -798,30 +797,28 @@ extern "C" {
 
   // For apps which want to use less secure but faster ciphers, only
   static const uint16_t faster_suites_P[] PROGMEM = {
-    // TODO SH
-    //BR_TLS_RSA_WITH_AES_256_CBC_SHA256,
+    BR_TLS_RSA_WITH_AES_256_CBC_SHA256,
     BR_TLS_RSA_WITH_AES_128_CBC_SHA256,
-    //BR_TLS_RSA_WITH_AES_256_CBC_SHA,
-    //BR_TLS_RSA_WITH_AES_128_CBC_SHA
-  };
+    BR_TLS_RSA_WITH_AES_256_CBC_SHA,
+    BR_TLS_RSA_WITH_AES_128_CBC_SHA };
 
   // Install hashes into the SSL engine
   static void br_ssl_client_install_hashes(br_ssl_engine_context *eng) {
-    //br_ssl_engine_set_hash(eng, br_md5_ID, &br_md5_vtable);
-    //br_ssl_engine_set_hash(eng, br_sha1_ID, &br_sha1_vtable);
-    //br_ssl_engine_set_hash(eng, br_sha224_ID, &br_sha224_vtable);
+    br_ssl_engine_set_hash(eng, br_md5_ID, &br_md5_vtable);
+    br_ssl_engine_set_hash(eng, br_sha1_ID, &br_sha1_vtable);
+    br_ssl_engine_set_hash(eng, br_sha224_ID, &br_sha224_vtable);
     br_ssl_engine_set_hash(eng, br_sha256_ID, &br_sha256_vtable);
-    //br_ssl_engine_set_hash(eng, br_sha384_ID, &br_sha384_vtable);
-    //br_ssl_engine_set_hash(eng, br_sha512_ID, &br_sha512_vtable);
+    br_ssl_engine_set_hash(eng, br_sha384_ID, &br_sha384_vtable);
+    br_ssl_engine_set_hash(eng, br_sha512_ID, &br_sha512_vtable);
   }
 
   static void br_x509_minimal_install_hashes(br_x509_minimal_context *x509) {
-    //br_x509_minimal_set_hash(x509, br_md5_ID, &br_md5_vtable);
-    //br_x509_minimal_set_hash(x509, br_sha1_ID, &br_sha1_vtable);
-    //br_x509_minimal_set_hash(x509, br_sha224_ID, &br_sha224_vtable);
+    br_x509_minimal_set_hash(x509, br_md5_ID, &br_md5_vtable);
+    br_x509_minimal_set_hash(x509, br_sha1_ID, &br_sha1_vtable);
+    br_x509_minimal_set_hash(x509, br_sha224_ID, &br_sha224_vtable);
     br_x509_minimal_set_hash(x509, br_sha256_ID, &br_sha256_vtable);
-    //br_x509_minimal_set_hash(x509, br_sha384_ID, &br_sha384_vtable);
-    //br_x509_minimal_set_hash(x509, br_sha512_ID, &br_sha512_vtable);
+    br_x509_minimal_set_hash(x509, br_sha384_ID, &br_sha384_vtable);
+    br_x509_minimal_set_hash(x509, br_sha512_ID, &br_sha512_vtable);
   }
 
   // Default initializion for our SSL clients
@@ -837,9 +834,9 @@ extern "C" {
     br_ssl_engine_set_default_ecdsa(&cc->eng);
 #endif
     br_ssl_client_install_hashes(&cc->eng);
-    //br_ssl_engine_set_prf10(&cc->eng, &br_tls10_prf);
+    br_ssl_engine_set_prf10(&cc->eng, &br_tls10_prf);
     br_ssl_engine_set_prf_sha256(&cc->eng, &br_tls12_sha256_prf);
-    //br_ssl_engine_set_prf_sha384(&cc->eng, &br_tls12_sha384_prf);
+    br_ssl_engine_set_prf_sha384(&cc->eng, &br_tls12_sha384_prf);
     br_ssl_engine_set_default_aes_cbc(&cc->eng);
 #ifndef BEARSSL_SSL_BASIC
     br_ssl_engine_set_default_aes_gcm(&cc->eng);
@@ -1129,7 +1126,6 @@ int WiFiClientSecure::getLastSSLError(char *dest, size_t len) {
   if (_oom_err) {
     err = -1000;
   }
-#ifndef BEARSSL_SSL_BASIC   // save flash memory discarding verbose error messages
   switch (err) {
     case -1000: t = PSTR("Unable to allocate memory for SSL structures and buffers."); break;
     case BR_ERR_BAD_PARAM: t = PSTR("Caller-provided parameter is incorrect."); break;
@@ -1196,7 +1192,6 @@ int WiFiClientSecure::getLastSSLError(char *dest, size_t len) {
     strncpy_P(dest, t, len);
     dest[len - 1] = 0;
   }
-#endif  // BEARSSL_SSL_BASIC
   return err;
 }
 
