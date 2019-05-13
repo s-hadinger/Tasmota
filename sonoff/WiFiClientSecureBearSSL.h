@@ -255,10 +255,6 @@ class WiFiClientSecure : public WiFiClient {
 
     // Methods for handling server.available() call which returns a client connection.
     friend class WiFiServerSecure; // Server needs to access these constructors
-    WiFiClientSecure(ClientContext *client, const X509List *chain, unsigned cert_issuer_key_type,
-                      const PrivateKey *sk, int iobuf_in_size, int iobuf_out_size, const X509List *client_CA_ta);
-    WiFiClientSecure(ClientContext* client, const X509List *chain, const PrivateKey *sk,
-                      int iobuf_in_size, int iobuf_out_size, const X509List *client_CA_ta);
 
     // RSA keyed server
     bool _connectSSLServerRSA(const X509List *chain, const PrivateKey *sk, const X509List *client_CA_ta);

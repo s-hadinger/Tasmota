@@ -23,6 +23,7 @@ extern const char *fingerprint;
 extern const char *AWS_IoT_client_cert;
 extern const char *AWS_IoT_client_PrivKey;
 extern const char *AmazonRootCA1_PEM;
+extern const char *aws_iot_pub_key;
 
 #define MQTT_AWS_IOT_AMAZON_ROOT_CA1 { \
   0x30, 0x82, 0x03, 0x41, 0x30, 0x82, 0x02, 0x29, 0xA0, 0x03, 0x02, 0x01, 0x02, 0x02, 0x13, 0x06, \

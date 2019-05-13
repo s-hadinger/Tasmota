@@ -71,6 +71,7 @@ const char *aws_server_fingerprint = "00:F5:1A:E7:A3:48:2A:F3:FC:E0:75:4D:24:D5:
 X509List x509_amazon_root_ca1(AmazonRootCA1_DER, sizeof(AmazonRootCA1_DER));
 
 PrivateKey aws_iot_private_key(AWS_IoT_client_PrivKey);
+PublicKey  aws_iot_public_key(aws_iot_pub_key);
 X509List   aws_iot_client_cert(AWS_IoT_client_cert);
 
 uint16_t ciphers[] = { BR_TLS_RSA_WITH_AES_128_CBC_SHA };  // use cheaper ciphers than ECDH
@@ -82,7 +83,7 @@ void testTls(void) {
 
   //PubSubClient client(AWS_endpoint, 8883, callback, espClient); //set  MQTT port number to 8883 as per //standard
 
-  espClient.setBufferSizes(512, 512);
+  espClient.setBufferSizes(1024, 1024);
   //bool mfln = espClient.probeMaxFragmentLength(endpoint, 8883, 512);
   //AddLog_P2(LOG_LEVEL_INFO, "mfln= %d",mfln);
   //AddLog_P2(LOG_LEVEL_INFO, "Heap= %d",ESP.getFreeHeap());
@@ -97,6 +98,7 @@ void testTls(void) {
   //x509.append(VeriSign);
 
   //espClient.setInsecure();
+  espClient.setKnownKey(&aws_iot_public_key);
 
   AddLog_P2(LOG_LEVEL_INFO, "Heap2=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
 
@@ -108,7 +110,7 @@ void testTls(void) {
   //PrivateKey *key = new PrivateKey(AWS_IoT_client_PrivKey);
 
   AddLog_P2(LOG_LEVEL_INFO, "Heap3=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
-  espClient.setFingerprint(aws_server_fingerprint);
+  //espClient.setFingerprint(aws_server_fingerprint);
   //espClient.setTrustAnchors(&x509_amazon_root_ca1);
   AddLog_P2(LOG_LEVEL_INFO, "Heap3.1=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
   espClient.setClientRSACert(&aws_iot_client_cert, &aws_iot_private_key);
@@ -116,6 +118,7 @@ void testTls(void) {
   espClient.setCiphers(ciphers, 1);
   AddLog_P2(LOG_LEVEL_INFO, "Heap4=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
   AddLog_P2(LOG_LEVEL_INFO, "StackThunk=%d",stack_thunk_get_max_usage());
+  uint32_t time = millis();
   if (!espClient.connect(AWS_endpoint, mqtt_port)) {
     //char ssl_error[32];
     int err = espClient.getLastSSLError(nullptr, 0);
@@ -124,6 +127,7 @@ void testTls(void) {
     AddLog_P2(LOG_LEVEL_INFO, "Connection OK");
     AddLog_P2(LOG_LEVEL_INFO, "StackThunk=%d",stack_thunk_get_max_usage());
   }
+  AddLog_P2(LOG_LEVEL_INFO, "Time elapsed %d",millis() - time);
   AddLog_P2(LOG_LEVEL_INFO, "Heap5=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
   AddLog_P2(LOG_LEVEL_INFO, "StackThunk=%d",stack_thunk_get_max_usage());
   //espClient.setClientRSACert(nullptr, nullptr);

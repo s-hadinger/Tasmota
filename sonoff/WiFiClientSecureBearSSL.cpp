@@ -144,40 +144,6 @@ WiFiClientSecure::~WiFiClientSecure() {
   _axtls_sk = nullptr;
 }
 
-WiFiClientSecure::WiFiClientSecure(ClientContext* client,
-                                     const X509List *chain, const PrivateKey *sk,
-                                     int iobuf_in_size, int iobuf_out_size, const X509List *client_CA_ta) {
-  _clear();
-  _clearAuthenticationSettings();
-  stack_thunk_add_ref();
-  _iobuf_in_size = iobuf_in_size;
-  _iobuf_out_size = iobuf_out_size;
-  _client = client;
-  _client->ref();
-  if (!_connectSSLServerRSA(chain, sk, client_CA_ta)) {
-    _client->unref();
-    _client = nullptr;
-    _clear();
-  }
-}
-
-WiFiClientSecure::WiFiClientSecure(ClientContext *client,
-                                     const X509List *chain,
-                                     unsigned cert_issuer_key_type, const PrivateKey *sk,
-                                     int iobuf_in_size, int iobuf_out_size, const X509List *client_CA_ta) {
-  _clear();
-  _clearAuthenticationSettings();
-  stack_thunk_add_ref();
-  _iobuf_in_size = iobuf_in_size;
-  _iobuf_out_size = iobuf_out_size;
-  _client = client;
-  _client->ref();
-  if (!_connectSSLServerEC(chain, cert_issuer_key_type, sk, client_CA_ta)) {
-    _client->unref();
-    _client = nullptr;
-    _clear();
-  }
-}
 
 void WiFiClientSecure::setClientRSACert(const X509List *chain, const PrivateKey *sk) {
   _chain = chain;
@@ -714,12 +680,33 @@ extern "C" {
 
   // Return the public key from the validator (set by x509_minimal)
   static const br_x509_pkey *insecure_get_pkey(const br_x509_class *const *ctx, unsigned *usages) {
+      const br_x509_insecure_context *xc = (const br_x509_insecure_context *)ctx;
 // Let's dump the public key and hash
 {
-//ctx->pkey;
+br_x509_pkey pkey = xc->ctx.pkey;
+if ((0) && (BR_KEYTYPE_RSA == pkey.key_type)) {
+  br_rsa_public_key rsa_pkey = pkey.key.rsa;
+  uint32_t i;
+
+  char out[513];
+  i = 0;
+  Serial.printf("Modulus = \n", out);
+  while (i < rsa_pkey.nlen) {
+    out[0] = '\0';
+    for (uint32_t j=0; j<32; j++) {
+      if (i<rsa_pkey.nlen) snprintf_P(out, sizeof(out), "%s%s%02X", out, (j) ? ":" : "", rsa_pkey.n[i]);
+      i++;
+    }
+    Serial.printf("%s\n", out);
+  }
+  out[0] = '\0';
+  for (uint32_t i = 0; i < rsa_pkey.elen; i++) {
+    snprintf_P(out, sizeof(out), "%s%s%02X", out, (i) ? ":" : "", rsa_pkey.e[i]);
+  }
+  Serial.printf("Exponent = %s\n", out);
+  }
 }
 
-    const br_x509_insecure_context *xc = (const br_x509_insecure_context *)ctx;
     if (usages != NULL) {
       *usages = BR_KEYTYPE_KEYX | BR_KEYTYPE_SIGN; // I said we were insecure!
     }
@@ -819,30 +806,23 @@ extern "C" {
 #endif
   };
 
-  // For apps which want to use less secure but faster ciphers, only
-  static const uint16_t faster_suites_P[] PROGMEM = {
-    BR_TLS_RSA_WITH_AES_256_CBC_SHA256,
-    BR_TLS_RSA_WITH_AES_128_CBC_SHA256,
-    BR_TLS_RSA_WITH_AES_256_CBC_SHA,
-    BR_TLS_RSA_WITH_AES_128_CBC_SHA };
-
   // Install hashes into the SSL engine
   static void br_ssl_client_install_hashes(br_ssl_engine_context *eng) {
-    br_ssl_engine_set_hash(eng, br_md5_ID, &br_md5_vtable);
+    //br_ssl_engine_set_hash(eng, br_md5_ID, &br_md5_vtable);
     br_ssl_engine_set_hash(eng, br_sha1_ID, &br_sha1_vtable);
-    br_ssl_engine_set_hash(eng, br_sha224_ID, &br_sha224_vtable);
+    //br_ssl_engine_set_hash(eng, br_sha224_ID, &br_sha224_vtable);
     br_ssl_engine_set_hash(eng, br_sha256_ID, &br_sha256_vtable);
-    br_ssl_engine_set_hash(eng, br_sha384_ID, &br_sha384_vtable);
-    br_ssl_engine_set_hash(eng, br_sha512_ID, &br_sha512_vtable);
+    //br_ssl_engine_set_hash(eng, br_sha384_ID, &br_sha384_vtable);
+    //br_ssl_engine_set_hash(eng, br_sha512_ID, &br_sha512_vtable);
   }
 
   static void br_x509_minimal_install_hashes(br_x509_minimal_context *x509) {
-    br_x509_minimal_set_hash(x509, br_md5_ID, &br_md5_vtable);
+    //br_x509_minimal_set_hash(x509, br_md5_ID, &br_md5_vtable);
     br_x509_minimal_set_hash(x509, br_sha1_ID, &br_sha1_vtable);
-    br_x509_minimal_set_hash(x509, br_sha224_ID, &br_sha224_vtable);
+    //br_x509_minimal_set_hash(x509, br_sha224_ID, &br_sha224_vtable);
     br_x509_minimal_set_hash(x509, br_sha256_ID, &br_sha256_vtable);
-    br_x509_minimal_set_hash(x509, br_sha384_ID, &br_sha384_vtable);
-    br_x509_minimal_set_hash(x509, br_sha512_ID, &br_sha512_vtable);
+    //br_x509_minimal_set_hash(x509, br_sha384_ID, &br_sha384_vtable);
+    //br_x509_minimal_set_hash(x509, br_sha512_ID, &br_sha512_vtable);
   }
 
   // Default initializion for our SSL clients
@@ -850,24 +830,16 @@ extern "C" {
     uint16_t suites[cipher_cnt];
     memcpy_P(suites, cipher_list, cipher_cnt * sizeof(cipher_list[0]));
     br_ssl_client_zero(cc);
-    br_ssl_engine_set_versions(&cc->eng, BR_TLS10, BR_TLS12);
+    br_ssl_engine_set_versions(&cc->eng, BR_TLS12, BR_TLS12);
     br_ssl_engine_set_suites(&cc->eng, suites, (sizeof suites) / (sizeof suites[0]));
     br_ssl_client_set_default_rsapub(cc);
     br_ssl_engine_set_default_rsavrfy(&cc->eng);
-#ifndef BEARSSL_SSL_BASIC
-    br_ssl_engine_set_default_ecdsa(&cc->eng);
-#endif
+
     br_ssl_client_install_hashes(&cc->eng);
-    br_ssl_engine_set_prf10(&cc->eng, &br_tls10_prf);
+    //br_ssl_engine_set_prf10(&cc->eng, &br_tls10_prf);
     br_ssl_engine_set_prf_sha256(&cc->eng, &br_tls12_sha256_prf);
-    br_ssl_engine_set_prf_sha384(&cc->eng, &br_tls12_sha384_prf);
+    //br_ssl_engine_set_prf_sha384(&cc->eng, &br_tls12_sha384_prf);
     br_ssl_engine_set_default_aes_cbc(&cc->eng);
-#ifndef BEARSSL_SSL_BASIC
-    br_ssl_engine_set_default_aes_gcm(&cc->eng);
-    br_ssl_engine_set_default_aes_ccm(&cc->eng);
-    br_ssl_engine_set_default_des_cbc(&cc->eng);
-    br_ssl_engine_set_default_chapol(&cc->eng);
-#endif
   }
 
 }
@@ -883,10 +855,6 @@ bool WiFiClientSecure::setCiphers(const uint16_t *cipherAry, int cipherCount) {
   memcpy_P(_cipher_list.get(), cipherAry, cipherCount * sizeof(uint16_t));
   _cipher_cnt = cipherCount;
   return true;
-}
-
-bool WiFiClientSecure::setCiphersLessSecure() {
-  return setCiphers(faster_suites_P, sizeof(faster_suites_P)/sizeof(faster_suites_P[0]));
 }
 
 bool WiFiClientSecure::setCiphers(std::vector<uint16_t> list) {
@@ -1073,88 +1041,6 @@ bool WiFiClientSecure::_installServerX509Validator(const X509List *client_CA_ta)
   return true;
 }
 
-// Called by WiFiServerBearSSL when an RSA cert/key is specified.
-bool WiFiClientSecure::_connectSSLServerRSA(const X509List *chain,
-    const PrivateKey *sk,
-    const X509List *client_CA_ta) {
-
-Log_heap_size("_connectSSLServerRSA 1");
-  _freeSSL();
-  _oom_err = false;
-  _sc_svr = std::make_shared<br_ssl_server_context>();
-Log_heap_size("_connectSSLServerRSA 2");
-  _eng = &_sc_svr->eng; // Allocation/deallocation taken care of by the _sc shared_ptr
-  _iobuf_in = std::shared_ptr<unsigned char>(new unsigned char[_iobuf_in_size], std::default_delete<unsigned char[]>());
-  _iobuf_out = std::shared_ptr<unsigned char>(new unsigned char[_iobuf_out_size], std::default_delete<unsigned char[]>());
-Log_heap_size("_connectSSLServerRSA 3");
-
-  if (!_sc_svr || !_iobuf_in || !_iobuf_out) {
-    _freeSSL();
-    _oom_err = true;
-    DEBUG_BSSL("_connectSSLServerRSA: OOM error\n");
-    return false;
-  }
-
-Log_heap_size("_connectSSLServerRSA 4");
-  br_ssl_server_init_full_rsa(_sc_svr.get(), chain ? chain->getX509Certs() : nullptr, chain ? chain->getCount() : 0, sk ? sk->getRSA() : nullptr);
-  br_ssl_engine_set_buffers_bidi(_eng, _iobuf_in.get(), _iobuf_in_size, _iobuf_out.get(), _iobuf_out_size);
-  if (client_CA_ta && !_installServerX509Validator(client_CA_ta)) {
-    DEBUG_BSSL("_connectSSLServerRSA: Can't install serverX509check\n");
-    return false;
-  }
-Log_heap_size("_connectSSLServerRSA 5");
-  if (!br_ssl_server_reset(_sc_svr.get())) {
-    _freeSSL();
-    DEBUG_BSSL("_connectSSLServerRSA: Can't reset server ctx\n");
-    return false;
-  }
-
-Log_heap_size("_connectSSLServerRSA 6");
-  return _wait_for_handshake();
-}
-
-// Called by WiFiServerBearSSL when an elliptic curve cert/key is specified.
-bool WiFiClientSecure::_connectSSLServerEC(const X509List *chain,
-    unsigned cert_issuer_key_type, const PrivateKey *sk,
-    const X509List *client_CA_ta) {
-#ifndef BEARSSL_SSL_BASIC
-  _freeSSL();
-  _oom_err = false;
-  _sc_svr = std::make_shared<br_ssl_server_context>();
-  _eng = &_sc_svr->eng; // Allocation/deallocation taken care of by the _sc shared_ptr
-  _iobuf_in = std::shared_ptr<unsigned char>(new unsigned char[_iobuf_in_size], std::default_delete<unsigned char[]>());
-  _iobuf_out = std::shared_ptr<unsigned char>(new unsigned char[_iobuf_out_size], std::default_delete<unsigned char[]>());
-
-  if (!_sc_svr || !_iobuf_in || !_iobuf_out) {
-    _freeSSL();
-    _oom_err = true;
-    DEBUG_BSSL("_connectSSLServerEC: OOM error\n");
-    return false;
-  }
-
-  br_ssl_server_init_full_ec(_sc_svr.get(), chain ? chain->getX509Certs() : nullptr, chain ? chain->getCount() : 0,
-                             cert_issuer_key_type, sk ? sk->getEC() : nullptr);
-  br_ssl_engine_set_buffers_bidi(_eng, _iobuf_in.get(), _iobuf_in_size, _iobuf_out.get(), _iobuf_out_size);
-  if (client_CA_ta && !_installServerX509Validator(client_CA_ta)) {
-    DEBUG_BSSL("_connectSSLServerEC: Can't install serverX509check\n");
-    return false;
-  }
-  if (!br_ssl_server_reset(_sc_svr.get())) {
-    _freeSSL();
-    DEBUG_BSSL("_connectSSLServerEC: Can't reset server ctx\n");
-    return false;
-  }
-
-  return _wait_for_handshake();
-#else
-  (void) chain;
-  (void) cert_issuer_key_type;
-  (void) sk;
-  (void) client_CA_ta;
-  DEBUG_BSSL("_connectSSLServerEC: Attempting to use EC cert in minimal cipher mode (no EC)\n");
-  return false;
-#endif
-}
 
 // Returns an error ID and possibly a string (if dest != null) of the last
 // BearSSL reported error.
