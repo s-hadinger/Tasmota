@@ -889,6 +889,11 @@ int ResponseAppend_P(const char* format, ...)  // Content send snprintf_P char d
   return len + mlen;
 }
 
+int ResponseJsonEnd(void)
+{
+  return ResponseAppend_P(PSTR("}"));
+}
+
 /*********************************************************************************************\
  * GPIO Module and Template management
 \*********************************************************************************************/
@@ -998,6 +1003,13 @@ uint8_t ValidPin(uint8_t pin, uint8_t gpio)
 bool ValidGPIO(uint8_t pin, uint8_t gpio)
 {
   return (GPIO_USER == ValidPin(pin, gpio));  // Only allow GPIO_USER pins
+}
+
+bool ValidAdc()
+{
+  gpio_flag flag = ModuleFlag();
+  uint8_t template_adc0 = flag.data &15;
+  return (ADC0_USER == template_adc0);
 }
 
 bool GetUsedInModule(uint8_t val, uint8_t *arr)
