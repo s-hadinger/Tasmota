@@ -25,6 +25,7 @@
 #endif
   WiFiClientSecure espClient;               // Wifi Secure Client
 #elif defined(USE_MQTT_AWS_IOT)
+  #include "StackThunk.h"
   // Prefer to do a static allocation at start, to avoid heap fragmentation
   BearSSL::WiFiClientSecure espClient;        // Consumes 5608 bytes
 #else
@@ -65,9 +66,14 @@ const uint8_t AmazonRootCA1_DER[] PROGMEM = MQTT_AWS_IOT_AMAZON_ROOT_CA1;
 const char* AWS_endpoint = "a3pa4ktnq87yfu-ats.iot.eu-central-1.amazonaws.com"; //MQTT broker ip
 IPAddress AWS_endpoint_IP = IPAddress(54,93,150,22);
 uint16_t mqtt_port = 8883;
+const char *aws_server_fingerprint = "00:F5:1A:E7:A3:48:2A:F3:FC:E0:75:4D:24:D5:91:BD:BB:E1:6A:B4";
 
+X509List x509_amazon_root_ca1(AmazonRootCA1_DER, sizeof(AmazonRootCA1_DER));
 
-uint16_t ciphers[] = { BR_TLS_RSA_WITH_AES_128_CBC_SHA256 };  // use cheaper ciphers than ECDH
+PrivateKey aws_iot_private_key(AWS_IoT_client_PrivKey);
+X509List   aws_iot_client_cert(AWS_IoT_client_cert);
+
+uint16_t ciphers[] = { BR_TLS_RSA_WITH_AES_128_CBC_SHA };  // use cheaper ciphers than ECDH
 
 
 
@@ -82,9 +88,11 @@ void testTls(void) {
   //AddLog_P2(LOG_LEVEL_INFO, "Heap= %d",ESP.getFreeHeap());
 
   AddLog_P2(LOG_LEVEL_INFO, "Heap1.5=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
+  AddLog_P2(LOG_LEVEL_INFO, "StackThunk=%d",stack_thunk_get_max_usage());
   //X509List x509(AmazonRootCA1_PEM);
   //X509List x509(AmazonRootCA1_DER, sizeof(AmazonRootCA1_DER));
-  X509List *x509 = new X509List(AmazonRootCA1_DER, sizeof(AmazonRootCA1_DER));
+  //X509List *x509 = new X509List(AmazonRootCA1_DER, sizeof(AmazonRootCA1_DER));
+
   //x509.append(AmazonRootCA1);
   //x509.append(VeriSign);
 
@@ -93,35 +101,38 @@ void testTls(void) {
   AddLog_P2(LOG_LEVEL_INFO, "Heap2=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
 
   //X509List client_crt(AWS_IoT_client_cert);
-  X509List *client_crt = new X509List(AWS_IoT_client_cert);
+  //X509List *client_crt = new X509List(AWS_IoT_client_cert);
 
   AddLog_P2(LOG_LEVEL_INFO, "Heap2.5=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
   //PrivateKey key(AWS_IoT_client_PrivKey);
-  PrivateKey *key = new PrivateKey(AWS_IoT_client_PrivKey);
+  //PrivateKey *key = new PrivateKey(AWS_IoT_client_PrivKey);
 
   AddLog_P2(LOG_LEVEL_INFO, "Heap3=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
-  //espClient.setFingerprint(fingerprint);
-  espClient.setTrustAnchors(x509);
+  espClient.setFingerprint(aws_server_fingerprint);
+  //espClient.setTrustAnchors(&x509_amazon_root_ca1);
   AddLog_P2(LOG_LEVEL_INFO, "Heap3.1=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
-  espClient.setClientRSACert(client_crt, key);
+  espClient.setClientRSACert(&aws_iot_client_cert, &aws_iot_private_key);
   AddLog_P2(LOG_LEVEL_INFO, "Heap3.2=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
   espClient.setCiphers(ciphers, 1);
   AddLog_P2(LOG_LEVEL_INFO, "Heap4=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
+  AddLog_P2(LOG_LEVEL_INFO, "StackThunk=%d",stack_thunk_get_max_usage());
   if (!espClient.connect(AWS_endpoint, mqtt_port)) {
     //char ssl_error[32];
     int err = espClient.getLastSSLError(nullptr, 0);
     AddLog_P2(LOG_LEVEL_INFO, "WiFiClientSecure SSL error: %d", err);
   } else {
     AddLog_P2(LOG_LEVEL_INFO, "Connection OK");
+    AddLog_P2(LOG_LEVEL_INFO, "StackThunk=%d",stack_thunk_get_max_usage());
   }
   AddLog_P2(LOG_LEVEL_INFO, "Heap5=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
+  AddLog_P2(LOG_LEVEL_INFO, "StackThunk=%d",stack_thunk_get_max_usage());
   //espClient.setClientRSACert(nullptr, nullptr);
   espClient.setTrustAnchors(nullptr);
 
   espClient.setClientRSACert(nullptr, nullptr);
-  delete(client_crt);
-  delete(x509);
-  delete(key);
+  //delete(client_crt);
+  //delete(x509);
+  //delete(key);
   AddLog_P2(LOG_LEVEL_INFO, "Heap6=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
   espClient.stop();
   AddLog_P2(LOG_LEVEL_INFO, "Heap-stop=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());

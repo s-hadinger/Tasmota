@@ -44,6 +44,21 @@ extern "C" {
 #include "c_types.h"
 #include "coredecls.h"
 
+
+void Log_heap_size(const char *msg) {
+  Serial.printf("%s %d\n", msg, ESP.getFreeHeap());
+}
+
+void Log_fingerprint(const unsigned char *finger) {
+  char fingerprint[60];
+  fingerprint[0] = '\0';
+  for (uint8_t i = 0; i < 20; i++) {
+    snprintf_P(fingerprint, sizeof(fingerprint), "%s%s%02X", fingerprint, (i) ? ":" : "", finger[i]);
+  }
+  Serial.printf("Fingerprint = %s\n", fingerprint);
+}
+
+
 #if !CORE_MOCK
 
 // The BearSSL thunks in use for now
@@ -178,6 +193,7 @@ void WiFiClientSecure::setClientECCert(const X509List *chain,
 }
 
 void WiFiClientSecure::setBufferSizes(int recv, int xmit) {
+Log_heap_size("setBufferSizes");
   // Following constants taken from bearssl/src/ssl/ssl_engine.c (not exported unfortunately)
   const int MAX_OUT_OVERHEAD = 85;
   const int MAX_IN_OVERHEAD = 325;
@@ -241,6 +257,7 @@ void WiFiClientSecure::_freeSSL() {
   _x509_minimal = nullptr;
   _x509_insecure = nullptr;
   _x509_knownkey = nullptr;
+  // SH TODO - do we release pointers?
   _iobuf_in = nullptr;
   _iobuf_out = nullptr;
   // Reset non-allocated ptrs (pointing to bits potentially free'd above)
@@ -674,6 +691,8 @@ extern "C" {
     // Handle SHA1 fingerprint matching
     char res[20];
     br_sha1_out(&xc->sha1_cert, res);
+  Log_fingerprint((unsigned char*)res);
+  if (xc->match_fingerprint) Log_fingerprint(xc->match_fingerprint);
     if (xc->match_fingerprint && memcmp(res, xc->match_fingerprint, sizeof(res))) {
       DEBUG_BSSL("insecure_end_chain: Received cert FP doesn't match\n");
       return BR_ERR_X509_NOT_TRUSTED;
@@ -695,6 +714,11 @@ extern "C" {
 
   // Return the public key from the validator (set by x509_minimal)
   static const br_x509_pkey *insecure_get_pkey(const br_x509_class *const *ctx, unsigned *usages) {
+// Let's dump the public key and hash
+{
+//ctx->pkey;
+}
+
     const br_x509_insecure_context *xc = (const br_x509_insecure_context *)ctx;
     if (usages != NULL) {
       *usages = BR_KEYTYPE_KEYX | BR_KEYTYPE_SIGN; // I said we were insecure!
@@ -931,7 +955,7 @@ bool WiFiClientSecure::_connectSSL(const char* hostName) {
   DEBUG_BSSL("_connectSSL: start connection\n");
   _freeSSL();
   _oom_err = false;
-
+Log_heap_size("_connectSSL 1");
 #ifdef DEBUG_ESP_SSL
   // BearSSL will reject all connections unless an authentication option is set, warn in DEBUG builds
   if (!_use_insecure && !_use_fingerprint && !_use_self_signed && !_knownkey && !_certStore && !_ta) {
@@ -940,9 +964,11 @@ bool WiFiClientSecure::_connectSSL(const char* hostName) {
 #endif
 
   _sc = std::make_shared<br_ssl_client_context>();
+Log_heap_size("_connectSSL 2");
   _eng = &_sc->eng; // Allocation/deallocation taken care of by the _sc shared_ptr
   _iobuf_in = std::shared_ptr<unsigned char>(new unsigned char[_iobuf_in_size], std::default_delete<unsigned char[]>());
   _iobuf_out = std::shared_ptr<unsigned char>(new unsigned char[_iobuf_out_size], std::default_delete<unsigned char[]>());
+Log_heap_size("_connectSSL 3");
 
   if (!_sc || !_iobuf_in || !_iobuf_out) {
     _freeSSL(); // Frees _sc, _iobuf*
@@ -957,6 +983,7 @@ bool WiFiClientSecure::_connectSSL(const char* hostName) {
   } else {
     br_ssl_client_base_init(_sc.get(), _cipher_list.get(), _cipher_cnt);
   }
+Log_heap_size("_connectSSL 4");
   // Only failure possible in the installation is OOM
   if (!_installClientX509Validator()) {
     _freeSSL();
@@ -964,7 +991,9 @@ bool WiFiClientSecure::_connectSSL(const char* hostName) {
     DEBUG_BSSL("_connectSSL: Can't install x509 validator\n");
     return false;
   }
+Log_heap_size("_connectSSL 5");
   br_ssl_engine_set_buffers_bidi(_eng, _iobuf_in.get(), _iobuf_in_size, _iobuf_out.get(), _iobuf_out_size);
+Log_heap_size("_connectSSL 6");
 
   // Apply any client certificates, if supplied.
   if (_sk && _sk->isRSA()) {
@@ -981,19 +1010,23 @@ bool WiFiClientSecure::_connectSSL(const char* hostName) {
     return false;
 #endif
   }
+Log_heap_size("_connectSSL 7");
 
   // Restore session from the storage spot, if present
   if (_session) {
     br_ssl_engine_set_session_parameters(_eng, _session->getSession());
   }
+Log_heap_size("_connectSSL 8");
 
   if (!br_ssl_client_reset(_sc.get(), hostName, _session?1:0)) {
     _freeSSL();
     DEBUG_BSSL("_connectSSL: Can't reset client\n");
     return false;
   }
+Log_heap_size("_connectSSL 9");
 
   auto ret = _wait_for_handshake();
+Log_heap_size("_connectSSL 10");
 #ifdef DEBUG_ESP_SSL
   if (!ret) {
     char err[256];
@@ -1003,6 +1036,7 @@ bool WiFiClientSecure::_connectSSL(const char* hostName) {
     DEBUG_BSSL("Connected!\n");
   }
 #endif
+Log_heap_size("_connectSSL end");
   return ret;
 }
 
@@ -1043,12 +1077,16 @@ bool WiFiClientSecure::_installServerX509Validator(const X509List *client_CA_ta)
 bool WiFiClientSecure::_connectSSLServerRSA(const X509List *chain,
     const PrivateKey *sk,
     const X509List *client_CA_ta) {
+
+Log_heap_size("_connectSSLServerRSA 1");
   _freeSSL();
   _oom_err = false;
   _sc_svr = std::make_shared<br_ssl_server_context>();
+Log_heap_size("_connectSSLServerRSA 2");
   _eng = &_sc_svr->eng; // Allocation/deallocation taken care of by the _sc shared_ptr
   _iobuf_in = std::shared_ptr<unsigned char>(new unsigned char[_iobuf_in_size], std::default_delete<unsigned char[]>());
   _iobuf_out = std::shared_ptr<unsigned char>(new unsigned char[_iobuf_out_size], std::default_delete<unsigned char[]>());
+Log_heap_size("_connectSSLServerRSA 3");
 
   if (!_sc_svr || !_iobuf_in || !_iobuf_out) {
     _freeSSL();
@@ -1057,18 +1095,21 @@ bool WiFiClientSecure::_connectSSLServerRSA(const X509List *chain,
     return false;
   }
 
+Log_heap_size("_connectSSLServerRSA 4");
   br_ssl_server_init_full_rsa(_sc_svr.get(), chain ? chain->getX509Certs() : nullptr, chain ? chain->getCount() : 0, sk ? sk->getRSA() : nullptr);
   br_ssl_engine_set_buffers_bidi(_eng, _iobuf_in.get(), _iobuf_in_size, _iobuf_out.get(), _iobuf_out_size);
   if (client_CA_ta && !_installServerX509Validator(client_CA_ta)) {
     DEBUG_BSSL("_connectSSLServerRSA: Can't install serverX509check\n");
     return false;
   }
+Log_heap_size("_connectSSLServerRSA 5");
   if (!br_ssl_server_reset(_sc_svr.get())) {
     _freeSSL();
     DEBUG_BSSL("_connectSSLServerRSA: Can't reset server ctx\n");
     return false;
   }
 
+Log_heap_size("_connectSSLServerRSA 6");
   return _wait_for_handshake();
 }
 
