@@ -33,7 +33,7 @@ extern "C" {
 #include "debug.h"
 #include "ESP8266WiFi.h"
 #include "WiFiClient.h"
-#include "WiFiClientSecureBearSSL.h"
+#include "WiFiClientSecureLightBearSSL.h"
 #include "StackThunk.h"
 #include "lwip/opt.h"
 #include "lwip/ip.h"
@@ -81,7 +81,7 @@ void Log_fingerprint(const unsigned char *finger) {
 
 namespace BearSSL {
 
-void WiFiClientSecure::_clear() {
+void WiFiClientSecure_light::_clear() {
   // TLS handshake may take more than the 5 second default timeout
   _timeout = 15000;
 
@@ -105,7 +105,7 @@ void WiFiClientSecure::_clear() {
   _cipher_cnt = 0;
 }
 
-void WiFiClientSecure::_clearAuthenticationSettings() {
+void WiFiClientSecure_light::_clearAuthenticationSettings() {
   _use_insecure = false;
   _use_fingerprint = false;
   _use_self_signed = false;
@@ -118,19 +118,19 @@ void WiFiClientSecure::_clearAuthenticationSettings() {
 }
 
 
-WiFiClientSecure::WiFiClientSecure() : WiFiClient() {
+WiFiClientSecure_light::WiFiClientSecure_light() : WiFiClient() {
   _clear();
   _clearAuthenticationSettings();
   _certStore = nullptr; // Don't want to remove cert store on a clear, should be long lived
   stack_thunk_add_ref();
 }
 
-WiFiClientSecure::WiFiClientSecure(const WiFiClientSecure &rhs) : WiFiClient(rhs) {
+WiFiClientSecure_light::WiFiClientSecure_light(const WiFiClientSecure_light &rhs) : WiFiClient(rhs) {
   *this = rhs;
   stack_thunk_add_ref();
 }
 
-WiFiClientSecure::~WiFiClientSecure() {
+WiFiClientSecure_light::~WiFiClientSecure_light() {
   if (_client) {
     _client->unref();
     _client = nullptr;
@@ -145,12 +145,12 @@ WiFiClientSecure::~WiFiClientSecure() {
 }
 
 
-void WiFiClientSecure::setClientRSACert(const X509List *chain, const PrivateKey *sk) {
+void WiFiClientSecure_light::setClientRSACert(const X509List *chain, const PrivateKey *sk) {
   _chain = chain;
   _sk = sk;
 }
 
-void WiFiClientSecure::setClientECCert(const X509List *chain,
+void WiFiClientSecure_light::setClientECCert(const X509List *chain,
                                         const PrivateKey *sk, unsigned allowed_usages, unsigned cert_issuer_key_type) {
   _chain = chain;
   _sk = sk;
@@ -158,7 +158,7 @@ void WiFiClientSecure::setClientECCert(const X509List *chain,
   _cert_issuer_key_type = cert_issuer_key_type;
 }
 
-void WiFiClientSecure::setBufferSizes(int recv, int xmit) {
+void WiFiClientSecure_light::setBufferSizes(int recv, int xmit) {
 Log_heap_size("setBufferSizes");
   // Following constants taken from bearssl/src/ssl/ssl_engine.c (not exported unfortunately)
   const int MAX_OUT_OVERHEAD = 85;
@@ -175,31 +175,31 @@ Log_heap_size("setBufferSizes");
   _iobuf_out_size = xmit;
 }
 
-bool WiFiClientSecure::stop(unsigned int maxWaitMs) {
+bool WiFiClientSecure_light::stop(unsigned int maxWaitMs) {
   bool ret = WiFiClient::stop(maxWaitMs); // calls our virtual flush()
   // Only if we've already connected, store session params and clear the connection options
-  if (_handshake_done) {
-    if (_session) {
-      br_ssl_engine_get_session_parameters(_eng, _session->getSession());
-    }
-  }
+  // if (_handshake_done) {
+  //   if (_session) {
+  //     br_ssl_engine_get_session_parameters(_eng, _session->getSession());
+  //   }
+  // }
   _freeSSL();
   return ret;
 }
 
-bool WiFiClientSecure::flush(unsigned int maxWaitMs) {
+bool WiFiClientSecure_light::flush(unsigned int maxWaitMs) {
   (void) _run_until(BR_SSL_SENDAPP);
   return WiFiClient::flush(maxWaitMs);
 }
 
-int WiFiClientSecure::connect(IPAddress ip, uint16_t port) {
+int WiFiClientSecure_light::connect(IPAddress ip, uint16_t port) {
   if (!WiFiClient::connect(ip, port)) {
     return 0;
   }
   return _connectSSL(nullptr);
 }
 
-int WiFiClientSecure::connect(const char* name, uint16_t port) {
+int WiFiClientSecure_light::connect(const char* name, uint16_t port) {
   IPAddress remote_addr;
   if (!WiFi.hostByName(name, remote_addr)) {
     DEBUG_BSSL("connect: Name loopup failure\n");
@@ -212,11 +212,11 @@ int WiFiClientSecure::connect(const char* name, uint16_t port) {
   return _connectSSL(name);
 }
 
-int WiFiClientSecure::connect(const String& host, uint16_t port) {
+int WiFiClientSecure_light::connect(const String& host, uint16_t port) {
   return connect(host.c_str(), port);
 }
 
-void WiFiClientSecure::_freeSSL() {
+void WiFiClientSecure_light::_freeSSL() {
   // These are smart pointers and will free if refcnt==0
   _sc = nullptr;
   _sc_svr = nullptr;
@@ -233,18 +233,18 @@ void WiFiClientSecure::_freeSSL() {
   _handshake_done = false;
 }
 
-bool WiFiClientSecure::_clientConnected() {
+bool WiFiClientSecure_light::_clientConnected() {
   return (_client && _client->state() == ESTABLISHED);
 }
 
-uint8_t WiFiClientSecure::connected() {
+uint8_t WiFiClientSecure_light::connected() {
   if (available() || (_clientConnected() && _handshake_done)) {
     return true;
   }
   return false;
 }
 
-size_t WiFiClientSecure::_write(const uint8_t *buf, size_t size, bool pmem) {
+size_t WiFiClientSecure_light::_write(const uint8_t *buf, size_t size, bool pmem) {
   size_t sent_bytes = 0;
 
   if (!connected() || !size || !_handshake_done) {
@@ -285,16 +285,16 @@ size_t WiFiClientSecure::_write(const uint8_t *buf, size_t size, bool pmem) {
   return sent_bytes;
 }
 
-size_t WiFiClientSecure::write(const uint8_t *buf, size_t size) {
+size_t WiFiClientSecure_light::write(const uint8_t *buf, size_t size) {
   return _write(buf, size, false);
 }
 
-size_t WiFiClientSecure::write_P(PGM_P buf, size_t size) {
+size_t WiFiClientSecure_light::write_P(PGM_P buf, size_t size) {
   return _write((const uint8_t *)buf, size, true);
 }
 
 // We have to manually read and send individual chunks.
-size_t WiFiClientSecure::write(Stream& stream) {
+size_t WiFiClientSecure_light::write(Stream& stream) {
   size_t totalSent = 0;
   size_t countRead;
   size_t countSent;
@@ -317,7 +317,7 @@ size_t WiFiClientSecure::write(Stream& stream) {
   return totalSent;
 }
 
-int WiFiClientSecure::read(uint8_t *buf, size_t size) {
+int WiFiClientSecure_light::read(uint8_t *buf, size_t size) {
   if (!ctx_present() || !_handshake_done) {
     return -1;
   }
@@ -349,7 +349,7 @@ int WiFiClientSecure::read(uint8_t *buf, size_t size) {
   return 0; // If we're connected, no error but no read.
 }
 
-int WiFiClientSecure::read() {
+int WiFiClientSecure_light::read() {
   uint8_t c;
   if (1 == read(&c, 1)) {
     return c;
@@ -358,7 +358,7 @@ int WiFiClientSecure::read() {
   return -1;
 }
 
-int WiFiClientSecure::available() {
+int WiFiClientSecure_light::available() {
   if (_recvapp_buf) {
     return _recvapp_len;  // Anything from last call?
   }
@@ -379,7 +379,7 @@ int WiFiClientSecure::available() {
   return 0;
 }
 
-int WiFiClientSecure::peek() {
+int WiFiClientSecure_light::peek() {
   if (!ctx_present() || !available()) {
     DEBUG_BSSL("peek: Not connected, none left available\n");
     return -1;
@@ -391,7 +391,7 @@ int WiFiClientSecure::peek() {
   return -1;
 }
 
-size_t WiFiClientSecure::peekBytes(uint8_t *buffer, size_t length) {
+size_t WiFiClientSecure_light::peekBytes(uint8_t *buffer, size_t length) {
   size_t to_copy = 0;
   if (!ctx_present()) {
     DEBUG_BSSL("peekBytes: Not connected\n");
@@ -414,7 +414,7 @@ size_t WiFiClientSecure::peekBytes(uint8_t *buffer, size_t length) {
    combination of both (the combination matches either). When a match is
    achieved, this function returns 0. On error, it returns -1.
 */
-int WiFiClientSecure::_run_until(unsigned target, bool blocking) {
+int WiFiClientSecure_light::_run_until(unsigned target, bool blocking) {
   if (!ctx_present()) {
     DEBUG_BSSL("_run_until: Not connected\n");
     return -1;
@@ -522,7 +522,7 @@ int WiFiClientSecure::_run_until(unsigned target, bool blocking) {
   return -1;
 }
 
-bool WiFiClientSecure::_wait_for_handshake() {
+bool WiFiClientSecure_light::_wait_for_handshake() {
   _handshake_done = false;
   while (!_handshake_done && _clientConnected()) {
     int ret = _run_until(BR_SSL_SENDAPP);
@@ -547,7 +547,7 @@ static uint8_t htoi (unsigned char c)
 }
 
 // Set a fingerprint by parsing an ASCII string
-bool WiFiClientSecure::setFingerprint(const char *fpStr) {
+bool WiFiClientSecure_light::setFingerprint(const char *fpStr) {
   int idx = 0;
   uint8_t c, d;
   uint8_t fp[20];
@@ -588,7 +588,7 @@ extern "C" {
   // "verify" the certificate.
 
   // Private x509 decoder state
-  struct br_x509_insecure_context {
+  struct /*br_x509_insecure_context*/ br_x509_pubkeyfingerprint_context {
     const br_x509_class *vtable;
     bool done_cert;
     const uint8_t *match_fingerprint;
@@ -600,21 +600,21 @@ extern "C" {
   };
 
   // Callback for the x509_minimal subject DN
-  static void insecure_subject_dn_append(void *ctx, const void *buf, size_t len) {
-    br_x509_insecure_context *xc = (br_x509_insecure_context *)ctx;
+  static void pubkeyfingerprint_subject_dn_append(void *ctx, const void *buf, size_t len) {
+    br_x509_pubkeyfingerprint_context *xc = (br_x509_pubkeyfingerprint_context *)ctx;
     br_sha256_update(&xc->sha256_subject, buf, len);
   }
 
   // Callback for the x509_minimal issuer DN
-  static void insecure_issuer_dn_append(void *ctx, const void *buf, size_t len) {
-    br_x509_insecure_context *xc = (br_x509_insecure_context *)ctx;
+  static void pubkeyfingerprint_issuer_dn_append(void *ctx, const void *buf, size_t len) {
+    br_x509_pubkeyfingerprint_context *xc = (br_x509_pubkeyfingerprint_context *)ctx;
     br_sha256_update(&xc->sha256_issuer, buf, len);
   }
 
   // Callback on the first byte of any certificate
-  static void insecure_start_chain(const br_x509_class **ctx, const char *server_name) {
-    br_x509_insecure_context *xc = (br_x509_insecure_context *)ctx;
-    br_x509_decoder_init(&xc->ctx, insecure_subject_dn_append, xc, insecure_issuer_dn_append, xc);
+  static void pubkeyfingerprint_start_chain(const br_x509_class **ctx, const char *server_name) {
+    br_x509_pubkeyfingerprint_context *xc = (br_x509_pubkeyfingerprint_context *)ctx;
+    br_x509_decoder_init(&xc->ctx, pubkeyfingerprint_subject_dn_append, xc, pubkeyfingerprint_issuer_dn_append, xc);
     xc->done_cert = false;
     br_sha1_init(&xc->sha1_cert);
     br_sha256_init(&xc->sha256_subject);
@@ -624,14 +624,14 @@ extern "C" {
 
   // Callback for each certificate present in the chain (but only operates
   // on the first one by design).
-  static void insecure_start_cert(const br_x509_class **ctx, uint32_t length) {
+  static void pubkeyfingerprint_start_cert(const br_x509_class **ctx, uint32_t length) {
     (void) ctx;
     (void) length;
   }
 
   // Callback for each byte stream in the chain.  Only process first cert.
-  static void insecure_append(const br_x509_class **ctx, const unsigned char *buf, size_t len) {
-    br_x509_insecure_context *xc = (br_x509_insecure_context *)ctx;
+  static void pubkeyfingerprint_append(const br_x509_class **ctx, const unsigned char *buf, size_t len) {
+    br_x509_pubkeyfingerprint_context *xc = (br_x509_pubkeyfingerprint_context *)ctx;
     // Don't process anything but the first certificate in the chain
     if (!xc->done_cert) {
       br_sha1_update(&xc->sha1_cert, buf, len);
@@ -640,17 +640,17 @@ extern "C" {
   }
 
   // Callback on individual cert end.
-  static void insecure_end_cert(const br_x509_class **ctx) {
-    br_x509_insecure_context *xc = (br_x509_insecure_context *)ctx;
+  static void pubkeyfingerprint_end_cert(const br_x509_class **ctx) {
+    br_x509_pubkeyfingerprint_context *xc = (br_x509_pubkeyfingerprint_context *)ctx;
     xc->done_cert = true;
   }
 
   // Callback when complete chain has been parsed.
   // Return 0 on validation success, !0 on validation error
-  static unsigned insecure_end_chain(const br_x509_class **ctx) {
-    const br_x509_insecure_context *xc = (const br_x509_insecure_context *)ctx;
+  static unsigned pubkeyfingerprint_end_chain(const br_x509_class **ctx) {
+    const br_x509_pubkeyfingerprint_context *xc = (const br_x509_pubkeyfingerprint_context *)ctx;
     if (!xc->done_cert) {
-      DEBUG_BSSL("insecure_end_chain: No cert seen\n");
+      DEBUG_BSSL("pubkeyfingerprint_end_chain: No cert seen\n");
       return 1; // error
     }
 
@@ -660,7 +660,7 @@ extern "C" {
   Log_fingerprint((unsigned char*)res);
   if (xc->match_fingerprint) Log_fingerprint(xc->match_fingerprint);
     if (xc->match_fingerprint && memcmp(res, xc->match_fingerprint, sizeof(res))) {
-      DEBUG_BSSL("insecure_end_chain: Received cert FP doesn't match\n");
+      DEBUG_BSSL("pubkeyfingerprint_end_chain: Received cert FP doesn't match\n");
       return BR_ERR_X509_NOT_TRUSTED;
     }
 
@@ -670,7 +670,7 @@ extern "C" {
     br_sha256_out(&xc->sha256_issuer, res_issuer);
     br_sha256_out(&xc->sha256_subject, res_subject);
     if (xc->allow_self_signed && memcmp(res_subject, res_issuer, sizeof(res_issuer))) {
-      DEBUG_BSSL("insecure_end_chain: Didn't get self-signed cert\n");
+      DEBUG_BSSL("pubkeyfingerprint_end_chain: Didn't get self-signed cert\n");
       return BR_ERR_X509_NOT_TRUSTED;
     }
 
@@ -679,9 +679,9 @@ extern "C" {
   }
 
   // Return the public key from the validator (set by x509_minimal)
-  static const br_x509_pkey *insecure_get_pkey(const br_x509_class *const *ctx, unsigned *usages) {
-      const br_x509_insecure_context *xc = (const br_x509_insecure_context *)ctx;
-// Let's dump the public key and hash
+  static const br_x509_pkey *pubkeyfingerprint_get_pkey(const br_x509_class *const *ctx, unsigned *usages) {
+     const br_x509_pubkeyfingerprint_context *xc = (const br_x509_pubkeyfingerprint_context *)ctx;
+//Let's dump the public key and hash
 {
 br_x509_pkey pkey = xc->ctx.pkey;
 if ((0) && (BR_KEYTYPE_RSA == pkey.key_type)) {
@@ -714,19 +714,19 @@ if ((0) && (BR_KEYTYPE_RSA == pkey.key_type)) {
   }
 
   //  Set up the x509 insecure data structures for BearSSL core to use.
-  void br_x509_insecure_init(br_x509_insecure_context *ctx, int _use_fingerprint, const uint8_t _fingerprint[20], int _allow_self_signed) {
-    static const br_x509_class br_x509_insecure_vtable PROGMEM = {
-      sizeof(br_x509_insecure_context),
-      insecure_start_chain,
-      insecure_start_cert,
-      insecure_append,
-      insecure_end_cert,
-      insecure_end_chain,
-      insecure_get_pkey
+  void br_x509_pubkeyfingerprint_init(br_x509_pubkeyfingerprint_context *ctx, int _use_fingerprint, const uint8_t _fingerprint[20], int _allow_self_signed) {
+    static const br_x509_class br_x509_pubkeyfingerprint_vtable PROGMEM = {
+      sizeof(br_x509_pubkeyfingerprint_context),
+      pubkeyfingerprint_start_chain,
+      pubkeyfingerprint_start_cert,
+      pubkeyfingerprint_append,
+      pubkeyfingerprint_end_cert,
+      pubkeyfingerprint_end_chain,
+      pubkeyfingerprint_get_pkey
     };
 
     memset(ctx, 0, sizeof * ctx);
-    ctx->vtable = &br_x509_insecure_vtable;
+    ctx->vtable = &br_x509_pubkeyfingerprint_vtable;
     ctx->done_cert = false;
     ctx->match_fingerprint = _use_fingerprint ? _fingerprint : nullptr;
     ctx->allow_self_signed = _allow_self_signed ? 1 : 0;
@@ -845,7 +845,7 @@ if ((0) && (BR_KEYTYPE_RSA == pkey.key_type)) {
 }
 
 // Set custom list of ciphers
-bool WiFiClientSecure::setCiphers(const uint16_t *cipherAry, int cipherCount) {
+bool WiFiClientSecure_light::setCiphers(const uint16_t *cipherAry, int cipherCount) {
   _cipher_list = nullptr;
   _cipher_list = std::shared_ptr<uint16_t>(new uint16_t[cipherCount], std::default_delete<uint16_t[]>());
   if (!_cipher_list.get()) {
@@ -857,20 +857,20 @@ bool WiFiClientSecure::setCiphers(const uint16_t *cipherAry, int cipherCount) {
   return true;
 }
 
-bool WiFiClientSecure::setCiphers(std::vector<uint16_t> list) {
+bool WiFiClientSecure_light::setCiphers(std::vector<uint16_t> list) {
   return setCiphers(&list[0], list.size());
 }
 
 // Installs the appropriate X509 cert validation method for a client connection
-bool WiFiClientSecure::_installClientX509Validator() {
+bool WiFiClientSecure_light::_installClientX509Validator() {
   if (_use_insecure || _use_fingerprint || _use_self_signed) {
     // Use common insecure x509 authenticator
-    _x509_insecure = std::make_shared<struct br_x509_insecure_context>();
+    _x509_insecure = std::make_shared<struct br_x509_pubkeyfingerprint_context>();
     if (!_x509_insecure) {
       DEBUG_BSSL("_installClientX509Validator: OOM for _x509_insecure\n");
       return false;
     }
-    br_x509_insecure_init(_x509_insecure.get(), _use_fingerprint, _fingerprint, _use_self_signed);
+    br_x509_pubkeyfingerprint_init(_x509_insecure.get(), _use_fingerprint, _fingerprint, _use_self_signed);
     br_ssl_engine_set_x509(_eng, &_x509_insecure->vtable);
   } else if (_knownkey) {
     // Simple, pre-known public key authenticator, ignores cert completely.
@@ -919,7 +919,7 @@ bool WiFiClientSecure::_installClientX509Validator() {
 
 // Called by connect() to do the actual SSL setup and handshake.
 // Returns if the SSL handshake succeeded.
-bool WiFiClientSecure::_connectSSL(const char* hostName) {
+bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
   DEBUG_BSSL("_connectSSL: start connection\n");
   _freeSSL();
   _oom_err = false;
@@ -981,9 +981,9 @@ Log_heap_size("_connectSSL 6");
 Log_heap_size("_connectSSL 7");
 
   // Restore session from the storage spot, if present
-  if (_session) {
-    br_ssl_engine_set_session_parameters(_eng, _session->getSession());
-  }
+  // if (_session) {
+  //   br_ssl_engine_set_session_parameters(_eng, _session->getSession());
+  // }
 Log_heap_size("_connectSSL 8");
 
   if (!br_ssl_client_reset(_sc.get(), hostName, _session?1:0)) {
@@ -1010,7 +1010,7 @@ Log_heap_size("_connectSSL end");
 
 // Slightly different X509 setup for servers who want to validate client
 // certificates, so factor it out as it's used in RSA and EC servers.
-bool WiFiClientSecure::_installServerX509Validator(const X509List *client_CA_ta) {
+bool WiFiClientSecure_light::_installServerX509Validator(const X509List *client_CA_ta) {
   if (client_CA_ta) {
     _ta = client_CA_ta;
     // X509 minimal validator.  Checks dates, cert chain for trusted CA, etc.
@@ -1044,7 +1044,7 @@ bool WiFiClientSecure::_installServerX509Validator(const X509List *client_CA_ta)
 
 // Returns an error ID and possibly a string (if dest != null) of the last
 // BearSSL reported error.
-int WiFiClientSecure::getLastSSLError(char *dest, size_t len) {
+int WiFiClientSecure_light::getLastSSLError(char *dest, size_t len) {
   int err = 0;
   const char *t = PSTR("OK");
   if (_sc || _sc_svr) {
@@ -1122,17 +1122,17 @@ int WiFiClientSecure::getLastSSLError(char *dest, size_t len) {
   return err;
 }
 
-bool WiFiClientSecure::probeMaxFragmentLength(const char* name, uint16_t port, uint16_t len) {
+bool WiFiClientSecure_light::probeMaxFragmentLength(const char* name, uint16_t port, uint16_t len) {
   IPAddress remote_addr;
   if (!WiFi.hostByName(name, remote_addr)) {
     DEBUG_BSSL("probeMaxFragmentLength: Can't resolve host\n");
     return false;
   }
-  return WiFiClientSecure::probeMaxFragmentLength(remote_addr, port, len);
+  return WiFiClientSecure_light::probeMaxFragmentLength(remote_addr, port, len);
 }
 
-bool WiFiClientSecure::probeMaxFragmentLength(const String& host, uint16_t port, uint16_t len) {
-  return WiFiClientSecure::probeMaxFragmentLength(host.c_str(), port, len);
+bool WiFiClientSecure_light::probeMaxFragmentLength(const String& host, uint16_t port, uint16_t len) {
+  return WiFiClientSecure_light::probeMaxFragmentLength(host.c_str(), port, len);
 }
 
 
@@ -1168,7 +1168,7 @@ static bool _SendAbort(WiFiClient& probe, bool supportsLen) {
 // TODO - Check the type of returned extensions and that the MFL is the exact
 //      same one we sent.  Not critical as only horribly broken servers would
 //      return changed or add their own extensions.
-bool WiFiClientSecure::probeMaxFragmentLength(IPAddress ip, uint16_t port, uint16_t len) {
+bool WiFiClientSecure_light::probeMaxFragmentLength(IPAddress ip, uint16_t port, uint16_t len) {
   // Hardcoded TLS 1.2 packets used throughout
   static const uint8_t clientHelloHead_P[] PROGMEM = {
     0x16, 0x03, 0x03, 0x00, 0, // TLS header, change last 2 bytes to len
@@ -1364,21 +1364,21 @@ bool WiFiClientSecure::probeMaxFragmentLength(IPAddress ip, uint16_t port, uint1
 
 
 // AXTLS compatibility interfaces
-bool WiFiClientSecure::setCACert(const uint8_t* pk, size_t size) {
+bool WiFiClientSecure_light::setCACert(const uint8_t* pk, size_t size) {
   _axtls_ta = nullptr;
   _axtls_ta = std::shared_ptr<X509List>(new X509List(pk, size));
   _ta = _axtls_ta.get();
   return _ta ? true : false;
 }
 
-bool WiFiClientSecure::setCertificate(const uint8_t* pk, size_t size) {
+bool WiFiClientSecure_light::setCertificate(const uint8_t* pk, size_t size) {
   _axtls_chain = nullptr;
   _axtls_chain = std::shared_ptr<X509List>(new X509List(pk, size));
   _chain = _axtls_chain.get();
   return _chain ? true : false;
 }
 
-bool WiFiClientSecure::setPrivateKey(const uint8_t* pk, size_t size) {
+bool WiFiClientSecure_light::setPrivateKey(const uint8_t* pk, size_t size) {
   _axtls_sk = nullptr;
   _axtls_sk = std::shared_ptr<PrivateKey>(new PrivateKey(pk, size));
   _sk = _axtls_sk.get();
@@ -1386,7 +1386,7 @@ bool WiFiClientSecure::setPrivateKey(const uint8_t* pk, size_t size) {
 
 }
 
-uint8_t *WiFiClientSecure::_streamLoad(Stream& stream, size_t size) {
+uint8_t *WiFiClientSecure_light::_streamLoad(Stream& stream, size_t size) {
   uint8_t *dest = (uint8_t*)malloc(size);
   if (!dest) {
     return nullptr;
@@ -1398,7 +1398,7 @@ uint8_t *WiFiClientSecure::_streamLoad(Stream& stream, size_t size) {
   return dest;
 }
 
-bool WiFiClientSecure::loadCACert(Stream& stream, size_t size) {
+bool WiFiClientSecure_light::loadCACert(Stream& stream, size_t size) {
   uint8_t *dest = _streamLoad(stream, size);
   bool ret = false;
   if (dest) {
@@ -1411,7 +1411,7 @@ bool WiFiClientSecure::loadCACert(Stream& stream, size_t size) {
   return ret;
 }
 
-bool WiFiClientSecure::loadCertificate(Stream& stream, size_t size) {
+bool WiFiClientSecure_light::loadCertificate(Stream& stream, size_t size) {
   uint8_t *dest = _streamLoad(stream, size);
   bool ret = false;
   if (dest) {
@@ -1424,7 +1424,7 @@ bool WiFiClientSecure::loadCertificate(Stream& stream, size_t size) {
   return ret;
 }
 
-bool WiFiClientSecure::loadPrivateKey(Stream& stream, size_t size) {
+bool WiFiClientSecure_light::loadPrivateKey(Stream& stream, size_t size) {
   uint8_t *dest = _streamLoad(stream, size);
   bool ret = false;
   if (dest) {

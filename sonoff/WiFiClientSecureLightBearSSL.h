@@ -21,8 +21,8 @@
 */
 
 
-#ifndef wificlientbearssl_h
-#define wificlientbearssl_h
+#ifndef wificlientlightbearssl_h
+#define wificlientlightbearssl_h
 #include <vector>
 #include "WiFiClient.h"
 #include <bearssl/bearssl.h>
@@ -31,11 +31,11 @@
 
 namespace BearSSL {
 
-class WiFiClientSecure : public WiFiClient {
+class WiFiClientSecure_light : public WiFiClient {
   public:
-    WiFiClientSecure();
-    WiFiClientSecure(const WiFiClientSecure &rhs);
-    ~WiFiClientSecure() override;
+    WiFiClientSecure_light();
+    WiFiClientSecure_light(const WiFiClientSecure_light &rhs);
+    ~WiFiClientSecure_light() override;
 
     int connect(IPAddress ip, uint16_t port) override;
     int connect(const String& host, uint16_t port) override;
@@ -202,7 +202,7 @@ class WiFiClientSecure : public WiFiClient {
     }
     br_ssl_engine_context *_eng; // &_sc->eng, to allow for client or server contexts
     std::shared_ptr<br_x509_minimal_context> _x509_minimal;
-    std::shared_ptr<struct br_x509_insecure_context> _x509_insecure;
+    std::shared_ptr<struct br_x509_pubkeyfingerprint_context> _x509_insecure;
     std::shared_ptr<br_x509_knownkey_context> _x509_knownkey;
     std::shared_ptr<unsigned char> _iobuf_in;
     std::shared_ptr<unsigned char> _iobuf_out;
