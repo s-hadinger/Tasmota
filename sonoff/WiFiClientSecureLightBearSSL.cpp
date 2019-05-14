@@ -44,7 +44,9 @@ extern "C" {
 #include "c_types.h"
 #include "coredecls.h"
 
+#define DEBUG_TLS
 
+#ifdef DEBUG_TLS
 void Log_heap_size(const char *msg) {
   Serial.printf("%s %d\n", msg, ESP.getFreeHeap());
 }
@@ -57,6 +59,7 @@ void Log_fingerprint(const unsigned char *finger) {
   }
   Serial.printf("Fingerprint = %s\n", fingerprint);
 }
+#endif
 
 
 #if !CORE_MOCK
@@ -83,7 +86,7 @@ namespace BearSSL {
 
 void WiFiClientSecure_light::_clear() {
   // TLS handshake may take more than the 5 second default timeout
-  _timeout = 15000;
+  _timeout = 10000;   // 10 seconds max, it should never go over 6 seconds
 
   _sc = nullptr;
   _sc_svr = nullptr;
@@ -94,13 +97,11 @@ void WiFiClientSecure_light::_clear() {
   _iobuf_in = nullptr;
   _iobuf_out = nullptr;
   _now = 0; // You can override or ensure time() is correct w/configTime
-  _ta = nullptr;
-  setBufferSizes(16384, 512); // Minimum safe
+  setBufferSizes(1024, 1024); // reasonable minimum
   _handshake_done = false;
   _recvapp_buf = nullptr;
   _recvapp_len = 0;
   _oom_err = false;
-  _session = nullptr;
   _cipher_list = nullptr;
   _cipher_cnt = 0;
 }
@@ -108,27 +109,19 @@ void WiFiClientSecure_light::_clear() {
 void WiFiClientSecure_light::_clearAuthenticationSettings() {
   _use_insecure = false;
   _use_fingerprint = false;
-  _use_self_signed = false;
-  _knownkey = nullptr;
   _sk = nullptr;
-  _ta = nullptr;
-  _axtls_ta = nullptr;
-  _axtls_chain = nullptr;
-  _axtls_sk = nullptr;
 }
 
-
-WiFiClientSecure_light::WiFiClientSecure_light() : WiFiClient() {
+// Constructor
+WiFiClientSecure_light::WiFiClientSecure_light(int recv, int xmit) : WiFiClient() {
   _clear();
   _clearAuthenticationSettings();
-  _certStore = nullptr; // Don't want to remove cert store on a clear, should be long lived
   stack_thunk_add_ref();
+  // now finish the setup
+  setBufferSizes(1024, 1024); // reasonable minimum
+
 }
 
-WiFiClientSecure_light::WiFiClientSecure_light(const WiFiClientSecure_light &rhs) : WiFiClient(rhs) {
-  *this = rhs;
-  stack_thunk_add_ref();
-}
 
 WiFiClientSecure_light::~WiFiClientSecure_light() {
   if (_client) {
@@ -138,24 +131,12 @@ WiFiClientSecure_light::~WiFiClientSecure_light() {
   _cipher_list = nullptr; // std::shared will free if last reference
   _freeSSL();
   stack_thunk_del_ref();
-  // Clean up any dangling axtls compat structures, if needed
-  _axtls_ta = nullptr;
-  _axtls_chain = nullptr;
-  _axtls_sk = nullptr;
 }
 
 
 void WiFiClientSecure_light::setClientRSACert(const X509List *chain, const PrivateKey *sk) {
   _chain = chain;
   _sk = sk;
-}
-
-void WiFiClientSecure_light::setClientECCert(const X509List *chain,
-                                        const PrivateKey *sk, unsigned allowed_usages, unsigned cert_issuer_key_type) {
-  _chain = chain;
-  _sk = sk;
-  _allowed_usages = allowed_usages;
-  _cert_issuer_key_type = cert_issuer_key_type;
 }
 
 void WiFiClientSecure_light::setBufferSizes(int recv, int xmit) {
@@ -547,7 +528,7 @@ static uint8_t htoi (unsigned char c)
 }
 
 // Set a fingerprint by parsing an ASCII string
-bool WiFiClientSecure_light::setFingerprint(const char *fpStr) {
+bool WiFiClientSecure_light::setPubKeyFingerprint(const char *fpStr) {
   int idx = 0;
   uint8_t c, d;
   uint8_t fp[20];
@@ -577,7 +558,7 @@ bool WiFiClientSecure_light::setFingerprint(const char *fpStr) {
     DEBUG_BSSL("setFingerprint: Garbage at end of fp\n");
     return false; // Garbage at EOL or we didn't have enough hex digits
   }
-  return setFingerprint(fp);
+  return setPubKeyFingerprint(fp);
 }
 
 extern "C" {
@@ -863,33 +844,21 @@ bool WiFiClientSecure_light::setCiphers(std::vector<uint16_t> list) {
 
 // Installs the appropriate X509 cert validation method for a client connection
 bool WiFiClientSecure_light::_installClientX509Validator() {
-  if (_use_insecure || _use_fingerprint || _use_self_signed) {
+  if (_use_insecure || _use_fingerprint) {
     // Use common insecure x509 authenticator
     _x509_insecure = std::make_shared<struct br_x509_pubkeyfingerprint_context>();
     if (!_x509_insecure) {
       DEBUG_BSSL("_installClientX509Validator: OOM for _x509_insecure\n");
       return false;
     }
-    br_x509_pubkeyfingerprint_init(_x509_insecure.get(), _use_fingerprint, _fingerprint, _use_self_signed);
+    br_x509_pubkeyfingerprint_init(_x509_insecure.get(), _use_fingerprint, _fingerprint, true);
     br_ssl_engine_set_x509(_eng, &_x509_insecure->vtable);
-  } else if (_knownkey) {
+  } else if (0) {
     // Simple, pre-known public key authenticator, ignores cert completely.
     _x509_knownkey = std::make_shared<br_x509_knownkey_context>();
     if (!_x509_knownkey) {
       DEBUG_BSSL("_installClientX509Validator: OOM for _x509_knownkey\n");
       return false;
-    }
-    if (_knownkey->isRSA()) {
-      br_x509_knownkey_init_rsa(_x509_knownkey.get(), _knownkey->getRSA(), _knownkey_usages);
-    } else if (_knownkey->isEC()) {
-#ifndef BEARSSL_SSL_BASIC
-      br_x509_knownkey_init_ec(_x509_knownkey.get(), _knownkey->getEC(), _knownkey_usages);
-#else
-      (void) _knownkey;
-      (void) _knownkey_usages;
-      DEBUG_BSSL("_installClientX509Validator: Attempting to use EC keys in minimal cipher mode (no EC)\n");
-      return false;
-#endif
     }
     br_ssl_engine_set_x509(_eng, &_x509_knownkey->vtable);
   } else {
@@ -899,7 +868,7 @@ bool WiFiClientSecure_light::_installClientX509Validator() {
       DEBUG_BSSL("_installClientX509Validator: OOM for _x509_minimal\n");
       return false;
     }
-    br_x509_minimal_init(_x509_minimal.get(), &br_sha256_vtable, _ta ? _ta->getTrustAnchors() : nullptr, _ta ? _ta->getCount() : 0);
+    //br_x509_minimal_init(_x509_minimal.get(), &br_sha256_vtable, _ta ? _ta->getTrustAnchors() : nullptr, _ta ? _ta->getCount() : 0);
     br_x509_minimal_set_rsa(_x509_minimal.get(), br_ssl_engine_get_rsavrfy(_eng));
 #ifndef BEARSSL_SSL_BASIC
     br_x509_minimal_set_ecdsa(_x509_minimal.get(), br_ssl_engine_get_ec(_eng), br_ssl_engine_get_ecdsa(_eng));
@@ -908,9 +877,6 @@ bool WiFiClientSecure_light::_installClientX509Validator() {
     if (_now) {
       // Magic constants convert to x509 times
       br_x509_minimal_set_time(_x509_minimal.get(), ((uint32_t)_now) / 86400 + 719528, ((uint32_t)_now) % 86400);
-    }
-    if (_certStore) {
-      _certStore->installCertStore(_x509_minimal.get());
     }
     br_ssl_engine_set_x509(_eng, &_x509_minimal->vtable);
   }
@@ -924,12 +890,6 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
   _freeSSL();
   _oom_err = false;
 Log_heap_size("_connectSSL 1");
-#ifdef DEBUG_ESP_SSL
-  // BearSSL will reject all connections unless an authentication option is set, warn in DEBUG builds
-  if (!_use_insecure && !_use_fingerprint && !_use_self_signed && !_knownkey && !_certStore && !_ta) {
-    DEBUG_BSSL("Connection *will* fail, no authentication method is setup\n");
-  }
-#endif
 
   _sc = std::make_shared<br_ssl_client_context>();
 Log_heap_size("_connectSSL 2");
@@ -980,13 +940,7 @@ Log_heap_size("_connectSSL 6");
   }
 Log_heap_size("_connectSSL 7");
 
-  // Restore session from the storage spot, if present
-  // if (_session) {
-  //   br_ssl_engine_set_session_parameters(_eng, _session->getSession());
-  // }
-Log_heap_size("_connectSSL 8");
-
-  if (!br_ssl_client_reset(_sc.get(), hostName, _session?1:0)) {
+  if (!br_ssl_client_reset(_sc.get(), hostName, 0)) {
     _freeSSL();
     DEBUG_BSSL("_connectSSL: Can't reset client\n");
     return false;
@@ -1007,40 +961,6 @@ Log_heap_size("_connectSSL 10");
 Log_heap_size("_connectSSL end");
   return ret;
 }
-
-// Slightly different X509 setup for servers who want to validate client
-// certificates, so factor it out as it's used in RSA and EC servers.
-bool WiFiClientSecure_light::_installServerX509Validator(const X509List *client_CA_ta) {
-  if (client_CA_ta) {
-    _ta = client_CA_ta;
-    // X509 minimal validator.  Checks dates, cert chain for trusted CA, etc.
-    _x509_minimal = std::make_shared<br_x509_minimal_context>();
-    if (!_x509_minimal) {
-      _freeSSL();
-      _oom_err = true;
-      DEBUG_BSSL("_installServerX509Validator: OOM for _x509_minimal\n");
-      return false;
-    }
-    br_x509_minimal_init(_x509_minimal.get(), &br_sha256_vtable, _ta->getTrustAnchors(), _ta->getCount());
-    br_ssl_engine_set_default_rsavrfy(_eng);
-#ifndef BEARSSL_SSL_BASIC
-    br_ssl_engine_set_default_ecdsa(_eng);
-#endif
-    br_x509_minimal_set_rsa(_x509_minimal.get(), br_ssl_engine_get_rsavrfy(_eng));
-#ifndef BEARSSL_SSL_BASIC
-    br_x509_minimal_set_ecdsa(_x509_minimal.get(), br_ssl_engine_get_ec(_eng), br_ssl_engine_get_ecdsa(_eng));
-#endif
-    br_x509_minimal_install_hashes(_x509_minimal.get());
-    if (_now) {
-      // Magic constants convert to x509 times
-      br_x509_minimal_set_time(_x509_minimal.get(), ((uint32_t)_now) / 86400 + 719528, ((uint32_t)_now) % 86400);
-    }
-    br_ssl_engine_set_x509(_eng, &_x509_minimal->vtable);
-    br_ssl_server_set_trust_anchor_names_alt(_sc_svr.get(), _ta->getTrustAnchors(), _ta->getCount());
-  }
-  return true;
-}
-
 
 // Returns an error ID and possibly a string (if dest != null) of the last
 // BearSSL reported error.
@@ -1360,81 +1280,6 @@ bool WiFiClientSecure_light::probeMaxFragmentLength(IPAddress ip, uint16_t port,
     }
   }
   return _SendAbort(probe, supportsLen);
-}
-
-
-// AXTLS compatibility interfaces
-bool WiFiClientSecure_light::setCACert(const uint8_t* pk, size_t size) {
-  _axtls_ta = nullptr;
-  _axtls_ta = std::shared_ptr<X509List>(new X509List(pk, size));
-  _ta = _axtls_ta.get();
-  return _ta ? true : false;
-}
-
-bool WiFiClientSecure_light::setCertificate(const uint8_t* pk, size_t size) {
-  _axtls_chain = nullptr;
-  _axtls_chain = std::shared_ptr<X509List>(new X509List(pk, size));
-  _chain = _axtls_chain.get();
-  return _chain ? true : false;
-}
-
-bool WiFiClientSecure_light::setPrivateKey(const uint8_t* pk, size_t size) {
-  _axtls_sk = nullptr;
-  _axtls_sk = std::shared_ptr<PrivateKey>(new PrivateKey(pk, size));
-  _sk = _axtls_sk.get();
-  return _sk ? true : false;
-
-}
-
-uint8_t *WiFiClientSecure_light::_streamLoad(Stream& stream, size_t size) {
-  uint8_t *dest = (uint8_t*)malloc(size);
-  if (!dest) {
-    return nullptr;
-  }
-  if (size != stream.readBytes(dest, size)) {
-    free(dest);
-    return nullptr;
-  }
-  return dest;
-}
-
-bool WiFiClientSecure_light::loadCACert(Stream& stream, size_t size) {
-  uint8_t *dest = _streamLoad(stream, size);
-  bool ret = false;
-  if (dest) {
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored  "-Wdeprecated-declarations"
-    ret = setCACert(dest, size);
-#pragma GCC diagnostic pop
-  }
-  free(dest);
-  return ret;
-}
-
-bool WiFiClientSecure_light::loadCertificate(Stream& stream, size_t size) {
-  uint8_t *dest = _streamLoad(stream, size);
-  bool ret = false;
-  if (dest) {
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored  "-Wdeprecated-declarations"
-    ret = setCertificate(dest, size);
-#pragma GCC diagnostic pop
-  }
-  free(dest);
-  return ret;
-}
-
-bool WiFiClientSecure_light::loadPrivateKey(Stream& stream, size_t size) {
-  uint8_t *dest = _streamLoad(stream, size);
-  bool ret = false;
-  if (dest) {
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored  "-Wdeprecated-declarations"
-    ret = setPrivateKey(dest, size);
-#pragma GCC diagnostic pop
-  }
-  free(dest);
-  return ret;
 }
 
 };
