@@ -38,7 +38,7 @@ uint32_t stack_thunk_refcnt = 0;
 
 // SH TODO
 //#define _stackSize (5600/4)
-#define _stackSize (4200/4)
+#define _stackSize (4600/4)
 #define _stackPaint 0xdeadbeef
 
 /* Add a reference, and allocate the stack if necessary */

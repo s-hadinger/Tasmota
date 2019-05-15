@@ -23,11 +23,12 @@
 #ifdef USE_MQTT_TLS_CA_CERT
   #include "sonoff_letsencrypt.h"           // LetsEncrypt certificate
 #endif
-  WiFiClientSecure espClient;               // Wifi Secure Client
+  WiFiClientSecure espClient();               // Wifi Secure Client
 #elif defined(USE_MQTT_AWS_IOT)
   #include "StackThunk.h"
+  #include "WiFiClientSecureLightBearSSL.h"
   // Prefer to do a static allocation at start, to avoid heap fragmentation
-  BearSSL::WiFiClientSecure espClient;        // Consumes 5608 bytes
+  BearSSL::WiFiClientSecure_light espClient(1024,1024);        // Consumes 5608 bytes
 #else
   WiFiClient espClient;                     // Wifi Client
 #endif
@@ -71,8 +72,8 @@ const char *aws_server_fingerprint = "00:F5:1A:E7:A3:48:2A:F3:FC:E0:75:4D:24:D5:
 X509List x509_amazon_root_ca1(AmazonRootCA1_DER, sizeof(AmazonRootCA1_DER));
 
 PrivateKey aws_iot_private_key(AWS_IoT_client_PrivKey);
-PublicKey  aws_iot_public_key(aws_iot_pub_key);
 X509List   aws_iot_client_cert(AWS_IoT_client_cert);
+//PublicKey  aws_iot_public_key(aws_iot_pub_key);
 
 uint16_t ciphers[] = { BR_TLS_RSA_WITH_AES_128_CBC_SHA };  // use cheaper ciphers than ECDH
 
@@ -83,7 +84,7 @@ void testTls(void) {
 
   //PubSubClient client(AWS_endpoint, 8883, callback, espClient); //set  MQTT port number to 8883 as per //standard
 
-  espClient.setBufferSizes(1024, 1024);
+  //espClient.setBufferSizes(1024, 1024);
   //bool mfln = espClient.probeMaxFragmentLength(endpoint, 8883, 512);
   //AddLog_P2(LOG_LEVEL_INFO, "mfln= %d",mfln);
   //AddLog_P2(LOG_LEVEL_INFO, "Heap= %d",ESP.getFreeHeap());
@@ -98,7 +99,7 @@ void testTls(void) {
   //x509.append(VeriSign);
 
   //espClient.setInsecure();
-  espClient.setKnownKey(&aws_iot_public_key);
+  //espClient.setKnownKey(&aws_iot_public_key);
 
   AddLog_P2(LOG_LEVEL_INFO, "Heap2=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
 
@@ -120,9 +121,9 @@ void testTls(void) {
   AddLog_P2(LOG_LEVEL_INFO, "StackThunk=%d",stack_thunk_get_max_usage());
   uint32_t time = millis();
   if (!espClient.connect(AWS_endpoint, mqtt_port)) {
-    //char ssl_error[32];
-    int err = espClient.getLastSSLError(nullptr, 0);
-    AddLog_P2(LOG_LEVEL_INFO, "WiFiClientSecure SSL error: %d", err);
+    char ssl_error[64];
+    int err = espClient.getLastSSLError(ssl_error, 64);
+    AddLog_P2(LOG_LEVEL_INFO, "WiFiClientSecure SSL error: %d %s", err, ssl_error);
   } else {
     AddLog_P2(LOG_LEVEL_INFO, "Connection OK");
     AddLog_P2(LOG_LEVEL_INFO, "StackThunk=%d",stack_thunk_get_max_usage());
@@ -131,9 +132,9 @@ void testTls(void) {
   AddLog_P2(LOG_LEVEL_INFO, "Heap5=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
   AddLog_P2(LOG_LEVEL_INFO, "StackThunk=%d",stack_thunk_get_max_usage());
   //espClient.setClientRSACert(nullptr, nullptr);
-  espClient.setTrustAnchors(nullptr);
+  //espClient.setTrustAnchors(nullptr);
 
-  espClient.setClientRSACert(nullptr, nullptr);
+  //espClient.setClientRSACert(nullptr, nullptr);
   //delete(client_crt);
   //delete(x509);
   //delete(key);

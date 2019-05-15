@@ -48,7 +48,7 @@ extern "C" {
 
 #ifdef DEBUG_TLS
 void Log_heap_size(const char *msg) {
-  Serial.printf("%s %d\n", msg, ESP.getFreeHeap());
+  Serial.printf("%s %d Thunk %d\n", msg, ESP.getFreeHeap(), stack_thunk_get_max_usage());
 }
 
 void Log_fingerprint(const unsigned char *finger) {
@@ -118,8 +118,7 @@ WiFiClientSecure_light::WiFiClientSecure_light(int recv, int xmit) : WiFiClient(
   _clearAuthenticationSettings();
   stack_thunk_add_ref();
   // now finish the setup
-  setBufferSizes(1024, 1024); // reasonable minimum
-
+  setBufferSizes(recv, xmit); // reasonable minimum
 }
 
 
@@ -158,12 +157,6 @@ Log_heap_size("setBufferSizes");
 
 bool WiFiClientSecure_light::stop(unsigned int maxWaitMs) {
   bool ret = WiFiClient::stop(maxWaitMs); // calls our virtual flush()
-  // Only if we've already connected, store session params and clear the connection options
-  // if (_handshake_done) {
-  //   if (_session) {
-  //     br_ssl_engine_get_session_parameters(_eng, _session->getSession());
-  //   }
-  // }
   _freeSSL();
   return ret;
 }
@@ -504,6 +497,7 @@ int WiFiClientSecure_light::_run_until(unsigned target, bool blocking) {
 }
 
 bool WiFiClientSecure_light::_wait_for_handshake() {
+Serial.printf("_wait_for_handshake 1\n");
   _handshake_done = false;
   while (!_handshake_done && _clientConnected()) {
     int ret = _run_until(BR_SSL_SENDAPP);
@@ -511,6 +505,7 @@ bool WiFiClientSecure_light::_wait_for_handshake() {
       DEBUG_BSSL("_wait_for_handshake: failed\n");
       break;
     }
+Serial.printf("_wait_for_handshake 2\n");
     if (br_ssl_engine_current_state(_eng) & BR_SSL_SENDAPP) {
       _handshake_done = true;
     }
@@ -572,34 +567,20 @@ extern "C" {
   struct /*br_x509_insecure_context*/ br_x509_pubkeyfingerprint_context {
     const br_x509_class *vtable;
     bool done_cert;
+    bool fingerprint_matched;
     const uint8_t *match_fingerprint;
-    br_sha1_context sha1_cert;
-    bool allow_self_signed;
-    br_sha256_context sha256_subject;
-    br_sha256_context sha256_issuer;
+    unsigned usages;
+    //br_sha1_context sha1_cert;
+    //bool allow_self_signed;
+    //br_sha256_context sha256_subject;
+    //br_sha256_context sha256_issuer;
     br_x509_decoder_context ctx;
   };
-
-  // Callback for the x509_minimal subject DN
-  static void pubkeyfingerprint_subject_dn_append(void *ctx, const void *buf, size_t len) {
-    br_x509_pubkeyfingerprint_context *xc = (br_x509_pubkeyfingerprint_context *)ctx;
-    br_sha256_update(&xc->sha256_subject, buf, len);
-  }
-
-  // Callback for the x509_minimal issuer DN
-  static void pubkeyfingerprint_issuer_dn_append(void *ctx, const void *buf, size_t len) {
-    br_x509_pubkeyfingerprint_context *xc = (br_x509_pubkeyfingerprint_context *)ctx;
-    br_sha256_update(&xc->sha256_issuer, buf, len);
-  }
 
   // Callback on the first byte of any certificate
   static void pubkeyfingerprint_start_chain(const br_x509_class **ctx, const char *server_name) {
     br_x509_pubkeyfingerprint_context *xc = (br_x509_pubkeyfingerprint_context *)ctx;
-    br_x509_decoder_init(&xc->ctx, pubkeyfingerprint_subject_dn_append, xc, pubkeyfingerprint_issuer_dn_append, xc);
-    xc->done_cert = false;
-    br_sha1_init(&xc->sha1_cert);
-    br_sha256_init(&xc->sha256_subject);
-    br_sha256_init(&xc->sha256_issuer);
+    br_x509_decoder_init(&xc->ctx, nullptr, nullptr, nullptr, nullptr);
     (void)server_name;
   }
 
@@ -615,7 +596,7 @@ extern "C" {
     br_x509_pubkeyfingerprint_context *xc = (br_x509_pubkeyfingerprint_context *)ctx;
     // Don't process anything but the first certificate in the chain
     if (!xc->done_cert) {
-      br_sha1_update(&xc->sha1_cert, buf, len);
+      //br_sha1_update(&xc->sha1_cert, buf, len);
       br_x509_decoder_push(&xc->ctx, (const void*)buf, len);
     }
   }
@@ -629,31 +610,36 @@ extern "C" {
   // Callback when complete chain has been parsed.
   // Return 0 on validation success, !0 on validation error
   static unsigned pubkeyfingerprint_end_chain(const br_x509_class **ctx) {
-    const br_x509_pubkeyfingerprint_context *xc = (const br_x509_pubkeyfingerprint_context *)ctx;
-    if (!xc->done_cert) {
-      DEBUG_BSSL("pubkeyfingerprint_end_chain: No cert seen\n");
-      return 1; // error
-    }
+    br_x509_pubkeyfingerprint_context *xc = (br_x509_pubkeyfingerprint_context *)ctx;
 
-    // Handle SHA1 fingerprint matching
-    char res[20];
-    br_sha1_out(&xc->sha1_cert, res);
-  Log_fingerprint((unsigned char*)res);
-  if (xc->match_fingerprint) Log_fingerprint(xc->match_fingerprint);
-    if (xc->match_fingerprint && memcmp(res, xc->match_fingerprint, sizeof(res))) {
-      DEBUG_BSSL("pubkeyfingerprint_end_chain: Received cert FP doesn't match\n");
-      return BR_ERR_X509_NOT_TRUSTED;
-    }
+    // force true for now
+    xc->fingerprint_matched = true;
 
-    // Handle self-signer certificate acceptance
-    char res_issuer[32];
-    char res_subject[32];
-    br_sha256_out(&xc->sha256_issuer, res_issuer);
-    br_sha256_out(&xc->sha256_subject, res_subject);
-    if (xc->allow_self_signed && memcmp(res_subject, res_issuer, sizeof(res_issuer))) {
-      DEBUG_BSSL("pubkeyfingerprint_end_chain: Didn't get self-signed cert\n");
-      return BR_ERR_X509_NOT_TRUSTED;
-    }
+//Let's dump the public key and hash
+{
+br_x509_pkey pkey = xc->ctx.pkey;
+if ((0) && (BR_KEYTYPE_RSA == pkey.key_type)) {
+ br_rsa_public_key rsa_pkey = pkey.key.rsa;
+ uint32_t i;
+
+ char out[513];
+ i = 0;
+ Serial.printf("Modulus = \n", out);
+ while (i < rsa_pkey.nlen) {
+   out[0] = '\0';
+   for (uint32_t j=0; j<32; j++) {
+     if (i<rsa_pkey.nlen) snprintf_P(out, sizeof(out), "%s%s%02X", out, (j) ? ":" : "", rsa_pkey.n[i]);
+     i++;
+   }
+   Serial.printf("%s\n", out);
+ }
+ out[0] = '\0';
+ for (uint32_t i = 0; i < rsa_pkey.elen; i++) {
+   snprintf_P(out, sizeof(out), "%s%s%02X", out, (i) ? ":" : "", rsa_pkey.e[i]);
+ }
+ Serial.printf("Exponent = %s\n", out);
+ }
+}
 
     // Default (no validation at all) or no errors in prior checks = success.
     return 0;
@@ -662,31 +648,6 @@ extern "C" {
   // Return the public key from the validator (set by x509_minimal)
   static const br_x509_pkey *pubkeyfingerprint_get_pkey(const br_x509_class *const *ctx, unsigned *usages) {
      const br_x509_pubkeyfingerprint_context *xc = (const br_x509_pubkeyfingerprint_context *)ctx;
-//Let's dump the public key and hash
-{
-br_x509_pkey pkey = xc->ctx.pkey;
-if ((0) && (BR_KEYTYPE_RSA == pkey.key_type)) {
-  br_rsa_public_key rsa_pkey = pkey.key.rsa;
-  uint32_t i;
-
-  char out[513];
-  i = 0;
-  Serial.printf("Modulus = \n", out);
-  while (i < rsa_pkey.nlen) {
-    out[0] = '\0';
-    for (uint32_t j=0; j<32; j++) {
-      if (i<rsa_pkey.nlen) snprintf_P(out, sizeof(out), "%s%s%02X", out, (j) ? ":" : "", rsa_pkey.n[i]);
-      i++;
-    }
-    Serial.printf("%s\n", out);
-  }
-  out[0] = '\0';
-  for (uint32_t i = 0; i < rsa_pkey.elen; i++) {
-    snprintf_P(out, sizeof(out), "%s%s%02X", out, (i) ? ":" : "", rsa_pkey.e[i]);
-  }
-  Serial.printf("Exponent = %s\n", out);
-  }
-}
 
     if (usages != NULL) {
       *usages = BR_KEYTYPE_KEYX | BR_KEYTYPE_SIGN; // I said we were insecure!
@@ -709,8 +670,8 @@ if ((0) && (BR_KEYTYPE_RSA == pkey.key_type)) {
     memset(ctx, 0, sizeof * ctx);
     ctx->vtable = &br_x509_pubkeyfingerprint_vtable;
     ctx->done_cert = false;
+    ctx->fingerprint_matched = false;
     ctx->match_fingerprint = _use_fingerprint ? _fingerprint : nullptr;
-    ctx->allow_self_signed = _allow_self_signed ? 1 : 0;
   }
 
   // Some constants uses to init the server/client contexts
@@ -736,55 +697,8 @@ if ((0) && (BR_KEYTYPE_RSA == pkey.key_type)) {
    *    strong enough, and AES-256 is 40% more expensive).
    */
   static const uint16_t suites_P[] PROGMEM = {
-#ifndef BEARSSL_SSL_BASIC
-    BR_TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
-    BR_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
-    BR_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-    BR_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-    BR_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-    BR_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-    BR_TLS_ECDHE_ECDSA_WITH_AES_128_CCM,
-    BR_TLS_ECDHE_ECDSA_WITH_AES_256_CCM,
-    BR_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
-    BR_TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8,
-    BR_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
-    BR_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
-    BR_TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384,
-    BR_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384,
-    BR_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
-    BR_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
-    BR_TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
-    BR_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
-    BR_TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256,
-    BR_TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256,
-    BR_TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384,
-    BR_TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384,
-    BR_TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256,
-    BR_TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256,
-    BR_TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384,
-    BR_TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384,
-    BR_TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA,
-    BR_TLS_ECDH_RSA_WITH_AES_128_CBC_SHA,
-    BR_TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA,
-    BR_TLS_ECDH_RSA_WITH_AES_256_CBC_SHA,
-    BR_TLS_RSA_WITH_AES_128_GCM_SHA256,
-    BR_TLS_RSA_WITH_AES_256_GCM_SHA384,
-    BR_TLS_RSA_WITH_AES_128_CCM,
-    BR_TLS_RSA_WITH_AES_256_CCM,
-    BR_TLS_RSA_WITH_AES_128_CCM_8,
-    BR_TLS_RSA_WITH_AES_256_CCM_8,
-#endif
     BR_TLS_RSA_WITH_AES_128_CBC_SHA256,
-    BR_TLS_RSA_WITH_AES_256_CBC_SHA256,
-    BR_TLS_RSA_WITH_AES_128_CBC_SHA,
-    BR_TLS_RSA_WITH_AES_256_CBC_SHA,
-#ifndef BEARSSL_SSL_BASIC
-    BR_TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA,
-    BR_TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA,
-    BR_TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA,
-    BR_TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA,
-    BR_TLS_RSA_WITH_3DES_EDE_CBC_SHA
-#endif
+    BR_TLS_RSA_WITH_AES_128_CBC_SHA
   };
 
   // Install hashes into the SSL engine
@@ -844,7 +758,8 @@ bool WiFiClientSecure_light::setCiphers(std::vector<uint16_t> list) {
 
 // Installs the appropriate X509 cert validation method for a client connection
 bool WiFiClientSecure_light::_installClientX509Validator() {
-  if (_use_insecure || _use_fingerprint) {
+  if (1) {
+  //if (_use_insecure || _use_fingerprint) {
     // Use common insecure x509 authenticator
     _x509_insecure = std::make_shared<struct br_x509_pubkeyfingerprint_context>();
     if (!_x509_insecure) {
@@ -923,21 +838,8 @@ Log_heap_size("_connectSSL 5");
   br_ssl_engine_set_buffers_bidi(_eng, _iobuf_in.get(), _iobuf_in_size, _iobuf_out.get(), _iobuf_out_size);
 Log_heap_size("_connectSSL 6");
 
-  // Apply any client certificates, if supplied.
-  if (_sk && _sk->isRSA()) {
-    br_ssl_client_set_single_rsa(_sc.get(), _chain ? _chain->getX509Certs() : nullptr, _chain ? _chain->getCount() : 0,
-                                 _sk->getRSA(), br_rsa_pkcs1_sign_get_default());
-  } else if (_sk && _sk->isEC()) {
-#ifndef BEARSSL_SSL_BASIC
-    br_ssl_client_set_single_ec(_sc.get(), _chain ? _chain->getX509Certs() : nullptr, _chain ? _chain->getCount() : 0,
-                                _sk->getEC(), _allowed_usages,
-                                _cert_issuer_key_type, br_ec_get_default(), br_ecdsa_sign_asn1_get_default());
-#else
-    _freeSSL();
-    DEBUG_BSSL("_connectSSL: Attempting to use EC cert in minimal cipher mode (no EC)\n");
-    return false;
-#endif
-  }
+  br_ssl_client_set_single_rsa(_sc.get(), _chain ? _chain->getX509Certs() : nullptr, _chain ? _chain->getCount() : 0,
+                               _sk->getRSA(), br_rsa_pkcs1_sign_get_default());
 Log_heap_size("_connectSSL 7");
 
   if (!br_ssl_client_reset(_sc.get(), hostName, 0)) {
