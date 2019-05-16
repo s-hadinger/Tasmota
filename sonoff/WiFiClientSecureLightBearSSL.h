@@ -36,6 +36,8 @@ class WiFiClientSecure_light : public WiFiClient {
     WiFiClientSecure_light(int recv, int xmit);
     ~WiFiClientSecure_light() override;
 
+    void allocateBuffers(void);
+
     int connect(IPAddress ip, uint16_t port) override;
     int connect(const String& host, uint16_t port) override;
     int connect(const char* name, uint16_t port) override;
@@ -108,9 +110,8 @@ class WiFiClientSecure_light : public WiFiClient {
       return (_sc != nullptr) || (_sc_svr != nullptr);
     }
     br_ssl_engine_context *_eng; // &_sc->eng, to allow for client or server contexts
-    std::shared_ptr<br_x509_minimal_context> _x509_minimal;
+    //std::shared_ptr<br_x509_minimal_context> _x509_minimal;
     std::shared_ptr<struct br_x509_pubkeyfingerprint_context> _x509_insecure;
-    std::shared_ptr<br_x509_knownkey_context> _x509_knownkey;
     std::shared_ptr<unsigned char> _iobuf_in;
     std::shared_ptr<unsigned char> _iobuf_out;
     time_t _now;

@@ -91,9 +91,7 @@ void WiFiClientSecure_light::_clear() {
   _sc = nullptr;
   _sc_svr = nullptr;
   _eng = nullptr;
-  _x509_minimal = nullptr;
   _x509_insecure = nullptr;
-  _x509_knownkey = nullptr;
   _iobuf_in = nullptr;
   _iobuf_out = nullptr;
   _now = 0; // You can override or ensure time() is correct w/configTime
@@ -119,6 +117,7 @@ WiFiClientSecure_light::WiFiClientSecure_light(int recv, int xmit) : WiFiClient(
   stack_thunk_add_ref();
   // now finish the setup
   setBufferSizes(recv, xmit); // reasonable minimum
+  allocateBuffers();
 }
 
 
@@ -132,6 +131,14 @@ WiFiClientSecure_light::~WiFiClientSecure_light() {
   stack_thunk_del_ref();
 }
 
+void WiFiClientSecure_light::allocateBuffers(void) {
+  // We prefer to allocate all buffers at start, rather than lazy allocation and deallocation
+  // in the long run it avoids heap fragmentation and improves stability
+  _sc = std::make_shared<br_ssl_client_context>();
+  _iobuf_in = std::shared_ptr<unsigned char>(new unsigned char[_iobuf_in_size], std::default_delete<unsigned char[]>());
+  _iobuf_out = std::shared_ptr<unsigned char>(new unsigned char[_iobuf_out_size], std::default_delete<unsigned char[]>());
+  _x509_insecure = std::make_shared<struct br_x509_pubkeyfingerprint_context>();
+}
 
 void WiFiClientSecure_light::setClientRSACert(const X509List *chain, const PrivateKey *sk) {
   _chain = chain;
@@ -192,14 +199,9 @@ int WiFiClientSecure_light::connect(const String& host, uint16_t port) {
 
 void WiFiClientSecure_light::_freeSSL() {
   // These are smart pointers and will free if refcnt==0
-  _sc = nullptr;
+  //_sc = nullptr;
   _sc_svr = nullptr;
-  _x509_minimal = nullptr;
   _x509_insecure = nullptr;
-  _x509_knownkey = nullptr;
-  // SH TODO - do we release pointers?
-  _iobuf_in = nullptr;
-  _iobuf_out = nullptr;
   // Reset non-allocated ptrs (pointing to bits potentially free'd above)
   _recvapp_buf = nullptr;
   _recvapp_len = 0;
@@ -570,10 +572,6 @@ extern "C" {
     bool fingerprint_matched;
     const uint8_t *match_fingerprint;
     unsigned usages;
-    //br_sha1_context sha1_cert;
-    //bool allow_self_signed;
-    //br_sha256_context sha256_subject;
-    //br_sha256_context sha256_issuer;
     br_x509_decoder_context ctx;
   };
 
@@ -656,7 +654,7 @@ if ((0) && (BR_KEYTYPE_RSA == pkey.key_type)) {
   }
 
   //  Set up the x509 insecure data structures for BearSSL core to use.
-  void br_x509_pubkeyfingerprint_init(br_x509_pubkeyfingerprint_context *ctx, int _use_fingerprint, const uint8_t _fingerprint[20], int _allow_self_signed) {
+  void br_x509_pubkeyfingerprint_init(br_x509_pubkeyfingerprint_context *ctx, int _use_fingerprint, const uint8_t _fingerprint[20]) {
     static const br_x509_class br_x509_pubkeyfingerprint_vtable PROGMEM = {
       sizeof(br_x509_pubkeyfingerprint_context),
       pubkeyfingerprint_start_chain,
@@ -759,42 +757,41 @@ bool WiFiClientSecure_light::setCiphers(std::vector<uint16_t> list) {
 // Installs the appropriate X509 cert validation method for a client connection
 bool WiFiClientSecure_light::_installClientX509Validator() {
   if (1) {
-  //if (_use_insecure || _use_fingerprint) {
     // Use common insecure x509 authenticator
-    _x509_insecure = std::make_shared<struct br_x509_pubkeyfingerprint_context>();
-    if (!_x509_insecure) {
-      DEBUG_BSSL("_installClientX509Validator: OOM for _x509_insecure\n");
-      return false;
-    }
-    br_x509_pubkeyfingerprint_init(_x509_insecure.get(), _use_fingerprint, _fingerprint, true);
+    // _x509_insecure = std::make_shared<struct br_x509_pubkeyfingerprint_context>();
+    // if (!_x509_insecure) {
+    //   DEBUG_BSSL("_installClientX509Validator: OOM for _x509_insecure\n");
+    //   return false;
+    // }
+    br_x509_pubkeyfingerprint_init(_x509_insecure.get(), _use_fingerprint, _fingerprint);
     br_ssl_engine_set_x509(_eng, &_x509_insecure->vtable);
   } else if (0) {
-    // Simple, pre-known public key authenticator, ignores cert completely.
-    _x509_knownkey = std::make_shared<br_x509_knownkey_context>();
-    if (!_x509_knownkey) {
-      DEBUG_BSSL("_installClientX509Validator: OOM for _x509_knownkey\n");
-      return false;
-    }
-    br_ssl_engine_set_x509(_eng, &_x509_knownkey->vtable);
-  } else {
-    // X509 minimal validator.  Checks dates, cert chain for trusted CA, etc.
-    _x509_minimal = std::make_shared<br_x509_minimal_context>();
-    if (!_x509_minimal) {
-      DEBUG_BSSL("_installClientX509Validator: OOM for _x509_minimal\n");
-      return false;
-    }
-    //br_x509_minimal_init(_x509_minimal.get(), &br_sha256_vtable, _ta ? _ta->getTrustAnchors() : nullptr, _ta ? _ta->getCount() : 0);
-    br_x509_minimal_set_rsa(_x509_minimal.get(), br_ssl_engine_get_rsavrfy(_eng));
-#ifndef BEARSSL_SSL_BASIC
-    br_x509_minimal_set_ecdsa(_x509_minimal.get(), br_ssl_engine_get_ec(_eng), br_ssl_engine_get_ecdsa(_eng));
-#endif
-    br_x509_minimal_install_hashes(_x509_minimal.get());
-    if (_now) {
-      // Magic constants convert to x509 times
-      br_x509_minimal_set_time(_x509_minimal.get(), ((uint32_t)_now) / 86400 + 719528, ((uint32_t)_now) % 86400);
-    }
-    br_ssl_engine_set_x509(_eng, &_x509_minimal->vtable);
-  }
+//     // Simple, pre-known public key authenticator, ignores cert completely.
+//     _x509_knownkey = std::make_shared<br_x509_knownkey_context>();
+//     if (!_x509_knownkey) {
+//       DEBUG_BSSL("_installClientX509Validator: OOM for _x509_knownkey\n");
+//       return false;
+//     }
+//     br_ssl_engine_set_x509(_eng, &_x509_knownkey->vtable);
+//   } else {
+//     // X509 minimal validator.  Checks dates, cert chain for trusted CA, etc.
+//     _x509_minimal = std::make_shared<br_x509_minimal_context>();
+//     if (!_x509_minimal) {
+//       DEBUG_BSSL("_installClientX509Validator: OOM for _x509_minimal\n");
+//       return false;
+//     }
+//     //br_x509_minimal_init(_x509_minimal.get(), &br_sha256_vtable, _ta ? _ta->getTrustAnchors() : nullptr, _ta ? _ta->getCount() : 0);
+//     br_x509_minimal_set_rsa(_x509_minimal.get(), br_ssl_engine_get_rsavrfy(_eng));
+// #ifndef BEARSSL_SSL_BASIC
+//     br_x509_minimal_set_ecdsa(_x509_minimal.get(), br_ssl_engine_get_ec(_eng), br_ssl_engine_get_ecdsa(_eng));
+// #endif
+//     br_x509_minimal_install_hashes(_x509_minimal.get());
+//     if (_now) {
+//       // Magic constants convert to x509 times
+//       br_x509_minimal_set_time(_x509_minimal.get(), ((uint32_t)_now) / 86400 + 719528, ((uint32_t)_now) % 86400);
+//     }
+//     br_ssl_engine_set_x509(_eng, &_x509_minimal->vtable);
+   }
   return true;
 }
 
@@ -806,11 +803,11 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
   _oom_err = false;
 Log_heap_size("_connectSSL 1");
 
-  _sc = std::make_shared<br_ssl_client_context>();
+  //_sc = std::make_shared<br_ssl_client_context>();
 Log_heap_size("_connectSSL 2");
   _eng = &_sc->eng; // Allocation/deallocation taken care of by the _sc shared_ptr
-  _iobuf_in = std::shared_ptr<unsigned char>(new unsigned char[_iobuf_in_size], std::default_delete<unsigned char[]>());
-  _iobuf_out = std::shared_ptr<unsigned char>(new unsigned char[_iobuf_out_size], std::default_delete<unsigned char[]>());
+  //_iobuf_in = std::shared_ptr<unsigned char>(new unsigned char[_iobuf_in_size], std::default_delete<unsigned char[]>());
+  //_iobuf_out = std::shared_ptr<unsigned char>(new unsigned char[_iobuf_out_size], std::default_delete<unsigned char[]>());
 Log_heap_size("_connectSSL 3");
 
   if (!_sc || !_iobuf_in || !_iobuf_out) {
