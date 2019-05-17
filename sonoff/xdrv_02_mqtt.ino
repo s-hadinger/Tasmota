@@ -605,7 +605,7 @@ bool MqttCommand(void)
     }
     Response_P(S_JSON_COMMAND_INDEX_SVALUE, command, index, GetStateText(index -1));
   }
-#ifdef USE_MQTT_TLS
+#if defined(USE_MQTT_TLS) || defined(USE_MQTT_AWS_IOT)
   else if ((CMND_MQTTFINGERPRINT == command_code) && (index > 0) && (index <= 2)) {
     char fingerprint[60];
     if ((data_len > 0) && (data_len < sizeof(fingerprint))) {

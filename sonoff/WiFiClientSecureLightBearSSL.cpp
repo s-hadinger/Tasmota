@@ -621,7 +621,7 @@ extern "C" {
 {
   char out[64] = "";
   for (uint8_t i = 0; i<20; i++) {
-   snprintf_P(out, sizeof(out), "%s%s%02X", out, (i) ? ":" : "", xc->pubkey_fingerprint[i]);
+   snprintf_P(out, sizeof(out), "%s%s%02X", out, (i) ? " " : "", xc->pubkey_fingerprint[i]);
   }
   Serial.printf("Fingerprint = %s\n", out);
 }
