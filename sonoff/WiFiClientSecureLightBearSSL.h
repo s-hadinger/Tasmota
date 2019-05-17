@@ -62,11 +62,6 @@ class WiFiClientSecure_light : public WiFiClient {
     void flush() override { (void)flush(0); }
     void stop() override { (void)stop(0); }
 
-    // Don't validate the chain, just accept whatever is given.  VERY INSECURE!
-    void setInsecure() {
-      _clearAuthenticationSettings();
-      _use_insecure = true;
-    }
     // Only check SHA1 fingerprint of certificate
     bool setPubKeyFingerprint(const uint8_t fingerprint[20]) {
       _clearAuthenticationSettings();
@@ -91,9 +86,9 @@ class WiFiClientSecure_light : public WiFiClient {
 
     // Select specific ciphers (i.e. optimize for speed over security)
     // These may be in PROGMEM or RAM, either will run properly
-    bool setCiphers(const uint16_t *cipherAry, int cipherCount);
-    bool setCiphers(std::vector<uint16_t> list);
-    bool setCiphersLessSecure(); // Only use the limited set of RSA ciphers without EC
+    // bool setCiphers(const uint16_t *cipherAry, int cipherCount);
+    // bool setCiphers(std::vector<uint16_t> list);
+    // bool setCiphersLessSecure(); // Only use the limited set of RSA ciphers without EC
 
     // Check for Maximum Fragment Length support for given len before connection (possibly insecure)
     static bool probeMaxFragmentLength(IPAddress ip, uint16_t port, uint16_t len);
@@ -120,14 +115,13 @@ class WiFiClientSecure_light : public WiFiClient {
     bool _handshake_done;
     bool _oom_err;
 
-    bool _use_insecure;
     bool _use_fingerprint;
     uint8_t _fingerprint[20];
     unsigned _knownkey_usages;
 
     // Custom cipher list pointer or NULL if default
-    std::shared_ptr<uint16_t> _cipher_list;
-    uint8_t _cipher_cnt;
+    // std::shared_ptr<uint16_t> _cipher_list;
+    // uint8_t _cipher_cnt;
 
     unsigned char *_recvapp_buf;
     size_t _recvapp_len;

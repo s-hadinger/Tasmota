@@ -28,7 +28,7 @@
   #include "StackThunk.h"
   #include "WiFiClientSecureLightBearSSL.h"
   // Prefer to do a static allocation at start, to avoid heap fragmentation
-  BearSSL::WiFiClientSecure_light espClient(1024,1024);        // Consumes 5608 bytes
+  BearSSL::WiFiClientSecure_light *awsClient;
 #else
   WiFiClient espClient;                     // Wifi Client
 #endif
@@ -75,17 +75,17 @@ PrivateKey aws_iot_private_key(AWS_IoT_client_PrivKey);
 X509List   aws_iot_client_cert(AWS_IoT_client_cert);
 //PublicKey  aws_iot_public_key(aws_iot_pub_key);
 
-uint16_t ciphers[] = { BR_TLS_RSA_WITH_AES_128_CBC_SHA };  // use cheaper ciphers than ECDH
+//uint16_t ciphers[] = { BR_TLS_RSA_WITH_AES_128_CBC_SHA };  // use cheaper ciphers than ECDH
 
 
 
 void testTls(void) {
   AddLog_P2(LOG_LEVEL_INFO, "Heap1=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
 
-  //PubSubClient client(AWS_endpoint, 8883, callback, espClient); //set  MQTT port number to 8883 as per //standard
+  //PubSubClient client(AWS_endpoint, 8883, callback, awsClient); //set  MQTT port number to 8883 as per //standard
 
-  //espClient.setBufferSizes(1024, 1024);
-  //bool mfln = espClient.probeMaxFragmentLength(endpoint, 8883, 512);
+  //awsClient.setBufferSizes(1024, 1024);
+  //bool mfln = awsClient.probeMaxFragmentLength(endpoint, 8883, 512);
   //AddLog_P2(LOG_LEVEL_INFO, "mfln= %d",mfln);
   //AddLog_P2(LOG_LEVEL_INFO, "Heap= %d",ESP.getFreeHeap());
 
@@ -98,31 +98,31 @@ void testTls(void) {
   //x509.append(AmazonRootCA1);
   //x509.append(VeriSign);
 
-  //espClient.setInsecure();
-  //espClient.setKnownKey(&aws_iot_public_key);
+  //awsClient.setInsecure();
+  //awsClient.setKnownKey(&aws_iot_public_key);
 
-  AddLog_P2(LOG_LEVEL_INFO, "Heap2=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
+  //AddLog_P2(LOG_LEVEL_INFO, "Heap2=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
 
   //X509List client_crt(AWS_IoT_client_cert);
   //X509List *client_crt = new X509List(AWS_IoT_client_cert);
 
-  AddLog_P2(LOG_LEVEL_INFO, "Heap2.5=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
+  //AddLog_P2(LOG_LEVEL_INFO, "Heap2.5=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
   //PrivateKey key(AWS_IoT_client_PrivKey);
   //PrivateKey *key = new PrivateKey(AWS_IoT_client_PrivKey);
 
-  AddLog_P2(LOG_LEVEL_INFO, "Heap3=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
-  //espClient.setFingerprint(aws_server_fingerprint);
-  //espClient.setTrustAnchors(&x509_amazon_root_ca1);
-  AddLog_P2(LOG_LEVEL_INFO, "Heap3.1=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
-  espClient.setClientRSACert(&aws_iot_client_cert, &aws_iot_private_key);
-  AddLog_P2(LOG_LEVEL_INFO, "Heap3.2=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
-  espClient.setCiphers(ciphers, 1);
+  //AddLog_P2(LOG_LEVEL_INFO, "Heap3=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
+  //awsClient.setFingerprint(aws_server_fingerprint);
+  //awsClient.setTrustAnchors(&x509_amazon_root_ca1);
+  //AddLog_P2(LOG_LEVEL_INFO, "Heap3.1=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
+  awsClient->setClientRSACert(&aws_iot_client_cert, &aws_iot_private_key);
+  //AddLog_P2(LOG_LEVEL_INFO, "Heap3.2=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
+  //awsClient.setCiphers(ciphers, 1);
   AddLog_P2(LOG_LEVEL_INFO, "Heap4=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
   AddLog_P2(LOG_LEVEL_INFO, "StackThunk=%d",stack_thunk_get_max_usage());
   uint32_t time = millis();
-  if (!espClient.connect(AWS_endpoint, mqtt_port)) {
+  if (!awsClient->connect(AWS_endpoint, mqtt_port)) {
     char ssl_error[64];
-    int err = espClient.getLastSSLError(ssl_error, 64);
+    int err = awsClient->getLastSSLError(ssl_error, 64);
     AddLog_P2(LOG_LEVEL_INFO, "WiFiClientSecure SSL error: %d %s", err, ssl_error);
   } else {
     AddLog_P2(LOG_LEVEL_INFO, "Connection OK");
@@ -131,23 +131,16 @@ void testTls(void) {
   AddLog_P2(LOG_LEVEL_INFO, "Time elapsed %d",millis() - time);
   AddLog_P2(LOG_LEVEL_INFO, "Heap5=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
   AddLog_P2(LOG_LEVEL_INFO, "StackThunk=%d",stack_thunk_get_max_usage());
-  //espClient.setClientRSACert(nullptr, nullptr);
-  //espClient.setTrustAnchors(nullptr);
+  //awsClient.setClientRSACert(nullptr, nullptr);
+  //awsClient.setTrustAnchors(nullptr);
 
-  //espClient.setClientRSACert(nullptr, nullptr);
+  //awsClient.setClientRSACert(nullptr, nullptr);
   //delete(client_crt);
   //delete(x509);
   //delete(key);
-  AddLog_P2(LOG_LEVEL_INFO, "Heap6=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
-  espClient.stop();
+  //AddLog_P2(LOG_LEVEL_INFO, "Heap6=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
+  awsClient->stop();
   AddLog_P2(LOG_LEVEL_INFO, "Heap-stop=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
-
-  // if fail
-  if (0) {
-    //AddLog_P2(LOG_LEVEL_INFO, "Failes rc=%s", client.state());
-    //espClient.getLastSSLError(buf,256);
-    //AddLog_P2(LOG_LEVEL_INFO, "WiFiClientSecure SSL error: %s", ssl_error);
-  }
 }
 
 #endif  // USE_MQTT_AWS_IOT
@@ -163,12 +156,22 @@ void testTls(void) {
 
 #include <PubSubClient.h>
 
+void MqttInit(void) {
+#ifdef USE_MQTT_AWS_IOT
+  awsClient = new BearSSL::WiFiClientSecure_light(1024,1024);        // Consumes 5608 bytes
+#endif
+}
+
 // Max message size calculated by PubSubClient is (MQTT_MAX_PACKET_SIZE < 5 + 2 + strlen(topic) + plength)
 #if (MQTT_MAX_PACKET_SIZE -TOPSZ -7) < MIN_MESSZ  // If the max message size is too small, throw an error at compile time. See PubSubClient.cpp line 359
   #error "MQTT_MAX_PACKET_SIZE is too small in libraries/PubSubClient/src/PubSubClient.h, increase it to at least 1000"
 #endif
 
+#ifdef USE_MQTT_AWS_IOT
+PubSubClient MqttClient(*awsClient);
+#else
 PubSubClient MqttClient(espClient);
+#endif
 
 bool MqttIsConnected(void)
 {
@@ -489,7 +492,7 @@ void MqttReconnect(void)
 #ifdef USE_MQTT_TLS
   EspClient = WiFiClientSecure();         // Wifi Secure Client reconnect issue 4497 (https://github.com/esp8266/Arduino/issues/4497)
 #elif defined(USE_MQTT_AWS_IOT)
-  espClient.stop();
+  awsClient->stop();
 #else
   EspClient = WiFiClient();               // Wifi Client reconnect issue 4497 (https://github.com/esp8266/Arduino/issues/4497)
 #endif
@@ -874,6 +877,9 @@ bool Xdrv02(uint8_t function)
 
   if (Settings.flag.mqtt_enabled) {
     switch (function) {
+      case FUNC_PRE_INIT:
+        MqttInit();
+        break;
       case FUNC_EVERY_50_MSECOND:  // https://github.com/knolleary/pubsubclient/issues/556
         MqttClient.loop();
         break;

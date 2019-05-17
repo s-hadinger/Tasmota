@@ -100,12 +100,11 @@ void WiFiClientSecure_light::_clear() {
   _recvapp_buf = nullptr;
   _recvapp_len = 0;
   _oom_err = false;
-  _cipher_list = nullptr;
-  _cipher_cnt = 0;
+  // _cipher_list = nullptr;
+  // _cipher_cnt = 0;
 }
 
 void WiFiClientSecure_light::_clearAuthenticationSettings() {
-  _use_insecure = false;
   _use_fingerprint = false;
   _sk = nullptr;
 }
@@ -126,7 +125,7 @@ WiFiClientSecure_light::~WiFiClientSecure_light() {
     _client->unref();
     _client = nullptr;
   }
-  _cipher_list = nullptr; // std::shared will free if last reference
+  //_cipher_list = nullptr; // std::shared will free if last reference
   _freeSSL();
   stack_thunk_del_ref();
 }
@@ -199,9 +198,9 @@ int WiFiClientSecure_light::connect(const String& host, uint16_t port) {
 
 void WiFiClientSecure_light::_freeSSL() {
   // These are smart pointers and will free if refcnt==0
-  //_sc = nullptr;
+  //_sc = nullptr; // TODO clean *_sc ?
   _sc_svr = nullptr;
-  _x509_insecure = nullptr;
+  // _x509_insecure = nullptr; // TODO clean *_sc ?
   // Reset non-allocated ptrs (pointing to bits potentially free'd above)
   _recvapp_buf = nullptr;
   _recvapp_len = 0;
@@ -737,61 +736,27 @@ if ((0) && (BR_KEYTYPE_RSA == pkey.key_type)) {
 
 }
 
-// Set custom list of ciphers
-bool WiFiClientSecure_light::setCiphers(const uint16_t *cipherAry, int cipherCount) {
-  _cipher_list = nullptr;
-  _cipher_list = std::shared_ptr<uint16_t>(new uint16_t[cipherCount], std::default_delete<uint16_t[]>());
-  if (!_cipher_list.get()) {
-    DEBUG_BSSL("setCiphers: list empty\n");
-    return false;
-  }
-  memcpy_P(_cipher_list.get(), cipherAry, cipherCount * sizeof(uint16_t));
-  _cipher_cnt = cipherCount;
-  return true;
-}
+// // Set custom list of ciphers
+// bool WiFiClientSecure_light::setCiphers(const uint16_t *cipherAry, int cipherCount) {
+//   _cipher_list = nullptr;
+//   _cipher_list = std::shared_ptr<uint16_t>(new uint16_t[cipherCount], std::default_delete<uint16_t[]>());
+//   if (!_cipher_list.get()) {
+//     DEBUG_BSSL("setCiphers: list empty\n");
+//     return false;
+//   }
+//   memcpy_P(_cipher_list.get(), cipherAry, cipherCount * sizeof(uint16_t));
+//   _cipher_cnt = cipherCount;
+//   return true;
+// }
 
-bool WiFiClientSecure_light::setCiphers(std::vector<uint16_t> list) {
-  return setCiphers(&list[0], list.size());
-}
+// bool WiFiClientSecure_light::setCiphers(std::vector<uint16_t> list) {
+//   return setCiphers(&list[0], list.size());
+// }
 
 // Installs the appropriate X509 cert validation method for a client connection
 bool WiFiClientSecure_light::_installClientX509Validator() {
-  if (1) {
-    // Use common insecure x509 authenticator
-    // _x509_insecure = std::make_shared<struct br_x509_pubkeyfingerprint_context>();
-    // if (!_x509_insecure) {
-    //   DEBUG_BSSL("_installClientX509Validator: OOM for _x509_insecure\n");
-    //   return false;
-    // }
-    br_x509_pubkeyfingerprint_init(_x509_insecure.get(), _use_fingerprint, _fingerprint);
-    br_ssl_engine_set_x509(_eng, &_x509_insecure->vtable);
-  } else if (0) {
-//     // Simple, pre-known public key authenticator, ignores cert completely.
-//     _x509_knownkey = std::make_shared<br_x509_knownkey_context>();
-//     if (!_x509_knownkey) {
-//       DEBUG_BSSL("_installClientX509Validator: OOM for _x509_knownkey\n");
-//       return false;
-//     }
-//     br_ssl_engine_set_x509(_eng, &_x509_knownkey->vtable);
-//   } else {
-//     // X509 minimal validator.  Checks dates, cert chain for trusted CA, etc.
-//     _x509_minimal = std::make_shared<br_x509_minimal_context>();
-//     if (!_x509_minimal) {
-//       DEBUG_BSSL("_installClientX509Validator: OOM for _x509_minimal\n");
-//       return false;
-//     }
-//     //br_x509_minimal_init(_x509_minimal.get(), &br_sha256_vtable, _ta ? _ta->getTrustAnchors() : nullptr, _ta ? _ta->getCount() : 0);
-//     br_x509_minimal_set_rsa(_x509_minimal.get(), br_ssl_engine_get_rsavrfy(_eng));
-// #ifndef BEARSSL_SSL_BASIC
-//     br_x509_minimal_set_ecdsa(_x509_minimal.get(), br_ssl_engine_get_ec(_eng), br_ssl_engine_get_ecdsa(_eng));
-// #endif
-//     br_x509_minimal_install_hashes(_x509_minimal.get());
-//     if (_now) {
-//       // Magic constants convert to x509 times
-//       br_x509_minimal_set_time(_x509_minimal.get(), ((uint32_t)_now) / 86400 + 719528, ((uint32_t)_now) % 86400);
-//     }
-//     br_ssl_engine_set_x509(_eng, &_x509_minimal->vtable);
-   }
+  br_x509_pubkeyfingerprint_init(_x509_insecure.get(), _use_fingerprint, _fingerprint);
+  br_ssl_engine_set_x509(_eng, &_x509_insecure->vtable);
   return true;
 }
 
@@ -810,19 +775,12 @@ Log_heap_size("_connectSSL 2");
   //_iobuf_out = std::shared_ptr<unsigned char>(new unsigned char[_iobuf_out_size], std::default_delete<unsigned char[]>());
 Log_heap_size("_connectSSL 3");
 
-  if (!_sc || !_iobuf_in || !_iobuf_out) {
-    _freeSSL(); // Frees _sc, _iobuf*
-    _oom_err = true;
-    DEBUG_BSSL("_connectSSL: OOM error\n");
-    return false;
-  }
-
   // If no cipher list yet set, use defaults
-  if (_cipher_list.get() == nullptr) {
+  //if (_cipher_list.get() == nullptr) {
     br_ssl_client_base_init(_sc.get(), suites_P, sizeof(suites_P) / sizeof(suites_P[0]));
-  } else {
-    br_ssl_client_base_init(_sc.get(), _cipher_list.get(), _cipher_cnt);
-  }
+  //} else {
+  //  br_ssl_client_base_init(_sc.get(), _cipher_list.get(), _cipher_cnt);
+  //}
 Log_heap_size("_connectSSL 4");
   // Only failure possible in the installation is OOM
   if (!_installClientX509Validator()) {
@@ -866,9 +824,9 @@ Log_heap_size("_connectSSL end");
 int WiFiClientSecure_light::getLastSSLError(char *dest, size_t len) {
   int err = 0;
   const char *t = PSTR("OK");
-  if (_sc || _sc_svr) {
+  //if (_sc || _sc_svr) {
     err = br_ssl_engine_last_error(_eng);
-  }
+  //}
   if (_oom_err) {
     err = -1000;
   }
