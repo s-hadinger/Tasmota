@@ -71,16 +71,20 @@ const char *aws_server_fingerprint = "00:F5:1A:E7:A3:48:2A:F3:FC:E0:75:4D:24:D5:
 
 X509List x509_amazon_root_ca1(AmazonRootCA1_DER, sizeof(AmazonRootCA1_DER));
 
-PrivateKey aws_iot_private_key(AWS_IoT_client_PrivKey);
-X509List   aws_iot_client_cert(AWS_IoT_client_cert);
-//PublicKey  aws_iot_public_key(aws_iot_pub_key);
-
-//uint16_t ciphers[] = { BR_TLS_RSA_WITH_AES_128_CBC_SHA };  // use cheaper ciphers than ECDH
+// SH TODO
+uint32_t free_mem_before = 0;
+uint32_t free_mem_after = 0;
 
 
+PrivateKey *aws_iot_private_key;
+X509List   *aws_iot_client_cert;
 
 void testTls(void) {
+  AddLog_P2(LOG_LEVEL_INFO, "MqttInit before=%d, after=%d", free_mem_before, free_mem_after);
   AddLog_P2(LOG_LEVEL_INFO, "Heap1=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
+
+  //bool mfln = awsClient->probeMaxFragmentLength(AWS_endpoint, mqtt_port, 1024);
+  //AddLog_P2(LOG_LEVEL_INFO, "MFLN =%d", mfln);
 
   //PubSubClient client(AWS_endpoint, 8883, callback, awsClient); //set  MQTT port number to 8883 as per //standard
 
@@ -89,8 +93,6 @@ void testTls(void) {
   //AddLog_P2(LOG_LEVEL_INFO, "mfln= %d",mfln);
   //AddLog_P2(LOG_LEVEL_INFO, "Heap= %d",ESP.getFreeHeap());
 
-  AddLog_P2(LOG_LEVEL_INFO, "Heap1.5=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
-  AddLog_P2(LOG_LEVEL_INFO, "StackThunk=%d",stack_thunk_get_max_usage());
   //X509List x509(AmazonRootCA1_PEM);
   //X509List x509(AmazonRootCA1_DER, sizeof(AmazonRootCA1_DER));
   //X509List *x509 = new X509List(AmazonRootCA1_DER, sizeof(AmazonRootCA1_DER));
@@ -114,7 +116,7 @@ void testTls(void) {
   //awsClient.setFingerprint(aws_server_fingerprint);
   //awsClient.setTrustAnchors(&x509_amazon_root_ca1);
   //AddLog_P2(LOG_LEVEL_INFO, "Heap3.1=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
-  awsClient->setClientRSACert(&aws_iot_client_cert, &aws_iot_private_key);
+  awsClient->setClientRSACert(aws_iot_client_cert, aws_iot_private_key);
   //AddLog_P2(LOG_LEVEL_INFO, "Heap3.2=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
   //awsClient.setCiphers(ciphers, 1);
   AddLog_P2(LOG_LEVEL_INFO, "Heap4=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
@@ -158,7 +160,11 @@ void testTls(void) {
 
 void MqttInit(void) {
 #ifdef USE_MQTT_AWS_IOT
-  awsClient = new BearSSL::WiFiClientSecure_light(1024,1024);        // Consumes 5608 bytes
+  free_mem_before = ESP.getFreeHeap();
+  awsClient = new BearSSL::WiFiClientSecure_light(1024,1024);
+  aws_iot_private_key = new PrivateKey(AWS_IoT_client_PrivKey);
+  aws_iot_client_cert = new X509List(AWS_IoT_client_cert);
+  free_mem_after = ESP.getFreeHeap();
 #endif
 }
 

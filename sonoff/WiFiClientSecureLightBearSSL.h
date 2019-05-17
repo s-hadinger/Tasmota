@@ -139,11 +139,6 @@ class WiFiClientSecure_light : public WiFiClient {
     unsigned _allowed_usages;
     unsigned _cert_issuer_key_type;
 
-    // X.509 validators differ from server to client
-    bool _installClientX509Validator(); // Set up X509 validator for a client conn.
-    bool _installServerX509Validator(const X509List *client_CA_ta); // Setup X509 client cert validation, if supplied
-
-    uint8_t *_streamLoad(Stream& stream, size_t size);
 };
 
 };
