@@ -99,10 +99,10 @@ class WiFiClientSecure_light : public WiFiClient {
     void _clear();
     void _clearAuthenticationSettings();
     // Only one of the following two should ever be != nullptr!
+    bool _ctx_present;
     std::shared_ptr<br_ssl_client_context> _sc;
-    std::shared_ptr<br_ssl_server_context> _sc_svr;
     inline bool ctx_present() {
-      return (_sc != nullptr) || (_sc_svr != nullptr);
+      return _ctx_present;
     }
     br_ssl_engine_context *_eng; // &_sc->eng, to allow for client or server contexts
     //std::shared_ptr<br_x509_minimal_context> _x509_minimal;

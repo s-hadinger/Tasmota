@@ -100,7 +100,7 @@ void WiFiClientSecure_light::_clear() {
   _timeout = 10000;   // 10 seconds max, it should never go over 6 seconds
 
   _sc = nullptr;
-  _sc_svr = nullptr;
+  _ctx_present = false;
   _eng = nullptr;
   _x509_insecure = nullptr;
   _iobuf_in = nullptr;
@@ -211,7 +211,9 @@ int WiFiClientSecure_light::connect(const String& host, uint16_t port) {
 void WiFiClientSecure_light::_freeSSL() {
   // These are smart pointers and will free if refcnt==0
   //_sc = nullptr; // TODO clean *_sc ?
-  _sc_svr = nullptr;
+  _ctx_present = false;
+  memset(_sc.get(), 0, sizeof(br_ssl_client_context));
+  //_sc_svr = nullptr;
   // _x509_insecure = nullptr; // TODO clean *_sc ?
   // Reset non-allocated ptrs (pointing to bits potentially free'd above)
   _recvapp_buf = nullptr;
@@ -341,6 +343,7 @@ Log_buffer("_Read", buf, to_copy);
 int WiFiClientSecure_light::read() {
   uint8_t c;
   if (1 == read(&c, 1)) {
+Serial.printf("_readByte = %02X\n", c);
     return c;
   }
   DEBUG_BSSL("read: failed\n");
@@ -726,6 +729,7 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
   _freeSSL();
   _oom_err = false;
 
+  _ctx_present = true;
   _eng = &_sc->eng; // Allocation/deallocation taken care of by the _sc shared_ptr
 
   br_ssl_client_base_init(_sc.get(), suites_P, sizeof(suites_P) / sizeof(suites_P[0]));

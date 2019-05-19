@@ -200,7 +200,8 @@ void MqttInit(void) {
   awsClient->setClientRSACert(aws_iot_client_cert, aws_iot_private_key);
   free_mem_after = ESP.getFreeHeap();
 
-  //MqttClient.setClient(*awsClient);
+  MqttClient.setClient(*awsClient);
+Serial.printf("MqttClient.setClient(*awsClient)\n");
 #endif
 }
 
@@ -551,7 +552,8 @@ AddLog_P2(LOG_LEVEL_INFO, "MqttClient.setServer");
   }
   MqttClient.setServer(mqtt_host_addr, Settings.mqtt_port);
 */
-  if (MqttClient.connect(mqtt_client, mqtt_user, mqtt_pwd, stopic, 1, true, mqtt_data)) {
+  //if (MqttClient.connect(mqtt_client, mqtt_user, mqtt_pwd, stopic, 1, true, mqtt_data)) { // TODO will
+  if (MqttClient.connect(mqtt_client, mqtt_user, mqtt_pwd, nullptr, 0, false, nullptr)) {
     AddLog_P2(LOG_LEVEL_INFO, "MqttConnected");
     MqttConnected();
   } else {
