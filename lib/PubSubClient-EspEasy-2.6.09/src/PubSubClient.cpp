@@ -122,7 +122,7 @@ boolean PubSubClient::connect(const char *id, const char *user, const char *pass
         } else {
             result = _client->connect(this->ip, this->port);
         }
-Serial.printf("PubSubClient::connect connected, result = %d\n", result);
+//Serial.printf("PubSubClient::connect connected, result = %d\n", result);
         if (result == 1) {
             nextMsgId = 1;
             // Leave room in the buffer for header and variable length field
@@ -159,11 +159,11 @@ Serial.printf("PubSubClient::connect connected, result = %d\n", result);
 
             buffer[length++] = ((MQTT_KEEPALIVE) >> 8);
             buffer[length++] = ((MQTT_KEEPALIVE) & 0xFF);
-Serial.printf("PubSubClient::connect before writeString\n");
+//Serial.printf("PubSubClient::connect before writeString\n");
             length = writeString(id,buffer,length);
-Serial.printf("PubSubClient::connect writeString length=%d\n", length);
+//Serial.printf("PubSubClient::connect writeString length=%d\n", length);
             if (willTopic) {
-Serial.printf("PubSubClient::connect willTopic\n");
+//Serial.printf("PubSubClient::connect willTopic\n");
                 length = writeString(willTopic,buffer,length);
                 length = writeString(willMessage,buffer,length);
             }
@@ -174,16 +174,16 @@ Serial.printf("PubSubClient::connect willTopic\n");
                     length = writeString(pass,buffer,length);
                 }
             }
-Serial.printf("PubSubClient::connect before write\n");
+//Serial.printf("PubSubClient::connect before write\n");
             write(MQTTCONNECT,buffer,length-5);
-Serial.printf("PubSubClient::connect after write\n");
+//Serial.printf("PubSubClient::connect after write\n");
             lastInActivity = lastOutActivity = millis();
 
             while (!_client->available()) {
                 yield();
                 unsigned long t = millis();
                 if (t-lastInActivity >= ((int32_t) MQTT_SOCKET_TIMEOUT*1000UL)) {
-Serial.printf("PubSubClient::connect TIMEOUT\n");
+//Serial.printf("PubSubClient::connect TIMEOUT\n");
                     _state = MQTT_CONNECTION_TIMEOUT;
                     _client->stop();
                     return false;
@@ -191,22 +191,22 @@ Serial.printf("PubSubClient::connect TIMEOUT\n");
             }
             uint8_t llen;
             uint16_t len = readPacket(&llen);
-Serial.printf("PubSubClient::connect NEXT\n");
+//Serial.printf("PubSubClient::connect NEXT\n");
             if (len == 4) {
                 if (buffer[3] == 0) {
                     lastInActivity = millis();
                     pingOutstanding = false;
                     _state = MQTT_CONNECTED;
-Serial.printf("PubSubClient::connect MQTT connected\n");
+//Serial.printf("PubSubClient::connect MQTT connected\n");
                     return true;
                 } else {
                     _state = buffer[3];
                 }
             }
-Serial.printf("PubSubClient::connect stop\n");
+//Serial.printf("PubSubClient::connect stop\n");
             _client->stop();
         } else {
-Serial.printf("PubSubClient::connect CONNECT_FAILED\n");
+//Serial.printf("PubSubClient::connect CONNECT_FAILED\n");
             _state = MQTT_CONNECT_FAILED;
         }
         return false;
@@ -374,7 +374,9 @@ boolean PubSubClient::publish(const char* topic, const uint8_t* payload, unsigne
 }
 
 boolean PubSubClient::publish(const char* topic, const uint8_t* payload, unsigned int plength, boolean retained) {
+//Serial.printf("MQTT::publish entering, topic=%s plength=%d\n", topic, plength);
     if (connected()) {
+//Serial.printf("MQTT::publish connected()=true\n");
         if (MQTT_MAX_PACKET_SIZE < 5 + 2+strlen(topic) + plength) {
             // Too long
             return false;
@@ -447,6 +449,7 @@ boolean PubSubClient::write(uint8_t header, uint8_t* buf, uint16_t length) {
     uint8_t pos = 0;
     uint16_t rc;
     uint16_t len = length;
+//Serial.printf("MQTT::write entering header=%d, length=%d\n", header, length);
     do {
         digit = len % 128;
         len = len / 128;

@@ -144,10 +144,12 @@ WiFiClientSecure_light::~WiFiClientSecure_light() {
 void WiFiClientSecure_light::allocateBuffers(void) {
   // We prefer to allocate all buffers at start, rather than lazy allocation and deallocation
   // in the long run it avoids heap fragmentation and improves stability
+Log_heap_size("allocateBuffers before");
   _sc = std::make_shared<br_ssl_client_context>();
   _iobuf_in = std::shared_ptr<unsigned char>(new unsigned char[_iobuf_in_size], std::default_delete<unsigned char[]>());
   _iobuf_out = std::shared_ptr<unsigned char>(new unsigned char[_iobuf_out_size], std::default_delete<unsigned char[]>());
   _x509_insecure = std::make_shared<struct br_x509_pubkeyfingerprint_context>();
+Log_heap_size("allocateBuffers after");
 }
 
 void WiFiClientSecure_light::setClientRSACert(const X509List *chain, const PrivateKey *sk) {
@@ -246,12 +248,12 @@ size_t WiFiClientSecure_light::_write(const uint8_t *buf, size_t size, bool pmem
       optimistic_yield(1000);
     }
 
+//Log_buffer("_Write", buf, size);
     // Get BearSSL to a state where we can send
     if (_run_until(BR_SSL_SENDAPP) < 0) {
       break;
     }
-
-Log_buffer("_Write", buf, size);
+//Serial.printf("_write gate passed\n");
     if (br_ssl_engine_current_state(_eng) & BR_SSL_SENDAPP) {
       size_t sendapp_len;
       unsigned char *sendapp_buf = br_ssl_engine_sendapp_buf(_eng, &sendapp_len);
@@ -326,7 +328,7 @@ int WiFiClientSecure_light::read(uint8_t *buf, size_t size) {
     // Take data from the recvapp buffer
     int to_copy = _recvapp_len < size ? _recvapp_len : size;
     memcpy(buf, _recvapp_buf, to_copy);
-Log_buffer("_Read", buf, to_copy);
+//Log_buffer("_Read", buf, to_copy);
     br_ssl_engine_recvapp_ack(_eng, to_copy);
     _recvapp_buf = nullptr;
     _recvapp_len = 0;
@@ -343,7 +345,6 @@ Log_buffer("_Read", buf, to_copy);
 int WiFiClientSecure_light::read() {
   uint8_t c;
   if (1 == read(&c, 1)) {
-Serial.printf("_readByte = %02X\n", c);
     return c;
   }
   DEBUG_BSSL("read: failed\n");

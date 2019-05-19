@@ -276,7 +276,7 @@
   #define USE_KNX_WEB_MENU                       // Enable KNX WEB MENU (+8.3k code, +144 mem)
 
 // -- HTTP ----------------------------------------
-#define USE_WEBSERVER                            // Enable web server and Wifi Manager (+66k code, +8k mem)
+//#define USE_WEBSERVER                            // Enable web server and Wifi Manager (+66k code, +8k mem)
   #define WEB_PORT             80                // Web server Port for User and Admin mode
   #define WEB_USERNAME         "admin"           // Web server Admin mode user name
   #define USE_EMULATION                          // Enable Belkin WeMo and Hue Bridge emulation for Alexa (+18k code, +2k mem)

@@ -140,15 +140,28 @@ void testTls(void) {
     AddLog_P2(LOG_LEVEL_INFO, "After write");
     uint8_t buf[200];
     int avail_len;
-
-
-                while (!(avail_len = awsClient->available())) {
-                    yield();
-                }
-
+    while (!(avail_len = awsClient->available())) {
+        yield();
+    }
     int read_len = awsClient->read(&buf[0], 200);
     //int read_len = awsClient->peekBytes(&buf[0], 200);
     AddLog_P2(LOG_LEVEL_INFO, "After read");
+
+    uint8_t Publish[] = { 0x30, 0x17, 0x00, 0x0F, 0x74, 0x65, 0x6C, 0x65, 0x2F,
+          0x73, 0x6F, 0x6E, 0x6F, 0x66, 0x66, 0x2F, 0x4C, 0x57, 0x54, 0x4F, 0x6E,
+          0x6C, 0x69, 0x6E, 0x65};
+    // uint8_t Publish[] = { 0x31, 0x17, 0x00, 0x0F, 0x74, 0x65, 0x6C, 0x65, 0x2F,
+    //       0x73, 0x6F, 0x6E, 0x6F, 0x66, 0x66, 0x2F, 0x4C, 0x57, 0x54, 0x4F, 0x6E,
+    //       0x6C, 0x69, 0x6E, 0x65};
+    // uint8_t Publish[] = { 0x32, 0x17, 0x00, 0x0F, 0x74, 0x65, 0x6C, 0x65, 0x2F,
+    //       0x73, 0x6F, 0x6E, 0x6F, 0x66, 0x66, 0x2F, 0x4C, 0x57, 0x54,
+    //       0x00, 0x03,
+    //       0x4F, 0x6E, 0x6C, 0x69, 0x6E, 0x65};
+    awsClient->write(&Publish[0], sizeof(Publish));
+    // while (!(avail_len = awsClient->available())) {
+    //     yield();
+    // }
+    awsClient->read(&buf[0], 200);
 
   }
   AddLog_P2(LOG_LEVEL_INFO, "Time elapsed %d",millis() - time);
@@ -201,7 +214,6 @@ void MqttInit(void) {
   free_mem_after = ESP.getFreeHeap();
 
   MqttClient.setClient(*awsClient);
-Serial.printf("MqttClient.setClient(*awsClient)\n");
 #endif
 }
 
@@ -321,6 +333,9 @@ void MqttPublishDirect(const char* topic, bool retained)
 void MqttPublish(const char* topic, bool retained)
 {
   char *me;
+#ifdef USE_MQTT_AWS_IOT
+  retained = false;   // AWS IoT does not support retained, it will disconnect if received
+#endif
 
   if (!strcmp(Settings.mqtt_prefix[0],Settings.mqtt_prefix[1])) {
     me = strstr(topic,Settings.mqtt_prefix[0]);
@@ -440,14 +455,20 @@ void MqttConnected(void)
 
     GetTopic_P(stopic, TELE, mqtt_topic, S_LWT);
     Response_P(PSTR(D_ONLINE));
+//Serial.printf("MqttConnected before Publish topic = %s\n", stopic);
     MqttPublish(stopic, true);
+//Serial.printf("MqttConnected after Publish topic\n");
 
     // Satisfy iobroker (#299)
     mqtt_data[0] = '\0';
+//Serial.printf("MqttConnected before MqttPublishPrefixTopic_P\n");
     MqttPublishPrefixTopic_P(CMND, S_RSLT_POWER);
+//Serial.printf("MqttConnected after MqttPublishPrefixTopic_P\n");
 
     GetTopic_P(stopic, CMND, mqtt_topic, PSTR("#"));
+//Serial.printf("MqttConnected before MqttPublishPrefixTopic_P %s\n", stopic);
     MqttSubscribe(stopic);
+//Serial.printf("MqttConnected after MqttPublishPrefixTopic_P\n");
     if (strstr_P(Settings.mqtt_fulltopic, MQTT_TOKEN_TOPIC) != nullptr) {
       GetTopic_P(stopic, CMND, Settings.mqtt_grptopic, PSTR("#"));
       MqttSubscribe(stopic);
@@ -455,6 +476,7 @@ void MqttConnected(void)
       MqttSubscribe(stopic);
     }
 
+//Serial.printf("MqttConnected XdrvCall(FUNC_MQTT_SUBSCRIBE)\n");
     XdrvCall(FUNC_MQTT_SUBSCRIBE);
   }
 
