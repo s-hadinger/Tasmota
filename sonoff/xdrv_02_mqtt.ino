@@ -116,11 +116,10 @@ void testTls(void) {
   //awsClient.setFingerprint(aws_server_fingerprint);
   //awsClient.setTrustAnchors(&x509_amazon_root_ca1);
   //AddLog_P2(LOG_LEVEL_INFO, "Heap3.1=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
-  awsClient->setClientRSACert(aws_iot_client_cert, aws_iot_private_key);
   //AddLog_P2(LOG_LEVEL_INFO, "Heap3.2=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
   //awsClient.setCiphers(ciphers, 1);
-  AddLog_P2(LOG_LEVEL_INFO, "Heap4=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
-  AddLog_P2(LOG_LEVEL_INFO, "StackThunk=%d",stack_thunk_get_max_usage());
+  //AddLog_P2(LOG_LEVEL_INFO, "Heap4=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
+  //AddLog_P2(LOG_LEVEL_INFO, "StackThunk=%d",stack_thunk_get_max_usage());
   uint32_t time = millis();
   if (!awsClient->connect(AWS_endpoint, mqtt_port)) {
     char ssl_error[64];
@@ -128,7 +127,29 @@ void testTls(void) {
     AddLog_P2(LOG_LEVEL_INFO, "WiFiClientSecure SSL error: %d %s", err, ssl_error);
   } else {
     AddLog_P2(LOG_LEVEL_INFO, "Connection OK");
-    AddLog_P2(LOG_LEVEL_INFO, "StackThunk=%d",stack_thunk_get_max_usage());
+
+    uint8_t CONN[] = { 0x10 /* MQTT_CONNECT */, 18 /* length */,
+                      0x00,0x04,'M','Q','T','T', 0x04 /* MQTT_VERSION */,
+                      0x02,0x00,0x80,
+                      0, 6, 'A', 'z', 'e', 'r', 't', 'y'
+                      };
+
+    AddLog_P2(LOG_LEVEL_INFO, "Time elapsed %d",millis() - time);
+    AddLog_P2(LOG_LEVEL_INFO, "Heap4=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
+    awsClient->write(&CONN[0], sizeof(CONN));
+    AddLog_P2(LOG_LEVEL_INFO, "After write");
+    uint8_t buf[200];
+    int avail_len;
+
+
+                while (!(avail_len = awsClient->available())) {
+                    yield();
+                }
+
+    int read_len = awsClient->read(&buf[0], 200);
+    //int read_len = awsClient->peekBytes(&buf[0], 200);
+    AddLog_P2(LOG_LEVEL_INFO, "After read");
+
   }
   AddLog_P2(LOG_LEVEL_INFO, "Time elapsed %d",millis() - time);
   AddLog_P2(LOG_LEVEL_INFO, "Heap5=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
@@ -158,26 +179,31 @@ void testTls(void) {
 
 #include <PubSubClient.h>
 
-void MqttInit(void) {
-#ifdef USE_MQTT_AWS_IOT
-  free_mem_before = ESP.getFreeHeap();
-  awsClient = new BearSSL::WiFiClientSecure_light(1024,1024);
-  aws_iot_private_key = new PrivateKey(AWS_IoT_client_PrivKey);
-  aws_iot_client_cert = new X509List(AWS_IoT_client_cert);
-  free_mem_after = ESP.getFreeHeap();
-#endif
-}
-
 // Max message size calculated by PubSubClient is (MQTT_MAX_PACKET_SIZE < 5 + 2 + strlen(topic) + plength)
 #if (MQTT_MAX_PACKET_SIZE -TOPSZ -7) < MIN_MESSZ  // If the max message size is too small, throw an error at compile time. See PubSubClient.cpp line 359
   #error "MQTT_MAX_PACKET_SIZE is too small in libraries/PubSubClient/src/PubSubClient.h, increase it to at least 1000"
 #endif
 
 #ifdef USE_MQTT_AWS_IOT
-PubSubClient MqttClient(*awsClient);
+PubSubClient MqttClient;
 #else
 PubSubClient MqttClient(espClient);
 #endif
+
+
+void MqttInit(void) {
+#ifdef USE_MQTT_AWS_IOT
+  free_mem_before = ESP.getFreeHeap();
+  awsClient = new BearSSL::WiFiClientSecure_light(1024,1024);
+  aws_iot_private_key = new PrivateKey(AWS_IoT_client_PrivKey);
+  aws_iot_client_cert = new X509List(AWS_IoT_client_cert);
+  awsClient->setClientRSACert(aws_iot_client_cert, aws_iot_private_key);
+  free_mem_after = ESP.getFreeHeap();
+
+  //MqttClient.setClient(*awsClient);
+#endif
+}
+
 
 bool MqttIsConnected(void)
 {
@@ -512,7 +538,10 @@ void MqttReconnect(void)
   }
 
   MqttClient.setCallback(MqttDataHandler);
-  MqttClient.setServer(Settings.mqtt_host, Settings.mqtt_port);
+  // SH TODO
+  //MqttClient.setServer(Settings.mqtt_host, Settings.mqtt_port);
+AddLog_P2(LOG_LEVEL_INFO, "MqttClient.setServer");
+  MqttClient.setServer(AWS_endpoint_IP, mqtt_port);
 /*
   // Skip MQTT host DNS lookup if not needed
   uint32_t current_hash = GetHash(Settings.mqtt_host, strlen(Settings.mqtt_host));
@@ -523,8 +552,10 @@ void MqttReconnect(void)
   MqttClient.setServer(mqtt_host_addr, Settings.mqtt_port);
 */
   if (MqttClient.connect(mqtt_client, mqtt_user, mqtt_pwd, stopic, 1, true, mqtt_data)) {
+    AddLog_P2(LOG_LEVEL_INFO, "MqttConnected");
     MqttConnected();
   } else {
+    AddLog_P2(LOG_LEVEL_INFO, "MqttDisconnected");
     MqttDisconnected(MqttClient.state());  // status codes are documented here http://pubsubclient.knolleary.net/api.html#state
   }
 }

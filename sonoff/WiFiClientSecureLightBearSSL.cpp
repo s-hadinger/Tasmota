@@ -61,6 +61,16 @@ void Log_fingerprint(const unsigned char *finger) {
 }
 #endif
 
+void Log_buffer(const char *msg, const uint8_t *buf, uint32_t size) {
+  char out[200];
+  out[0] = '\0';
+  if (size > 64) size = 64;
+  for (uint8_t i = 0; i < size; i++) {
+    snprintf_P(out, sizeof(out), "%s%s%02X", out, (i) ? ":" : "", buf[i]);
+  }
+  Serial.printf("%s = %s\n", msg, out);
+}
+
 
 #if !CORE_MOCK
 
@@ -177,7 +187,8 @@ int WiFiClientSecure_light::connect(IPAddress ip, uint16_t port) {
   if (!WiFiClient::connect(ip, port)) {
     return 0;
   }
-  return _connectSSL(nullptr);
+  //return _connectSSL(nullptr);
+  return _connectSSL("a3pa4ktnq87yfu-ats.iot.eu-central-1.amazonaws.com");  // TODO
 }
 
 int WiFiClientSecure_light::connect(const char* name, uint16_t port) {
@@ -238,6 +249,7 @@ size_t WiFiClientSecure_light::_write(const uint8_t *buf, size_t size, bool pmem
       break;
     }
 
+Log_buffer("_Write", buf, size);
     if (br_ssl_engine_current_state(_eng) & BR_SSL_SENDAPP) {
       size_t sendapp_len;
       unsigned char *sendapp_buf = br_ssl_engine_sendapp_buf(_eng, &sendapp_len);
@@ -312,6 +324,7 @@ int WiFiClientSecure_light::read(uint8_t *buf, size_t size) {
     // Take data from the recvapp buffer
     int to_copy = _recvapp_len < size ? _recvapp_len : size;
     memcpy(buf, _recvapp_buf, to_copy);
+Log_buffer("_Read", buf, to_copy);
     br_ssl_engine_recvapp_ack(_eng, to_copy);
     _recvapp_buf = nullptr;
     _recvapp_len = 0;
@@ -336,6 +349,7 @@ int WiFiClientSecure_light::read() {
 
 int WiFiClientSecure_light::available() {
   if (_recvapp_buf) {
+//Serial.printf("WiFiClientSecure_light::available() _recvapp_buf > 0, len = %d", _recvapp_len);
     return _recvapp_len;  // Anything from last call?
   }
   _recvapp_buf = nullptr;
@@ -381,6 +395,7 @@ size_t WiFiClientSecure_light::peekBytes(uint8_t *buffer, size_t length) {
 
   to_copy = _recvapp_len < length ? _recvapp_len : length;
   memcpy(buffer, _recvapp_buf, to_copy);
+Log_buffer("_PeekBytes", buffer, to_copy);
   return to_copy;
 }
 
@@ -819,256 +834,6 @@ int WiFiClientSecure_light::getLastSSLError(char *dest, size_t len) {
     dest[len - 1] = 0;
   }
   return err;
-}
-
-bool WiFiClientSecure_light::probeMaxFragmentLength(const char* name, uint16_t port, uint16_t len) {
-  IPAddress remote_addr;
-  if (!WiFi.hostByName(name, remote_addr)) {
-    DEBUG_BSSL("probeMaxFragmentLength: Can't resolve host\n");
-    return false;
-  }
-  return WiFiClientSecure_light::probeMaxFragmentLength(remote_addr, port, len);
-}
-
-bool WiFiClientSecure_light::probeMaxFragmentLength(const String& host, uint16_t port, uint16_t len) {
-  return WiFiClientSecure_light::probeMaxFragmentLength(host.c_str(), port, len);
-}
-
-
-// Helper function which aborts a TLS handshake by sending TLS
-// ClientAbort and ClientClose messages.
-static bool _SendAbort(WiFiClient& probe, bool supportsLen) {
-  // If we're still connected, send the appropriate notice that
-  // we're aborting the handshake per RFCs.
-  static const uint8_t clientAbort_P[] PROGMEM = {
-    0x15 /*alert*/, 0x03, 0x03 /*TLS 1.2*/, 0x00, 0x02,
-    1, 90 /* warning: user_cancelled */
-  };
-  static const uint8_t clientClose_P[] PROGMEM = {
-    0x15 /*alert*/, 0x03, 0x03 /*TLS 1.2*/, 0x00, 0x02,
-    1, 0 /* warning: close_notify */
-  };
-  if (probe.connected()) {
-    uint8_t msg[sizeof(clientAbort_P)];
-    memcpy_P(msg, clientAbort_P, sizeof(clientAbort_P));
-    probe.write(msg, sizeof(clientAbort_P));
-    memcpy_P(msg, clientClose_P, sizeof(clientClose_P));
-    probe.write(msg, sizeof(clientClose_P));
-  }
-  return supportsLen;
-}
-
-// Checks for support of Maximum Frame Length Negotiation at the given
-// blocksize.  Note that, per spec, only 512, 1024, 2048, and 4096 are
-// supported.  Many servers today do not support this negotiation.
-
-// TODO - Allow for fragmentation...but not very critical as the ServerHello
-//      we use comes to < 80 bytes which has no reason to ever be fragmented.
-// TODO - Check the type of returned extensions and that the MFL is the exact
-//      same one we sent.  Not critical as only horribly broken servers would
-//      return changed or add their own extensions.
-bool WiFiClientSecure_light::probeMaxFragmentLength(IPAddress ip, uint16_t port, uint16_t len) {
-  // Hardcoded TLS 1.2 packets used throughout
-  static const uint8_t clientHelloHead_P[] PROGMEM = {
-    0x16, 0x03, 0x03, 0x00, 0, // TLS header, change last 2 bytes to len
-    0x01, 0x00, 0x00, 0, // Last 3 bytes == length
-    0x03, 0x03, // Proto version TLS 1.2
-    0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, // Random (gmtime + rand[28])
-    0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
-    0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-    0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
-    0x00, // Session ID
-  };
-  // Followed by our cipher-suite, generated on-the-fly
-  //    0x00, 0x02, // cipher suite len
-  //      0xc0, 0x13, // BR_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
-  static const uint8_t clientHelloTail_P[] PROGMEM = {
-    0x01, 0x00, // No compression
-    0x00, 26 + 14 + 6 +  5, // Extension length
-    0x00, 0x0d, 0x00, 0x16, 0x00, 0x14, 0x04, 0x03, 0x03, 0x03, 0x05, 0x03,
-          0x06, 0x03, 0x02, 0x03, 0x04, 0x01, 0x03, 0x01, 0x05, 0x01, 0x06,
-	  0x01, 0x02, 0x01, // Supported signature algorithms
-    0x00, 0x0a, 0x00, 0x0a, 0x00, 0x08, 0x00, 0x17, 0x00, 0x18, 0x00, 0x19,
-          0x00, 0x1d, // Supported groups
-    0x00, 0x0b, 0x00, 0x02, 0x01, 0x00, // Supported EC formats
-    0x00, 0x01, // Max Frag Len
-    0x00, 0x01, // len of MaxFragLen
-  };
-  // Followed by a 1-byte MFLN size requesst
-  //          0x04 // 2^12 = 4K
-  uint8_t mfl;
-
-  switch (len) {
-    case 512: mfl = 1; break;
-    case 1024: mfl = 2; break;
-    case 2048: mfl = 3; break;
-    case 4096: mfl = 4; break;
-    default: return false; // Invalid size
-  }
-  int ttlLen = sizeof(clientHelloHead_P) + (2 + sizeof(suites_P)) + (sizeof(clientHelloTail_P) + 1);
-  uint8_t *clientHello = new uint8_t[ttlLen];
-  if (!clientHello) {
-    DEBUG_BSSL("probeMaxFragmentLength: OOM\n");
-    return false;
-  }
-  memcpy_P(clientHello, clientHelloHead_P, sizeof(clientHelloHead_P));
-  clientHello[sizeof(clientHelloHead_P) + 0] = sizeof(suites_P) >> 8;   // MSB byte len
-  clientHello[sizeof(clientHelloHead_P) + 1] = sizeof(suites_P) & 0xff; // LSB byte len
-  for (size_t i = 0; i < sizeof(suites_P) / sizeof(suites_P[0]); i++) {
-    uint16_t flip = pgm_read_word(&suites_P[i]);
-    // Swap to network byte order
-    flip = ((flip >> 8) & 0xff) | ((flip & 0xff) << 8);
-    memcpy(clientHello + sizeof(clientHelloHead_P) + 2 + 2 * i, &flip, 2);
-  }
-  memcpy_P(clientHello + sizeof(clientHelloHead_P) + 2 + sizeof(suites_P), clientHelloTail_P, sizeof(clientHelloTail_P));
-  clientHello[sizeof(clientHelloHead_P) + 2 + sizeof(suites_P) + sizeof(clientHelloTail_P)] = mfl;
-
-  // Fix up TLS fragment length
-  clientHello[3] = (ttlLen - 5) >> 8;
-  clientHello[4] = (ttlLen - 5) & 0xff;
-  // Fix up ClientHello message length
-  clientHello[7] = (ttlLen - 5 - 4) >> 8;
-  clientHello[8] = (ttlLen - 5 - 4) & 0xff;
-
-DEBUG_BSSL("==== START 2\n");
-  WiFiClient probe;
-  probe.connect(ip, port);
-DEBUG_BSSL("==== START 3\n");
-  if (!probe.connected()) {
-    delete[] clientHello;
-    DEBUG_BSSL("probeMaxFragmentLength: Can't connect\n");
-    return false;
-  }
-
-  int ret = probe.write(clientHello, ttlLen);
-  delete[] clientHello; // We're done w/the hello message
-  if (!probe.connected() || (ret != ttlLen)) {
-    DEBUG_BSSL("probeMaxFragmentLength: Protocol error\n");
-    return false;
-  }
-DEBUG_BSSL("==== START 4\n");
-  bool supportsLen = false;
-  uint8_t fragResp[5];
-  int fragLen;
-  uint8_t hand[4];
-  int handLen;
-  uint8_t protoVer[2];
-  uint8_t rand[32];
-  uint8_t sessionLen;
-  uint8_t cipher[2];
-  uint8_t comp;
-  uint8_t extBytes[2];
-  uint16_t extLen;
-
-  ret = probe.readBytes(fragResp, 5);
-  if (!probe.connected() || (ret != 5) || (fragResp[0] != 0x16) || (fragResp[1] != 0x03) || (fragResp[2] != 0x03)) {
-    // Short read, not a HANDSHAKE or not TLS 1.2, so it's not supported
-    return _SendAbort(probe, supportsLen);
-  }
-  fragLen = (fragResp[3] << 8) | fragResp[4];
-  if (fragLen < 4 + 2 + 32 + 1 + 2 + 1) {
-    // Too short to have an extension
-    return _SendAbort(probe, supportsLen);
-  }
-
-DEBUG_BSSL("==== START 5\n");
-  ret = probe.readBytes(hand, 4);
-  fragLen -= ret;
-  if ((ret != 4) || (hand[0] != 2)) {
-    // Short read or not server_hello
-    return _SendAbort(probe, supportsLen);
-  }
-
-  DEBUG_BSSL("==== START 5.1\n");
-  handLen = (hand[1] << 16) | (hand[2] << 8) | hand[3];
-  if (handLen != fragLen) {
-    // Got some weird mismatch, this is invalid
-    return _SendAbort(probe, supportsLen);
-  }
-
-DEBUG_BSSL("==== START 5.2\n");
-  ret = probe.readBytes(protoVer, 2);
-  handLen -= ret;
-  if ((ret != 2) || (protoVer[0] != 0x03) || (protoVer[1] != 0x03)) {
-    // Short read or not tls 1.2, so can't do MFLN
-    return _SendAbort(probe, supportsLen);
-  }
-
-DEBUG_BSSL("==== START 5.3\n");
-  ret = probe.readBytes(rand, 32);
-  handLen -= ret;
-  if (ret != 32) {
-    // short read of random data
-    return _SendAbort(probe, supportsLen);
-  }
-
-DEBUG_BSSL("==== START 5.4\n");
-  ret = probe.readBytes(&sessionLen, 1);
-  handLen -= ret;
-  if ((ret != 1) || (sessionLen > 32)) {
-    // short read of session len or invalid size
-    return _SendAbort(probe, supportsLen);
-  }
-DEBUG_BSSL("==== START 5.5\n");
-  if (sessionLen) {
-    ret = probe.readBytes(rand, sessionLen);
-    handLen -= ret;
-    if (ret != sessionLen) {
-      // short session id read
-      return _SendAbort(probe, supportsLen);
-    }
-  }
-
-DEBUG_BSSL("==== START 6\n");
-  ret = probe.readBytes(cipher, 2);
-  handLen -= ret;
-  if (ret != 2) {
-    // Short read...we don't check the cipher here
-    return _SendAbort(probe, supportsLen);
-  }
-
-  ret = probe.readBytes(&comp, 1);
-  handLen -= ret;
-  if ((ret != 1) || comp != 0) {
-    // short read or invalid compression
-    return _SendAbort(probe, supportsLen);
-  }
-DEBUG_BSSL("==== START 7\n");
-  ret = probe.readBytes(extBytes, 2);
-  handLen -= ret;
-  extLen = extBytes[1] || (extBytes[0]<<8);
-  if ((extLen == 0) || (ret != 2)) {
-    return _SendAbort(probe, supportsLen);
-  }
-
-  while (handLen > 0) {
-    // Parse each extension and look for MFLN
-    uint8_t typeBytes[2];
-    ret = probe.readBytes(typeBytes, 2);
-    handLen -= 2;
-    if ((ret != 2) || (handLen <= 0) ) {
-      return _SendAbort(probe, supportsLen);
-    }
-    uint8_t lenBytes[2];
-    ret = probe.readBytes(lenBytes, 2);
-    handLen -= 2;
-    uint16_t extLen = lenBytes[1] | (lenBytes[0]<<8);
-    if ((ret != 2) || (handLen <= 0) || (extLen > 32) || (extLen > handLen) ) {
-      return _SendAbort(probe, supportsLen);
-    }
-    if ((typeBytes[0]==0x00) && (typeBytes[1]==0x01)) { // MFLN extension!
-      // If present and 1-byte in length, it's supported
-      return _SendAbort(probe, extLen==1 ? true : false);
-    }
-    // Skip the extension, move to next one
-    uint8_t junk[32];
-    ret = probe.readBytes(junk, extLen);
-    handLen -= extLen;
-    if (ret != extLen) {
-      return _SendAbort(probe, supportsLen);
-    }
-  }
-  return _SendAbort(probe, supportsLen);
 }
 
 };

@@ -89,11 +89,11 @@ class WiFiClientSecure_light : public WiFiClient {
     // bool setCiphers(const uint16_t *cipherAry, int cipherCount);
     // bool setCiphers(std::vector<uint16_t> list);
     // bool setCiphersLessSecure(); // Only use the limited set of RSA ciphers without EC
-
-    // Check for Maximum Fragment Length support for given len before connection (possibly insecure)
-    static bool probeMaxFragmentLength(IPAddress ip, uint16_t port, uint16_t len);
-    static bool probeMaxFragmentLength(const char *hostname, uint16_t port, uint16_t len);
-    static bool probeMaxFragmentLength(const String& host, uint16_t port, uint16_t len);
+    //
+    // // Check for Maximum Fragment Length support for given len before connection (possibly insecure)
+    // static bool probeMaxFragmentLength(IPAddress ip, uint16_t port, uint16_t len);
+    // static bool probeMaxFragmentLength(const char *hostname, uint16_t port, uint16_t len);
+    // static bool probeMaxFragmentLength(const String& host, uint16_t port, uint16_t len);
 
   private:
     void _clear();

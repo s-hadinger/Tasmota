@@ -122,6 +122,7 @@ boolean PubSubClient::connect(const char *id, const char *user, const char *pass
         } else {
             result = _client->connect(this->ip, this->port);
         }
+Serial.printf("PubSubClient::connect connected, result = %d\n", result);
         if (result == 1) {
             nextMsgId = 1;
             // Leave room in the buffer for header and variable length field
@@ -158,8 +159,11 @@ boolean PubSubClient::connect(const char *id, const char *user, const char *pass
 
             buffer[length++] = ((MQTT_KEEPALIVE) >> 8);
             buffer[length++] = ((MQTT_KEEPALIVE) & 0xFF);
+Serial.printf("PubSubClient::connect before writeString\n");
             length = writeString(id,buffer,length);
+Serial.printf("PubSubClient::connect writeString length=%d\n", length);
             if (willTopic) {
+Serial.printf("PubSubClient::connect willTopic\n");
                 length = writeString(willTopic,buffer,length);
                 length = writeString(willMessage,buffer,length);
             }
@@ -170,14 +174,16 @@ boolean PubSubClient::connect(const char *id, const char *user, const char *pass
                     length = writeString(pass,buffer,length);
                 }
             }
-
+Serial.printf("PubSubClient::connect before write\n");
             write(MQTTCONNECT,buffer,length-5);
-
+Serial.printf("PubSubClient::connect after write\n");
             lastInActivity = lastOutActivity = millis();
 
             while (!_client->available()) {
+                yield();
                 unsigned long t = millis();
                 if (t-lastInActivity >= ((int32_t) MQTT_SOCKET_TIMEOUT*1000UL)) {
+Serial.printf("PubSubClient::connect TIMEOUT\n");
                     _state = MQTT_CONNECTION_TIMEOUT;
                     _client->stop();
                     return false;
@@ -185,19 +191,22 @@ boolean PubSubClient::connect(const char *id, const char *user, const char *pass
             }
             uint8_t llen;
             uint16_t len = readPacket(&llen);
-
+Serial.printf("PubSubClient::connect NEXT\n");
             if (len == 4) {
                 if (buffer[3] == 0) {
                     lastInActivity = millis();
                     pingOutstanding = false;
                     _state = MQTT_CONNECTED;
+Serial.printf("PubSubClient::connect MQTT connected\n");
                     return true;
                 } else {
                     _state = buffer[3];
                 }
             }
+Serial.printf("PubSubClient::connect stop\n");
             _client->stop();
         } else {
+Serial.printf("PubSubClient::connect CONNECT_FAILED\n");
             _state = MQTT_CONNECT_FAILED;
         }
         return false;
