@@ -48,7 +48,7 @@ extern "C" {
 
 #ifdef DEBUG_TLS
 void Log_heap_size(const char *msg) {
-  Serial.printf("%s %d Thunk %d\n", msg, ESP.getFreeHeap(), stack_thunk_get_max_usage());
+  Serial.printf("%s %d, Fragmentation=%d, Thunkstack=%d\n", msg, ESP.getFreeHeap(), ESP.getHeapFragmentation(), stack_thunk_get_max_usage());
 }
 
 void Log_fingerprint(const unsigned char *finger) {
@@ -106,7 +106,7 @@ void WiFiClientSecure_light::_clear() {
   _iobuf_in = nullptr;
   _iobuf_out = nullptr;
   _now = 0; // You can override or ensure time() is correct w/configTime
-  setBufferSizes(1024, 1024); // reasonable minimum
+  setBufferSizes(512, 512); // reasonable minimum
   _handshake_done = false;
   _recvapp_buf = nullptr;
   _recvapp_len = 0;
@@ -274,6 +274,7 @@ size_t WiFiClientSecure_light::_write(const uint8_t *buf, size_t size, bool pmem
     }
   } while (size);
 
+Log_heap_size("_write");
   return sent_bytes;
 }
 
@@ -726,6 +727,7 @@ extern "C" {
 // Called by connect() to do the actual SSL setup and handshake.
 // Returns if the SSL handshake succeeded.
 bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
+Log_heap_size("_connectSSL.start");
   DEBUG_BSSL("_connectSSL: start connection\n");
   _freeSSL();
   _oom_err = false;
@@ -757,9 +759,13 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
     getLastSSLError(err, sizeof(err));
     DEBUG_BSSL("Couldn't connect. Error = '%s'\n", err);
   } else {
-    DEBUG_BSSL("Connected!\n");
+    DEBUG_BSSL("Connected! MFLNStatus = %d\n", getMFLNStatus());
   }
 #endif
+Log_heap_size("_connectSSL.end");
+  stack_thunk_repaint();
+Log_heap_size("_connectSSL.end, after repaint()");
+//Serial.printf("Connected! MFLNStatus = %d\n", getMFLNStatus());
   return ret;
 }
 
