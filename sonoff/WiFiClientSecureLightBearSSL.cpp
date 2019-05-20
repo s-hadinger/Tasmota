@@ -59,7 +59,6 @@ void Log_fingerprint(const unsigned char *finger) {
   }
   Serial.printf("Fingerprint = %s\n", fingerprint);
 }
-#endif
 
 void Log_buffer(const char *msg, const uint8_t *buf, uint32_t size) {
   char out[200];
@@ -70,7 +69,7 @@ void Log_buffer(const char *msg, const uint8_t *buf, uint32_t size) {
   }
   Serial.printf("%s = %s\n", msg, out);
 }
-
+#endif
 
 #if !CORE_MOCK
 
@@ -117,7 +116,9 @@ void WiFiClientSecure_light::_clear() {
 
 void WiFiClientSecure_light::_clearAuthenticationSettings() {
   _use_fingerprint = false;
-  _sk = nullptr;
+  //_sk = nullptr;
+  _chain_PEM = nullptr;
+  _sk_PEM = nullptr;
 }
 
 // Constructor
@@ -152,9 +153,14 @@ Log_heap_size("allocateBuffers before");
 Log_heap_size("allocateBuffers after");
 }
 
-void WiFiClientSecure_light::setClientRSACert(const X509List *chain, const PrivateKey *sk) {
-  _chain = chain;
-  _sk = sk;
+// void WiFiClientSecure_light::setClientRSACert(const X509List *chain, const PrivateKey *sk) {
+//   _chain = chain;
+//   _sk = sk;
+// }
+
+void WiFiClientSecure_light::setClientRSACertPEM(const char *chain, const char *sk) {
+  _chain_PEM = chain;
+  _sk_PEM = sk;
 }
 
 void WiFiClientSecure_light::setBufferSizes(int recv, int xmit) {
@@ -727,6 +733,9 @@ extern "C" {
 // Called by connect() to do the actual SSL setup and handshake.
 // Returns if the SSL handshake succeeded.
 bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
+  X509List *chain = nullptr;
+  PrivateKey *sk = nullptr;
+
 Log_heap_size("_connectSSL.start");
   DEBUG_BSSL("_connectSSL: start connection\n");
   _freeSSL();
@@ -743,10 +752,17 @@ Log_heap_size("_connectSSL.start");
 
   br_ssl_engine_set_buffers_bidi(_eng, _iobuf_in.get(), _iobuf_in_size, _iobuf_out.get(), _iobuf_out_size);
 
-  br_ssl_client_set_single_rsa(_sc.get(), _chain ? _chain->getX509Certs() : nullptr, _chain ? _chain->getCount() : 0,
-                               _sk->getRSA(), br_rsa_pkcs1_sign_get_default());
+  // allocate Private key and client certificate
+  chain = new X509List(_chain_PEM);
+  sk = new PrivateKey(_sk_PEM);
+Log_heap_size("_connectSSL after PrivKey allocation");
+
+  br_ssl_client_set_single_rsa(_sc.get(), chain ? chain->getX509Certs() : nullptr, chain ? chain->getCount() : 0,
+                               sk->getRSA(), br_rsa_pkcs1_sign_get_default());
 
   if (!br_ssl_client_reset(_sc.get(), hostName, 0)) {
+    delete(chain);
+    delete(sk);
     _freeSSL();
     DEBUG_BSSL("_connectSSL: Can't reset client\n");
     return false;
@@ -755,9 +771,7 @@ Log_heap_size("_connectSSL.start");
   auto ret = _wait_for_handshake();
 #ifdef DEBUG_ESP_SSL
   if (!ret) {
-    char err[256];
-    getLastSSLError(err, sizeof(err));
-    DEBUG_BSSL("Couldn't connect. Error = '%s'\n", err);
+    DEBUG_BSSL("Couldn't connect. Error = %d\n", getLastSSLError());
   } else {
     DEBUG_BSSL("Connected! MFLNStatus = %d\n", getMFLNStatus());
   }
@@ -766,85 +780,16 @@ Log_heap_size("_connectSSL.end");
   stack_thunk_repaint();
 Log_heap_size("_connectSSL.end, after repaint()");
 //Serial.printf("Connected! MFLNStatus = %d\n", getMFLNStatus());
+  delete(chain);
+  delete(sk);
+Log_heap_size("_connectSSL after release of Priv Key");
   return ret;
 }
 
 // Returns an error ID and possibly a string (if dest != null) of the last
 // BearSSL reported error.
-int WiFiClientSecure_light::getLastSSLError(char *dest, size_t len) {
-  int err = 0;
-  const char *t = PSTR("OK");
-  err = br_ssl_engine_last_error(_eng);
-  if (_oom_err) {
-    err = -1000;
-  }
-  switch (err) {
-    case -1000: t = PSTR("Unable to allocate memory for SSL structures and buffers."); break;
-    case BR_ERR_BAD_PARAM: t = PSTR("Caller-provided parameter is incorrect."); break;
-    case BR_ERR_BAD_STATE: t = PSTR("Operation requested by the caller cannot be applied with the current context state (e.g. reading data while outgoing data is waiting to be sent)."); break;
-    case BR_ERR_UNSUPPORTED_VERSION: t = PSTR("Incoming protocol or record version is unsupported."); break;
-    case BR_ERR_BAD_VERSION: t = PSTR("Incoming record version does not match the expected version."); break;
-    case BR_ERR_BAD_LENGTH: t = PSTR("Incoming record length is invalid."); break;
-    case BR_ERR_TOO_LARGE: t = PSTR("Incoming record is too large to be processed, or buffer is too small for the handshake message to send."); break;
-    case BR_ERR_BAD_MAC: t = PSTR("Decryption found an invalid padding, or the record MAC is not correct."); break;
-    case BR_ERR_NO_RANDOM: t = PSTR("No initial entropy was provided, and none can be obtained from the OS."); break;
-    case BR_ERR_UNKNOWN_TYPE: t = PSTR("Incoming record type is unknown."); break;
-    case BR_ERR_UNEXPECTED: t = PSTR("Incoming record or message has wrong type with regards to the current engine state."); break;
-    case BR_ERR_BAD_CCS: t = PSTR("ChangeCipherSpec message from the peer has invalid contents."); break;
-    case BR_ERR_BAD_ALERT: t = PSTR("Alert message from the peer has invalid contents (odd length)."); break;
-    case BR_ERR_BAD_HANDSHAKE: t = PSTR("Incoming handshake message decoding failed."); break;
-    case BR_ERR_OVERSIZED_ID: t = PSTR("ServerHello contains a session ID which is larger than 32 bytes."); break;
-    case BR_ERR_BAD_CIPHER_SUITE: t = PSTR("Server wants to use a cipher suite that we did not claim to support. This is also reported if we tried to advertise a cipher suite that we do not support."); break;
-    case BR_ERR_BAD_COMPRESSION: t = PSTR("Server wants to use a compression that we did not claim to support."); break;
-    case BR_ERR_BAD_FRAGLEN: t = PSTR("Server's max fragment length does not match client's."); break;
-    case BR_ERR_BAD_SECRENEG: t = PSTR("Secure renegotiation failed."); break;
-    case BR_ERR_EXTRA_EXTENSION: t = PSTR("Server sent an extension type that we did not announce, or used the same extension type several times in a single ServerHello."); break;
-    case BR_ERR_BAD_SNI: t = PSTR("Invalid Server Name Indication contents (when used by the server, this extension shall be empty)."); break;
-    case BR_ERR_BAD_HELLO_DONE: t = PSTR("Invalid ServerHelloDone from the server (length is not 0)."); break;
-    case BR_ERR_LIMIT_EXCEEDED: t = PSTR("Internal limit exceeded (e.g. server's public key is too large)."); break;
-    case BR_ERR_BAD_FINISHED: t = PSTR("Finished message from peer does not match the expected value."); break;
-    case BR_ERR_RESUME_MISMATCH: t = PSTR("Session resumption attempt with distinct version or cipher suite."); break;
-    case BR_ERR_INVALID_ALGORITHM: t = PSTR("Unsupported or invalid algorithm (ECDHE curve, signature algorithm, hash function)."); break;
-    case BR_ERR_BAD_SIGNATURE: t = PSTR("Invalid signature in ServerKeyExchange or CertificateVerify message."); break;
-    case BR_ERR_WRONG_KEY_USAGE: t = PSTR("Peer's public key does not have the proper type or is not allowed for the requested operation."); break;
-    case BR_ERR_NO_CLIENT_AUTH: t = PSTR("Client did not send a certificate upon request, or the client certificate could not be validated."); break;
-    case BR_ERR_IO: t = PSTR("I/O error or premature close on transport stream."); break;
-    case BR_ERR_X509_INVALID_VALUE: t = PSTR("Invalid value in an ASN.1 structure."); break;
-    case BR_ERR_X509_TRUNCATED: t = PSTR("Truncated certificate or other ASN.1 object."); break;
-    case BR_ERR_X509_EMPTY_CHAIN: t = PSTR("Empty certificate chain (no certificate at all)."); break;
-    case BR_ERR_X509_INNER_TRUNC: t = PSTR("Decoding error: inner element extends beyond outer element size."); break;
-    case BR_ERR_X509_BAD_TAG_CLASS: t = PSTR("Decoding error: unsupported tag class (application or private)."); break;
-    case BR_ERR_X509_BAD_TAG_VALUE: t = PSTR("Decoding error: unsupported tag value."); break;
-    case BR_ERR_X509_INDEFINITE_LENGTH: t = PSTR("Decoding error: indefinite length."); break;
-    case BR_ERR_X509_EXTRA_ELEMENT: t = PSTR("Decoding error: extraneous element."); break;
-    case BR_ERR_X509_UNEXPECTED: t = PSTR("Decoding error: unexpected element."); break;
-    case BR_ERR_X509_NOT_CONSTRUCTED: t = PSTR("Decoding error: expected constructed element, but is primitive."); break;
-    case BR_ERR_X509_NOT_PRIMITIVE: t = PSTR("Decoding error: expected primitive element, but is constructed."); break;
-    case BR_ERR_X509_PARTIAL_BYTE: t = PSTR("Decoding error: BIT STRING length is not multiple of 8."); break;
-    case BR_ERR_X509_BAD_BOOLEAN: t = PSTR("Decoding error: BOOLEAN value has invalid length."); break;
-    case BR_ERR_X509_OVERFLOW: t = PSTR("Decoding error: value is off-limits."); break;
-    case BR_ERR_X509_BAD_DN: t = PSTR("Invalid distinguished name."); break;
-    case BR_ERR_X509_BAD_TIME: t = PSTR("Invalid date/time representation."); break;
-    case BR_ERR_X509_UNSUPPORTED: t = PSTR("Certificate contains unsupported features that cannot be ignored."); break;
-    case BR_ERR_X509_LIMIT_EXCEEDED: t = PSTR("Key or signature size exceeds internal limits."); break;
-    case BR_ERR_X509_WRONG_KEY_TYPE: t = PSTR("Key type does not match that which was expected."); break;
-    case BR_ERR_X509_BAD_SIGNATURE: t = PSTR("Signature is invalid."); break;
-    case BR_ERR_X509_TIME_UNKNOWN: t = PSTR("Validation time is unknown."); break;
-    case BR_ERR_X509_EXPIRED: t = PSTR("Certificate is expired or not yet valid."); break;
-    case BR_ERR_X509_DN_MISMATCH: t = PSTR("Issuer/Subject DN mismatch in the chain."); break;
-    case BR_ERR_X509_BAD_SERVER_NAME: t = PSTR("Expected server name was not found in the chain."); break;
-    case BR_ERR_X509_CRITICAL_EXTENSION: t = PSTR("Unknown critical extension in certificate."); break;
-    case BR_ERR_X509_NOT_CA: t = PSTR("Not a CA, or path length constraint violation."); break;
-    case BR_ERR_X509_FORBIDDEN_KEY_USAGE: t = PSTR("Key Usage extension prohibits intended usage."); break;
-    case BR_ERR_X509_WEAK_PUBLIC_KEY: t = PSTR("Public key found in certificate is too small."); break;
-    case BR_ERR_X509_NOT_TRUSTED: t = PSTR("Chain could not be linked to a trust anchor."); break;
-    default: t = PSTR("Unknown error code."); break;
-  }
-  if (dest) {
-    strncpy_P(dest, t, len);
-    dest[len - 1] = 0;
-  }
-  return err;
+int WiFiClientSecure_light::getLastSSLError(void) {
+  return br_ssl_engine_last_error(_eng);
 }
 
 };

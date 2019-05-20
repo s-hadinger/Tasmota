@@ -71,7 +71,8 @@ class WiFiClientSecure_light : public WiFiClient {
     }
     bool setPubKeyFingerprint(const char *fpStr);
     // Install a client certificate for this connection, in case the server requires it (i.e. MQTT)
-    void setClientRSACert(const X509List *cert, const PrivateKey *sk);
+    //void setClientRSACert(const X509List *cert, const PrivateKey *sk);
+    void setClientRSACertPEM(const char *cert, const char *sk);
 
     // Sets the requested buffer size for transmit and receive
     void setBufferSizes(int recv, int xmit);
@@ -82,7 +83,7 @@ class WiFiClientSecure_light : public WiFiClient {
     }
 
     // Return an error code and possibly a text string in a passed-in buffer with last SSL failure
-    int getLastSSLError(char *dest = NULL, size_t len = 0);
+    int getLastSSLError(void);
 
     // Select specific ciphers (i.e. optimize for speed over security)
     // These may be in PROGMEM or RAM, either will run properly
@@ -117,7 +118,6 @@ class WiFiClientSecure_light : public WiFiClient {
 
     bool _use_fingerprint;
     uint8_t _fingerprint[20];
-    unsigned _knownkey_usages;
 
     // Custom cipher list pointer or NULL if default
     // std::shared_ptr<uint16_t> _cipher_list;
@@ -134,8 +134,10 @@ class WiFiClientSecure_light : public WiFiClient {
     bool _wait_for_handshake(); // Sets and return the _handshake_done after connecting
 
     // Optional client certificate
-    const X509List *_chain;
-    const PrivateKey *_sk;
+    const char *_chain_PEM;
+    const char *_sk_PEM;
+    // const X509List *_chain;
+    // const PrivateKey *_sk;
     unsigned _allowed_usages;
     unsigned _cert_issuer_key_type;
 

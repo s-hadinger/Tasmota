@@ -122,9 +122,8 @@ void testTls(void) {
   //AddLog_P2(LOG_LEVEL_INFO, "StackThunk=%d",stack_thunk_get_max_usage());
   uint32_t time = millis();
   if (!awsClient->connect(AWS_endpoint, mqtt_port)) {
-    char ssl_error[64];
-    int err = awsClient->getLastSSLError(ssl_error, 64);
-    AddLog_P2(LOG_LEVEL_INFO, "WiFiClientSecure SSL error: %d %s", err, ssl_error);
+    int err = awsClient->getLastSSLError();
+    AddLog_P2(LOG_LEVEL_INFO, "WiFiClientSecure SSL error: %d", err);
   } else {
     AddLog_P2(LOG_LEVEL_INFO, "Connection OK");
 
@@ -207,10 +206,11 @@ PubSubClient MqttClient(espClient);
 void MqttInit(void) {
 #ifdef USE_MQTT_AWS_IOT
   free_mem_before = ESP.getFreeHeap();
-  awsClient = new BearSSL::WiFiClientSecure_light(1024,1024);
-  aws_iot_private_key = new PrivateKey(AWS_IoT_client_PrivKey);
-  aws_iot_client_cert = new X509List(AWS_IoT_client_cert);
-  awsClient->setClientRSACert(aws_iot_client_cert, aws_iot_private_key);
+  awsClient = new BearSSL::WiFiClientSecure_light(512,512);
+  // aws_iot_private_key = new PrivateKey(AWS_IoT_client_PrivKey);
+  // aws_iot_client_cert = new X509List(AWS_IoT_client_cert);
+  // awsClient->setClientRSACert(aws_iot_client_cert, aws_iot_private_key);
+  awsClient->setClientRSACertPEM(AWS_IoT_client_cert, AWS_IoT_client_PrivKey);
   free_mem_after = ESP.getFreeHeap();
 
   MqttClient.setClient(*awsClient);
