@@ -101,7 +101,7 @@ void WiFiClientSecure_light::_clear() {
   _sc = nullptr;
   _ctx_present = false;
   _eng = nullptr;
-  _x509_insecure = nullptr;
+  //_x509_insecure = nullptr;
   _iobuf_in = nullptr;
   _iobuf_out = nullptr;
   _now = 0; // You can override or ensure time() is correct w/configTime
@@ -149,7 +149,7 @@ Log_heap_size("allocateBuffers before");
   _sc = std::make_shared<br_ssl_client_context>();
   _iobuf_in = std::shared_ptr<unsigned char>(new unsigned char[_iobuf_in_size], std::default_delete<unsigned char[]>());
   _iobuf_out = std::shared_ptr<unsigned char>(new unsigned char[_iobuf_out_size], std::default_delete<unsigned char[]>());
-  _x509_insecure = std::make_shared<struct br_x509_pubkeyfingerprint_context>();
+  //_x509_insecure = std::make_shared<struct br_x509_pubkeyfingerprint_context>();
 Log_heap_size("allocateBuffers after");
 }
 
@@ -220,7 +220,6 @@ void WiFiClientSecure_light::_freeSSL() {
   // These are smart pointers and will free if refcnt==0
   //_sc = nullptr; // TODO clean *_sc ?
   _ctx_present = false;
-  memset(_sc.get(), 0, sizeof(br_ssl_client_context));
   //_sc_svr = nullptr;
   // _x509_insecure = nullptr; // TODO clean *_sc ?
   // Reset non-allocated ptrs (pointing to bits potentially free'd above)
@@ -706,16 +705,18 @@ extern "C" {
    * -- AES-128 is preferred over AES-256 (AES-128 is already
    *    strong enough, and AES-256 is 40% more expensive).
    */
-  static const uint16_t suites_P[] PROGMEM = {
+  // we reference it, don't put in PROGMEM
+  static const uint16_t suites[] = {
     BR_TLS_RSA_WITH_AES_128_CBC_SHA256,
     BR_TLS_RSA_WITH_AES_128_CBC_SHA
   };
 
   // Default initializion for our SSL clients
-  static void br_ssl_client_base_init(br_ssl_client_context *cc, const uint16_t *cipher_list, int cipher_cnt) {
-    uint16_t suites[cipher_cnt];
-    memcpy_P(suites, cipher_list, cipher_cnt * sizeof(cipher_list[0]));
+  static void br_ssl_client_base_init(br_ssl_client_context *cc) {
     br_ssl_client_zero(cc);
+    // forbid SSL renegociation, as we free the Private Key after handshake
+    br_ssl_engine_add_flags(&cc->eng, BR_OPT_NO_RENEGOTIATION);
+
     br_ssl_engine_set_versions(&cc->eng, BR_TLS12, BR_TLS12);
     br_ssl_engine_set_suites(&cc->eng, suites, (sizeof suites) / (sizeof suites[0]));
     br_ssl_client_set_default_rsapub(cc);
@@ -725,7 +726,15 @@ extern "C" {
     br_ssl_engine_set_hash(&cc->eng, br_sha1_ID, &br_sha1_vtable);
     br_ssl_engine_set_hash(&cc->eng, br_sha256_ID, &br_sha256_vtable);
     br_ssl_engine_set_prf_sha256(&cc->eng, &br_tls12_sha256_prf);
-    br_ssl_engine_set_default_aes_cbc(&cc->eng);
+    // default AES CBC
+    //  Previous br_ssl_engine_set_default_aes_cbc(&cc->eng); // equivalent to the following
+	  //br_ssl_engine_set_cbc(&cc->eng, &br_sslrec_in_cbc_vtable, &br_sslrec_out_cbc_vtable);
+	  //br_ssl_engine_set_aes_cbc(&cc->eng, &br_aes_ct_cbcenc_vtable, &br_aes_ct_cbcdec_vtable);
+
+    // AES CBC small version, not contstant time (we don't really care here as there is no TPM anyways)
+    // saves ~3.3KB compared to standard AES CBC
+	  br_ssl_engine_set_cbc(&cc->eng, &br_sslrec_in_cbc_vtable, &br_sslrec_out_cbc_vtable);
+	  br_ssl_engine_set_aes_cbc(&cc->eng, &br_aes_small_cbcenc_vtable, &br_aes_small_cbcdec_vtable);
   }
 
 }
@@ -735,6 +744,7 @@ extern "C" {
 bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
   X509List *chain = nullptr;
   PrivateKey *sk = nullptr;
+  br_x509_pubkeyfingerprint_context *x509_insecure;
 
 Log_heap_size("_connectSSL.start");
   DEBUG_BSSL("_connectSSL: start connection\n");
@@ -744,11 +754,15 @@ Log_heap_size("_connectSSL.start");
   _ctx_present = true;
   _eng = &_sc->eng; // Allocation/deallocation taken care of by the _sc shared_ptr
 
-  br_ssl_client_base_init(_sc.get(), suites_P, sizeof(suites_P) / sizeof(suites_P[0]));
+  br_ssl_client_base_init(_sc.get());
 
   // Only failure possible in the installation is OOM
-  br_x509_pubkeyfingerprint_init(_x509_insecure.get(), _fingerprint);
-  br_ssl_engine_set_x509(_eng, &_x509_insecure->vtable);
+  x509_insecure = (br_x509_pubkeyfingerprint_context*) malloc(sizeof(br_x509_pubkeyfingerprint_context));
+
+  // br_x509_pubkeyfingerprint_init(_x509_insecure.get(), _fingerprint);
+  // br_ssl_engine_set_x509(_eng, &_x509_insecure->vtable);
+  br_x509_pubkeyfingerprint_init(x509_insecure, _fingerprint);
+  br_ssl_engine_set_x509(_eng, &x509_insecure->vtable);
 
   br_ssl_engine_set_buffers_bidi(_eng, _iobuf_in.get(), _iobuf_in_size, _iobuf_out.get(), _iobuf_out_size);
 
@@ -760,14 +774,17 @@ Log_heap_size("_connectSSL after PrivKey allocation");
   br_ssl_client_set_single_rsa(_sc.get(), chain ? chain->getX509Certs() : nullptr, chain ? chain->getCount() : 0,
                                sk->getRSA(), br_rsa_pkcs1_sign_get_default());
 
+Log_heap_size("_connectSSL checkpoint 1");
   if (!br_ssl_client_reset(_sc.get(), hostName, 0)) {
     delete(chain);
     delete(sk);
+    free(x509_insecure);
     _freeSSL();
     DEBUG_BSSL("_connectSSL: Can't reset client\n");
     return false;
   }
 
+Log_heap_size("_connectSSL checkpoint 2");
   auto ret = _wait_for_handshake();
 #ifdef DEBUG_ESP_SSL
   if (!ret) {
@@ -782,6 +799,7 @@ Log_heap_size("_connectSSL.end, after repaint()");
 //Serial.printf("Connected! MFLNStatus = %d\n", getMFLNStatus());
   delete(chain);
   delete(sk);
+  free(x509_insecure);
 Log_heap_size("_connectSSL after release of Priv Key");
   return ret;
 }

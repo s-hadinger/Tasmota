@@ -107,7 +107,7 @@ class WiFiClientSecure_light : public WiFiClient {
     }
     br_ssl_engine_context *_eng; // &_sc->eng, to allow for client or server contexts
     //std::shared_ptr<br_x509_minimal_context> _x509_minimal;
-    std::shared_ptr<struct br_x509_pubkeyfingerprint_context> _x509_insecure;
+    //std::shared_ptr<struct br_x509_pubkeyfingerprint_context> _x509_insecure;
     std::shared_ptr<unsigned char> _iobuf_in;
     std::shared_ptr<unsigned char> _iobuf_out;
     time_t _now;
