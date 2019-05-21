@@ -86,8 +86,7 @@ void Log_buffer(const char *msg, const uint8_t *buf, uint32_t size) {
 #endif
 
 #ifdef DEBUG_ESP_SSL
-//#define DEBUG_BSSL(fmt, ...)  DEBUG_ESP_PORT.printf_P((PGM_P)PSTR( "BSSL:" fmt), ## __VA_ARGS__)
-#define DEBUG_BSSL(fmt, ...)  Serial.printf("BSSL:" fmt, ## __VA_ARGS__)
+#define DEBUG_BSSL(fmt, ...)  DEBUG_ESP_PORT.printf_P((PGM_P)PSTR( "BSSL:" fmt), ## __VA_ARGS__)
 #else
 #define DEBUG_BSSL(...)
 #endif
@@ -125,7 +124,13 @@ void WiFiClientSecure_light::_clearAuthenticationSettings() {
 WiFiClientSecure_light::WiFiClientSecure_light(int recv, int xmit) : WiFiClient() {
   _clear();
   _clearAuthenticationSettings();
+#ifdef DEBUG_TLS
+Log_heap_size("StackThunk before");
+#endif
   stack_thunk_add_ref();
+#ifdef DEBUG_TLS
+Log_heap_size("StackThunk after");
+#endif
   // now finish the setup
   setBufferSizes(recv, xmit); // reasonable minimum
   allocateBuffers();
@@ -145,12 +150,15 @@ WiFiClientSecure_light::~WiFiClientSecure_light() {
 void WiFiClientSecure_light::allocateBuffers(void) {
   // We prefer to allocate all buffers at start, rather than lazy allocation and deallocation
   // in the long run it avoids heap fragmentation and improves stability
+#ifdef DEBUG_TLS
 Log_heap_size("allocateBuffers before");
+#endif
   _sc = std::make_shared<br_ssl_client_context>();
   _iobuf_in = std::shared_ptr<unsigned char>(new unsigned char[_iobuf_in_size], std::default_delete<unsigned char[]>());
   _iobuf_out = std::shared_ptr<unsigned char>(new unsigned char[_iobuf_out_size], std::default_delete<unsigned char[]>());
-  //_x509_insecure = std::make_shared<struct br_x509_pubkeyfingerprint_context>();
+#ifdef DEBUG_TLS
 Log_heap_size("allocateBuffers after");
+#endif
 }
 
 // void WiFiClientSecure_light::setClientRSACert(const X509List *chain, const PrivateKey *sk) {
@@ -217,12 +225,7 @@ int WiFiClientSecure_light::connect(const String& host, uint16_t port) {
 }
 
 void WiFiClientSecure_light::_freeSSL() {
-  // These are smart pointers and will free if refcnt==0
-  //_sc = nullptr; // TODO clean *_sc ?
   _ctx_present = false;
-  //_sc_svr = nullptr;
-  // _x509_insecure = nullptr; // TODO clean *_sc ?
-  // Reset non-allocated ptrs (pointing to bits potentially free'd above)
   _recvapp_buf = nullptr;
   _recvapp_len = 0;
   // This connection is toast
@@ -258,7 +261,7 @@ size_t WiFiClientSecure_light::_write(const uint8_t *buf, size_t size, bool pmem
     if (_run_until(BR_SSL_SENDAPP) < 0) {
       break;
     }
-//Serial.printf("_write gate passed\n");
+
     if (br_ssl_engine_current_state(_eng) & BR_SSL_SENDAPP) {
       size_t sendapp_len;
       unsigned char *sendapp_buf = br_ssl_engine_sendapp_buf(_eng, &sendapp_len);
@@ -359,7 +362,6 @@ int WiFiClientSecure_light::read() {
 
 int WiFiClientSecure_light::available() {
   if (_recvapp_buf) {
-//Serial.printf("WiFiClientSecure_light::available() _recvapp_buf > 0, len = %d", _recvapp_len);
     return _recvapp_len;  // Anything from last call?
   }
   _recvapp_buf = nullptr;
@@ -405,7 +407,6 @@ size_t WiFiClientSecure_light::peekBytes(uint8_t *buffer, size_t length) {
 
   to_copy = _recvapp_len < length ? _recvapp_len : length;
   memcpy(buffer, _recvapp_buf, to_copy);
-Log_buffer("_PeekBytes", buffer, to_copy);
   return to_copy;
 }
 
@@ -648,7 +649,9 @@ extern "C" {
   for (uint8_t i = 0; i<20; i++) {
    snprintf_P(out, sizeof(out), "%s%s%02X", out, (i) ? " " : "", xc->pubkey_fingerprint[i]);
   }
-  Serial.printf("Fingerprint = %s\n", out);
+#ifdef DEBUG_TLS
+Serial.printf("Fingerprint = %s\n", out);
+#endif
 }
 
     // Default (no validation at all) or no errors in prior checks = success.
@@ -759,8 +762,6 @@ Log_heap_size("_connectSSL.start");
   // Only failure possible in the installation is OOM
   x509_insecure = (br_x509_pubkeyfingerprint_context*) malloc(sizeof(br_x509_pubkeyfingerprint_context));
 
-  // br_x509_pubkeyfingerprint_init(_x509_insecure.get(), _fingerprint);
-  // br_ssl_engine_set_x509(_eng, &_x509_insecure->vtable);
   br_x509_pubkeyfingerprint_init(x509_insecure, _fingerprint);
   br_ssl_engine_set_x509(_eng, &x509_insecure->vtable);
 
@@ -769,12 +770,13 @@ Log_heap_size("_connectSSL.start");
   // allocate Private key and client certificate
   chain = new X509List(_chain_PEM);
   sk = new PrivateKey(_sk_PEM);
+#ifdef DEBUG_TLS
 Log_heap_size("_connectSSL after PrivKey allocation");
+#endif
 
   br_ssl_client_set_single_rsa(_sc.get(), chain ? chain->getX509Certs() : nullptr, chain ? chain->getCount() : 0,
                                sk->getRSA(), br_rsa_pkcs1_sign_get_default());
 
-Log_heap_size("_connectSSL checkpoint 1");
   if (!br_ssl_client_reset(_sc.get(), hostName, 0)) {
     delete(chain);
     delete(sk);
@@ -784,7 +786,6 @@ Log_heap_size("_connectSSL checkpoint 1");
     return false;
   }
 
-Log_heap_size("_connectSSL checkpoint 2");
   auto ret = _wait_for_handshake();
 #ifdef DEBUG_ESP_SSL
   if (!ret) {
@@ -793,14 +794,20 @@ Log_heap_size("_connectSSL checkpoint 2");
     DEBUG_BSSL("Connected! MFLNStatus = %d\n", getMFLNStatus());
   }
 #endif
+#ifdef DEBUG_TLS
 Log_heap_size("_connectSSL.end");
+#endif
   stack_thunk_repaint();
+#ifdef DEBUG_TLS
 Log_heap_size("_connectSSL.end, after repaint()");
 //Serial.printf("Connected! MFLNStatus = %d\n", getMFLNStatus());
+#endif
   delete(chain);
   delete(sk);
   free(x509_insecure);
+#ifdef DEBUG_TLS
 Log_heap_size("_connectSSL after release of Priv Key");
+#endif
   return ret;
 }
 
