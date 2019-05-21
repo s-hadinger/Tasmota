@@ -526,7 +526,7 @@ void MqttReconnect(void)
     return;
   }
 
-#if defined(USE_WEBSERVER) && defined(USE_EMULATION)
+#ifdef USE_EMULATION
   UdpDisconnect();
 #endif  // USE_EMULATION
 
