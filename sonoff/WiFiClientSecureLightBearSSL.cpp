@@ -157,6 +157,7 @@ void WiFiClientSecure_light::allocateBuffers(void) {
   // in the long run it avoids heap fragmentation and improves stability
 LOG_HEAP_SIZE("allocateBuffers before");
   _sc = std::make_shared<br_ssl_client_context>();
+LOG_HEAP_SIZE("allocateBuffers ClientContext");
   _iobuf_in = std::shared_ptr<unsigned char>(new unsigned char[_iobuf_in_size], std::default_delete<unsigned char[]>());
   _iobuf_out = std::shared_ptr<unsigned char>(new unsigned char[_iobuf_out_size], std::default_delete<unsigned char[]>());
 LOG_HEAP_SIZE("allocateBuffers after");
@@ -181,7 +182,6 @@ void WiFiClientSecure_light::setClientECCertPEM(const char *chain, const char *s
 }
 
 void WiFiClientSecure_light::setBufferSizes(int recv, int xmit) {
-LOG_HEAP_SIZE("setBufferSizes");
   // Following constants taken from bearssl/src/ssl/ssl_engine.c (not exported unfortunately)
   const int MAX_OUT_OVERHEAD = 85;
   const int MAX_IN_OVERHEAD = 325;
@@ -786,6 +786,7 @@ DEBUG_BSSL("_connectSSL: start connection\n");
 
   br_ssl_client_base_init(_sc.get());
 
+LOG_HEAP_SIZE("_connectSSL before DecoderContext allocation");
   // Only failure possible in the installation is OOM
   x509_insecure = (br_x509_pubkeyfingerprint_context*) malloc(sizeof(br_x509_pubkeyfingerprint_context));
 
@@ -794,19 +795,24 @@ DEBUG_BSSL("_connectSSL: start connection\n");
 
   br_ssl_engine_set_buffers_bidi(_eng, _iobuf_in.get(), _iobuf_in_size, _iobuf_out.get(), _iobuf_out_size);
 
+LOG_HEAP_SIZE("_connectSSL after PrivKey allocation");
   // allocate Private key and client certificate
   chain = new X509List(_chain_PEM);
   sk = new PrivateKey(_sk_PEM);
 LOG_HEAP_SIZE("_connectSSL after PrivKey allocation");
 
-//	if (sk->isEC()) {
+	if (sk->isEC()) {
 		br_ssl_client_set_single_ec(_sc.get(), chain->getX509Certs(), chain->getCount(),
-		                                sk->getEC(), _allowed_usages,
-		                                _cert_issuer_key_type, br_ec_get_default(), br_ecdsa_sign_asn1_get_default());
-//	} else {
-//	  br_ssl_client_set_single_rsa(_sc.get(), chain ? chain->getX509Certs() : nullptr, chain ? chain->getCount() : 0,
-//	                               sk->getRSA(), br_rsa_pkcs1_sign_get_default());
-//	} // RSA
+	                              sk->getEC(), _allowed_usages,
+	                              _cert_issuer_key_type, br_ec_get_default(), br_ecdsa_sign_asn1_get_default());
+	} else {
+    delete(chain);
+    delete(sk);
+    free(x509_insecure);
+    _freeSSL();
+    DEBUG_BSSL("_connectSSL: RSA cert not supported\n");
+    return false;
+	} // RSA
 
 
   if (!br_ssl_client_reset(_sc.get(), hostName, 0)) {
