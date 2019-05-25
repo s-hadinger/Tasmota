@@ -725,13 +725,8 @@ extern "C" {
    */
   // we reference it, don't put in PROGMEM
   static const uint16_t suites[] = {
-		//BR_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-		BR_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-    //BR_TLS_RSA_WITH_AES_128_CBC_SHA256,
-    //BR_TLS_RSA_WITH_AES_128_CBC_SHA,
+		BR_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
 		//BR_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
-		//BR_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
-		//BR_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256
   };
 
   // Default initializion for our SSL clients
@@ -742,18 +737,23 @@ extern "C" {
 
     br_ssl_engine_set_versions(&cc->eng, BR_TLS12, BR_TLS12);
     br_ssl_engine_set_suites(&cc->eng, suites, (sizeof suites) / (sizeof suites[0]));
-    br_ssl_client_set_default_rsapub(cc);
+    //br_ssl_client_set_default_rsapub(cc); TODO
     br_ssl_engine_set_default_rsavrfy(&cc->eng);
 
     // install hashes
-    br_ssl_engine_set_hash(&cc->eng, br_sha1_ID, &br_sha1_vtable);
+    //br_ssl_engine_set_hash(&cc->eng, br_sha1_ID, &br_sha1_vtable);
     br_ssl_engine_set_hash(&cc->eng, br_sha256_ID, &br_sha256_vtable);
     br_ssl_engine_set_prf_sha256(&cc->eng, &br_tls12_sha256_prf);
     // default AES CBC
     //  Previous br_ssl_engine_set_default_aes_cbc(&cc->eng); // equivalent to the following
-		br_ssl_engine_set_default_aes_cbc(&cc->eng);
-	  br_ssl_engine_set_cbc(&cc->eng, &br_sslrec_in_cbc_vtable, &br_sslrec_out_cbc_vtable);
-	  br_ssl_engine_set_aes_cbc(&cc->eng, &br_aes_ct_cbcenc_vtable, &br_aes_ct_cbcdec_vtable);
+		//br_ssl_engine_set_default_aes_cbc(&cc->eng);
+	  //br_ssl_engine_set_cbc(&cc->eng, &br_sslrec_in_cbc_vtable, &br_sslrec_out_cbc_vtable);
+	  //br_ssl_engine_set_aes_cbc(&cc->eng, &br_aes_ct_cbcenc_vtable, &br_aes_ct_cbcdec_vtable);
+
+    //br_ssl_engine_set_default_aes_gcm(&cc->eng);
+		br_ssl_engine_set_gcm(&cc->eng, &br_sslrec_in_gcm_vtable, &br_sslrec_out_gcm_vtable);
+		br_ssl_engine_set_aes_ctr(&cc->eng, &br_aes_small_ctr_vtable);
+		br_ssl_engine_set_ghash(&cc->eng, &br_ghash_ctmul);
 
     // AES CBC small version, not contstant time (we don't really care here as there is no TPM anyways)
     // saves ~3.3KB compared to standard AES CBC
@@ -761,15 +761,8 @@ extern "C" {
 	  //br_ssl_engine_set_aes_cbc(&cc->eng, &br_aes_small_cbcenc_vtable, &br_aes_small_cbcdec_vtable);
 
 		// ec
-    br_ssl_engine_set_default_ecdsa(&cc->eng);
+    br_ssl_engine_set_default_ec(&cc->eng);
 
-
-
-    br_ssl_engine_set_prf10(&cc->eng, &br_tls10_prf);
-    br_ssl_engine_set_prf_sha256(&cc->eng, &br_tls12_sha256_prf);
-    br_ssl_engine_set_default_aes_cbc(&cc->eng);
-    br_ssl_engine_set_default_aes_gcm(&cc->eng);
-    br_ssl_engine_set_default_aes_ccm(&cc->eng);
   }
 
 }
