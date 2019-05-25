@@ -23,14 +23,14 @@
 #ifdef USE_MQTT_TLS_CA_CERT
   #include "sonoff_letsencrypt.h"           // LetsEncrypt certificate
 #endif
-  WiFiClientSecure espClient();               // Wifi Secure Client
+  WiFiClientSecure EspClient();               // Wifi Secure Client
 #elif defined(USE_MQTT_AWS_IOT)
   #include "StackThunk.h"
   #include "WiFiClientSecureLightBearSSL.h"
   // Prefer to do a static allocation at start, to avoid heap fragmentation
   BearSSL::WiFiClientSecure_light *awsClient;
 #else
-  WiFiClient espClient;                     // Wifi Client
+  WiFiClient EspClient;                     // Wifi Client
 #endif
 
 enum MqttCommands {
@@ -212,7 +212,7 @@ void testTls(void) {
 #ifdef USE_MQTT_AWS_IOT
 PubSubClient MqttClient;
 #else
-PubSubClient MqttClient(espClient);
+PubSubClient MqttClient(EspClient);
 #endif
 
 
@@ -577,10 +577,14 @@ void MqttReconnect(void)
   }
 
   MqttClient.setCallback(MqttDataHandler);
+#ifdef USE_MQTT_AWS_IOT
   // SH TODO
   //MqttClient.setServer(Settings.mqtt_host, Settings.mqtt_port);
 AddLog_P2(LOG_LEVEL_INFO, "MqttClient.setServer");
 MqttClient.setServer(AWS_endpoint, mqtt_port);
+#else
+  MqttClient.setServer(Settings.mqtt_host, Settings.mqtt_port);
+#endif
 /*
   // Skip MQTT host DNS lookup if not needed
   uint32_t current_hash = GetHash(Settings.mqtt_host, strlen(Settings.mqtt_host));
