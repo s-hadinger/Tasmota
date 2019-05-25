@@ -753,7 +753,7 @@ extern "C" {
     //br_ssl_engine_set_default_aes_gcm(&cc->eng);
 		br_ssl_engine_set_gcm(&cc->eng, &br_sslrec_in_gcm_vtable, &br_sslrec_out_gcm_vtable);
 		br_ssl_engine_set_aes_ctr(&cc->eng, &br_aes_small_ctr_vtable);
-		br_ssl_engine_set_ghash(&cc->eng, &br_ghash_ctmul);
+		br_ssl_engine_set_ghash(&cc->eng, &br_ghash_ctmul32);
 
     // AES CBC small version, not contstant time (we don't really care here as there is no TPM anyways)
     // saves ~3.3KB compared to standard AES CBC
@@ -761,7 +761,9 @@ extern "C" {
 	  //br_ssl_engine_set_aes_cbc(&cc->eng, &br_aes_small_cbcenc_vtable, &br_aes_small_cbcdec_vtable);
 
 		// ec
-    br_ssl_engine_set_default_ec(&cc->eng);
+    //br_ssl_engine_set_default_ec(&cc->eng);
+		// limiting to p256 EC curve
+		br_ssl_engine_set_ec(&cc->eng, &br_ec_p256_m15);
 
   }
 
