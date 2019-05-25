@@ -789,7 +789,7 @@ void SettingsDefaultSet2(void)
 //  Settings.flag2.wattage_resolution = 0;
   Settings.flag2.energy_resolution = ENERGY_RESOLUTION;
   Settings.param[P_MAX_POWER_RETRY] = MAX_POWER_RETRY;
-  Settings.energy_power_delta = DEFAULT_POWER_DELTA;
+//  Settings.energy_power_delta = 0;
   Settings.energy_power_calibration = HLW_PREF_PULSE;
   Settings.energy_voltage_calibration = HLW_UREF_PULSE;
   Settings.energy_current_calibration = HLW_IREF_PULSE;
@@ -908,7 +908,7 @@ void SettingsDefaultSet2(void)
 
   SettingsDefaultWebColor();
 
-  memset(&Settings.drivers, 0xFF, 32);  // Enable all possible monitors, displays, drivers and sensors
+  memset(&Settings.monitors, 0xFF, 20);  // Enable all possible monitors, displays and sensors
 }
 
 /********************************************************************************************/
@@ -1047,7 +1047,7 @@ void SettingsDelta(void)
     }
     if (Settings.version < 0x050C0005) {
       Settings.light_rotation = 0;
-      Settings.energy_power_delta = DEFAULT_POWER_DELTA;
+      Settings.energy_power_delta = 0;
       char fingerprint[60];
       memcpy(fingerprint, Settings.mqtt_fingerprint, sizeof(fingerprint));
       char *p = fingerprint;
@@ -1129,7 +1129,7 @@ void SettingsDelta(void)
       Settings.timezone_minutes = 0;
     }
     if (Settings.version < 0x06030004) {
-      memset(&Settings.drivers, 0xFF, 32);  // Enable all possible monitors, displays, drivers and sensors
+      memset(&Settings.monitors, 0xFF, 20);  // Enable all possible monitors, displays and sensors
     }
     if (Settings.version < 0x0603000E) {
       Settings.flag2.calc_resolution = CALC_RESOLUTION;
