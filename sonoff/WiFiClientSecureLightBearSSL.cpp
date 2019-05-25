@@ -77,18 +77,105 @@ void Log_buffer(const char *msg, const uint8_t *buf, uint32_t size) {
 #else
 #define LOG_HEAP_SIZE(a)
 #endif
+//
+// extern "C" {
+// // #define make_min_thunk_ack(a) _Log_heap_size(a)
+// // //#define make_min_thunk_ack(fcnToThunk) (1)
+// // // void min_#"fcnToThunk"(br_ssl_engine_context *cc, size_t len) { \
+// // // 	if (stack_thunk_get_refcnt()) { \
+// // // 		thunk_#"fcnToThunk"(cc, len); \
+// // // 	} else { \
+// // // 		#"fcnToThunk"(cc, len); \
+// // // 	} \
+// // // }
+// //
+// //
+// // make_min_thunk_ack(br_ssl_engine_recvapp_ack);
+//
+// #define make_min_thunk_ack(fcnToThunk) \
+// void br_ssl_engine_recvapp_ack();
+//
+// make_min_thunk_ack(br_ssl_engine_recvapp_ack);
+// } // extern "c"
+
+void min_br_ssl_engine_recvapp_ack(br_ssl_engine_context *cc, size_t len) {
+	if (stack_thunk_get_refcnt()) {
+		return thunk_br_ssl_engine_recvapp_ack(cc, len);
+	} else {
+		return br_ssl_engine_recvapp_ack(cc, len);
+	}
+}
+unsigned char *min_br_ssl_engine_recvapp_buf(const br_ssl_engine_context *cc, size_t *len) {
+	if (stack_thunk_get_refcnt()) {
+		return thunk_br_ssl_engine_recvapp_buf(cc, len);
+	} else {
+		return br_ssl_engine_recvapp_buf(cc, len);
+	}
+}
+void min_br_ssl_engine_recvrec_ack(br_ssl_engine_context *cc, size_t len) {
+	if (stack_thunk_get_refcnt()) {
+		return thunk_br_ssl_engine_recvrec_ack(cc, len);
+	} else {
+		return br_ssl_engine_recvrec_ack(cc, len);
+	}
+}
+unsigned char *min_br_ssl_engine_recvrec_buf(const br_ssl_engine_context *cc, size_t *len) {
+	if (stack_thunk_get_refcnt()) {
+		return thunk_br_ssl_engine_recvrec_buf(cc, len);
+	} else {
+		return br_ssl_engine_recvrec_buf(cc, len);
+	}
+}
+void min_br_ssl_engine_sendapp_ack(br_ssl_engine_context *cc, size_t len) {
+	if (stack_thunk_get_refcnt()) {
+		return thunk_br_ssl_engine_sendapp_ack(cc, len);
+	} else {
+		return br_ssl_engine_sendapp_ack(cc, len);
+	}
+}
+unsigned char *min_br_ssl_engine_sendapp_buf(const br_ssl_engine_context *cc, size_t *len) {
+	if (stack_thunk_get_refcnt()) {
+		return thunk_br_ssl_engine_sendapp_buf(cc, len);
+	} else {
+		return br_ssl_engine_sendapp_buf(cc, len);
+	}
+}
+void min_br_ssl_engine_sendrec_ack(br_ssl_engine_context *cc, size_t len) {
+	if (stack_thunk_get_refcnt()) {
+		return thunk_br_ssl_engine_sendrec_ack(cc, len);
+	} else {
+		return br_ssl_engine_sendrec_ack(cc, len);
+	}
+}
+unsigned char *min_br_ssl_engine_sendrec_buf(const br_ssl_engine_context *cc, size_t *len) {
+	if (stack_thunk_get_refcnt()) {
+		return thunk_br_ssl_engine_sendrec_buf(cc, len);
+	} else {
+		return br_ssl_engine_sendrec_buf(cc, len);
+	}
+}
+
 
 #if !CORE_MOCK
 
 // The BearSSL thunks in use for now
-#define br_ssl_engine_recvapp_ack thunk_br_ssl_engine_recvapp_ack
-#define br_ssl_engine_recvapp_buf thunk_br_ssl_engine_recvapp_buf
-#define br_ssl_engine_recvrec_ack thunk_br_ssl_engine_recvrec_ack
-#define br_ssl_engine_recvrec_buf thunk_br_ssl_engine_recvrec_buf
-#define br_ssl_engine_sendapp_ack thunk_br_ssl_engine_sendapp_ack
-#define br_ssl_engine_sendapp_buf thunk_br_ssl_engine_sendapp_buf
-#define br_ssl_engine_sendrec_ack thunk_br_ssl_engine_sendrec_ack
-#define br_ssl_engine_sendrec_buf thunk_br_ssl_engine_sendrec_buf
+// #define br_ssl_engine_recvapp_ack thunk_br_ssl_engine_recvapp_ack
+// #define br_ssl_engine_recvapp_buf thunk_br_ssl_engine_recvapp_buf
+// #define br_ssl_engine_recvrec_ack thunk_br_ssl_engine_recvrec_ack
+// #define br_ssl_engine_recvrec_buf thunk_br_ssl_engine_recvrec_buf
+// #define br_ssl_engine_sendapp_ack thunk_br_ssl_engine_sendapp_ack
+// #define br_ssl_engine_sendapp_buf thunk_br_ssl_engine_sendapp_buf
+// #define br_ssl_engine_sendrec_ack thunk_br_ssl_engine_sendrec_ack
+// #define br_ssl_engine_sendrec_buf thunk_br_ssl_engine_sendrec_buf
+
+#define br_ssl_engine_recvapp_ack min_br_ssl_engine_recvapp_ack
+#define br_ssl_engine_recvapp_buf min_br_ssl_engine_recvapp_buf
+#define br_ssl_engine_recvrec_ack min_br_ssl_engine_recvrec_ack
+#define br_ssl_engine_recvrec_buf min_br_ssl_engine_recvrec_buf
+#define br_ssl_engine_sendapp_ack min_br_ssl_engine_sendapp_ack
+#define br_ssl_engine_sendapp_buf min_br_ssl_engine_sendapp_buf
+#define br_ssl_engine_sendrec_ack min_br_ssl_engine_sendrec_ack
+#define br_ssl_engine_sendrec_buf min_br_ssl_engine_sendrec_buf
 
 #endif
 
@@ -134,7 +221,7 @@ WiFiClientSecure_light::WiFiClientSecure_light(int recv, int xmit) : WiFiClient(
   _clear();
   _clearAuthenticationSettings();
 LOG_HEAP_SIZE("StackThunk before");
-  stack_thunk_add_ref();
+  //stack_thunk_add_ref();
 LOG_HEAP_SIZE("StackThunk after");
   // now finish the setup
   setBufferSizes(recv, xmit); // reasonable minimum
@@ -777,6 +864,9 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
   br_x509_pubkeyfingerprint_context *x509_insecure;
 
 LOG_HEAP_SIZE("_connectSSL.start");
+
+  stack_thunk_add_ref();
+LOG_HEAP_SIZE("Thunk allocated");
 DEBUG_BSSL("_connectSSL: start connection\n");
   _freeSSL();
   _oom_err = false;
@@ -810,6 +900,7 @@ LOG_HEAP_SIZE("_connectSSL after PrivKey allocation");
     delete(chain);
     delete(sk);
     free(x509_insecure);
+		stack_thunk_del_ref();
     _freeSSL();
     DEBUG_BSSL("_connectSSL: RSA cert not supported\n");
     return false;
@@ -820,6 +911,7 @@ LOG_HEAP_SIZE("_connectSSL after PrivKey allocation");
     delete(chain);
     delete(sk);
     free(x509_insecure);
+		stack_thunk_del_ref();
     _freeSSL();
     DEBUG_BSSL("_connectSSL: Can't reset client\n");
     return false;
@@ -834,8 +926,9 @@ LOG_HEAP_SIZE("_connectSSL after PrivKey allocation");
   }
 #endif
 LOG_HEAP_SIZE("_connectSSL.end");
-  stack_thunk_repaint();
-LOG_HEAP_SIZE("_connectSSL.end, after repaint()");
+	stack_thunk_del_ref();
+  //stack_thunk_repaint();
+LOG_HEAP_SIZE("_connectSSL.end, freeing StackThunk");
 //Serial.printf("Connected! MFLNStatus = %d\n", getMFLNStatus());
   delete(chain);
   delete(sk);
