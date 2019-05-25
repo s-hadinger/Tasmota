@@ -802,9 +802,10 @@ LOG_HEAP_SIZE("_connectSSL after PrivKey allocation");
 LOG_HEAP_SIZE("_connectSSL after PrivKey allocation");
 
 	if (sk->isEC()) {
+		// limited to P256 curve
 		br_ssl_client_set_single_ec(_sc.get(), chain->getX509Certs(), chain->getCount(),
 	                              sk->getEC(), _allowed_usages,
-	                              _cert_issuer_key_type, br_ec_get_default(), br_ecdsa_sign_asn1_get_default());
+	                              _cert_issuer_key_type, &br_ec_p256_m15, br_ecdsa_sign_asn1_get_default());
 	} else {
     delete(chain);
     delete(sk);
