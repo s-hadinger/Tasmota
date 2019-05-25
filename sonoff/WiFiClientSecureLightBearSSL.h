@@ -73,6 +73,8 @@ class WiFiClientSecure_light : public WiFiClient {
     // Install a client certificate for this connection, in case the server requires it (i.e. MQTT)
     //void setClientRSACert(const X509List *cert, const PrivateKey *sk);
     void setClientRSACertPEM(const char *cert, const char *sk);
+    void setClientECCertPEM(const char *cert, const char *sk,
+                         unsigned allowed_usages, unsigned cert_issuer_key_type);
 
     // Sets the requested buffer size for transmit and receive
     void setBufferSizes(int recv, int xmit);

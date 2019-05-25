@@ -92,8 +92,10 @@ void Log_buffer(const char *msg, const uint8_t *buf, uint32_t size) {
 
 #endif
 
+#define DEBUG_ESP_SSL
 #ifdef DEBUG_ESP_SSL
-#define DEBUG_BSSL(fmt, ...)  DEBUG_ESP_PORT.printf_P((PGM_P)PSTR( "BSSL:" fmt), ## __VA_ARGS__)
+//#define DEBUG_BSSL(fmt, ...)  DEBUG_ESP_PORT.printf_P((PGM_P)PSTR( "BSSL:" fmt), ## __VA_ARGS__)
+#define DEBUG_BSSL(fmt, ...)  Serial.printf(fmt, ## __VA_ARGS__)
 #else
 #define DEBUG_BSSL(...)
 #endif
@@ -170,6 +172,14 @@ void WiFiClientSecure_light::setClientRSACertPEM(const char *chain, const char *
   _sk_PEM = sk;
 }
 
+void WiFiClientSecure_light::setClientECCertPEM(const char *chain, const char *sk,
+																					unsigned allowed_usages, unsigned cert_issuer_key_type) {
+  _chain_PEM = chain;
+  _sk_PEM = sk;
+  _allowed_usages = allowed_usages;
+  _cert_issuer_key_type = cert_issuer_key_type;
+}
+
 void WiFiClientSecure_light::setBufferSizes(int recv, int xmit) {
 LOG_HEAP_SIZE("setBufferSizes");
   // Following constants taken from bearssl/src/ssl/ssl_engine.c (not exported unfortunately)
@@ -202,8 +212,7 @@ int WiFiClientSecure_light::connect(IPAddress ip, uint16_t port) {
   if (!WiFiClient::connect(ip, port)) {
     return 0;
   }
-  //return _connectSSL(nullptr);
-  return _connectSSL("a3pa4ktnq87yfu-ats.iot.eu-central-1.amazonaws.com");  // TODO
+  return _connectSSL(nullptr);
 }
 
 int WiFiClientSecure_light::connect(const char* name, uint16_t port) {
@@ -255,7 +264,7 @@ size_t WiFiClientSecure_light::_write(const uint8_t *buf, size_t size, bool pmem
       optimistic_yield(1000);
     }
 
-//Log_buffer("_Write", buf, size);
+Log_buffer("_Write", buf, size);
     // Get BearSSL to a state where we can send
     if (_run_until(BR_SSL_SENDAPP) < 0) {
       break;
@@ -416,6 +425,7 @@ size_t WiFiClientSecure_light::peekBytes(uint8_t *buffer, size_t length) {
    achieved, this function returns 0. On error, it returns -1.
 */
 int WiFiClientSecure_light::_run_until(unsigned target, bool blocking) {
+//LOG_HEAP_SIZE("_run_until 1");
   if (!ctx_present()) {
     DEBUG_BSSL("_run_until: Not connected\n");
     return -1;
@@ -464,13 +474,14 @@ int WiFiClientSecure_light::_run_until(unsigned target, bool blocking) {
       continue;
     }
 
+//LOG_HEAP_SIZE("_run_until 2");
     /*
        If we reached our target, then we are finished.
     */
     if (state & target) {
       return 0;
     }
-
+//LOG_HEAP_SIZE("_run_until 3");
     /*
        If some application data must be read, and we did not
        exit, then this means that we are trying to write data,
@@ -483,31 +494,37 @@ int WiFiClientSecure_light::_run_until(unsigned target, bool blocking) {
       DEBUG_BSSL("_run_until: Fatal protocol state\n");
       return -1;
     }
-
+//LOG_HEAP_SIZE("_run_until 4");
     /*
        If we reached that point, then either we are trying
        to read data and there is some, or the engine is stuck
        until a new record is obtained.
     */
     if (state & BR_SSL_RECVREC) {
+//LOG_HEAP_SIZE("_run_until 4.1");
       if (WiFiClient::available()) {
+//LOG_HEAP_SIZE("_run_until 4.2");
         unsigned char *buf;
         size_t len;
         int rlen;
 
         buf = br_ssl_engine_recvrec_buf(_eng, &len);
+//LOG_HEAP_SIZE("_run_until 4.3");
         rlen = WiFiClient::read(buf, len);
+//LOG_HEAP_SIZE("_run_until 4.4");
         if (rlen < 0) {
           return -1;
         }
         if (rlen > 0) {
+//LOG_HEAP_SIZE("_run_until 4.5");
           br_ssl_engine_recvrec_ack(_eng, rlen);
+//LOG_HEAP_SIZE("_run_until 4.6");
         }
         no_work = 0;
         continue;
       }
     }
-
+//LOG_HEAP_SIZE("_run_until 5");
     /*
        We can reach that point if the target RECVAPP, and
        the state contains SENDAPP only. This may happen with
@@ -519,6 +536,7 @@ int WiFiClientSecure_light::_run_until(unsigned target, bool blocking) {
 
     no_work++; // We didn't actually advance here
   }
+//LOG_HEAP_SIZE("_run_until 6");
   // We only get here if we ran through the loop without getting anything done
   return -1;
 }
@@ -638,18 +656,18 @@ extern "C" {
   static unsigned pubkeyfingerprint_end_chain(const br_x509_class **ctx) {
     br_x509_pubkeyfingerprint_context *xc = (br_x509_pubkeyfingerprint_context *)ctx;
 
-    br_sha1_context sha1_context;
-    pubkeyfingerprint_pubkey_fingerprint(&sha1_context, xc->ctx.pkey.key.rsa);
-    br_sha1_out(&sha1_context, xc->pubkey_fingerprint); // copy to fingerprint
-
-//Let's dump the public key and hash
-{
-  char out[64] = "";
-  for (uint8_t i = 0; i<20; i++) {
-   snprintf_P(out, sizeof(out), "%s%s%02X", out, (i) ? " " : "", xc->pubkey_fingerprint[i]);
-  }
-Serial.printf("Fingerprint = %s\n", out);
-}
+//     br_sha1_context sha1_context;
+//     pubkeyfingerprint_pubkey_fingerprint(&sha1_context, xc->ctx.pkey.key.rsa);
+//     br_sha1_out(&sha1_context, xc->pubkey_fingerprint); // copy to fingerprint
+//
+// //Let's dump the public key and hash
+// {
+//   char out[64] = "";
+//   for (uint8_t i = 0; i<20; i++) {
+//    snprintf_P(out, sizeof(out), "%s%s%02X", out, (i) ? " " : "", xc->pubkey_fingerprint[i]);
+//   }
+// Serial.printf("Fingerprint = %s\n", out);
+// }
 
     // Default (no validation at all) or no errors in prior checks = success.
     return 0;
@@ -707,8 +725,13 @@ Serial.printf("Fingerprint = %s\n", out);
    */
   // we reference it, don't put in PROGMEM
   static const uint16_t suites[] = {
-    BR_TLS_RSA_WITH_AES_128_CBC_SHA256,
-    BR_TLS_RSA_WITH_AES_128_CBC_SHA
+		//BR_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+		BR_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+    //BR_TLS_RSA_WITH_AES_128_CBC_SHA256,
+    //BR_TLS_RSA_WITH_AES_128_CBC_SHA,
+		//BR_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+		//BR_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+		//BR_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256
   };
 
   // Default initializion for our SSL clients
@@ -728,13 +751,25 @@ Serial.printf("Fingerprint = %s\n", out);
     br_ssl_engine_set_prf_sha256(&cc->eng, &br_tls12_sha256_prf);
     // default AES CBC
     //  Previous br_ssl_engine_set_default_aes_cbc(&cc->eng); // equivalent to the following
-	  //br_ssl_engine_set_cbc(&cc->eng, &br_sslrec_in_cbc_vtable, &br_sslrec_out_cbc_vtable);
-	  //br_ssl_engine_set_aes_cbc(&cc->eng, &br_aes_ct_cbcenc_vtable, &br_aes_ct_cbcdec_vtable);
+		br_ssl_engine_set_default_aes_cbc(&cc->eng);
+	  br_ssl_engine_set_cbc(&cc->eng, &br_sslrec_in_cbc_vtable, &br_sslrec_out_cbc_vtable);
+	  br_ssl_engine_set_aes_cbc(&cc->eng, &br_aes_ct_cbcenc_vtable, &br_aes_ct_cbcdec_vtable);
 
     // AES CBC small version, not contstant time (we don't really care here as there is no TPM anyways)
     // saves ~3.3KB compared to standard AES CBC
-	  br_ssl_engine_set_cbc(&cc->eng, &br_sslrec_in_cbc_vtable, &br_sslrec_out_cbc_vtable);
-	  br_ssl_engine_set_aes_cbc(&cc->eng, &br_aes_small_cbcenc_vtable, &br_aes_small_cbcdec_vtable);
+	  //br_ssl_engine_set_cbc(&cc->eng, &br_sslrec_in_cbc_vtable, &br_sslrec_out_cbc_vtable);
+	  //br_ssl_engine_set_aes_cbc(&cc->eng, &br_aes_small_cbcenc_vtable, &br_aes_small_cbcdec_vtable);
+
+		// ec
+    br_ssl_engine_set_default_ecdsa(&cc->eng);
+
+
+
+    br_ssl_engine_set_prf10(&cc->eng, &br_tls10_prf);
+    br_ssl_engine_set_prf_sha256(&cc->eng, &br_tls12_sha256_prf);
+    br_ssl_engine_set_default_aes_cbc(&cc->eng);
+    br_ssl_engine_set_default_aes_gcm(&cc->eng);
+    br_ssl_engine_set_default_aes_ccm(&cc->eng);
   }
 
 }
@@ -747,7 +782,7 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
   br_x509_pubkeyfingerprint_context *x509_insecure;
 
 LOG_HEAP_SIZE("_connectSSL.start");
-  DEBUG_BSSL("_connectSSL: start connection\n");
+DEBUG_BSSL("_connectSSL: start connection\n");
   _freeSSL();
   _oom_err = false;
 
@@ -769,8 +804,15 @@ LOG_HEAP_SIZE("_connectSSL.start");
   sk = new PrivateKey(_sk_PEM);
 LOG_HEAP_SIZE("_connectSSL after PrivKey allocation");
 
-  br_ssl_client_set_single_rsa(_sc.get(), chain ? chain->getX509Certs() : nullptr, chain ? chain->getCount() : 0,
-                               sk->getRSA(), br_rsa_pkcs1_sign_get_default());
+//	if (sk->isEC()) {
+		br_ssl_client_set_single_ec(_sc.get(), chain->getX509Certs(), chain->getCount(),
+		                                sk->getEC(), _allowed_usages,
+		                                _cert_issuer_key_type, br_ec_get_default(), br_ecdsa_sign_asn1_get_default());
+//	} else {
+//	  br_ssl_client_set_single_rsa(_sc.get(), chain ? chain->getX509Certs() : nullptr, chain ? chain->getCount() : 0,
+//	                               sk->getRSA(), br_rsa_pkcs1_sign_get_default());
+//	} // RSA
+
 
   if (!br_ssl_client_reset(_sc.get(), hostName, 0)) {
     delete(chain);

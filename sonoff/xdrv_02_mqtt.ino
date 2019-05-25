@@ -65,19 +65,146 @@ bool mqtt_allowed = false;                  // MQTT enabled and parameters valid
 const uint8_t AmazonRootCA1_DER[] PROGMEM = MQTT_AWS_IOT_AMAZON_ROOT_CA1;
 
 const char* AWS_endpoint = "a3pa4ktnq87yfu-ats.iot.eu-central-1.amazonaws.com"; //MQTT broker ip
-IPAddress AWS_endpoint_IP = IPAddress(54,93,150,22);
+//const char* AWS_endpoint = "a3pa4ktnq87yfu.iot.eu-central-1.amazonaws.com"; //MQTT broker ip
+//IPAddress AWS_endpoint_IP = IPAddress(35,156,163,101); // ATS
+IPAddress AWS_endpoint_IP = IPAddress(18,197,16,249); // Non-ATS
 uint16_t mqtt_port = 8883;
 const char *aws_server_fingerprint = "00:F5:1A:E7:A3:48:2A:F3:FC:E0:75:4D:24:D5:91:BD:BB:E1:6A:B4";
 
-X509List x509_amazon_root_ca1(AmazonRootCA1_DER, sizeof(AmazonRootCA1_DER));
+//X509List x509_amazon_root_ca1(AmazonRootCA1_DER, sizeof(AmazonRootCA1_DER));
 
 // SH TODO
 uint32_t free_mem_before = 0;
 uint32_t free_mem_after = 0;
 
+static const uint16_t ciphers[] = {
+  BR_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256
+  //BR_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+  //BR_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+  // BR_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+  // BR_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+  // BR_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
+  // BR_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+  // BR_TLS_RSA_WITH_AES_128_CBC_SHA256,
+  // BR_TLS_RSA_WITH_AES_128_CBC_SHA,
+  // BR_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+  // BR_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256
+};
 
-PrivateKey *aws_iot_private_key;
-X509List   *aws_iot_client_cert;
+void testTls_old(void) {
+  AddLog_P2(LOG_LEVEL_INFO, "MqttInit before=%d, after=%d", free_mem_before, free_mem_after);
+  AddLog_P2(LOG_LEVEL_INFO, "Heap1=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
+
+  BearSSL::WiFiClientSecure *ecClient;
+  ecClient = new BearSSL::WiFiClientSecure();
+  ecClient->setBufferSizes(512, 512);
+
+  AddLog_P2(LOG_LEVEL_INFO, "Heap3.1=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
+  PrivateKey *key_ec = new PrivateKey(AWS_IoT_client_PrivKey_ec);
+  AddLog_P2(LOG_LEVEL_INFO, "Heap3.2=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
+  X509List *chain_ec = new X509List(AWS_IoT_client_cert_ec);
+  AddLog_P2(LOG_LEVEL_INFO, "Heap3.3=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
+
+  ecClient->setInsecure();
+  ecClient->setCiphers(ciphers, 1);
+
+
+  //ecClient->setClientECCert(chain_ec, key_ec, 0, BR_KEYTYPE_RSA);
+  ecClient->setClientECCert(chain_ec, key_ec, 0xFFFF, 0);
+const br_ec_private_key *sk = key_ec->getEC();
+Serial.printf("Curve = %d, Len = %d", sk->curve, sk->xlen);
+  //awsClient.setCiphers(ciphers, 1);
+
+  //awsClient.setInsecure();
+  //awsClient.setKnownKey(&aws_iot_public_key);
+
+  //AddLog_P2(LOG_LEVEL_INFO, "Heap2=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
+
+  //X509List client_crt(AWS_IoT_client_cert);
+  //X509List *client_crt = new X509List(AWS_IoT_client_cert);
+
+  //AddLog_P2(LOG_LEVEL_INFO, "Heap2.5=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
+  //PrivateKey key(AWS_IoT_client_PrivKey);
+  //PrivateKey *key = new PrivateKey(AWS_IoT_client_PrivKey);
+
+  //AddLog_P2(LOG_LEVEL_INFO, "Heap3=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
+  //awsClient.setFingerprint(aws_server_fingerprint);
+  //awsClient.setTrustAnchors(&x509_amazon_root_ca1);
+  //AddLog_P2(LOG_LEVEL_INFO, "Heap3.1=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
+  //AddLog_P2(LOG_LEVEL_INFO, "Heap3.2=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
+  //awsClient.setCiphers(ciphers, 1);
+  //AddLog_P2(LOG_LEVEL_INFO, "Heap4=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
+  //AddLog_P2(LOG_LEVEL_INFO, "StackThunk=%d",stack_thunk_get_max_usage())
+
+
+
+  // br_ssl_client_set_single_ec(_sc.get(), chain ? chain->getX509Certs() : nullptr, chain ? chain->getCount() : 0,
+  //                                 sk->getEC(), 0x8000 | 0x0800 | 0x0400/*BR_KEYTYPE_KEYX | BR_KEYTYPE_SIGN _allowed_usages*/,
+  //                                 BR_EC_secp256r1 /* _cert_issuer_key_type */, br_ec_get_default(), br_ecdsa_sign_asn1_get_default());
+
+
+
+
+
+  uint32_t time = millis();
+  if (!ecClient->connect(AWS_endpoint, mqtt_port)) {
+    int err = ecClient->getLastSSLError();
+    AddLog_P2(LOG_LEVEL_INFO, "WiFiClientSecure SSL error: %d", err);
+  } else {
+    int err = ecClient->getLastSSLError();
+    AddLog_P2(LOG_LEVEL_INFO, "WiFiClientSecure SSL error: %d", err);
+    AddLog_P2(LOG_LEVEL_INFO, "Connection OK");
+
+    uint8_t CONN[] = { 0x10 /* MQTT_CONNECT */, 18 /* length */,
+                      0x00,0x04,'M','Q','T','T', 0x04 /* MQTT_VERSION */,
+                      0x02,0x00,0x80,
+                      0, 6, 'A', 'z', 'e', 'r', 't', 'y'
+                      };
+
+    AddLog_P2(LOG_LEVEL_INFO, "Time elapsed %d",millis() - time);
+    AddLog_P2(LOG_LEVEL_INFO, "Heap4=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
+    ecClient->write(&CONN[0], sizeof(CONN));
+    AddLog_P2(LOG_LEVEL_INFO, "After write");
+    uint8_t buf[200];
+    int avail_len;
+    while (!(avail_len = ecClient->available())) {
+        yield();
+    }
+    int read_len = ecClient->read(&buf[0], 200);
+    //int read_len = awsClient->peekBytes(&buf[0], 200);
+    AddLog_P2(LOG_LEVEL_INFO, "After read");
+
+    uint8_t Publish[] = { 0x30, 0x17, 0x00, 0x0F, 0x74, 0x65, 0x6C, 0x65, 0x2F,
+          0x73, 0x6F, 0x6E, 0x6F, 0x66, 0x66, 0x2F, 0x4C, 0x57, 0x54, 0x4F, 0x6E,
+          0x6C, 0x69, 0x6E, 0x65};
+    // uint8_t Publish[] = { 0x31, 0x17, 0x00, 0x0F, 0x74, 0x65, 0x6C, 0x65, 0x2F,
+    //       0x73, 0x6F, 0x6E, 0x6F, 0x66, 0x66, 0x2F, 0x4C, 0x57, 0x54, 0x4F, 0x6E,
+    //       0x6C, 0x69, 0x6E, 0x65};
+    // uint8_t Publish[] = { 0x32, 0x17, 0x00, 0x0F, 0x74, 0x65, 0x6C, 0x65, 0x2F,
+    //       0x73, 0x6F, 0x6E, 0x6F, 0x66, 0x66, 0x2F, 0x4C, 0x57, 0x54,
+    //       0x00, 0x03,
+    //       0x4F, 0x6E, 0x6C, 0x69, 0x6E, 0x65};
+    ecClient->write(&Publish[0], sizeof(Publish));
+    // while (!(avail_len = awsClient->available())) {
+    //     yield();
+    // }
+    ecClient->read(&buf[0], 200);
+
+  }
+  AddLog_P2(LOG_LEVEL_INFO, "Time elapsed %d",millis() - time);
+  AddLog_P2(LOG_LEVEL_INFO, "Heap5=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
+  AddLog_P2(LOG_LEVEL_INFO, "StackThunk=%d",stack_thunk_get_max_usage());
+  //awsClient.setClientRSACert(nullptr, nullptr);
+  //awsClient.setTrustAnchors(nullptr);
+
+  //awsClient.setClientRSACert(nullptr, nullptr);
+  //delete(client_crt);
+  //delete(x509);
+  //delete(key);
+  //AddLog_P2(LOG_LEVEL_INFO, "Heap6=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
+  awsClient->stop();
+  AddLog_P2(LOG_LEVEL_INFO, "Heap-stop=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
+}
 
 void testTls(void) {
   AddLog_P2(LOG_LEVEL_INFO, "MqttInit before=%d, after=%d", free_mem_before, free_mem_after);
@@ -119,7 +246,19 @@ void testTls(void) {
   //AddLog_P2(LOG_LEVEL_INFO, "Heap3.2=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
   //awsClient.setCiphers(ciphers, 1);
   //AddLog_P2(LOG_LEVEL_INFO, "Heap4=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
-  //AddLog_P2(LOG_LEVEL_INFO, "StackThunk=%d",stack_thunk_get_max_usage());
+  //AddLog_P2(LOG_LEVEL_INFO, "StackThunk=%d",stack_thunk_get_max_usage())
+
+
+
+
+
+
+  AddLog_P2(LOG_LEVEL_INFO, "Heap3.1=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
+  PrivateKey *key_ec = new PrivateKey(AWS_IoT_client_PrivKey_ec);
+  AddLog_P2(LOG_LEVEL_INFO, "Heap3.2=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
+  X509List *chain_ec = new X509List(AWS_IoT_client_cert_ec);
+  AddLog_P2(LOG_LEVEL_INFO, "Heap3.3=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
+
   uint32_t time = millis();
   if (!awsClient->connect(AWS_endpoint, mqtt_port)) {
     int err = awsClient->getLastSSLError();
@@ -210,7 +349,10 @@ void MqttInit(void) {
   // aws_iot_private_key = new PrivateKey(AWS_IoT_client_PrivKey);
   // aws_iot_client_cert = new X509List(AWS_IoT_client_cert);
   // awsClient->setClientRSACert(aws_iot_client_cert, aws_iot_private_key);
-  awsClient->setClientRSACertPEM(AWS_IoT_client_cert, AWS_IoT_client_PrivKey);
+  //awsClient->setClientRSACertPEM(AWS_IoT_client_cert_ec, AWS_IoT_client_PrivKey_ec);
+  awsClient->setClientECCertPEM(AWS_IoT_client_cert_ec, AWS_IoT_client_PrivKey_ec,
+                                0xFFFF | 0x8000 | 0x0800 | 0x0400/*BR_KEYTYPE_KEYX | BR_KEYTYPE_SIGN _allowed_usages*/,
+                                0 );
   free_mem_after = ESP.getFreeHeap();
 
   MqttClient.setClient(*awsClient);
@@ -564,7 +706,7 @@ void MqttReconnect(void)
   // SH TODO
   //MqttClient.setServer(Settings.mqtt_host, Settings.mqtt_port);
 AddLog_P2(LOG_LEVEL_INFO, "MqttClient.setServer");
-  MqttClient.setServer(AWS_endpoint_IP, mqtt_port);
+MqttClient.setServer(AWS_endpoint, mqtt_port);
 /*
   // Skip MQTT host DNS lookup if not needed
   uint32_t current_hash = GetHash(Settings.mqtt_host, strlen(Settings.mqtt_host));
