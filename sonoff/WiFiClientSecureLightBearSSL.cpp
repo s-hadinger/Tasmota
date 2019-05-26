@@ -44,6 +44,11 @@ extern "C" {
 #include "c_types.h"
 #include "coredecls.h"
 
+//#include "sonoff_aws_iot.h"
+
+extern br_ec_private_key *AWS_IoT_Private_Key;
+extern br_x509_certificate *AWS_IoT_Client_Certificate;
+
 #define DEBUG_TLS
 
 #ifdef DEBUG_TLS
@@ -76,6 +81,7 @@ void Log_buffer(const char *msg, const uint8_t *buf, uint32_t size) {
 }
 #else
 #define LOG_HEAP_SIZE(a)
+#define Log_buffer(a, b, c)
 #endif
 //
 // extern "C" {
@@ -824,7 +830,7 @@ extern "C" {
 
     br_ssl_engine_set_versions(&cc->eng, BR_TLS12, BR_TLS12);
     br_ssl_engine_set_suites(&cc->eng, suites, (sizeof suites) / (sizeof suites[0]));
-    //br_ssl_client_set_default_rsapub(cc); TODO
+    br_ssl_client_set_default_rsapub(cc);
     br_ssl_engine_set_default_rsavrfy(&cc->eng);
 
     // install hashes
@@ -856,11 +862,50 @@ extern "C" {
 
 }
 
+// create an in-memory copy of the client certificate from PROGMEM
+bool copy_chain_P(br_x509_certificate &chain, br_x509_certificate *chain_P) {
+	size_t len = chain_P->data_len;
+	chain.data = (unsigned char *) malloc(len);
+	if (chain.data) {
+		memcpy_P(chain.data, chain_P->data, len);
+		chain.data_len = len;
+		return true;
+	}
+	return false;
+}
+void free_chain(br_x509_certificate &chain) {
+	if (chain.data) {
+		free(chain.data);
+	}
+	chain.data = nullptr;
+	chain.data_len = 0;
+}
+
+bool copy_sk_ec_P(br_ec_private_key &sk_ec, br_ec_private_key *sk_ec_P) {
+	size_t len = sk_ec_P->xlen;
+	sk_ec.x = (unsigned char *) malloc(len);
+	if (sk_ec.x) {
+		memcpy_P(sk_ec.x, sk_ec_P->x, len);
+		sk_ec.xlen = len;
+		sk_ec.curve = sk_ec_P->curve;
+		return true;
+	}
+	return false;
+}
+void free_sk_ec(br_ec_private_key &sk_ec) {
+	if (sk_ec.x) {
+		free(sk_ec.x);
+	}
+	sk_ec.x = nullptr;
+	sk_ec.xlen = 0;
+	sk_ec.curve = 0;
+}
+
 // Called by connect() to do the actual SSL setup and handshake.
 // Returns if the SSL handshake succeeded.
 bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
-  X509List *chain = nullptr;
-  PrivateKey *sk = nullptr;
+	br_ec_private_key sk_ec;
+	br_x509_certificate chain;
   br_x509_pubkeyfingerprint_context *x509_insecure;
 
 LOG_HEAP_SIZE("_connectSSL.start");
@@ -887,29 +932,33 @@ LOG_HEAP_SIZE("_connectSSL before DecoderContext allocation");
 
 LOG_HEAP_SIZE("_connectSSL after PrivKey allocation");
   // allocate Private key and client certificate
-  chain = new X509List(_chain_PEM);
-  sk = new PrivateKey(_sk_PEM);
+  //chain = new X509List(_chain_PEM);
+  //sk = new PrivateKey(_sk_PEM);
+	copy_chain_P(chain, AWS_IoT_Client_Certificate);
+	copy_sk_ec_P(sk_ec, AWS_IoT_Private_Key);
 LOG_HEAP_SIZE("_connectSSL after PrivKey allocation");
 
-	if (sk->isEC()) {
+//	if (sk->isEC()) {
 		// limited to P256 curve
-		br_ssl_client_set_single_ec(_sc.get(), chain->getX509Certs(), chain->getCount(),
-	                              sk->getEC(), _allowed_usages,
+		br_ssl_client_set_single_ec(_sc.get(), &chain, 1,
+	                              &sk_ec, _allowed_usages,
 	                              _cert_issuer_key_type, &br_ec_p256_m15, br_ecdsa_sign_asn1_get_default());
-	} else {
-    delete(chain);
-    delete(sk);
-    free(x509_insecure);
-		stack_thunk_del_ref();
-    _freeSSL();
-    DEBUG_BSSL("_connectSSL: RSA cert not supported\n");
-    return false;
-	} // RSA
-
+		// br_ssl_client_set_single_ec(_sc.get(), chain->getX509Certs(), chain->getCount(),
+	  //                             sk->getEC(), _allowed_usages,
+	  //                             _cert_issuer_key_type, &br_ec_p256_m15, br_ecdsa_sign_asn1_get_default());
+	// } else {
+  //   delete(chain);
+  //   delete(sk);
+  //   free(x509_insecure);
+	// 	stack_thunk_del_ref();
+  //   _freeSSL();
+  //   DEBUG_BSSL("_connectSSL: RSA cert not supported\n");
+  //   return false;
+	// } // RSA
 
   if (!br_ssl_client_reset(_sc.get(), hostName, 0)) {
-    delete(chain);
-    delete(sk);
+    free_chain(chain);
+    free_sk_ec(sk_ec);
     free(x509_insecure);
 		stack_thunk_del_ref();
     _freeSSL();
@@ -930,8 +979,8 @@ LOG_HEAP_SIZE("_connectSSL.end");
   //stack_thunk_repaint();
 LOG_HEAP_SIZE("_connectSSL.end, freeing StackThunk");
 //Serial.printf("Connected! MFLNStatus = %d\n", getMFLNStatus());
-  delete(chain);
-  delete(sk);
+  free_chain(chain);
+  free_sk_ec(sk_ec);
   free(x509_insecure);
 LOG_HEAP_SIZE("_connectSSL after release of Priv Key");
   return ret;
