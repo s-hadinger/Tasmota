@@ -62,16 +62,16 @@ class WiFiClientSecure_light : public WiFiClient {
     void flush() override { (void)flush(0); }
     void stop() override { (void)stop(0); }
 
-    // Only check SHA1 fingerprint of certificate
-    bool setPubKeyFingerprint(const uint8_t fingerprint[20]) {
-      _clearAuthenticationSettings();
-      _use_fingerprint = true;
-      memcpy_P(_fingerprint, fingerprint, 20);
-      return true;
+    // Only check SHA1 fingerprint of public key
+    void setPubKeyFingerprint(const uint8_t *f1, const uint8_t *f2,
+                              bool f_all = false) {
+      _fingerprint1 = f1;
+      _fingerprint2 = f2;
+      _fingerprint_all = f_all;
     }
-    bool setPubKeyFingerprint(const char *fpStr);
-    // Install a client certificate for this connection, in case the server requires it (i.e. MQTT)
-    //void setClientRSACert(const X509List *cert, const PrivateKey *sk);br_x509_certificate *chain_P;  // PROGMEM certificate
+    const uint8_t * getRecvPubKeyFingerprint(void) {
+      return _recv_fingerprint;
+    }
 
     void setClientECCert(const br_x509_certificate *cert, const br_ec_private_key *sk,
                          unsigned allowed_usages, unsigned cert_issuer_key_type);
@@ -100,16 +100,12 @@ class WiFiClientSecure_light : public WiFiClient {
 
   private:
     void _clear();
-    void _clearAuthenticationSettings();
-    // Only one of the following two should ever be != nullptr!
     bool _ctx_present;
     std::shared_ptr<br_ssl_client_context> _sc;
     inline bool ctx_present() {
       return _ctx_present;
     }
     br_ssl_engine_context *_eng; // &_sc->eng, to allow for client or server contexts
-    //std::shared_ptr<br_x509_minimal_context> _x509_minimal;
-    //std::shared_ptr<struct br_x509_pubkeyfingerprint_context> _x509_insecure;
     std::shared_ptr<unsigned char> _iobuf_in;
     std::shared_ptr<unsigned char> _iobuf_out;
     time_t _now;
@@ -118,12 +114,10 @@ class WiFiClientSecure_light : public WiFiClient {
     bool _handshake_done;
     bool _oom_err;
 
-    bool _use_fingerprint;
-    uint8_t _fingerprint[20];
-
-    // Custom cipher list pointer or NULL if default
-    // std::shared_ptr<uint16_t> _cipher_list;
-    // uint8_t _cipher_cnt;
+    bool _fingerprint_all;           // accept all fingerprints
+    const uint8_t *_fingerprint1;          // fingerprint1 to be checked against
+    const uint8_t *_fingerprint2;          // fingerprint2 to be checked against
+    uint8_t _recv_fingerprint[20];   // fingerprint received
 
     unsigned char *_recvapp_buf;
     size_t _recvapp_len;

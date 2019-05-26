@@ -198,7 +198,6 @@ void WiFiClientSecure_light::_clear() {
   _sc = nullptr;
   _ctx_present = false;
   _eng = nullptr;
-  //_x509_insecure = nullptr;
   _iobuf_in = nullptr;
   _iobuf_out = nullptr;
   _now = 0; // You can override or ensure time() is correct w/configTime
@@ -207,20 +206,14 @@ void WiFiClientSecure_light::_clear() {
   _recvapp_buf = nullptr;
   _recvapp_len = 0;
   _oom_err = false;
-  // _cipher_list = nullptr;
-  // _cipher_cnt = 0;
-}
-
-void WiFiClientSecure_light::_clearAuthenticationSettings() {
-  _use_fingerprint = false;
-  _chain_P = nullptr;
-  _sk_ec_P = nullptr;
+	_fingerprint_all = true;		// by default accept all fingerprints
+	_fingerprint1 = nullptr;
+	_fingerprint2 = nullptr;
 }
 
 // Constructor
 WiFiClientSecure_light::WiFiClientSecure_light(int recv, int xmit) : WiFiClient() {
   _clear();
-  _clearAuthenticationSettings();
 LOG_HEAP_SIZE("StackThunk before");
   //stack_thunk_add_ref();
 LOG_HEAP_SIZE("StackThunk after");
@@ -649,41 +642,27 @@ static uint8_t htoi (unsigned char c)
   else return 255;
 }
 
-// Set a fingerprint by parsing an ASCII string
-bool WiFiClientSecure_light::setPubKeyFingerprint(const char *fpStr) {
-  int idx = 0;
-  uint8_t c, d;
-  uint8_t fp[20];
-
-  while (idx < 20) {
-    c = pgm_read_byte(fpStr++);
-    if (!c) break; // String ended, done processing
-    d = pgm_read_byte(fpStr++);
-    if (!d) {
-      DEBUG_BSSL("setFingerprint: FP too short\n");
-      return false; // Only half of the last hex digit, error
-    }
-    c = htoi(c);
-    d = htoi(d);
-    if ((c>15) || (d>15)) {
-      DEBUG_BSSL("setFingerprint: Invalid char\n");
-      return false; // Error in one of the hex characters
-    }
-    fp[idx++] = (c<<4)|d;
-
-    // Skip 0 or more spaces or colons
-    while ( pgm_read_byte(fpStr) && (pgm_read_byte(fpStr)==' ' || pgm_read_byte(fpStr)==':') ) {
-      fpStr++;
-    }
-  }
-  if ((idx != 20) || pgm_read_byte(fpStr)) {
-    DEBUG_BSSL("setFingerprint: Garbage at end of fp\n");
-    return false; // Garbage at EOL or we didn't have enough hex digits
-  }
-  return setPubKeyFingerprint(fp);
-}
-
 extern "C" {
+
+	// see https://stackoverflow.com/questions/6357031/how-do-you-convert-a-byte-array-to-a-hexadecimal-string-in-c
+	void tohex(unsigned char * in, size_t insz, char * out, size_t outsz) {
+		unsigned char * pin = in;
+		static const char * hex = "0123456789ABCDEF";
+		char * pout = out;
+		for(; pin < in+insz; pout +=3, pin++){
+			pout[0] = hex[(*pin>>4) & 0xF];
+			pout[1] = hex[ *pin     & 0xF];
+			pout[2] = ':';
+			if (pout + 3 - out > outsz){
+				/* Better to truncate output string than overflow buffer */
+				/* it would be still better to either return a status */
+				/* or ensure the target buffer is large enough and it never happen */
+				break;
+			}
+		}
+		pout[-1] = 0;
+	}
+
 
   // BearSSL doesn't define a true insecure decoder, so we make one ourselves
   // from the simple parser.  It generates the issuer and subject hashes and
@@ -694,7 +673,10 @@ extern "C" {
   struct br_x509_pubkeyfingerprint_context {
     const br_x509_class *vtable;
     bool done_cert;             // did we parse the first cert already?
-    uint8_t *pubkey_fingerprint;
+		bool fingerprint_all;
+		uint8_t *pubkey_recv_fingerprint;
+    const uint8_t *fingerprint1;
+    const uint8_t *fingerprint2;
     unsigned usages;            // pubkey usage
     br_x509_decoder_context ctx;  // defined in BearSSL
   };
@@ -702,7 +684,10 @@ extern "C" {
   // Callback on the first byte of any certificate
   static void pubkeyfingerprint_start_chain(const br_x509_class **ctx, const char *server_name) {
     br_x509_pubkeyfingerprint_context *xc = (br_x509_pubkeyfingerprint_context *)ctx;
-    br_x509_decoder_init(&xc->ctx, nullptr, nullptr, nullptr, nullptr);
+    // Don't process anything but the first certificate in the chain
+    if (!xc->done_cert) {
+    	br_x509_decoder_init(&xc->ctx, nullptr, nullptr, nullptr, nullptr);
+		}
     (void)server_name;    // ignore server name
   }
 
@@ -740,21 +725,30 @@ extern "C" {
   static unsigned pubkeyfingerprint_end_chain(const br_x509_class **ctx) {
     br_x509_pubkeyfingerprint_context *xc = (br_x509_pubkeyfingerprint_context *)ctx;
 
-//     br_sha1_context sha1_context;
-//     pubkeyfingerprint_pubkey_fingerprint(&sha1_context, xc->ctx.pkey.key.rsa);
-//     br_sha1_out(&sha1_context, xc->pubkey_fingerprint); // copy to fingerprint
-//
-// //Let's dump the public key and hash
-// {
-//   char out[64] = "";
-//   for (uint8_t i = 0; i<20; i++) {
-//    snprintf_P(out, sizeof(out), "%s%s%02X", out, (i) ? " " : "", xc->pubkey_fingerprint[i]);
-//   }
-// Serial.printf("Fingerprint = %s\n", out);
-// }
+    br_sha1_context sha1_context;
+    pubkeyfingerprint_pubkey_fingerprint(&sha1_context, xc->ctx.pkey.key.rsa);
+    br_sha1_out(&sha1_context, xc->pubkey_recv_fingerprint); // copy to fingerprint
 
-    // Default (no validation at all) or no errors in prior checks = success.
-    return 0;
+#ifdef DEBUG_TLS
+//Let's dump the public key and hash
+{
+  char out[64];
+	tohex(xc->pubkey_recv_fingerprint, 20, out, sizeof(out));
+	Serial.printf("Fingerprint = %s\n", out);
+}
+#endif
+		if (!xc->fingerprint_all) {
+			if (0 == memcmp(xc->fingerprint1, xc->pubkey_recv_fingerprint, 20)) {
+				return 0;
+			}
+			if (0 == memcmp(xc->fingerprint2, xc->pubkey_recv_fingerprint, 20)) {
+				return 0;
+			}
+			return 1;		// no match, error
+		} else {
+	    // Default (no validation at all) or no errors in prior checks = success.
+	    return 0;
+		}
   }
 
   // Return the public key from the validator (set by x509_minimal)
@@ -768,7 +762,10 @@ extern "C" {
   }
 
   //  Set up the x509 insecure data structures for BearSSL core to use.
-  void br_x509_pubkeyfingerprint_init(br_x509_pubkeyfingerprint_context *ctx, uint8_t _fingerprint[20]) {
+  void br_x509_pubkeyfingerprint_init(br_x509_pubkeyfingerprint_context *ctx,
+																			const uint8_t *fingerprint1, const uint8_t *fingerprint2,
+																			uint8_t *recv_fingerprint,
+																		  bool fingerprint_all) {
     static const br_x509_class br_x509_pubkeyfingerprint_vtable PROGMEM = {
       sizeof(br_x509_pubkeyfingerprint_context),
       pubkeyfingerprint_start_chain,
@@ -782,7 +779,10 @@ extern "C" {
     memset(ctx, 0, sizeof * ctx);
     ctx->vtable = &br_x509_pubkeyfingerprint_vtable;
     ctx->done_cert = false;
-    ctx->pubkey_fingerprint = _fingerprint;
+		ctx->fingerprint1 = fingerprint1;
+		ctx->fingerprint2 = fingerprint2;
+		ctx->pubkey_recv_fingerprint = recv_fingerprint;
+		ctx->fingerprint_all = fingerprint_all;
   }
 
   // Some constants uses to init the server/client contexts
@@ -920,7 +920,8 @@ LOG_HEAP_SIZE("_connectSSL before DecoderContext allocation");
   // Only failure possible in the installation is OOM
   x509_insecure = (br_x509_pubkeyfingerprint_context*) malloc(sizeof(br_x509_pubkeyfingerprint_context));
 
-  br_x509_pubkeyfingerprint_init(x509_insecure, _fingerprint);
+  br_x509_pubkeyfingerprint_init(x509_insecure, _fingerprint1, _fingerprint2,
+																 _recv_fingerprint, _fingerprint_all);
   br_ssl_engine_set_x509(_eng, &x509_insecure->vtable);
 
   br_ssl_engine_set_buffers_bidi(_eng, _iobuf_in.get(), _iobuf_in_size, _iobuf_out.get(), _iobuf_out_size);

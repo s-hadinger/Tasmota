@@ -134,6 +134,19 @@ void testTls(void) {
   AddLog_P2(LOG_LEVEL_INFO, "Heap-stop=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
 }
 
+
+// check whether the fingerprint is filled with a single value
+// Filled with 0x00 = accept any fingerprint and learn it for next time
+// Filled with 0xFF = accept any fingerpring forever
+bool is_fingerprint_mono_value(uint8_t finger[20], uint8_t value) {
+	for (uint32_t i = 0; i<20; i++) {
+		if (finger[i] != value) {
+			return false;
+		}
+	}
+	return true;
+}
+
 #endif  // USE_MQTT_AWS_IOT
 
 /*********************************************************************************************\
@@ -543,9 +556,42 @@ void MqttReconnect(void)
   }
   MqttClient.setServer(mqtt_host_addr, Settings.mqtt_port);
 */
+#ifdef USE_MQTT_AWS_IOT
+  bool allow_all_fingerprints = false;
+  bool learn_fingerprint1 = is_fingerprint_mono_value(Settings.mqtt_fingerprint[0], 0x00);
+  bool learn_fingerprint2 = is_fingerprint_mono_value(Settings.mqtt_fingerprint[1], 0x00);
+  allow_all_fingerprints |= is_fingerprint_mono_value(Settings.mqtt_fingerprint[0], 0xff);
+  allow_all_fingerprints |= is_fingerprint_mono_value(Settings.mqtt_fingerprint[1], 0xff);
+  allow_all_fingerprints |= learn_fingerprint1;
+  allow_all_fingerprints |= learn_fingerprint2;
+  awsClient->setPubKeyFingerprint(Settings.mqtt_fingerprint[0], Settings.mqtt_fingerprint[1], allow_all_fingerprints);
+#endif
   //if (MqttClient.connect(mqtt_client, mqtt_user, mqtt_pwd, stopic, 1, true, mqtt_data)) { // TODO will
   if (MqttClient.connect(mqtt_client, mqtt_user, mqtt_pwd, nullptr, 0, false, nullptr)) {
     AddLog_P2(LOG_LEVEL_INFO, "MqttConnected");
+#ifdef USE_MQTT_AWS_IOT
+  if (learn_fingerprint1 || learn_fingerprint2) {
+    // we potentially need to learn the fingerprint just seen
+    bool fingerprint_matched = false;
+    const uint8_t *recv_fingerprint = awsClient->getRecvPubKeyFingerprint();
+    if (0 == memcmp(recv_fingerprint, Settings.mqtt_fingerprint[0], 20)) {
+      fingerprint_matched = true;
+    }
+    if (0 == memcmp(recv_fingerprint, Settings.mqtt_fingerprint[1], 20)) {
+      fingerprint_matched = true;
+    }
+    if (!fingerprint_matched) {
+      // we had no match, so we need to change all fingerprints ready to learn
+      if (learn_fingerprint1) {
+        memcpy(Settings.mqtt_fingerprint[0], recv_fingerprint, 20);
+      }
+      if (learn_fingerprint2) {
+        memcpy(Settings.mqtt_fingerprint[1], recv_fingerprint, 20);
+      }
+      restart_flag = 2;  // save and restart
+    }
+  }
+#endif
     MqttConnected();
   } else {
     AddLog_P2(LOG_LEVEL_INFO, "MqttDisconnected");
