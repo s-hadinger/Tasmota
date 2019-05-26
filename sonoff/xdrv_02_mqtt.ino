@@ -11,7 +11,7 @@
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License for morinite details.
 
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
@@ -63,26 +63,21 @@ bool mqtt_allowed = false;                  // MQTT enabled and parameters valid
 
 
 //const uint8_t AmazonRootCA1_DER[] PROGMEM = MQTT_AWS_IOT_AMAZON_ROOT_CA1;
+char AWS_endpoint[65];    // aWS IOT endpoint, concatenation of user and host
 
-const char* AWS_endpoint = "a3pa4ktnq87yfu-ats.iot.eu-central-1.amazonaws.com"; //MQTT broker ip
-//const char* AWS_endpoint = "a3pa4ktnq87yfu.iot.eu-central-1.amazonaws.com"; //MQTT broker ip
-//IPAddress AWS_endpoint_IP = IPAddress(35,156,163,101); // ATS
-//IPAddress AWS_endpoint_IP = IPAddress(18,197,16,249); // Non-ATS
-uint16_t mqtt_port = 8883;
-const char *aws_server_fingerprint = "00:F5:1A:E7:A3:48:2A:F3:FC:E0:75:4D:24:D5:91:BD:BB:E1:6A:B4";
-
-//X509List x509_amazon_root_ca1(AmazonRootCA1_DER, sizeof(AmazonRootCA1_DER));
+//const char* AWS_endpoint = "a3pa4ktnq87yfu-ats.iot.eu-central-1.amazonaws.com"; //MQTT broker ip
 
 // SH TODO
 uint32_t free_mem_before = 0;
 uint32_t free_mem_after = 0;
 
 void testTls(void) {
+  return;
   AddLog_P2(LOG_LEVEL_INFO, "MqttInit before=%d, after=%d", free_mem_before, free_mem_after);
   AddLog_P2(LOG_LEVEL_INFO, "Heap1=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
 
   uint32_t time = millis();
-  if (!awsClient->connect(AWS_endpoint, mqtt_port)) {
+  if (!awsClient->connect("a3pa4ktnq87yfu-ats.iot.eu-central-1.amazonaws.com", 8883)) {
     int err = awsClient->getLastSSLError();
     AddLog_P2(LOG_LEVEL_INFO, "WiFiClientSecure SSL error: %d", err);
   } else {
@@ -166,6 +161,17 @@ PubSubClient MqttClient(EspClient);
 
 void MqttInit(void) {
 #ifdef USE_MQTT_AWS_IOT
+  AWS_endpoint[0] = 0;
+  uint8_t len_user = strlen(Settings.mqtt_user);
+  uint8_t len_host = strlen(Settings.mqtt_host);
+  if (len_user > 0) {
+    strcpy(AWS_endpoint, Settings.mqtt_user);
+    if (('.' != AWS_endpoint[len_user-1]) && ('.' != Settings.mqtt_host[0])) {
+      AWS_endpoint[len_user++] = '.';
+    }
+    strcpy(&AWS_endpoint[len_user], Settings.mqtt_host);
+  }
+
   free_mem_before = ESP.getFreeHeap();
   awsClient = new BearSSL::WiFiClientSecure_light(1024,1024);
   awsClient->setClientECCert(AWS_IoT_Client_Certificate, AWS_IoT_Private_Key,
@@ -523,8 +529,8 @@ void MqttReconnect(void)
 #ifdef USE_MQTT_AWS_IOT
   // SH TODO
   //MqttClient.setServer(Settings.mqtt_host, Settings.mqtt_port);
-AddLog_P2(LOG_LEVEL_INFO, "MqttClient.setServer");
-MqttClient.setServer(AWS_endpoint, mqtt_port);
+//Serial.printf("MqttClient.setServer = %s", AWS_endpoint);
+  MqttClient.setServer(AWS_endpoint, Settings.mqtt_port);
 #else
   MqttClient.setServer(Settings.mqtt_host, Settings.mqtt_port);
 #endif
