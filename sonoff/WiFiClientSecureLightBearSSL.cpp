@@ -44,11 +44,7 @@ extern "C" {
 #include "c_types.h"
 #include "coredecls.h"
 
-//#include "sonoff_aws_iot.h"
-
-extern br_ec_private_key *AWS_IoT_Private_Key;
-extern br_x509_certificate *AWS_IoT_Client_Certificate;
-
+#define SKEY_ON_STACK
 #define DEBUG_TLS
 
 #ifdef DEBUG_TLS
@@ -217,9 +213,8 @@ void WiFiClientSecure_light::_clear() {
 
 void WiFiClientSecure_light::_clearAuthenticationSettings() {
   _use_fingerprint = false;
-  //_sk = nullptr;
-  _chain_PEM = nullptr;
-  _sk_PEM = nullptr;
+  _chain_P = nullptr;
+  _sk_ec_P = nullptr;
 }
 
 // Constructor
@@ -256,20 +251,15 @@ LOG_HEAP_SIZE("allocateBuffers ClientContext");
 LOG_HEAP_SIZE("allocateBuffers after");
 }
 
-// void WiFiClientSecure_light::setClientRSACert(const X509List *chain, const PrivateKey *sk) {
-//   _chain = chain;
-//   _sk = sk;
-// }
-
-void WiFiClientSecure_light::setClientRSACertPEM(const char *chain, const char *sk) {
-  _chain_PEM = chain;
-  _sk_PEM = sk;
-}
-
-void WiFiClientSecure_light::setClientECCertPEM(const char *chain, const char *sk,
+void WiFiClientSecure_light::setClientECCert(const br_x509_certificate *cert, const br_ec_private_key *sk,
 																					unsigned allowed_usages, unsigned cert_issuer_key_type) {
-  _chain_PEM = chain;
-  _sk_PEM = sk;
+	_chain_P = cert;
+	_chain.data_len = _chain_P->data_len;
+	_chain.data = nullptr;
+	_sk_ec_P = sk;
+	_sk_ec.curve = _sk_ec_P->curve;
+	_sk_ec.xlen  = _sk_ec_P->xlen;
+	_sk_ec.x = nullptr;
   _allowed_usages = allowed_usages;
   _cert_issuer_key_type = cert_issuer_key_type;
 }
@@ -863,7 +853,7 @@ extern "C" {
 }
 
 // create an in-memory copy of the client certificate from PROGMEM
-bool copy_chain_P(br_x509_certificate &chain, br_x509_certificate *chain_P) {
+bool copy_chain_P(br_x509_certificate &chain, const br_x509_certificate *chain_P) {
 	size_t len = chain_P->data_len;
 	chain.data = (unsigned char *) malloc(len);
 	if (chain.data) {
@@ -881,7 +871,7 @@ void free_chain(br_x509_certificate &chain) {
 	chain.data_len = 0;
 }
 
-bool copy_sk_ec_P(br_ec_private_key &sk_ec, br_ec_private_key *sk_ec_P) {
+bool copy_sk_ec_P(br_ec_private_key &sk_ec, const br_ec_private_key *sk_ec_P) {
 	size_t len = sk_ec_P->xlen;
 	sk_ec.x = (unsigned char *) malloc(len);
 	if (sk_ec.x) {
@@ -906,6 +896,10 @@ void free_sk_ec(br_ec_private_key &sk_ec) {
 bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 	br_ec_private_key sk_ec;
 	br_x509_certificate chain;
+#ifdef SKEY_ON_STACK
+	unsigned char chain_data[_chain_P->data_len];
+	unsigned char sk_data[_sk_ec_P->xlen];
+#endif
   br_x509_pubkeyfingerprint_context *x509_insecure;
 
 LOG_HEAP_SIZE("_connectSSL.start");
@@ -934,8 +928,24 @@ LOG_HEAP_SIZE("_connectSSL after PrivKey allocation");
   // allocate Private key and client certificate
   //chain = new X509List(_chain_PEM);
   //sk = new PrivateKey(_sk_PEM);
-	copy_chain_P(chain, AWS_IoT_Client_Certificate);
-	copy_sk_ec_P(sk_ec, AWS_IoT_Private_Key);
+	chain.data_len = _chain_P->data_len;
+#ifdef SKEY_ON_STACK		// allocate on stack
+	chain.data = &chain_data[0];
+#else										// allocate with malloc
+	chain.data = (unsigned char *) malloc(chain.data_len);
+#endif
+	if (chain.data) memcpy_P(chain.data, _chain_P->data, chain.data_len);
+
+	//copy_chain_P(chain, _chain_P);
+	sk_ec.curve = _sk_ec_P->curve;
+	sk_ec.xlen = _sk_ec_P->xlen;
+#ifdef SKEY_ON_STACK
+	sk_ec.x = &sk_data[0];
+#else
+	sk_ec.x = (unsigned char *) malloc(sk_ec.xlen);
+#endif
+	if (sk_ec.x) memcpy_P(sk_ec.x, _sk_ec_P->x, sk_ec.xlen);
+	//copy_sk_ec_P(sk_ec, _sk_ec_P);
 LOG_HEAP_SIZE("_connectSSL after PrivKey allocation");
 
 //	if (sk->isEC()) {
@@ -957,8 +967,8 @@ LOG_HEAP_SIZE("_connectSSL after PrivKey allocation");
 	// } // RSA
 
   if (!br_ssl_client_reset(_sc.get(), hostName, 0)) {
-    free_chain(chain);
-    free_sk_ec(sk_ec);
+    free(chain.data);
+    free(sk_ec.x);
     free(x509_insecure);
 		stack_thunk_del_ref();
     _freeSSL();
@@ -979,8 +989,8 @@ LOG_HEAP_SIZE("_connectSSL.end");
   //stack_thunk_repaint();
 LOG_HEAP_SIZE("_connectSSL.end, freeing StackThunk");
 //Serial.printf("Connected! MFLNStatus = %d\n", getMFLNStatus());
-  free_chain(chain);
-  free_sk_ec(sk_ec);
+	free(chain.data);
+	free(sk_ec.x);
   free(x509_insecure);
 LOG_HEAP_SIZE("_connectSSL after release of Priv Key");
   return ret;

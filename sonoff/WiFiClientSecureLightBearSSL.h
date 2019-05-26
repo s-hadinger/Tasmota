@@ -71,9 +71,9 @@ class WiFiClientSecure_light : public WiFiClient {
     }
     bool setPubKeyFingerprint(const char *fpStr);
     // Install a client certificate for this connection, in case the server requires it (i.e. MQTT)
-    //void setClientRSACert(const X509List *cert, const PrivateKey *sk);
-    void setClientRSACertPEM(const char *cert, const char *sk);
-    void setClientECCertPEM(const char *cert, const char *sk,
+    //void setClientRSACert(const X509List *cert, const PrivateKey *sk);br_x509_certificate *chain_P;  // PROGMEM certificate
+
+    void setClientECCert(const br_x509_certificate *cert, const br_ec_private_key *sk,
                          unsigned allowed_usages, unsigned cert_issuer_key_type);
 
     // Sets the requested buffer size for transmit and receive
@@ -136,10 +136,10 @@ class WiFiClientSecure_light : public WiFiClient {
     bool _wait_for_handshake(); // Sets and return the _handshake_done after connecting
 
     // Optional client certificate
-    const char *_chain_PEM;
-    const char *_sk_PEM;
-    // const X509List *_chain;
-    // const PrivateKey *_sk;
+    br_x509_certificate _chain;     // local RAM copy
+    const br_x509_certificate *_chain_P;  // PROGMEM certificate
+    br_ec_private_key   _sk_ec;
+    const br_ec_private_key   *_sk_ec_P;  // PROGMEM private key
     unsigned _allowed_usages;
     unsigned _cert_issuer_key_type;
 

@@ -224,9 +224,8 @@ void MqttInit(void) {
   // aws_iot_client_cert = new X509List(AWS_IoT_client_cert);
   // awsClient->setClientRSACert(aws_iot_client_cert, aws_iot_private_key);
   //awsClient->setClientRSACertPEM(AWS_IoT_client_cert_ec, AWS_IoT_client_PrivKey_ec);
-  awsClient->setClientECCertPEM(AWS_IoT_client_cert_ec, AWS_IoT_client_PrivKey_ec,
-                                0xFFFF /* all usages, don't care */,
-                                0 );
+  awsClient->setClientECCert(AWS_IoT_Client_Certificate, AWS_IoT_Private_Key,
+                                0xFFFF /* all usages, don't care */, 0);
   free_mem_after = ESP.getFreeHeap();
 
   MqttClient.setClient(*awsClient);
