@@ -308,6 +308,7 @@ int WiFiClientSecure_light::connect(const char* name, uint16_t port) {
     DEBUG_BSSL("connect: Unable to connect TCP socket\n");
     return 0;
   }
+LOG_HEAP_SIZE("Before calling _connectSSL");
   return _connectSSL(name);
 }
 
@@ -967,8 +968,10 @@ LOG_HEAP_SIZE("_connectSSL after PrivKey allocation");
 	// } // RSA
 
   if (!br_ssl_client_reset(_sc.get(), hostName, 0)) {
+#ifndef SKEY_ON_STACK
     free(chain.data);
     free(sk_ec.x);
+#endif
     free(x509_insecure);
 		stack_thunk_del_ref();
     _freeSSL();
@@ -989,8 +992,10 @@ LOG_HEAP_SIZE("_connectSSL.end");
   //stack_thunk_repaint();
 LOG_HEAP_SIZE("_connectSSL.end, freeing StackThunk");
 //Serial.printf("Connected! MFLNStatus = %d\n", getMFLNStatus());
+#ifndef SKEY_ON_STACK
 	free(chain.data);
 	free(sk_ec.x);
+#endif
   free(x509_insecure);
 LOG_HEAP_SIZE("_connectSSL after release of Priv Key");
   return ret;
