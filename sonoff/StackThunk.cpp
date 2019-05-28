@@ -36,9 +36,8 @@ uint32_t *stack_thunk_top = NULL;
 uint32_t *stack_thunk_save = NULL;  /* Saved A1 while in BearSSL */
 uint32_t stack_thunk_refcnt = 0;
 
-// SH TODO
 //#define _stackSize (5600/4)
-#define _stackSize (4600/4)
+#define _stackSize (4600/4)   // using a light version of bearssl we can save 1KB
 #define _stackPaint 0xdeadbeef
 
 /* Add a reference, and allocate the stack if necessary */

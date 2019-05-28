@@ -44,10 +44,6 @@
 #endif
 #endif
 
-#ifdef USE_MQTT_AWS_IOT
-#include "sonoff_aws_iot.h"
-#endif // USE_MQTT_AWS_IOT
-
 // Libraries
 #include <ESP8266HTTPClient.h>              // Ota
 #include <ESP8266httpUpdate.h>              // Ota

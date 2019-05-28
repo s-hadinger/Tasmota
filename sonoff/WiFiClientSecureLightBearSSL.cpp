@@ -44,7 +44,7 @@ extern "C" {
 #include "c_types.h"
 #include "coredecls.h"
 
-#define SKEY_ON_STACK
+#define SKEY_ON_STACK			// copy private key+cert on stack rather than on heap, this works for now because it takes ~800 bytes
 #define DEBUG_TLS
 
 #ifdef DEBUG_TLS
@@ -56,50 +56,13 @@ void _Log_heap_size(const char *msg) {
                 msg, ESP.getFreeHeap(), ESP.getHeapFragmentation(), stack_thunk_get_max_usage(),
                 freestack, ESP.getFreeContStack());
 }
-
-void Log_fingerprint(const unsigned char *finger) {
-  char fingerprint[60];
-  fingerprint[0] = '\0';
-  for (uint8_t i = 0; i < 20; i++) {
-    snprintf_P(fingerprint, sizeof(fingerprint), "%s%s%02X", fingerprint, (i) ? ":" : "", finger[i]);
-  }
-  Serial.printf("Fingerprint = %s\n", fingerprint);
-}
-
-void Log_buffer(const char *msg, const uint8_t *buf, uint32_t size) {
-  char out[200];
-  out[0] = '\0';
-  if (size > 64) size = 64;
-  for (uint8_t i = 0; i < size; i++) {
-    snprintf_P(out, sizeof(out), "%s%s%02X", out, (i) ? ":" : "", buf[i]);
-  }
-  Serial.printf("%s = %s\n", msg, out);
-}
 #else
 #define LOG_HEAP_SIZE(a)
-#define Log_buffer(a, b, c)
 #endif
-//
-// extern "C" {
-// // #define make_min_thunk_ack(a) _Log_heap_size(a)
-// // //#define make_min_thunk_ack(fcnToThunk) (1)
-// // // void min_#"fcnToThunk"(br_ssl_engine_context *cc, size_t len) { \
-// // // 	if (stack_thunk_get_refcnt()) { \
-// // // 		thunk_#"fcnToThunk"(cc, len); \
-// // // 	} else { \
-// // // 		#"fcnToThunk"(cc, len); \
-// // // 	} \
-// // // }
-// //
-// //
-// // make_min_thunk_ack(br_ssl_engine_recvapp_ack);
-//
-// #define make_min_thunk_ack(fcnToThunk) \
-// void br_ssl_engine_recvapp_ack();
-//
-// make_min_thunk_ack(br_ssl_engine_recvapp_ack);
-// } // extern "c"
 
+// create new version of Thunk function to store on SYS stack
+// unless the Thunk was initialized. Thanks to AES128 GCM, we can keep
+// symetric processing on the stack
 void min_br_ssl_engine_recvapp_ack(br_ssl_engine_context *cc, size_t len) {
 	if (stack_thunk_get_refcnt()) {
 		return thunk_br_ssl_engine_recvapp_ack(cc, len);
@@ -157,19 +120,7 @@ unsigned char *min_br_ssl_engine_sendrec_buf(const br_ssl_engine_context *cc, si
 	}
 }
 
-
-#if !CORE_MOCK
-
-// The BearSSL thunks in use for now
-// #define br_ssl_engine_recvapp_ack thunk_br_ssl_engine_recvapp_ack
-// #define br_ssl_engine_recvapp_buf thunk_br_ssl_engine_recvapp_buf
-// #define br_ssl_engine_recvrec_ack thunk_br_ssl_engine_recvrec_ack
-// #define br_ssl_engine_recvrec_buf thunk_br_ssl_engine_recvrec_buf
-// #define br_ssl_engine_sendapp_ack thunk_br_ssl_engine_sendapp_ack
-// #define br_ssl_engine_sendapp_buf thunk_br_ssl_engine_sendapp_buf
-// #define br_ssl_engine_sendrec_ack thunk_br_ssl_engine_sendrec_ack
-// #define br_ssl_engine_sendrec_buf thunk_br_ssl_engine_sendrec_buf
-
+// Use min_ instead of original thunk_
 #define br_ssl_engine_recvapp_ack min_br_ssl_engine_recvapp_ack
 #define br_ssl_engine_recvapp_buf min_br_ssl_engine_recvapp_buf
 #define br_ssl_engine_recvrec_ack min_br_ssl_engine_recvrec_ack
@@ -179,12 +130,10 @@ unsigned char *min_br_ssl_engine_sendrec_buf(const br_ssl_engine_context *cc, si
 #define br_ssl_engine_sendrec_ack min_br_ssl_engine_sendrec_ack
 #define br_ssl_engine_sendrec_buf min_br_ssl_engine_sendrec_buf
 
-#endif
-
-#define DEBUG_ESP_SSL
+//#define DEBUG_ESP_SSL
 #ifdef DEBUG_ESP_SSL
-//#define DEBUG_BSSL(fmt, ...)  DEBUG_ESP_PORT.printf_P((PGM_P)PSTR( "BSSL:" fmt), ## __VA_ARGS__)
-#define DEBUG_BSSL(fmt, ...)  Serial.printf(fmt, ## __VA_ARGS__)
+#define DEBUG_BSSL(fmt, ...)  DEBUG_ESP_PORT.printf_P((PGM_P)PSTR( "BSSL:" fmt), ## __VA_ARGS__)
+//#define DEBUG_BSSL(fmt, ...)  Serial.printf(fmt, ## __VA_ARGS__)
 #else
 #define DEBUG_BSSL(...)
 #endif
@@ -201,7 +150,7 @@ void WiFiClientSecure_light::_clear() {
   _iobuf_in = nullptr;
   _iobuf_out = nullptr;
   _now = 0; // You can override or ensure time() is correct w/configTime
-  setBufferSizes(512, 512); // reasonable minimum
+  setBufferSizes(1024, 1024); // reasonable minimum
   _handshake_done = false;
   _recvapp_buf = nullptr;
   _recvapp_len = 0;
@@ -222,7 +171,6 @@ LOG_HEAP_SIZE("StackThunk after");
   allocateBuffers();
 }
 
-
 WiFiClientSecure_light::~WiFiClientSecure_light() {
   if (_client) {
     _client->unref();
@@ -236,12 +184,12 @@ WiFiClientSecure_light::~WiFiClientSecure_light() {
 void WiFiClientSecure_light::allocateBuffers(void) {
   // We prefer to allocate all buffers at start, rather than lazy allocation and deallocation
   // in the long run it avoids heap fragmentation and improves stability
-LOG_HEAP_SIZE("allocateBuffers before");
+	LOG_HEAP_SIZE("allocateBuffers before");
   _sc = std::make_shared<br_ssl_client_context>();
-LOG_HEAP_SIZE("allocateBuffers ClientContext");
+	LOG_HEAP_SIZE("allocateBuffers ClientContext");
   _iobuf_in = std::shared_ptr<unsigned char>(new unsigned char[_iobuf_in_size], std::default_delete<unsigned char[]>());
   _iobuf_out = std::shared_ptr<unsigned char>(new unsigned char[_iobuf_out_size], std::default_delete<unsigned char[]>());
-LOG_HEAP_SIZE("allocateBuffers after");
+	LOG_HEAP_SIZE("allocateBuffers after");
 }
 
 void WiFiClientSecure_light::setClientECCert(const br_x509_certificate *cert, const br_ec_private_key *sk,
@@ -301,7 +249,7 @@ int WiFiClientSecure_light::connect(const char* name, uint16_t port) {
     DEBUG_BSSL("connect: Unable to connect TCP socket\n");
     return 0;
   }
-LOG_HEAP_SIZE("Before calling _connectSSL");
+	LOG_HEAP_SIZE("Before calling _connectSSL");
   return _connectSSL(name);
 }
 
@@ -341,7 +289,6 @@ size_t WiFiClientSecure_light::_write(const uint8_t *buf, size_t size, bool pmem
       optimistic_yield(1000);
     }
 
-Log_buffer("_Write", buf, size);
     // Get BearSSL to a state where we can send
     if (_run_until(BR_SSL_SENDAPP) < 0) {
       break;
@@ -367,7 +314,7 @@ Log_buffer("_Write", buf, size);
     }
   } while (size);
 
-LOG_HEAP_SIZE("_write");
+	LOG_HEAP_SIZE("_write");
   return sent_bytes;
 }
 
@@ -422,7 +369,6 @@ int WiFiClientSecure_light::read(uint8_t *buf, size_t size) {
     // Take data from the recvapp buffer
     int to_copy = _recvapp_len < size ? _recvapp_len : size;
     memcpy(buf, _recvapp_buf, to_copy);
-//Log_buffer("_Read", buf, to_copy);
     br_ssl_engine_recvapp_ack(_eng, to_copy);
     _recvapp_buf = nullptr;
     _recvapp_len = 0;
@@ -551,14 +497,12 @@ int WiFiClientSecure_light::_run_until(unsigned target, bool blocking) {
       continue;
     }
 
-//LOG_HEAP_SIZE("_run_until 2");
     /*
        If we reached our target, then we are finished.
     */
     if (state & target) {
       return 0;
     }
-//LOG_HEAP_SIZE("_run_until 3");
     /*
        If some application data must be read, and we did not
        exit, then this means that we are trying to write data,
@@ -571,37 +515,29 @@ int WiFiClientSecure_light::_run_until(unsigned target, bool blocking) {
       DEBUG_BSSL("_run_until: Fatal protocol state\n");
       return -1;
     }
-//LOG_HEAP_SIZE("_run_until 4");
     /*
        If we reached that point, then either we are trying
        to read data and there is some, or the engine is stuck
        until a new record is obtained.
     */
     if (state & BR_SSL_RECVREC) {
-//LOG_HEAP_SIZE("_run_until 4.1");
       if (WiFiClient::available()) {
-//LOG_HEAP_SIZE("_run_until 4.2");
         unsigned char *buf;
         size_t len;
         int rlen;
 
         buf = br_ssl_engine_recvrec_buf(_eng, &len);
-//LOG_HEAP_SIZE("_run_until 4.3");
         rlen = WiFiClient::read(buf, len);
-//LOG_HEAP_SIZE("_run_until 4.4");
         if (rlen < 0) {
           return -1;
         }
         if (rlen > 0) {
-//LOG_HEAP_SIZE("_run_until 4.5");
           br_ssl_engine_recvrec_ack(_eng, rlen);
-//LOG_HEAP_SIZE("_run_until 4.6");
         }
         no_work = 0;
         continue;
       }
     }
-//LOG_HEAP_SIZE("_run_until 5");
     /*
        We can reach that point if the target RECVAPP, and
        the state contains SENDAPP only. This may happen with
@@ -613,7 +549,6 @@ int WiFiClientSecure_light::_run_until(unsigned target, bool blocking) {
 
     no_work++; // We didn't actually advance here
   }
-//LOG_HEAP_SIZE("_run_until 6");
   // We only get here if we ran through the loop without getting anything done
   return -1;
 }
@@ -729,14 +664,6 @@ extern "C" {
     pubkeyfingerprint_pubkey_fingerprint(&sha1_context, xc->ctx.pkey.key.rsa);
     br_sha1_out(&sha1_context, xc->pubkey_recv_fingerprint); // copy to fingerprint
 
-#ifdef DEBUG_TLS
-//Let's dump the public key and hash
-{
-  char out[64];
-	tohex(xc->pubkey_recv_fingerprint, 20, out, sizeof(out));
-	Serial.printf("Fingerprint = %s\n", out);
-}
-#endif
 		if (!xc->fingerprint_all) {
 			if (0 == memcmp(xc->fingerprint1, xc->pubkey_recv_fingerprint, 20)) {
 				return 0;
@@ -785,32 +712,10 @@ extern "C" {
 		ctx->fingerprint_all = fingerprint_all;
   }
 
-  // Some constants uses to init the server/client contexts
-  // Note that suites_P needs to be copied to RAM before use w/BearSSL!
-  // List copied verbatim from BearSSL/ssl_client_full.c
-  /*
-   * The "full" profile supports all implemented cipher suites.
-   *
-   * Rationale for suite order, from most important to least
-   * important rule:
-   *
-   * -- Don't use 3DES if AES or ChaCha20 is available.
-   * -- Try to have Forward Secrecy (ECDHE suite) if possible.
-   * -- When not using Forward Secrecy, ECDH key exchange is
-   *    better than RSA key exchange (slightly more expensive on the
-   *    client, but much cheaper on the server, and it implies smaller
-   *    messages).
-   * -- ChaCha20+Poly1305 is better than AES/GCM (faster, smaller code).
-   * -- GCM is better than CCM and CBC. CCM is better than CBC.
-   * -- CCM is preferable over CCM_8 (with CCM_8, forgeries may succeed
-   *    with probability 2^(-64)).
-   * -- AES-128 is preferred over AES-256 (AES-128 is already
-   *    strong enough, and AES-256 is 40% more expensive).
-   */
+	// We limit to a single cipher to reduce footprint
   // we reference it, don't put in PROGMEM
   static const uint16_t suites[] = {
 		BR_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
-		//BR_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
   };
 
   // Default initializion for our SSL clients
@@ -825,71 +730,17 @@ extern "C" {
     br_ssl_engine_set_default_rsavrfy(&cc->eng);
 
     // install hashes
-    //br_ssl_engine_set_hash(&cc->eng, br_sha1_ID, &br_sha1_vtable);
     br_ssl_engine_set_hash(&cc->eng, br_sha256_ID, &br_sha256_vtable);
     br_ssl_engine_set_prf_sha256(&cc->eng, &br_tls12_sha256_prf);
-    // default AES CBC
-    //  Previous br_ssl_engine_set_default_aes_cbc(&cc->eng); // equivalent to the following
-		//br_ssl_engine_set_default_aes_cbc(&cc->eng);
-	  //br_ssl_engine_set_cbc(&cc->eng, &br_sslrec_in_cbc_vtable, &br_sslrec_out_cbc_vtable);
-	  //br_ssl_engine_set_aes_cbc(&cc->eng, &br_aes_ct_cbcenc_vtable, &br_aes_ct_cbcdec_vtable);
 
-    //br_ssl_engine_set_default_aes_gcm(&cc->eng);
+		// AES CTR/GCM small version, not contstant time (we don't really care here as there is no TPM anyways)
 		br_ssl_engine_set_gcm(&cc->eng, &br_sslrec_in_gcm_vtable, &br_sslrec_out_gcm_vtable);
 		br_ssl_engine_set_aes_ctr(&cc->eng, &br_aes_small_ctr_vtable);
 		br_ssl_engine_set_ghash(&cc->eng, &br_ghash_ctmul32);
 
-    // AES CBC small version, not contstant time (we don't really care here as there is no TPM anyways)
-    // saves ~3.3KB compared to standard AES CBC
-	  //br_ssl_engine_set_cbc(&cc->eng, &br_sslrec_in_cbc_vtable, &br_sslrec_out_cbc_vtable);
-	  //br_ssl_engine_set_aes_cbc(&cc->eng, &br_aes_small_cbcenc_vtable, &br_aes_small_cbcdec_vtable);
-
-		// ec
-    //br_ssl_engine_set_default_ec(&cc->eng);
-		// limiting to p256 EC curve
+		// we support only P256 EC curve
 		br_ssl_engine_set_ec(&cc->eng, &br_ec_p256_m15);
-
   }
-
-}
-
-// create an in-memory copy of the client certificate from PROGMEM
-bool copy_chain_P(br_x509_certificate &chain, const br_x509_certificate *chain_P) {
-	size_t len = chain_P->data_len;
-	chain.data = (unsigned char *) malloc(len);
-	if (chain.data) {
-		memcpy_P(chain.data, chain_P->data, len);
-		chain.data_len = len;
-		return true;
-	}
-	return false;
-}
-void free_chain(br_x509_certificate &chain) {
-	if (chain.data) {
-		free(chain.data);
-	}
-	chain.data = nullptr;
-	chain.data_len = 0;
-}
-
-bool copy_sk_ec_P(br_ec_private_key &sk_ec, const br_ec_private_key *sk_ec_P) {
-	size_t len = sk_ec_P->xlen;
-	sk_ec.x = (unsigned char *) malloc(len);
-	if (sk_ec.x) {
-		memcpy_P(sk_ec.x, sk_ec_P->x, len);
-		sk_ec.xlen = len;
-		sk_ec.curve = sk_ec_P->curve;
-		return true;
-	}
-	return false;
-}
-void free_sk_ec(br_ec_private_key &sk_ec) {
-	if (sk_ec.x) {
-		free(sk_ec.x);
-	}
-	sk_ec.x = nullptr;
-	sk_ec.xlen = 0;
-	sk_ec.curve = 0;
 }
 
 // Called by connect() to do the actual SSL setup and handshake.
@@ -903,11 +754,11 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 #endif
   br_x509_pubkeyfingerprint_context *x509_insecure;
 
-LOG_HEAP_SIZE("_connectSSL.start");
+	LOG_HEAP_SIZE("_connectSSL.start");
 
   stack_thunk_add_ref();
-LOG_HEAP_SIZE("Thunk allocated");
-DEBUG_BSSL("_connectSSL: start connection\n");
+	LOG_HEAP_SIZE("Thunk allocated");
+	DEBUG_BSSL("_connectSSL: start connection\n");
   _freeSSL();
   _oom_err = false;
 
@@ -916,7 +767,7 @@ DEBUG_BSSL("_connectSSL: start connection\n");
 
   br_ssl_client_base_init(_sc.get());
 
-LOG_HEAP_SIZE("_connectSSL before DecoderContext allocation");
+	LOG_HEAP_SIZE("_connectSSL before DecoderContext allocation");
   // Only failure possible in the installation is OOM
   x509_insecure = (br_x509_pubkeyfingerprint_context*) malloc(sizeof(br_x509_pubkeyfingerprint_context));
 
@@ -926,7 +777,7 @@ LOG_HEAP_SIZE("_connectSSL before DecoderContext allocation");
 
   br_ssl_engine_set_buffers_bidi(_eng, _iobuf_in.get(), _iobuf_in_size, _iobuf_out.get(), _iobuf_out_size);
 
-LOG_HEAP_SIZE("_connectSSL after PrivKey allocation");
+	LOG_HEAP_SIZE("_connectSSL after PrivKey allocation");
   // allocate Private key and client certificate
   //chain = new X509List(_chain_PEM);
   //sk = new PrivateKey(_sk_PEM);
@@ -938,7 +789,6 @@ LOG_HEAP_SIZE("_connectSSL after PrivKey allocation");
 #endif
 	if (chain.data) memcpy_P(chain.data, _chain_P->data, chain.data_len);
 
-	//copy_chain_P(chain, _chain_P);
 	sk_ec.curve = _sk_ec_P->curve;
 	sk_ec.xlen = _sk_ec_P->xlen;
 #ifdef SKEY_ON_STACK
@@ -947,26 +797,12 @@ LOG_HEAP_SIZE("_connectSSL after PrivKey allocation");
 	sk_ec.x = (unsigned char *) malloc(sk_ec.xlen);
 #endif
 	if (sk_ec.x) memcpy_P(sk_ec.x, _sk_ec_P->x, sk_ec.xlen);
-	//copy_sk_ec_P(sk_ec, _sk_ec_P);
-LOG_HEAP_SIZE("_connectSSL after PrivKey allocation");
+	LOG_HEAP_SIZE("_connectSSL after PrivKey allocation");
 
-//	if (sk->isEC()) {
-		// limited to P256 curve
-		br_ssl_client_set_single_ec(_sc.get(), &chain, 1,
-	                              &sk_ec, _allowed_usages,
-	                              _cert_issuer_key_type, &br_ec_p256_m15, br_ecdsa_sign_asn1_get_default());
-		// br_ssl_client_set_single_ec(_sc.get(), chain->getX509Certs(), chain->getCount(),
-	  //                             sk->getEC(), _allowed_usages,
-	  //                             _cert_issuer_key_type, &br_ec_p256_m15, br_ecdsa_sign_asn1_get_default());
-	// } else {
-  //   delete(chain);
-  //   delete(sk);
-  //   free(x509_insecure);
-	// 	stack_thunk_del_ref();
-  //   _freeSSL();
-  //   DEBUG_BSSL("_connectSSL: RSA cert not supported\n");
-  //   return false;
-	// } // RSA
+	// limited to P256 curve
+	br_ssl_client_set_single_ec(_sc.get(), &chain, 1,
+                              &sk_ec, _allowed_usages,
+                              _cert_issuer_key_type, &br_ec_p256_m15, br_ecdsa_sign_asn1_get_default());
 
   if (!br_ssl_client_reset(_sc.get(), hostName, 0)) {
 #ifndef SKEY_ON_STACK
@@ -988,17 +824,16 @@ LOG_HEAP_SIZE("_connectSSL after PrivKey allocation");
     DEBUG_BSSL("Connected! MFLNStatus = %d\n", getMFLNStatus());
   }
 #endif
-LOG_HEAP_SIZE("_connectSSL.end");
+	LOG_HEAP_SIZE("_connectSSL.end");
 	stack_thunk_del_ref();
   //stack_thunk_repaint();
-LOG_HEAP_SIZE("_connectSSL.end, freeing StackThunk");
-//Serial.printf("Connected! MFLNStatus = %d\n", getMFLNStatus());
+	LOG_HEAP_SIZE("_connectSSL.end, freeing StackThunk");
 #ifndef SKEY_ON_STACK
 	free(chain.data);
 	free(sk_ec.x);
 #endif
   free(x509_insecure);
-LOG_HEAP_SIZE("_connectSSL after release of Priv Key");
+	LOG_HEAP_SIZE("_connectSSL after release of Priv Key");
   return ret;
 }
 

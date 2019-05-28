@@ -51,29 +51,17 @@ uint8_t mqtt_initial_connection_state = 2;  // MQTT connection messages state
 bool mqtt_connected = false;                // MQTT virtual connection status
 bool mqtt_allowed = false;                  // MQTT enabled and parameters valid
 
-
 #ifdef USE_MQTT_AWS_IOT
 
-/*********************************************************************************************\
- * LetsEncrypt IdenTrust DST Root CA X3 certificate valid until 20210930
- *
- * https://letsencrypt.org/certificates/
- * Downloaded from https://www.identrust.com/support/downloads
-\*********************************************************************************************/
+namespace aws_iot_privkey {
+  extern const br_ec_private_key *AWS_IoT_Private_Key;
+  extern const br_x509_certificate *AWS_IoT_Client_Certificate;
+}
 
-
-//const uint8_t AmazonRootCA1_DER[] PROGMEM = MQTT_AWS_IOT_AMAZON_ROOT_CA1;
 char AWS_endpoint[65];    // aWS IOT endpoint, concatenation of user and host
-
-//const char* AWS_endpoint = "a3pa4ktnq87yfu-ats.iot.eu-central-1.amazonaws.com"; //MQTT broker ip
-
-// SH TODO
-uint32_t free_mem_before = 0;
-uint32_t free_mem_after = 0;
 
 void testTls(void) {
   return;
-  AddLog_P2(LOG_LEVEL_INFO, "MqttInit before=%d, after=%d", free_mem_before, free_mem_after);
   AddLog_P2(LOG_LEVEL_INFO, "Heap1=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
 
   uint32_t time = millis();
@@ -185,11 +173,10 @@ void MqttInit(void) {
     strcpy(&AWS_endpoint[len_user], Settings.mqtt_host);
   }
 
-  free_mem_before = ESP.getFreeHeap();
   awsClient = new BearSSL::WiFiClientSecure_light(1024,1024);
-  awsClient->setClientECCert(AWS_IoT_Client_Certificate, AWS_IoT_Private_Key,
-                                0xFFFF /* all usages, don't care */, 0);
-  free_mem_after = ESP.getFreeHeap();
+  awsClient->setClientECCert(aws_iot_privkey::AWS_IoT_Client_Certificate,
+                             aws_iot_privkey::AWS_IoT_Private_Key,
+                             0xFFFF /* all usages, don't care */, 0);
 
   MqttClient.setClient(*awsClient);
 #endif
