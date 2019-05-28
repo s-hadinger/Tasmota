@@ -18,8 +18,13 @@
 */
 
 #include <bearssl/bearssl.h>
+#include <pgmspace.h>
 
-//#define EC_X __attribute__((section(".irom.text"))) EC_X
+// nasty hack to force PROGMEM
+#define EC_X PROGMEM EC_X
+#define EC PROGMEM EC
+#define CERT0 PROGMEM CERT0
+#define CHAIN PROGMEM CHAIN
 
 namespace aws_iot_privkey {
 /*********************************************************************************************\
