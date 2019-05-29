@@ -268,7 +268,9 @@
 //  #define USE_MQTT_TLS_CA_CERT                   // Use LetsEncrypt Certificate from sonoff_letsencrypt.h - Not supported with core 2.3.0
 
 // -- MQTT - TLS - Special version for AWS IoT
-#define USE_MQTT_AWS_IOT                        // Enable MQTT for AWS IoT
+#define USE_MQTT_AWS_IOT                         // Enable MQTT for AWS IoT - requires a private key (+56.7k code, +6.0k mem and +6.1k additional during connection handshake)
+  // you need to generate a private key + certificate per device
+  // and update 'sonoff/sonoff_aws_iot.cpp'
 
 // -- KNX IP Protocol -----------------------------
 //#define USE_KNX                                  // Enable KNX IP Protocol Support (+9.4k code, +3k7 mem)
