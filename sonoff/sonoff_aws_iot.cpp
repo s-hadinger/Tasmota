@@ -21,10 +21,7 @@
 #include <pgmspace.h>
 
 // nasty hack to force PROGMEM
-#define EC_X PROGMEM EC_X
-#define EC PROGMEM EC
-#define CERT0 PROGMEM CERT0
-#define CHAIN PROGMEM CHAIN
+#define static static PROGMEM
 
 namespace aws_iot_privkey {
 /*********************************************************************************************\
@@ -40,10 +37,8 @@ namespace aws_iot_privkey {
 /*********************************************************************************************\
  * Export Private Key as a C structure
  *
- * bearssl skey -C <private_key.PEM>
+ * $ bearssl skey -C <private_key.PEM>
 \*********************************************************************************************/
-
-// And add PROGMEM after array definition
 
 /* --------------- CUT AND PASTE PRIVATE KEY BELOW --------------- */
 
@@ -63,10 +58,8 @@ static const br_ec_private_key EC = {
 /*********************************************************************************************\
  * Export Private Key as a C structure
  *
- * bearssl chain <certificate.PEM>
+ * $ bearssl chain <certificate.PEM>
 \*********************************************************************************************/
-
-// And add PROGMEM after array definition
 
 /* --------------- CUT AND PASTE PRIVATE KEY BELOW --------------- */
 
@@ -143,8 +136,6 @@ static const br_x509_certificate CHAIN[] = {
 #define CHAIN_LEN   1
 
 /* --------------- CUT AND PASTE PRIVATE KEY ABOVE --------------- */
-
-#define EC_X EC_X
 
 const br_ec_private_key *AWS_IoT_Private_Key = &EC;
 const br_x509_certificate *AWS_IoT_Client_Certificate = &CHAIN[0];
