@@ -59,68 +59,6 @@ namespace aws_iot_privkey {
 
 char AWS_endpoint[65];    // aWS IOT endpoint, concatenation of user and host
 
-void testTls(void) {
-  return;
-  AddLog_P2(LOG_LEVEL_INFO, "Heap1=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
-
-  uint32_t time = millis();
-  if (!awsClient->connect("a3pa4ktnq87yfu-ats.iot.eu-central-1.amazonaws.com", 8883)) {
-    int err = awsClient->getLastSSLError();
-    AddLog_P2(LOG_LEVEL_INFO, "WiFiClientSecure SSL error: %d", err);
-  } else {
-    AddLog_P2(LOG_LEVEL_INFO, "Connection OK");
-
-    uint8_t CONN[] = { 0x10 /* MQTT_CONNECT */, 18 /* length */,
-                      0x00,0x04,'M','Q','T','T', 0x04 /* MQTT_VERSION */,
-                      0x02,0x00,0x80,
-                      0, 6, 'A', 'z', 'e', 'r', 't', 'y'
-                      };
-
-    AddLog_P2(LOG_LEVEL_INFO, "Time elapsed %d",millis() - time);
-    AddLog_P2(LOG_LEVEL_INFO, "Heap4=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
-    awsClient->write(&CONN[0], sizeof(CONN));
-    AddLog_P2(LOG_LEVEL_INFO, "After write");
-    uint8_t buf[200];
-    int avail_len;
-    while (!(avail_len = awsClient->available())) {
-        yield();
-    }
-    int read_len = awsClient->read(&buf[0], 200);
-    //int read_len = awsClient->peekBytes(&buf[0], 200);
-    AddLog_P2(LOG_LEVEL_INFO, "After read");
-
-    uint8_t Publish[] = { 0x30, 0x17, 0x00, 0x0F, 0x74, 0x65, 0x6C, 0x65, 0x2F,
-          0x73, 0x6F, 0x6E, 0x6F, 0x66, 0x66, 0x2F, 0x4C, 0x57, 0x54, 0x4F, 0x6E,
-          0x6C, 0x69, 0x6E, 0x65};
-    // uint8_t Publish[] = { 0x31, 0x17, 0x00, 0x0F, 0x74, 0x65, 0x6C, 0x65, 0x2F,
-    //       0x73, 0x6F, 0x6E, 0x6F, 0x66, 0x66, 0x2F, 0x4C, 0x57, 0x54, 0x4F, 0x6E,
-    //       0x6C, 0x69, 0x6E, 0x65};
-    // uint8_t Publish[] = { 0x32, 0x17, 0x00, 0x0F, 0x74, 0x65, 0x6C, 0x65, 0x2F,
-    //       0x73, 0x6F, 0x6E, 0x6F, 0x66, 0x66, 0x2F, 0x4C, 0x57, 0x54,
-    //       0x00, 0x03,
-    //       0x4F, 0x6E, 0x6C, 0x69, 0x6E, 0x65};
-    awsClient->write(&Publish[0], sizeof(Publish));
-    // while (!(avail_len = awsClient->available())) {
-    //     yield();
-    // }
-    awsClient->read(&buf[0], 200);
-
-  }
-  AddLog_P2(LOG_LEVEL_INFO, "Time elapsed %d",millis() - time);
-  AddLog_P2(LOG_LEVEL_INFO, "Heap5=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
-  //awsClient.setClientRSACert(nullptr, nullptr);
-  //awsClient.setTrustAnchors(nullptr);
-
-  //awsClient.setClientRSACert(nullptr, nullptr);
-  //delete(client_crt);
-  //delete(x509);
-  //delete(key);
-  //AddLog_P2(LOG_LEVEL_INFO, "Heap6=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
-  awsClient->stop();
-  AddLog_P2(LOG_LEVEL_INFO, "Heap-stop=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
-}
-
-
 // check whether the fingerprint is filled with a single value
 // Filled with 0x00 = accept any fingerprint and learn it for next time
 // Filled with 0xFF = accept any fingerpring forever
