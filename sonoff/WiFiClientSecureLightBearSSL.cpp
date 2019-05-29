@@ -34,7 +34,7 @@ extern "C" {
 #include "ESP8266WiFi.h"
 #include "WiFiClient.h"
 #include "WiFiClientSecureLightBearSSL.h"
-#include "StackThunk.h"
+#include "StackThunk_light.h"
 #include "lwip/opt.h"
 #include "lwip/ip.h"
 #include "lwip/tcp.h"
@@ -53,68 +53,91 @@ void _Log_heap_size(const char *msg) {
 	register uint32_t *sp asm("a1");
 	int freestack = 4 * (sp - g_pcont->stack);
   Serial.printf("%s %d, Fragmentation=%d, Thunkstack=%d, Free stack=%d, FreeContStack=%d\n",
-                msg, ESP.getFreeHeap(), ESP.getHeapFragmentation(), stack_thunk_get_max_usage(),
+                msg, ESP.getFreeHeap(), ESP.getHeapFragmentation(), stack_thunk_light_get_max_usage(),
                 freestack, ESP.getFreeContStack());
 }
 #else
 #define LOG_HEAP_SIZE(a)
 #endif
 
+// Stack thunked versions of calls
+// Initially in BearSSLHelpers.h
+extern "C" {
+extern unsigned char *thunk_light_br_ssl_engine_recvapp_buf( const br_ssl_engine_context *cc, size_t *len);
+extern void thunk_light_br_ssl_engine_recvapp_ack(br_ssl_engine_context *cc, size_t len);
+extern unsigned char *thunk_light_br_ssl_engine_recvrec_buf( const br_ssl_engine_context *cc, size_t *len);
+extern void thunk_light_br_ssl_engine_recvrec_ack(br_ssl_engine_context *cc, size_t len);
+extern unsigned char *thunk_light_br_ssl_engine_sendapp_buf( const br_ssl_engine_context *cc, size_t *len);
+extern void thunk_light_br_ssl_engine_sendapp_ack(br_ssl_engine_context *cc, size_t len);
+extern unsigned char *thunk_light_br_ssl_engine_sendrec_buf( const br_ssl_engine_context *cc, size_t *len);
+extern void thunk_light_br_ssl_engine_sendrec_ack(br_ssl_engine_context *cc, size_t len);
+};
+
+// Second stack thunked helpers
+make_stack_thunk_light(br_ssl_engine_recvapp_ack);
+make_stack_thunk_light(br_ssl_engine_recvapp_buf);
+make_stack_thunk_light(br_ssl_engine_recvrec_ack);
+make_stack_thunk_light(br_ssl_engine_recvrec_buf);
+make_stack_thunk_light(br_ssl_engine_sendapp_ack);
+make_stack_thunk_light(br_ssl_engine_sendapp_buf);
+make_stack_thunk_light(br_ssl_engine_sendrec_ack);
+make_stack_thunk_light(br_ssl_engine_sendrec_buf);
+
 // create new version of Thunk function to store on SYS stack
 // unless the Thunk was initialized. Thanks to AES128 GCM, we can keep
 // symetric processing on the stack
 void min_br_ssl_engine_recvapp_ack(br_ssl_engine_context *cc, size_t len) {
-	if (stack_thunk_get_refcnt()) {
-		return thunk_br_ssl_engine_recvapp_ack(cc, len);
+	if (stack_thunk_light_get_refcnt()) {
+		return thunk_light_br_ssl_engine_recvapp_ack(cc, len);
 	} else {
 		return br_ssl_engine_recvapp_ack(cc, len);
 	}
 }
 unsigned char *min_br_ssl_engine_recvapp_buf(const br_ssl_engine_context *cc, size_t *len) {
-	if (stack_thunk_get_refcnt()) {
-		return thunk_br_ssl_engine_recvapp_buf(cc, len);
+	if (stack_thunk_light_get_refcnt()) {
+		return thunk_light_br_ssl_engine_recvapp_buf(cc, len);
 	} else {
 		return br_ssl_engine_recvapp_buf(cc, len);
 	}
 }
 void min_br_ssl_engine_recvrec_ack(br_ssl_engine_context *cc, size_t len) {
-	if (stack_thunk_get_refcnt()) {
-		return thunk_br_ssl_engine_recvrec_ack(cc, len);
+	if (stack_thunk_light_get_refcnt()) {
+		return thunk_light_br_ssl_engine_recvrec_ack(cc, len);
 	} else {
 		return br_ssl_engine_recvrec_ack(cc, len);
 	}
 }
 unsigned char *min_br_ssl_engine_recvrec_buf(const br_ssl_engine_context *cc, size_t *len) {
-	if (stack_thunk_get_refcnt()) {
-		return thunk_br_ssl_engine_recvrec_buf(cc, len);
+	if (stack_thunk_light_get_refcnt()) {
+		return thunk_light_br_ssl_engine_recvrec_buf(cc, len);
 	} else {
 		return br_ssl_engine_recvrec_buf(cc, len);
 	}
 }
 void min_br_ssl_engine_sendapp_ack(br_ssl_engine_context *cc, size_t len) {
-	if (stack_thunk_get_refcnt()) {
-		return thunk_br_ssl_engine_sendapp_ack(cc, len);
+	if (stack_thunk_light_get_refcnt()) {
+		return thunk_light_br_ssl_engine_sendapp_ack(cc, len);
 	} else {
 		return br_ssl_engine_sendapp_ack(cc, len);
 	}
 }
 unsigned char *min_br_ssl_engine_sendapp_buf(const br_ssl_engine_context *cc, size_t *len) {
-	if (stack_thunk_get_refcnt()) {
-		return thunk_br_ssl_engine_sendapp_buf(cc, len);
+	if (stack_thunk_light_get_refcnt()) {
+		return thunk_light_br_ssl_engine_sendapp_buf(cc, len);
 	} else {
 		return br_ssl_engine_sendapp_buf(cc, len);
 	}
 }
 void min_br_ssl_engine_sendrec_ack(br_ssl_engine_context *cc, size_t len) {
-	if (stack_thunk_get_refcnt()) {
-		return thunk_br_ssl_engine_sendrec_ack(cc, len);
+	if (stack_thunk_light_get_refcnt()) {
+		return thunk_light_br_ssl_engine_sendrec_ack(cc, len);
 	} else {
 		return br_ssl_engine_sendrec_ack(cc, len);
 	}
 }
 unsigned char *min_br_ssl_engine_sendrec_buf(const br_ssl_engine_context *cc, size_t *len) {
-	if (stack_thunk_get_refcnt()) {
-		return thunk_br_ssl_engine_sendrec_buf(cc, len);
+	if (stack_thunk_light_get_refcnt()) {
+		return thunk_light_br_ssl_engine_sendrec_buf(cc, len);
 	} else {
 		return br_ssl_engine_sendrec_buf(cc, len);
 	}
@@ -164,7 +187,7 @@ void WiFiClientSecure_light::_clear() {
 WiFiClientSecure_light::WiFiClientSecure_light(int recv, int xmit) : WiFiClient() {
   _clear();
 LOG_HEAP_SIZE("StackThunk before");
-  //stack_thunk_add_ref();
+  //stack_thunk_light_add_ref();
 LOG_HEAP_SIZE("StackThunk after");
   // now finish the setup
   setBufferSizes(recv, xmit); // reasonable minimum
@@ -178,7 +201,6 @@ WiFiClientSecure_light::~WiFiClientSecure_light() {
   }
   //_cipher_list = nullptr; // std::shared will free if last reference
   _freeSSL();
-  stack_thunk_del_ref();
 }
 
 void WiFiClientSecure_light::allocateBuffers(void) {
@@ -756,7 +778,7 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 
 	LOG_HEAP_SIZE("_connectSSL.start");
 
-  stack_thunk_add_ref();
+  stack_thunk_light_add_ref();
 	LOG_HEAP_SIZE("Thunk allocated");
 	DEBUG_BSSL("_connectSSL: start connection\n");
   _freeSSL();
@@ -810,7 +832,7 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
     free(sk_ec.x);
 #endif
     free(x509_insecure);
-		stack_thunk_del_ref();
+		stack_thunk_light_del_ref();
     _freeSSL();
     DEBUG_BSSL("_connectSSL: Can't reset client\n");
     return false;
@@ -825,8 +847,8 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
   }
 #endif
 	LOG_HEAP_SIZE("_connectSSL.end");
-	stack_thunk_del_ref();
-  //stack_thunk_repaint();
+	stack_thunk_light_del_ref();
+  //stack_thunk_light_repaint();
 	LOG_HEAP_SIZE("_connectSSL.end, freeing StackThunk");
 #ifndef SKEY_ON_STACK
 	free(chain.data);

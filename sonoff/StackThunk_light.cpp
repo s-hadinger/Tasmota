@@ -1,5 +1,6 @@
 /*
-  StackThunk.c - Allow use second stack for BearSSL calls
+  StackThunk_light.c - Allow use second stack for BearSSL calls
+  Light version with reduced Stack size due to Tasmota optimizations.
 
   BearSSL uses a significant amount of stack space, much larger than
   the default Arduino core stack. These routines handle swapping
@@ -26,103 +27,110 @@
 
 #include <stdint.h>
 #include <stdlib.h>
-#include "StackThunk.h"
+#include "StackThunk_light.h"
 #include <ets_sys.h>
 
 extern "C" {
 
-uint32_t *stack_thunk_ptr = NULL;
-uint32_t *stack_thunk_top = NULL;
-uint32_t *stack_thunk_save = NULL;  /* Saved A1 while in BearSSL */
-uint32_t stack_thunk_refcnt = 0;
+uint32_t *stack_thunk_light_ptr = NULL;
+uint32_t *stack_thunk_light_top = NULL;
+uint32_t *stack_thunk_light_save = NULL;  /* Saved A1 while in BearSSL */
+uint32_t stack_thunk_light_refcnt = 0;
 
 //#define _stackSize (5600/4)
-#define _stackSize (4600/4)   // using a light version of bearssl we can save 1KB
+#define _stackSize (5600/4)   // using a light version of bearssl we can save 1KB
 #define _stackPaint 0xdeadbeef
 
 /* Add a reference, and allocate the stack if necessary */
-void stack_thunk_add_ref()
+void stack_thunk_light_add_ref()
 {
-  stack_thunk_refcnt++;
-  if (stack_thunk_refcnt == 1) {
-    stack_thunk_ptr = (uint32_t *)malloc(_stackSize * sizeof(uint32_t));
-    stack_thunk_top = stack_thunk_ptr + _stackSize - 1;
-    stack_thunk_save = NULL;
-    stack_thunk_repaint();
+  stack_thunk_light_refcnt++;
+  if (stack_thunk_light_refcnt == 1) {
+    stack_thunk_light_ptr = (uint32_t *)malloc(_stackSize * sizeof(uint32_t));
+    stack_thunk_light_top = stack_thunk_light_ptr + _stackSize - 1;
+    stack_thunk_light_save = NULL;
+    stack_thunk_light_repaint();
   }
 }
 
 /* Drop a reference, and free stack if no more in use */
-void stack_thunk_del_ref()
+void stack_thunk_light_del_ref()
 {
-  if (stack_thunk_refcnt == 0) {
+  if (stack_thunk_light_refcnt == 0) {
     /* Error! */
     return;
   }
-  stack_thunk_refcnt--;
-  if (!stack_thunk_refcnt) {
-    free(stack_thunk_ptr);
-    stack_thunk_ptr = NULL;
-    stack_thunk_top = NULL;
-    stack_thunk_save = NULL;
+  stack_thunk_light_refcnt--;
+  if (!stack_thunk_light_refcnt) {
+    free(stack_thunk_light_ptr);
+    stack_thunk_light_ptr = NULL;
+    stack_thunk_light_top = NULL;
+    stack_thunk_light_save = NULL;
   }
 }
 
-void stack_thunk_repaint()
+void stack_thunk_light_repaint()
 {
   for (int i=0; i < _stackSize; i++) {
-    stack_thunk_ptr[i] = _stackPaint;
+    stack_thunk_light_ptr[i] = _stackPaint;
   }
 }
 
 /* Simple accessor functions used by postmortem */
-uint32_t stack_thunk_get_refcnt() {
-  return stack_thunk_refcnt;
+uint32_t stack_thunk_light_get_refcnt() {
+  return stack_thunk_light_refcnt;
 }
 
-uint32_t stack_thunk_get_stack_top() {
-  return (uint32_t)stack_thunk_top;
+uint32_t stack_thunk_light_get_stack_top() {
+  return (uint32_t)stack_thunk_light_top;
 }
 
-uint32_t stack_thunk_get_stack_bot() {
-  return (uint32_t)stack_thunk_ptr;
+uint32_t stack_thunk_light_get_stack_bot() {
+  return (uint32_t)stack_thunk_light_ptr;
 }
 
-uint32_t stack_thunk_get_cont_sp() {
-  return (uint32_t)stack_thunk_save;
+uint32_t stack_thunk_light_get_cont_sp() {
+  return (uint32_t)stack_thunk_light_save;
 }
 
 /* Return the number of bytes ever used since the stack was created */
-uint32_t stack_thunk_get_max_usage()
+uint32_t stack_thunk_light_get_max_usage()
 {
   uint32_t cnt = 0;
 
   /* No stack == no usage by definition! */
-  if (!stack_thunk_ptr) {
+  if (!stack_thunk_light_ptr) {
     return 0;
   }
 
-  for (cnt=0; (cnt < _stackSize) && (stack_thunk_ptr[cnt] == _stackPaint); cnt++) {
+  for (cnt=0; (cnt < _stackSize) && (stack_thunk_light_ptr[cnt] == _stackPaint); cnt++) {
     /* Noop, all work done in for() */
   }
   return 4 * (_stackSize - cnt);
 }
 
 /* Print the stack from the first used 16-byte chunk to the top, decodable by the exception decoder */
-void stack_thunk_dump_stack()
+void stack_thunk_light_dump_stack()
 {
-  uint32_t *pos = stack_thunk_top;
-  while (pos < stack_thunk_ptr) {
+  uint32_t *pos = stack_thunk_light_top;
+  while (pos < stack_thunk_light_ptr) {
     if ((pos[0] != _stackPaint) || (pos[1] != _stackPaint) || (pos[2] != _stackPaint) || (pos[3] != _stackPaint))
       break;
     pos += 4;
   }
   ets_printf(">>>stack>>>\n");
-  while (pos < stack_thunk_ptr) {
+  while (pos < stack_thunk_light_ptr) {
     ets_printf("%08x:  %08x %08x %08x %08x\n", (int32_t)pos, pos[0], pos[1], pos[2], pos[3]);
     pos += 4;
   }
   ets_printf("<<<stack<<<\n");
+}
+
+/* Called when the stack overflow is detected by a thunk.  Main memory is corrupted at this point.  Do not return. */
+void stack_thunk_light_fatal_overflow()
+{
+    ets_printf("FATAL ERROR: BSSL stack overflow\n");
+    abort();
 }
 
 };

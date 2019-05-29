@@ -25,7 +25,6 @@
 #endif
   WiFiClientSecure EspClient();               // Wifi Secure Client
 #elif defined(USE_MQTT_AWS_IOT)
-  #include "StackThunk.h"
   #include "WiFiClientSecureLightBearSSL.h"
   // Prefer to do a static allocation at start, to avoid heap fragmentation
   BearSSL::WiFiClientSecure_light *awsClient;
@@ -109,7 +108,6 @@ void testTls(void) {
   }
   AddLog_P2(LOG_LEVEL_INFO, "Time elapsed %d",millis() - time);
   AddLog_P2(LOG_LEVEL_INFO, "Heap5=%d, frag=%d",ESP.getFreeHeap(),ESP.getHeapFragmentation());
-  AddLog_P2(LOG_LEVEL_INFO, "StackThunk=%d",stack_thunk_get_max_usage());
   //awsClient.setClientRSACert(nullptr, nullptr);
   //awsClient.setTrustAnchors(nullptr);
 
