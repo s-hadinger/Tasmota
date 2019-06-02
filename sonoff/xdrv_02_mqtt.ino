@@ -340,7 +340,11 @@ void MqttDisconnected(int state)
   mqtt_connected = false;
   mqtt_retry_counter = Settings.mqtt_retry;
 
+#ifdef USE_MQTT_AWS_IOT
+  AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_MQTT D_CONNECT_FAILED_TO " %s:%d, rc %d. " D_RETRY_IN " %d " D_UNIT_SECOND), AWS_endpoint, Settings.mqtt_port, state, mqtt_retry_counter);
+#else
   AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_MQTT D_CONNECT_FAILED_TO " %s:%d, rc %d. " D_RETRY_IN " %d " D_UNIT_SECOND), Settings.mqtt_host, Settings.mqtt_port, state, mqtt_retry_counter);
+#endif
   rules_flag.mqtt_disconnected = 1;
 }
 
@@ -356,20 +360,14 @@ void MqttConnected(void)
 
     GetTopic_P(stopic, TELE, mqtt_topic, S_LWT);
     Response_P(PSTR(D_ONLINE));
-//Serial.printf("MqttConnected before Publish topic = %s\n", stopic);
     MqttPublish(stopic, true);
-//Serial.printf("MqttConnected after Publish topic\n");
 
     // Satisfy iobroker (#299)
     mqtt_data[0] = '\0';
-//Serial.printf("MqttConnected before MqttPublishPrefixTopic_P\n");
     MqttPublishPrefixTopic_P(CMND, S_RSLT_POWER);
-//Serial.printf("MqttConnected after MqttPublishPrefixTopic_P\n");
 
     GetTopic_P(stopic, CMND, mqtt_topic, PSTR("#"));
-//Serial.printf("MqttConnected before MqttPublishPrefixTopic_P %s\n", stopic);
     MqttSubscribe(stopic);
-//Serial.printf("MqttConnected after MqttPublishPrefixTopic_P\n");
     if (strstr_P(Settings.mqtt_fulltopic, MQTT_TOKEN_TOPIC) != nullptr) {
       GetTopic_P(stopic, CMND, Settings.mqtt_grptopic, PSTR("#"));
       MqttSubscribe(stopic);
@@ -377,7 +375,6 @@ void MqttConnected(void)
       MqttSubscribe(stopic);
     }
 
-//Serial.printf("MqttConnected XdrvCall(FUNC_MQTT_SUBSCRIBE)\n");
     XdrvCall(FUNC_MQTT_SUBSCRIBE);
   }
 
@@ -463,9 +460,6 @@ void MqttReconnect(void)
 
   MqttClient.setCallback(MqttDataHandler);
 #ifdef USE_MQTT_AWS_IOT
-  // SH TODO
-  //MqttClient.setServer(Settings.mqtt_host, Settings.mqtt_port);
-//Serial.printf("MqttClient.setServer = %s", AWS_endpoint);
   MqttClient.setServer(AWS_endpoint, Settings.mqtt_port);
 #else
   MqttClient.setServer(Settings.mqtt_host, Settings.mqtt_port);
@@ -488,36 +482,41 @@ void MqttReconnect(void)
   allow_all_fingerprints |= learn_fingerprint1;
   allow_all_fingerprints |= learn_fingerprint2;
   awsClient->setPubKeyFingerprint(Settings.mqtt_fingerprint[0], Settings.mqtt_fingerprint[1], allow_all_fingerprints);
-#endif
-  //if (MqttClient.connect(mqtt_client, mqtt_user, mqtt_pwd, stopic, 1, true, mqtt_data)) { // TODO will
+  AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_MQTT "AWS IoT endpoint: %s"), AWS_endpoint);
   if (MqttClient.connect(mqtt_client, mqtt_user, mqtt_pwd, nullptr, 0, false, nullptr)) {
+#else
+  if (MqttClient.connect(mqtt_client, mqtt_user, mqtt_pwd, stopic, 1, true, mqtt_data)) { // TODO will
+#endif
     AddLog_P2(LOG_LEVEL_INFO, "MqttConnected");
 #ifdef USE_MQTT_AWS_IOT
-  if (learn_fingerprint1 || learn_fingerprint2) {
-    // we potentially need to learn the fingerprint just seen
-    bool fingerprint_matched = false;
-    const uint8_t *recv_fingerprint = awsClient->getRecvPubKeyFingerprint();
-    if (0 == memcmp(recv_fingerprint, Settings.mqtt_fingerprint[0], 20)) {
-      fingerprint_matched = true;
-    }
-    if (0 == memcmp(recv_fingerprint, Settings.mqtt_fingerprint[1], 20)) {
-      fingerprint_matched = true;
-    }
-    if (!fingerprint_matched) {
-      // we had no match, so we need to change all fingerprints ready to learn
-      if (learn_fingerprint1) {
-        memcpy(Settings.mqtt_fingerprint[0], recv_fingerprint, 20);
+    if (learn_fingerprint1 || learn_fingerprint2) {
+      // we potentially need to learn the fingerprint just seen
+      bool fingerprint_matched = false;
+      const uint8_t *recv_fingerprint = awsClient->getRecvPubKeyFingerprint();
+      if (0 == memcmp(recv_fingerprint, Settings.mqtt_fingerprint[0], 20)) {
+        fingerprint_matched = true;
       }
-      if (learn_fingerprint2) {
-        memcpy(Settings.mqtt_fingerprint[1], recv_fingerprint, 20);
+      if (0 == memcmp(recv_fingerprint, Settings.mqtt_fingerprint[1], 20)) {
+        fingerprint_matched = true;
       }
-      restart_flag = 2;  // save and restart
+      if (!fingerprint_matched) {
+        // we had no match, so we need to change all fingerprints ready to learn
+        if (learn_fingerprint1) {
+          memcpy(Settings.mqtt_fingerprint[0], recv_fingerprint, 20);
+        }
+        if (learn_fingerprint2) {
+          memcpy(Settings.mqtt_fingerprint[1], recv_fingerprint, 20);
+        }
+        restart_flag = 2;  // save and restart
+      }
     }
-  }
 #endif
     MqttConnected();
   } else {
     AddLog_P2(LOG_LEVEL_INFO, "MqttDisconnected");
+#ifdef USE_MQTT_AWS_IOT
+    AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_MQTT "Connection error: %d"), awsClient->getLastError());
+#endif
     MqttDisconnected(MqttClient.state());  // status codes are documented here http://pubsubclient.knolleary.net/api.html#state
   }
 }

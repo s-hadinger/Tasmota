@@ -87,6 +87,20 @@ class WiFiClientSecure_light : public WiFiClient {
     // Return an error code and possibly a text string in a passed-in buffer with last SSL failure
     int getLastSSLError(void);
 
+    int32_t getLastError(void) {
+      if (_last_error) {
+        return _last_error;
+      } else {
+        return getLastSSLError();
+      }
+    }
+    inline void setLastError(int32_t err) {
+      _last_error = err;
+    }
+    inline void clearLastError(void) {
+      _last_error = 0;
+    }
+
     // Select specific ciphers (i.e. optimize for speed over security)
     // These may be in PROGMEM or RAM, either will run properly
     // bool setCiphers(const uint16_t *cipherAry, int cipherCount);
@@ -112,7 +126,8 @@ class WiFiClientSecure_light : public WiFiClient {
     int _iobuf_in_size;
     int _iobuf_out_size;
     bool _handshake_done;
-    bool _oom_err;
+    uint64_t _last_error;
+    //bool _oom_err;
 
     bool _fingerprint_all;           // accept all fingerprints
     const uint8_t *_fingerprint1;          // fingerprint1 to be checked against
@@ -138,6 +153,11 @@ class WiFiClientSecure_light : public WiFiClient {
     unsigned _cert_issuer_key_type;
 
 };
+
+#define ERR_OOM             -1000
+#define ERR_CANT_RESOLVE_IP -1001
+#define ERR_TCP_CONNECT     -1002
+
 
 };
 

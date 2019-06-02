@@ -175,9 +175,9 @@ void WiFiClientSecure_light::_clear() {
   _now = 0; // You can override or ensure time() is correct w/configTime
   setBufferSizes(1024, 1024); // reasonable minimum
   _handshake_done = false;
+	_last_error = 0;
   _recvapp_buf = nullptr;
   _recvapp_len = 0;
-  _oom_err = false;
 	_fingerprint_all = true;		// by default accept all fingerprints
 	_fingerprint1 = nullptr;
 	_fingerprint2 = nullptr;
@@ -255,7 +255,9 @@ bool WiFiClientSecure_light::flush(unsigned int maxWaitMs) {
 }
 
 int WiFiClientSecure_light::connect(IPAddress ip, uint16_t port) {
+	clearLastError();
   if (!WiFiClient::connect(ip, port)) {
+		setLastError(ERR_TCP_CONNECT);
     return 0;
   }
   return _connectSSL(nullptr);
@@ -263,12 +265,15 @@ int WiFiClientSecure_light::connect(IPAddress ip, uint16_t port) {
 
 int WiFiClientSecure_light::connect(const char* name, uint16_t port) {
   IPAddress remote_addr;
+	clearLastError();
   if (!WiFi.hostByName(name, remote_addr)) {
     DEBUG_BSSL("connect: Name loopup failure\n");
+		setLastError(ERR_CANT_RESOLVE_IP);
     return 0;
   }
   if (!WiFiClient::connect(remote_addr, port)) {
     DEBUG_BSSL("connect: Unable to connect TCP socket\n");
+		_last_error = ERR_TCP_CONNECT;
     return 0;
   }
 	LOG_HEAP_SIZE("Before calling _connectSSL");
@@ -782,7 +787,7 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 	LOG_HEAP_SIZE("Thunk allocated");
 	DEBUG_BSSL("_connectSSL: start connection\n");
   _freeSSL();
-  _oom_err = false;
+	clearLastError();
 
   _ctx_present = true;
   _eng = &_sc->eng; // Allocation/deallocation taken care of by the _sc shared_ptr
@@ -820,6 +825,21 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 #endif
 	if (sk_ec.x) memcpy_P(sk_ec.x, _sk_ec_P->x, sk_ec.xlen);
 	LOG_HEAP_SIZE("_connectSSL after PrivKey allocation");
+
+	// check if memory was correctly allocated
+	if ((!stack_thunk_light_get_stack_bot()) || (!x509_insecure) ||
+      (!chain.data) || (!sk_ec.x)) {
+		// memory allocation problem
+		setLastError(ERR_OOM);
+#ifndef SKEY_ON_STACK
+    free(chain.data);
+    free(sk_ec.x);
+#endif
+    free(x509_insecure);
+		stack_thunk_light_del_ref();
+    DEBUG_BSSL("_connectSSL: Out of memory\n");
+    return false;
+	}
 
 	// limited to P256 curve
 	br_ssl_client_set_single_ec(_sc.get(), &chain, 1,

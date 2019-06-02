@@ -71,8 +71,10 @@ void stack_thunk_light_del_ref()
 
 void stack_thunk_light_repaint()
 {
-  for (int i=0; i < _stackSize; i++) {
-    stack_thunk_light_ptr[i] = _stackPaint;
+  if (stack_thunk_light_ptr) {
+    for (int i=0; i < _stackSize; i++) {
+      stack_thunk_light_ptr[i] = _stackPaint;
+    }
   }
 }
 
