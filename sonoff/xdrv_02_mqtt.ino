@@ -473,6 +473,7 @@ void MqttReconnect(void)
   }
   MqttClient.setServer(mqtt_host_addr, Settings.mqtt_port);
 */
+  uint32_t time = millis();
 #ifdef USE_MQTT_AWS_IOT
   bool allow_all_fingerprints = false;
   bool learn_fingerprint1 = is_fingerprint_mono_value(Settings.mqtt_fingerprint[0], 0x00);
@@ -487,7 +488,7 @@ void MqttReconnect(void)
 #else
   if (MqttClient.connect(mqtt_client, mqtt_user, mqtt_pwd, stopic, 1, true, mqtt_data)) { // TODO will
 #endif
-    AddLog_P2(LOG_LEVEL_INFO, "MqttConnected");
+    AddLog_P2(LOG_LEVEL_INFO, "MqttConnected in %d ms", millis() - time);
 #ifdef USE_MQTT_AWS_IOT
     if (learn_fingerprint1 || learn_fingerprint2) {
       // we potentially need to learn the fingerprint just seen

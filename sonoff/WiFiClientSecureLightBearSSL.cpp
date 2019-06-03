@@ -45,7 +45,7 @@ extern "C" {
 #include "coredecls.h"
 
 #define SKEY_ON_STACK			// copy private key+cert on stack rather than on heap, this works for now because it takes ~800 bytes
-//#define DEBUG_TLS
+#define DEBUG_TLS
 
 #ifdef DEBUG_TLS
 #define LOG_HEAP_SIZE(a) _Log_heap_size(a)
