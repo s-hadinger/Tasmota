@@ -1,6 +1,14 @@
-/* 6.5.0.13 20190527
+/* 6.5.0.14 20190602
+ * Change webserver HTML input, button, textarea, and select name based on id
+ * Fix webserver multiple Javascript window.onload functionality
+ * Fix PZem startup issue (#5875)
+ *
+ * 6.5.0.13 20190527
  * Add command SetOption38 6..255 to set IRReceive protocol detection sensitivity mimizing UNKNOWN protocols (#5853)
  * Fix missing white channel for WS2812 (#5869)
+ * Add reset of Energy values when connection to sensor is lost for over 4 seconds (#5874, #5881)
+ * Work-around for Philips Hue emulation issue by using part of MAC address for LightId (#5849)
+ * Add support to Stage Arduino Core (next 2.6.0)
  *
  * 6.5.0.12 20190521
  * Add AriLux RF control GPIO option "ALux IrSel" (159) replacing "Led4i" (59) for full LED control (#5709)
