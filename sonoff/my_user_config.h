@@ -487,10 +487,4 @@
   #error "Select either USE_DISCOVERY or USE_MQTT_AWS_IOT, mDNS takes too much code space and is not needed for AWS IoT"
 #endif
 
-
-#if defined(USE_MQTT_TLS) || defined(USE_MQTT_AWS_IOT)
-  #undef WEB_LOG_SIZE
-  #define WEB_LOG_SIZE (2000)   // reduce log buffer size when using TLS
-#endif
-
 #endif  // _MY_USER_CONFIG_H_
