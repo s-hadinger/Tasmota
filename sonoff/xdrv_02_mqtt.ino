@@ -20,11 +20,6 @@
 #define XDRV_02                2
 
 #ifdef USE_MQTT_TLS
-#ifdef USE_MQTT_TLS_CA_CERT
-  #include "sonoff_letsencrypt.h"           // LetsEncrypt certificate
-#endif
-  WiFiClientSecure EspClient;               // Wifi Secure Client
-#elif defined(USE_MQTT_AWS_IOT)
   #include "WiFiClientSecureLightBearSSL.h"
   BearSSL::WiFiClientSecure_light *awsClient;
 #else
@@ -49,13 +44,15 @@ uint8_t mqtt_initial_connection_state = 2;  // MQTT connection messages state
 bool mqtt_connected = false;                // MQTT virtual connection status
 bool mqtt_allowed = false;                  // MQTT enabled and parameters valid
 
-#ifdef USE_MQTT_AWS_IOT
+#ifdef USE_MQTT_TLS
 
+#ifdef USE_MQTT_AWS_IOT
 namespace aws_iot_privkey {
   // this is where the Private Key and Certificate are stored
   extern const br_ec_private_key *AWS_IoT_Private_Key;
   extern const br_x509_certificate *AWS_IoT_Client_Certificate;
 }
+#endif
 
 // A typical AWS IoT endpoint is 50 characters long, it does not fit
 // in MqttHost field (32 chars). We need to concatenate both MqttUser and MqttHost
@@ -91,7 +88,7 @@ bool is_fingerprint_mono_value(uint8_t finger[20], uint8_t value) {
   #error "MQTT_MAX_PACKET_SIZE is too small in libraries/PubSubClient/src/PubSubClient.h, increase it to at least 1000"
 #endif
 
-#ifdef USE_MQTT_AWS_IOT
+#ifdef USE_MQTT_TLS
 PubSubClient MqttClient;
 #else
 PubSubClient MqttClient(EspClient);
@@ -99,7 +96,7 @@ PubSubClient MqttClient(EspClient);
 
 
 void MqttInit(void) {
-#ifdef USE_MQTT_AWS_IOT
+#ifdef USE_MQTT_TLS
   AWS_endpoint[0] = 0;
   uint8_t len_user = strlen(Settings.mqtt_user);
   uint8_t len_host = strlen(Settings.mqtt_host);
@@ -112,9 +109,11 @@ void MqttInit(void) {
   }
 
   awsClient = new BearSSL::WiFiClientSecure_light(1024,1024);
+#ifdef USE_MQTT_AWS_IOT
   awsClient->setClientECCert(aws_iot_privkey::AWS_IoT_Client_Certificate,
                              aws_iot_privkey::AWS_IoT_Private_Key,
                              0xFFFF /* all usages, don't care */, 0);
+#endif
 
   MqttClient.setClient(*awsClient);
 #endif
@@ -409,67 +408,6 @@ void MqttConnected(void)
   }
 }
 
-#ifdef USE_MQTT_TLS
-bool MqttCheckTls(void)
-{
-  char fingerprint1[60];
-  char fingerprint2[60];
-  bool result = false;
-
-  fingerprint1[0] = '\0';
-  fingerprint2[0] = '\0';
-  for (uint8_t i = 0; i < sizeof(Settings.mqtt_fingerprint[0]); i++) {
-    snprintf_P(fingerprint1, sizeof(fingerprint1), PSTR("%s%s%02X"), fingerprint1, (i) ? " " : "", Settings.mqtt_fingerprint[0][i]);
-    snprintf_P(fingerprint2, sizeof(fingerprint2), PSTR("%s%s%02X"), fingerprint2, (i) ? " " : "", Settings.mqtt_fingerprint[1][i]);
-  }
-
-  AddLog_P(LOG_LEVEL_INFO, S_LOG_MQTT, PSTR(D_FINGERPRINT));
-
-//#ifdef ARDUINO_ESP8266_RELEASE_2_4_1
-  EspClient = WiFiClientSecure();               // Wifi Secure Client reconnect issue 4497 (https://github.com/esp8266/Arduino/issues/4497)
-//#endif
-
-  if (!EspClient.connect(Settings.mqtt_host, Settings.mqtt_port)) {
-    AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_MQTT D_TLS_CONNECT_FAILED_TO " %s:%d. " D_RETRY_IN " %d " D_UNIT_SECOND), Settings.mqtt_host, Settings.mqtt_port, mqtt_retry_counter);
-  } else {
-#ifdef USE_MQTT_TLS_CA_CERT
-    unsigned char tls_ca_cert[] = MQTT_TLS_CA_CERT;
-    if (EspClient.setCACert(tls_ca_cert, MQTT_TLS_CA_CERT_LENGTH)) {
-      if (EspClient.verifyCertChain(Settings.mqtt_host)) {
-        AddLog_P(LOG_LEVEL_INFO, S_LOG_MQTT, PSTR(D_VERIFIED "CA"));
-        result = true;
-      }
-    }
-#else
-    if (EspClient.verify(fingerprint1, Settings.mqtt_host)) {
-      AddLog_P(LOG_LEVEL_INFO, S_LOG_MQTT, PSTR(D_VERIFIED "1"));
-      result = true;
-    }
-    else if (EspClient.verify(fingerprint2, Settings.mqtt_host)) {
-      AddLog_P(LOG_LEVEL_INFO, S_LOG_MQTT, PSTR(D_VERIFIED "2"));
-      result = true;
-    }
-#ifdef MDNS_HOSTNAME
-    // If the hostname is set, check that as well.
-    // This lets certs with the hostname for the CN be used.
-    else if (EspClient.verify(fingerprint1, MDNS_HOSTNAME)) {
-      AddLog_P(LOG_LEVEL_INFO, S_LOG_MQTT, PSTR(D_VERIFIED "1"));
-      result = true;
-    }
-    else if (EspClient.verify(fingerprint2, MDNS_HOSTNAME)) {
-      AddLog_P(LOG_LEVEL_INFO, S_LOG_MQTT, PSTR(D_VERIFIED "2"));
-      result = true;
-    }
-#endif  // MDNS_HOSTNAME
-#endif  // USE_MQTT_TLS_CA_CERT
-  }
-  if (!result) AddLog_P(LOG_LEVEL_INFO, S_LOG_MQTT, PSTR(D_FAILED));
-  EspClient.stop();
-  yield();
-  return result;
-}
-#endif  // USE_MQTT_TLS
-
 void MqttReconnect(void)
 {
   char stopic[TOPSZ];
@@ -509,17 +447,12 @@ void MqttReconnect(void)
   Response_P(S_OFFLINE);
 
 #ifdef USE_MQTT_TLS
-  EspClient = WiFiClientSecure();         // Wifi Secure Client reconnect issue 4497 (https://github.com/esp8266/Arduino/issues/4497)
-#elif defined(USE_MQTT_AWS_IOT)
   awsClient->stop();
 #else
   EspClient = WiFiClient();               // Wifi Client reconnect issue 4497 (https://github.com/esp8266/Arduino/issues/4497)
 #endif
 
   if (2 == mqtt_initial_connection_state) {  // Executed once just after power on and wifi is connected
-#ifdef USE_MQTT_TLS
-    if (!MqttCheckTls()) return;
-#endif  // USE_MQTT_TLS
 
     mqtt_initial_connection_state = 1;
   }
@@ -530,17 +463,9 @@ void MqttReconnect(void)
 #else
   MqttClient.setServer(Settings.mqtt_host, Settings.mqtt_port);
 #endif
-/*
-  // Skip MQTT host DNS lookup if not needed
-  uint32_t current_hash = GetHash(Settings.mqtt_host, strlen(Settings.mqtt_host));
-  if (mqtt_host_hash != current_hash) {
-    mqtt_host_hash = current_hash;
-    WiFi.hostByName(Settings.mqtt_host, mqtt_host_addr);  // Skips DNS lookup if mqtt_host is IP address string as from mDns
-  }
-  MqttClient.setServer(mqtt_host_addr, Settings.mqtt_port);
-*/
-  uint32_t time = millis();
-#ifdef USE_MQTT_AWS_IOT
+
+#ifdef USE_MQTT_TLS
+  uint32_t mqtt_connect_time = millis();
   bool allow_all_fingerprints = false;
   bool learn_fingerprint1 = is_fingerprint_mono_value(Settings.mqtt_fingerprint[0], 0x00);
   bool learn_fingerprint2 = is_fingerprint_mono_value(Settings.mqtt_fingerprint[1], 0x00);
@@ -550,12 +475,17 @@ void MqttReconnect(void)
   allow_all_fingerprints |= learn_fingerprint2;
   awsClient->setPubKeyFingerprint(Settings.mqtt_fingerprint[0], Settings.mqtt_fingerprint[1], allow_all_fingerprints);
   AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_MQTT "AWS IoT endpoint: %s"), AWS_endpoint);
+#endif
+#ifdef USE_MQTT_AWS_IOT
   if (MqttClient.connect(mqtt_client, mqtt_user, mqtt_pwd, nullptr, 0, false, nullptr)) {
 #else
   if (MqttClient.connect(mqtt_client, mqtt_user, mqtt_pwd, stopic, 1, true, mqtt_data)) {
 #endif
-#ifdef USE_MQTT_AWS_IOT
-    AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_MQTT "AWS IoT connected in %d ms"), millis() - time);
+#ifdef USE_MQTT_TLS
+    AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_MQTT "AWS IoT connected in %d ms"), millis() - mqtt_connect_time);
+    if (!awsClient->getMFLNStatus()) {
+      AddLog_P(LOG_LEVEL_INFO, S_LOG_MQTT, PSTR("MFLN not supported by TLS server"));
+    }
     if (learn_fingerprint1 || learn_fingerprint2) {
       // we potentially need to learn the fingerprint just seen
       bool fingerprint_matched = false;
@@ -580,8 +510,8 @@ void MqttReconnect(void)
 #endif
     MqttConnected();
   } else {
-#ifdef USE_MQTT_AWS_IOT
-    AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_MQTT "AWS IoT connection error: %d"), awsClient->getLastError());
+#ifdef USE_MQTT_TLS
+    AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_MQTT "TLS connection error: %d"), awsClient->getLastError());
 #endif
     MqttDisconnected(MqttClient.state());  // status codes are documented here http://pubsubclient.knolleary.net/api.html#state
   }
@@ -663,7 +593,7 @@ bool MqttCommand(void)
     }
     Response_P(S_JSON_COMMAND_INDEX_SVALUE, command, index, GetStateText(index -1));
   }
-#if defined(USE_MQTT_TLS) || defined(USE_MQTT_AWS_IOT)
+#ifdef USE_MQTT_TLS
   else if ((CMND_MQTTFINGERPRINT == command_code) && (index > 0) && (index <= 2)) {
     char fingerprint[60];
     if ((data_len > 0) && (data_len < sizeof(fingerprint))) {
@@ -941,7 +871,7 @@ bool Xdrv02(uint8_t function)
 
   if (Settings.flag.mqtt_enabled) {
     switch (function) {
-#ifdef USE_MQTT_AWS_IOT
+#ifdef USE_MQTT_TLS
       case FUNC_PRE_INIT:
         MqttInit();
         break;
