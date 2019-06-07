@@ -81,9 +81,7 @@ class WiFiClientSecure_light : public WiFiClient {
 
     // Returns whether MFLN negotiation for the above buffer sizes succeeded (after connection)
     int getMFLNStatus() {
-      // TODO
-      return false;
-      //return connected() && br_ssl_engine_get_mfln_negotiated(_eng);
+      return connected() && br_ssl_engine_get_mfln_negotiated(_eng);
     }
 
     int32_t getLastError(void) {
