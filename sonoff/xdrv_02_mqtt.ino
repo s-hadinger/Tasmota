@@ -70,7 +70,7 @@ bool is_fingerprint_mono_value(uint8_t finger[20], uint8_t value) {
 	return true;
 }
 
-#endif  // USE_MQTT_AWS_IOT
+#endif  // USE_MQTT_TLS
 
 /*********************************************************************************************\
  * MQTT driver specific code need to provide the following functions:
@@ -97,6 +97,7 @@ PubSubClient MqttClient(EspClient);
 
 void MqttInit(void) {
 #ifdef USE_MQTT_TLS
+#ifdef USE_MQTT_AWS_IOT
   AWS_endpoint[0] = 0;
   uint8_t len_user = strlen(Settings.mqtt_user);
   uint8_t len_host = strlen(Settings.mqtt_host);
@@ -109,7 +110,6 @@ void MqttInit(void) {
   }
 
   awsClient = new BearSSL::WiFiClientSecure_light(1024,1024);
-#ifdef USE_MQTT_AWS_IOT
   awsClient->setClientECCert(aws_iot_privkey::AWS_IoT_Client_Certificate,
                              aws_iot_privkey::AWS_IoT_Private_Key,
                              0xFFFF /* all usages, don't care */, 0);
@@ -482,7 +482,7 @@ void MqttReconnect(void)
   if (MqttClient.connect(mqtt_client, mqtt_user, mqtt_pwd, stopic, 1, true, mqtt_data)) {
 #endif
 #ifdef USE_MQTT_TLS
-    AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_MQTT "AWS IoT connected in %d ms"), millis() - mqtt_connect_time);
+    AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_MQTT "TLS connected in %d ms"), millis() - mqtt_connect_time);
     if (!awsClient->getMFLNStatus()) {
       AddLog_P(LOG_LEVEL_INFO, S_LOG_MQTT, PSTR("MFLN not supported by TLS server"));
     }
@@ -507,7 +507,7 @@ void MqttReconnect(void)
         restart_flag = 2;  // save and restart
       }
     }
-#endif
+#endif // USE_MQTT_TLS
     MqttConnected();
   } else {
 #ifdef USE_MQTT_TLS
