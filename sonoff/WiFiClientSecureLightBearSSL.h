@@ -27,8 +27,6 @@
 #include <vector>
 #include "WiFiClient.h"
 #include <bearssl/bearssl.h>
-#include "BearSSLHelpers.h"
-#include "CertStoreBearSSL.h"
 
 namespace BearSSL {
 
@@ -44,7 +42,11 @@ class WiFiClientSecure_light : public WiFiClient {
 
     uint8_t connected() override;
     size_t write(const uint8_t *buf, size_t size) override;
+#ifdef ARDUINO_ESP8266_RELEASE_2_3_0
+    size_t write_P(PGM_P buf, size_t size);
+#else
     size_t write_P(PGM_P buf, size_t size) override;
+#endif
     size_t write(const char *buf) {
       return write((const uint8_t*)buf, strlen(buf));
     }

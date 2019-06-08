@@ -20,8 +20,6 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include <core_version.h>
-
 #define LWIP_INTERNAL
 
 #include <list>
@@ -44,7 +42,7 @@ extern "C" {
 #include "lwip/netif.h"
 #include <include/ClientContext.h>
 #include "c_types.h"
-#include "coredecls.h"
+//#include "coredecls.h"
 
 #define USE_MQTT_AWS_IOT_SKEY_ON_STACK			// copy private key+cert on stack rather than on heap, this works for now because it takes ~800 bytes
 #define USE_MQTT_AWS_IOT
@@ -247,7 +245,7 @@ void WiFiClientSecure_light::setBufferSizes(int recv, int xmit) {
 }
 
 bool WiFiClientSecure_light::stop(unsigned int maxWaitMs) {
-#ifdef ARDUINO_ESP8266_RELEASE_2_4_2
+#if defined(ARDUINO_ESP8266_RELEASE_2_4_2) || defined(ARDUINO_ESP8266_RELEASE_2_3_0)
   WiFiClient::stop(); // calls our virtual flush()
   _freeSSL();
 	return true;
@@ -260,7 +258,7 @@ bool WiFiClientSecure_light::stop(unsigned int maxWaitMs) {
 
 bool WiFiClientSecure_light::flush(unsigned int maxWaitMs) {
   (void) _run_until(BR_SSL_SENDAPP);
-#ifdef ARDUINO_ESP8266_RELEASE_2_4_2
+#if defined(ARDUINO_ESP8266_RELEASE_2_4_2) || defined(ARDUINO_ESP8266_RELEASE_2_3_0)
   WiFiClient::flush();
 #else
   return WiFiClient::flush(maxWaitMs);
@@ -515,7 +513,11 @@ int WiFiClientSecure_light::_run_until(unsigned target, bool blocking) {
       int wlen;
 
       buf = br_ssl_engine_sendrec_buf(_eng, &len);
+#ifdef ARDUINO_ESP8266_RELEASE_2_3_0
+      wlen = WiFiClient::write((const uint8_t *)buf, len);
+#else
       wlen = WiFiClient::write(buf, len);
+#endif
       if (wlen <= 0) {
         /*
            If we received a close_notify and we
