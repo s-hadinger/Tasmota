@@ -42,10 +42,9 @@ extern "C" {
 #include "lwip/netif.h"
 #include <include/ClientContext.h>
 #include "c_types.h"
-//#include "coredecls.h"
 
-#define USE_MQTT_AWS_IOT_SKEY_ON_STACK			// copy private key+cert on stack rather than on heap, this works for now because it takes ~800 bytes
-#define USE_MQTT_AWS_IOT
+#include "my_user_config.h"
+
 //#define DEBUG_TLS
 
 #ifdef DEBUG_TLS
