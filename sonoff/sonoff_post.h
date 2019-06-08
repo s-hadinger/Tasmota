@@ -53,12 +53,6 @@ void KNX_CB_Action(message_t const &msg, void *arg);
 // #endif
 // #endif
 
-#if defined(USE_MQTT_TLS) || defined(USE_MQTT_AWS_IOT)
-  const uint16_t WEB_LOG_SIZE = 2000;       // Max number of characters in weblog
-#else
-  const uint16_t WEB_LOG_SIZE = 4000;       // Max number of characters in weblog
-#endif
-
 #ifdef USE_EMULATION_HUE
 #define USE_EMULATION
 #endif
@@ -67,6 +61,16 @@ void KNX_CB_Action(message_t const &msg, void *arg);
 #endif
 #ifdef USE_MQTT_AWS_IOT
 #define USE_MQTT_TLS
+#endif
+
+#if defined(USE_MQTT_TLS) || defined(USE_MQTT_AWS_IOT)
+  const uint16_t WEB_LOG_SIZE = 2000;       // Max number of characters in weblog
+#else
+  const uint16_t WEB_LOG_SIZE = 4000;       // Max number of characters in weblog
+#endif
+
+#if defined(USE_MQTT_TLS) && defined(ARDUINO_ESP8266_RELEASE_2_3_0)
+  #error "TLS is no more supported on Core 2.3.0, use 2.4.2 or higher."
 #endif
 
 #ifndef MODULE
