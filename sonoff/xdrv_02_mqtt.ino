@@ -46,6 +46,26 @@ bool mqtt_allowed = false;                  // MQTT enabled and parameters valid
 
 #ifdef USE_MQTT_TLS
 
+
+// see https://stackoverflow.com/questions/6357031/how-do-you-convert-a-byte-array-to-a-hexadecimal-string-in-c
+void to_hex(unsigned char * in, size_t insz, char * out, size_t outsz) {
+	unsigned char * pin = in;
+	static const char * hex = "0123456789ABCDEF";
+	char * pout = out;
+	for(; pin < in+insz; pout +=3, pin++){
+		pout[0] = hex[(*pin>>4) & 0xF];
+		pout[1] = hex[ *pin     & 0xF];
+		pout[2] = ' ';
+		if (pout + 3 - out > outsz){
+			/* Better to truncate output string than overflow buffer */
+			/* it would be still better to either return a status */
+			/* or ensure the target buffer is large enough and it never happen */
+			break;
+		}
+	}
+	pout[-1] = 0;
+}
+
 #ifdef USE_MQTT_AWS_IOT
 namespace aws_iot_privkey {
   // this is where the Private Key and Certificate are stored
@@ -482,10 +502,15 @@ void MqttReconnect(void)
   if (MqttClient.connect(mqtt_client, mqtt_user, mqtt_pwd, stopic, 1, true, mqtt_data)) {
 #endif
 #ifdef USE_MQTT_TLS
+    // create a printable version of the fingerprint received
+    char buf_fingerprint[64];
+    to_hex((unsigned char *)awsClient->getRecvPubKeyFingerprint(), 20, buf_fingerprint, 64);
+
     AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_MQTT "TLS connected in %d ms"), millis() - mqtt_connect_time);
     if (!awsClient->getMFLNStatus()) {
       AddLog_P(LOG_LEVEL_INFO, S_LOG_MQTT, PSTR("MFLN not supported by TLS server"));
     }
+    AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_MQTT "Server fingerprint: %s"), buf_fingerprint);
     if (learn_fingerprint1 || learn_fingerprint2) {
       // we potentially need to learn the fingerprint just seen
       bool fingerprint_matched = false;
@@ -504,6 +529,8 @@ void MqttReconnect(void)
         if (learn_fingerprint2) {
           memcpy(Settings.mqtt_fingerprint[1], recv_fingerprint, 20);
         }
+        AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_MQTT "New fingerprint learned: %s"), buf_fingerprint);
+
         restart_flag = 2;  // save and restart
       }
     }
