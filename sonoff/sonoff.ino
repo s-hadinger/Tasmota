@@ -142,6 +142,7 @@ uint8_t backlog_pointer = 0;                // Command backlog pointer
 uint8_t sleep;                              // Current copy of Settings.sleep
 uint8_t blinkspeed = 1;                     // LED blink rate
 uint8_t pin[GPIO_MAX];                      // Possible pin configurations
+uint8_t active_device = 1;                  // Active device in ExecuteCommandPower
 uint8_t leds_present = 0;                   // Max number of LED supported
 uint8_t led_inverted = 0;                   // LED inverted flag (1 = (0 = On, 1 = Off))
 uint8_t led_power = 0;                      // LED power state
@@ -1665,7 +1666,10 @@ void ExecuteCommandPower(uint8_t device, uint8_t state, int source)
     state &= 1;
     publish_power = 0;
   }
+
   if ((device < 1) || (device > devices_present)) device = 1;
+  active_device = device;
+
   if (device <= MAX_PULSETIMERS) { SetPulseTimer(device -1, 0); }
   power_t mask = 1 << (device -1);        // Device to control
   if (state <= POWER_TOGGLE) {
