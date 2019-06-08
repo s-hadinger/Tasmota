@@ -21,7 +21,7 @@
 
 #ifdef USE_MQTT_TLS
   #include "WiFiClientSecureLightBearSSL.h"
-  BearSSL::WiFiClientSecure_light *awsClient;
+  BearSSL::WiFiClientSecure_light *tlsClient;
 #else
   WiFiClient EspClient;                     // Wifi Client
 #endif
@@ -129,13 +129,13 @@ void MqttInit(void) {
     strcpy(&AWS_endpoint[len_user], Settings.mqtt_host);
   }
 
-  awsClient = new BearSSL::WiFiClientSecure_light(1024,1024);
-  awsClient->setClientECCert(aws_iot_privkey::AWS_IoT_Client_Certificate,
+  tlsClient = new BearSSL::WiFiClientSecure_light(1024,1024);
+  tlsClient->setClientECCert(aws_iot_privkey::AWS_IoT_Client_Certificate,
                              aws_iot_privkey::AWS_IoT_Private_Key,
                              0xFFFF /* all usages, don't care */, 0);
 #endif
 
-  MqttClient.setClient(*awsClient);
+  MqttClient.setClient(*tlsClient);
 #endif
 }
 
@@ -467,7 +467,7 @@ void MqttReconnect(void)
   Response_P(S_OFFLINE);
 
 #ifdef USE_MQTT_TLS
-  awsClient->stop();
+  tlsClient->stop();
 #else
   EspClient = WiFiClient();               // Wifi Client reconnect issue 4497 (https://github.com/esp8266/Arduino/issues/4497)
 #endif
@@ -493,7 +493,7 @@ void MqttReconnect(void)
   allow_all_fingerprints |= is_fingerprint_mono_value(Settings.mqtt_fingerprint[1], 0xff);
   allow_all_fingerprints |= learn_fingerprint1;
   allow_all_fingerprints |= learn_fingerprint2;
-  awsClient->setPubKeyFingerprint(Settings.mqtt_fingerprint[0], Settings.mqtt_fingerprint[1], allow_all_fingerprints);
+  tlsClient->setPubKeyFingerprint(Settings.mqtt_fingerprint[0], Settings.mqtt_fingerprint[1], allow_all_fingerprints);
   AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_MQTT "AWS IoT endpoint: %s"), AWS_endpoint);
 #endif
 #ifdef USE_MQTT_AWS_IOT
@@ -504,17 +504,17 @@ void MqttReconnect(void)
 #ifdef USE_MQTT_TLS
     // create a printable version of the fingerprint received
     char buf_fingerprint[64];
-    to_hex((unsigned char *)awsClient->getRecvPubKeyFingerprint(), 20, buf_fingerprint, 64);
+    to_hex((unsigned char *)tlsClient->getRecvPubKeyFingerprint(), 20, buf_fingerprint, 64);
 
     AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_MQTT "TLS connected in %d ms"), millis() - mqtt_connect_time);
-    if (!awsClient->getMFLNStatus()) {
+    if (!tlsClient->getMFLNStatus()) {
       AddLog_P(LOG_LEVEL_INFO, S_LOG_MQTT, PSTR("MFLN not supported by TLS server"));
     }
     AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_MQTT "Server fingerprint: %s"), buf_fingerprint);
     if (learn_fingerprint1 || learn_fingerprint2) {
       // we potentially need to learn the fingerprint just seen
       bool fingerprint_matched = false;
-      const uint8_t *recv_fingerprint = awsClient->getRecvPubKeyFingerprint();
+      const uint8_t *recv_fingerprint = tlsClient->getRecvPubKeyFingerprint();
       if (0 == memcmp(recv_fingerprint, Settings.mqtt_fingerprint[0], 20)) {
         fingerprint_matched = true;
       }
@@ -538,7 +538,7 @@ void MqttReconnect(void)
     MqttConnected();
   } else {
 #ifdef USE_MQTT_TLS
-    AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_MQTT "TLS connection error: %d"), awsClient->getLastError());
+    AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_MQTT "TLS connection error: %d"), tlsClient->getLastError());
 #endif
     MqttDisconnected(MqttClient.state());  // status codes are documented here http://pubsubclient.knolleary.net/api.html#state
   }
