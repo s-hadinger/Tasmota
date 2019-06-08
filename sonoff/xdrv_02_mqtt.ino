@@ -894,22 +894,3 @@ bool Xdrv02(uint8_t function)
   }
   return result;
 }
-
-#ifdef ARDUINO_ESP8266_RELEASE_2_3_0
-// Compatibility for Core 2_3_0
-
-int ets_printf_compat(const char* fmt, ...) {
-  va_list args;
-  va_start(args, fmt);
-  return ets_printf_compat(fmt, args);
-}
-
-void *memcpy_P_compat(void *s1, const void *s2, size_t n) {
-  return memcpy_P(s1, s2, n);
-}
-
-int memcmp_P_compat(const void *s1, const void *s2, size_t n) {
-  return memcmp_P(s1, s2, n);
-}
-
-#endif // ARDUINO_ESP8266_RELEASE_2_3_0

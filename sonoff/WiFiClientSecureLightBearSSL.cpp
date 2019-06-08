@@ -245,7 +245,7 @@ void WiFiClientSecure_light::setBufferSizes(int recv, int xmit) {
 }
 
 bool WiFiClientSecure_light::stop(unsigned int maxWaitMs) {
-#if defined(ARDUINO_ESP8266_RELEASE_2_4_2) || defined(ARDUINO_ESP8266_RELEASE_2_3_0)
+#ifdef ARDUINO_ESP8266_RELEASE_2_4_2
   WiFiClient::stop(); // calls our virtual flush()
   _freeSSL();
 	return true;
@@ -258,7 +258,7 @@ bool WiFiClientSecure_light::stop(unsigned int maxWaitMs) {
 
 bool WiFiClientSecure_light::flush(unsigned int maxWaitMs) {
   (void) _run_until(BR_SSL_SENDAPP);
-#if defined(ARDUINO_ESP8266_RELEASE_2_4_2) || defined(ARDUINO_ESP8266_RELEASE_2_3_0)
+#ifdef ARDUINO_ESP8266_RELEASE_2_4_2
   WiFiClient::flush();
 #else
   return WiFiClient::flush(maxWaitMs);
@@ -513,11 +513,7 @@ int WiFiClientSecure_light::_run_until(unsigned target, bool blocking) {
       int wlen;
 
       buf = br_ssl_engine_sendrec_buf(_eng, &len);
-#ifdef ARDUINO_ESP8266_RELEASE_2_3_0
-      wlen = WiFiClient::write((const uint8_t *)buf, len);
-#else
       wlen = WiFiClient::write(buf, len);
-#endif
       if (wlen <= 0) {
         /*
            If we received a close_notify and we
