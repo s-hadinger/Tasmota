@@ -779,6 +779,12 @@ extern "C" {
   }
 }
 
+void *malloc_and_memcpy_P(void *src, size_t size) {
+	void * dst = malloc(size);
+	if (dst) memcpy_P(dst, src, size);
+	return dst;
+}
+
 // Called by connect() to do the actual SSL setup and handshake.
 // Returns if the SSL handshake succeeded.
 bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
@@ -820,14 +826,15 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 		// ============================================================
 		// Copy server CA from PROGMEM to RAM
 	#ifdef USE_MQTT_TLS_CA_CERT
+		unsigned char rsa_e[4];		// it's only 3 bytes long, spare the malloc
 		memcpy_P(&ta, _ta_P, sizeof(ta));	// copy the whole structure first
-		ta.dn.data = (unsigned char *) malloc(ta.dn.len);
+		ta.dn.data = (unsigned char *) malloc_and_memcpy_P(_ta_P->dn.data, ta.dn.len);
 		if (!ta.dn.data) break;
-		memcpy_P(ta.dn.data, _ta_P->dn.data, ta.dn.len);
-		ta.pkey.key.rsa.n = (unsigned char *) malloc(ta.pkey.key.rsa.nlen);
+		ta.pkey.key.rsa.n = (unsigned char *) malloc_and_memcpy_P(_ta_P->pkey.key.rsa.n, ta.pkey.key.rsa.nlen);
 		if (!ta.pkey.key.rsa.n) break;
-		memcpy_P(ta.pkey.key.rsa.n, _ta_P->pkey.key.rsa.n, ta.pkey.key.rsa.nlen);
-		// don't do for ta.pkey.rsa.e (it's only 3 bytes so not in PROGMEM)
+		// rsa_e on stack
+		memcpy_P(rsa_e, _ta_P->pkey.key.rsa.e, ta.pkey.key.rsa.elen);
+		ta.pkey.key.rsa.e = rsa_e;
 	#endif
 
 	  _ctx_present = true;
