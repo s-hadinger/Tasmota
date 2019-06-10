@@ -182,6 +182,9 @@ void WiFiClientSecure_light::_clear() {
 	_fingerprint_any = true;		// by default accept all fingerprints
 	_fingerprint1 = nullptr;
 	_fingerprint2 = nullptr;
+	_chain_P = nullptr;
+	_sk_ec_P = nullptr;
+	_ta_P = nullptr;
 }
 
 // Constructor
@@ -221,6 +224,10 @@ void WiFiClientSecure_light::setClientECCert(const br_x509_certificate *cert, co
 	_sk_ec_P = sk;
   _allowed_usages = allowed_usages;
   _cert_issuer_key_type = cert_issuer_key_type;
+}
+
+void WiFiClientSecure_light::setTrustAnchor(const br_x509_trust_anchor *ta) {
+	_ta_P = ta;
 }
 
 void WiFiClientSecure_light::setBufferSizes(int recv, int xmit) {
@@ -779,6 +786,10 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 	br_ec_private_key sk_ec = {0, nullptr, 0};
 	br_x509_certificate chain = {nullptr, 0};
 #ifdef USE_MQTT_AWS_IOT_SKEY_ON_STACK
+	if ((!_chain_P) || (!_sk_ec_P)) {
+		setLastError(ERR_MISSING_EC_KEY);
+		return false;
+	}
 	unsigned char chain_data[_chain_P->data_len];
 	unsigned char sk_data[_sk_ec_P->xlen];
 #endif
@@ -787,6 +798,8 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 	// Validation context, either full CA validation or checking only fingerprints
 #ifdef USE_MQTT_TLS_CA_CERT
 	br_x509_minimal_context *x509_minimal;
+	br_x509_trust_anchor ta; // = {{nullptr,0},0,{0,{.rsa={nullptr,0,nullptr,0}}}};
+	memset(&ta, 0, sizeof(ta));
 #else
   br_x509_pubkeyfingerprint_context *x509_insecure;
 #endif
@@ -803,6 +816,20 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 		clearLastError();
 		if (!stack_thunk_light_get_stack_bot()) break;
 
+
+		// ============================================================
+		// Copy server CA from PROGMEM to RAM
+	#ifdef USE_MQTT_TLS_CA_CERT
+		memcpy_P(&ta, _ta_P, sizeof(ta));	// copy the whole structure first
+		ta.dn.data = (unsigned char *) malloc(ta.dn.len);
+		if (!ta.dn.data) break;
+		memcpy_P(ta.dn.data, _ta_P->dn.data, ta.dn.len);
+		ta.pkey.key.rsa.n = (unsigned char *) malloc(ta.pkey.key.rsa.nlen);
+		if (!ta.pkey.key.rsa.n) break;
+		memcpy_P(ta.pkey.key.rsa.n, _ta_P->pkey.key.rsa.n, ta.pkey.key.rsa.nlen);
+		// don't do for ta.pkey.rsa.e (it's only 3 bytes so not in PROGMEM)
+	#endif
+
 	  _ctx_present = true;
 	  _eng = &_sc->eng; // Allocation/deallocation taken care of by the _sc shared_ptr
 
@@ -815,10 +842,10 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 	#ifdef USE_MQTT_TLS_CA_CERT
 		x509_minimal = (br_x509_minimal_context*) malloc(sizeof(br_x509_minimal_context));
 		if (!x509_minimal) break;
-		br_x509_minimal_init(_x509_minimal, &br_sha256_vtable, _ta ? _ta->getTrustAnchors() : nullptr, _ta ? _ta->getCount() : 0);
-		br_x509_minimal_set_rsa(_x509_minimal, br_ssl_engine_get_rsavrfy(_eng));
-		br_x509_minimal_install_hashes(_x509_minimal;		// TODO
-		br_ssl_engine_set_x509(_eng, &_x509_minimal->vtable);
+		br_x509_minimal_init(x509_minimal, &br_sha256_vtable, &ta, 1);
+		br_x509_minimal_set_rsa(x509_minimal, br_ssl_engine_get_rsavrfy(_eng));
+		br_x509_minimal_set_hash(x509_minimal, br_sha256_ID, &br_sha256_vtable);
+		br_ssl_engine_set_x509(_eng, &x509_minimal->vtable);
 
 	#else
 	  x509_insecure = (br_x509_pubkeyfingerprint_context*) malloc(sizeof(br_x509_pubkeyfingerprint_context));
@@ -843,35 +870,27 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 		chain.data = &chain_data[0];
 	#else										// allocate with malloc
 		chain.data = (unsigned char *) malloc(chain.data_len);
+		if (!chain.data) break;
 	#endif
-		if (chain.data) memcpy_P(chain.data, _chain_P->data, chain.data_len);
+		memcpy_P(chain.data, _chain_P->data, chain.data_len);
 		sk_ec.curve = _sk_ec_P->curve;
 		sk_ec.xlen = _sk_ec_P->xlen;
 	#ifdef USE_MQTT_AWS_IOT_SKEY_ON_STACK
 		sk_ec.x = &sk_data[0];
 	#else // USE_MQTT_AWS_IOT_SKEY_ON_STACK
 		sk_ec.x = (unsigned char *) malloc(sk_ec.xlen);
+		if (!sk_ec.x) break;
 	#endif // USE_MQTT_AWS_IOT_SKEY_ON_STACK
-		if (sk_ec.x) memcpy_P(sk_ec.x, _sk_ec_P->x, sk_ec.xlen);
+		memcpy_P(sk_ec.x, _sk_ec_P->x, sk_ec.xlen);
 		LOG_HEAP_SIZE("_connectSSL after PrivKey allocation");
-	#endif // USE_MQTT_AWS_IOT
-
-		// ============================================================
-		// check if memory was correctly allocated
-	#ifdef USE_MQTT_AWS_IOT
-	#ifndef USE_MQTT_AWS_IOT_SKEY_ON_STACK
-		if ((!chain.data) || (!sk_ec.x)) break;
-	#endif // USE_MQTT_AWS_IOT_SKEY_ON_STACK
-	#endif // USE_MQTT_AWS_IOT_SKEY_ON_STACK
 
 		// ============================================================
 		// Set the EC Private Key, only USE_MQTT_AWS_IOT
-	#ifdef USE_MQTT_AWS_IOT
 		// limited to P256 curve
 		br_ssl_client_set_single_ec(_sc.get(), &chain, 1,
 	                              &sk_ec, _allowed_usages,
 	                              _cert_issuer_key_type, &br_ec_p256_m15, br_ecdsa_sign_asn1_get_default());
-	#endif
+	#endif // USE_MQTT_AWS_IOT
 
 		// ============================================================
 		// Start TLS connection, ALL
@@ -889,15 +908,15 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 		stack_thunk_light_del_ref();
 	  //stack_thunk_light_repaint();
 		LOG_HEAP_SIZE("_connectSSL.end, freeing StackThunk");
-	#ifdef USE_MQTT_AWS_IOT
-	#ifndef USE_MQTT_AWS_IOT_SKEY_ON_STACK
+	#if defined(USE_MQTT_AWS_IOT) && !defined(USE_MQTT_AWS_IOT_SKEY_ON_STACK)
 		free(chain.data);
 		free(sk_ec.x);
-	#endif
 	#endif
 
 	#ifdef USE_MQTT_TLS_CA_CERT
 		free(x509_minimal);
+		free(ta.dn.data);
+		free(ta.pkey.key.rsa.n);
 	#else
 		free(x509_insecure);
 	#endif
@@ -905,6 +924,7 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 	  return ret;
 	} while (0);
 
+	// ============================================================
 	// if we arrived here, this means we had an OOM error, cleaning up
 	setLastError(ERR_OOM);
 	DEBUG_BSSL("_connectSSL: Out of memory\n");
@@ -915,6 +935,8 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 #endif
 #ifdef USE_MQTT_TLS_CA_CERT
 	free(x509_minimal);
+	free(ta.dn.data);
+	free(ta.pkey.key.rsa.n);
 #else
 	free(x509_insecure);
 #endif
