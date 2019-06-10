@@ -142,6 +142,7 @@ class WiFiClientSecure_light : public WiFiClient {
 #define ERR_CANT_RESOLVE_IP -1001
 #define ERR_TCP_CONNECT     -1002
 #define ERR_MISSING_EC_KEY  -1003
+#define ERR_MISSING_CA      -1004
 
 // For reference, BearSSL error codes:
 // #define BR_ERR_OK                      0

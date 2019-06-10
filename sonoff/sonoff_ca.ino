@@ -75,16 +75,14 @@ static const unsigned char TA0_RSA_E[] = {
 };
 
 static const br_x509_trust_anchor PROGMEM LetsEncryptX3CrossSigned_TA = {
+	{ (unsigned char *)TA0_DN, sizeof TA0_DN },
+	BR_X509_TA_CA,
 	{
-		{ (unsigned char *)TA0_DN, sizeof TA0_DN },
-		BR_X509_TA_CA,
-		{
-			BR_KEYTYPE_RSA,
-			{ .rsa = {
-				(unsigned char *)TA0_RSA_N, sizeof TA0_RSA_N,
-				(unsigned char *)TA0_RSA_E, sizeof TA0_RSA_E,
-			} }
-		}
+		BR_KEYTYPE_RSA,
+		{ .rsa = {
+			(unsigned char *)TA0_RSA_N, sizeof TA0_RSA_N,
+			(unsigned char *)TA0_RSA_E, sizeof TA0_RSA_E,
+		} }
 	}
 };
 

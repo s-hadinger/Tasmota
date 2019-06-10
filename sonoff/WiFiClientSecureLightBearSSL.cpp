@@ -796,6 +796,10 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 	br_x509_minimal_context *x509_minimal;
 	br_x509_trust_anchor ta; // = {{nullptr,0},0,{0,{.rsa={nullptr,0,nullptr,0}}}};
 	memset(&ta, 0, sizeof(ta));
+	if (!_ta_P) {
+		setLastError(ERR_MISSING_CA);
+		return false;
+	}
 #else
   br_x509_pubkeyfingerprint_context *x509_insecure;
 #endif
