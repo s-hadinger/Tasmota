@@ -45,7 +45,7 @@ extern "C" {
 
 #include "my_user_config.h"
 
-//#define DEBUG_TLS
+#define DEBUG_TLS
 
 #ifdef DEBUG_TLS
 #include "coredecls.h"
@@ -788,114 +788,140 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 	unsigned char sk_data[_sk_ec_P->xlen];
 #endif
 #endif
+
+	// Validation context, either full CA validation or checking only fingerprints
+#ifdef USE_MQTT_TLS_CA_CERT
+  std::unique_ptr<br_x509_minimal_context> x509_minimal;
+#else
   br_x509_pubkeyfingerprint_context *x509_insecure;
+#endif
 
 	LOG_HEAP_SIZE("_connectSSL.start");
 
-  stack_thunk_light_add_ref();
-	LOG_HEAP_SIZE("Thunk allocated");
-	DEBUG_BSSL("_connectSSL: start connection\n");
-  _freeSSL();
-	clearLastError();
+	do {		// used to exit on Out of Memory error and keep all cleanup code at the same place
+		// ============================================================
+		// allocate Thunk stack, move to alternate stack and initialize
+	  stack_thunk_light_add_ref();
+		LOG_HEAP_SIZE("Thunk allocated");
+		DEBUG_BSSL("_connectSSL: start connection\n");
+	  _freeSSL();
+		clearLastError();
+		if (!stack_thunk_light_get_stack_bot()) break;
 
-  _ctx_present = true;
-  _eng = &_sc->eng; // Allocation/deallocation taken care of by the _sc shared_ptr
+	  _ctx_present = true;
+	  _eng = &_sc->eng; // Allocation/deallocation taken care of by the _sc shared_ptr
 
-  br_ssl_client_base_init(_sc.get());
+	  br_ssl_client_base_init(_sc.get());
 
-	LOG_HEAP_SIZE("_connectSSL before DecoderContext allocation");
-  // Only failure possible in the installation is OOM
-  x509_insecure = (br_x509_pubkeyfingerprint_context*) malloc(sizeof(br_x509_pubkeyfingerprint_context));
+		// ============================================================
+		// Allocatte and initialize Decoder Context
+		LOG_HEAP_SIZE("_connectSSL before DecoderContext allocation");
+	  // Only failure possible in the installation is OOM
+	#ifdef USE_MQTT_TLS_CA_CERT
+		x509_minimal = std::unique_ptr<br_x509_minimal_context>(new br_x509_minimal_context);
+		if (!x509_minimal.get()) break;
+		br_x509_minimal_init(_x509_minimal.get(), &br_sha256_vtable, _ta ? _ta->getTrustAnchors() : nullptr, _ta ? _ta->getCount() : 0);
+		br_x509_minimal_set_rsa(_x509_minimal.get(), br_ssl_engine_get_rsavrfy(_eng));
+		br_x509_minimal_install_hashes(_x509_minimal.get());		// TODO
+		br_ssl_engine_set_x509(_eng, &_x509_minimal->vtable);
 
-  br_x509_pubkeyfingerprint_init(x509_insecure, _fingerprint1, _fingerprint2,
-																 _recv_fingerprint, _fingerprint_any);
-  br_ssl_engine_set_x509(_eng, &x509_insecure->vtable);
+	#else
+	  x509_insecure = (br_x509_pubkeyfingerprint_context*) malloc(sizeof(br_x509_pubkeyfingerprint_context));
+		//x509_insecure = std::unique_ptr<br_x509_pubkeyfingerprint_context>(new br_x509_pubkeyfingerprint_context);
+		if (!x509_insecure) break;
+	  br_x509_pubkeyfingerprint_init(x509_insecure, _fingerprint1, _fingerprint2, _recv_fingerprint, _fingerprint_any);
+		br_ssl_engine_set_x509(_eng, &x509_insecure->vtable);
+	#endif
+		LOG_HEAP_SIZE("_connectSSL after DecoderContext allocation");
 
-  br_ssl_engine_set_buffers_bidi(_eng, _iobuf_in.get(), _iobuf_in_size, _iobuf_out.get(), _iobuf_out_size);
+		// ============================================================
+		// Set send/receive buffers
+	  br_ssl_engine_set_buffers_bidi(_eng, _iobuf_in.get(), _iobuf_in_size, _iobuf_out.get(), _iobuf_out_size);
 
-	LOG_HEAP_SIZE("_connectSSL after PrivKey allocation");
-#ifdef USE_MQTT_AWS_IOT
-  // allocate Private key and client certificate
-	chain.data_len = _chain_P->data_len;
-#ifdef USE_MQTT_AWS_IOT_SKEY_ON_STACK		// allocate on stack
-	chain.data = &chain_data[0];
-#else										// allocate with malloc
-	chain.data = (unsigned char *) malloc(chain.data_len);
-#endif
-	if (chain.data) memcpy_P(chain.data, _chain_P->data, chain.data_len);
+		// ============================================================
+		// allocate Private key if needed, only if USE_MQTT_AWS_IOT
+		LOG_HEAP_SIZE("_connectSSL after PrivKey allocation");
+	#ifdef USE_MQTT_AWS_IOT
+	  // allocate Private key and client certificate
+		chain.data_len = _chain_P->data_len;
+	#ifdef USE_MQTT_AWS_IOT_SKEY_ON_STACK		// allocate on stack
+		chain.data = &chain_data[0];
+	#else										// allocate with malloc
+		chain.data = (unsigned char *) malloc(chain.data_len);
+	#endif
+		if (chain.data) memcpy_P(chain.data, _chain_P->data, chain.data_len);
+		sk_ec.curve = _sk_ec_P->curve;
+		sk_ec.xlen = _sk_ec_P->xlen;
+	#ifdef USE_MQTT_AWS_IOT_SKEY_ON_STACK
+		sk_ec.x = &sk_data[0];
+	#else // USE_MQTT_AWS_IOT_SKEY_ON_STACK
+		sk_ec.x = (unsigned char *) malloc(sk_ec.xlen);
+	#endif // USE_MQTT_AWS_IOT_SKEY_ON_STACK
+		if (sk_ec.x) memcpy_P(sk_ec.x, _sk_ec_P->x, sk_ec.xlen);
+		LOG_HEAP_SIZE("_connectSSL after PrivKey allocation");
+	#endif // USE_MQTT_AWS_IOT
 
-	sk_ec.curve = _sk_ec_P->curve;
-	sk_ec.xlen = _sk_ec_P->xlen;
-#ifdef USE_MQTT_AWS_IOT_SKEY_ON_STACK
-	sk_ec.x = &sk_data[0];
-#else // USE_MQTT_AWS_IOT_SKEY_ON_STACK
-	sk_ec.x = (unsigned char *) malloc(sk_ec.xlen);
-#endif // USE_MQTT_AWS_IOT_SKEY_ON_STACK
-	if (sk_ec.x) memcpy_P(sk_ec.x, _sk_ec_P->x, sk_ec.xlen);
-	LOG_HEAP_SIZE("_connectSSL after PrivKey allocation");
-#endif // USE_MQTT_AWS_IOT
+		// ============================================================
+		// check if memory was correctly allocated
+	#ifdef USE_MQTT_AWS_IOT
+	#ifndef USE_MQTT_AWS_IOT_SKEY_ON_STACK
+		if ((!chain.data) || (!sk_ec.x)) break;
+	#endif // USE_MQTT_AWS_IOT_SKEY_ON_STACK
+	#endif // USE_MQTT_AWS_IOT_SKEY_ON_STACK
 
-	// check if memory was correctly allocated
-#ifdef USE_MQTT_AWS_IOT
-	if ((!stack_thunk_light_get_stack_bot()) || (!x509_insecure) ||
-      (!chain.data) || (!sk_ec.x)) {
-#ifndef USE_MQTT_AWS_IOT_SKEY_ON_STACK
-    free(chain.data);
-    free(sk_ec.x);
-#endif // USE_MQTT_AWS_IOT_SKEY_ON_STACK
-#else
-	if ((!stack_thunk_light_get_stack_bot()) || (!x509_insecure)) {
-#endif // USE_MQTT_AWS_IOT
-		// memory allocation problem
-		setLastError(ERR_OOM);
-    free(x509_insecure);
+		// ============================================================
+		// Set the EC Private Key, only USE_MQTT_AWS_IOT
+	#ifdef USE_MQTT_AWS_IOT
+		// limited to P256 curve
+		br_ssl_client_set_single_ec(_sc.get(), &chain, 1,
+	                              &sk_ec, _allowed_usages,
+	                              _cert_issuer_key_type, &br_ec_p256_m15, br_ecdsa_sign_asn1_get_default());
+	#endif
+
+		// ============================================================
+		// Start TLS connection, ALL
+	  if (!br_ssl_client_reset(_sc.get(), hostName, 0)) break;
+
+	  auto ret = _wait_for_handshake();
+	#ifdef DEBUG_ESP_SSL
+	  if (!ret) {
+	    DEBUG_BSSL("Couldn't connect. Error = %d\n", getLastError());
+	  } else {
+	    DEBUG_BSSL("Connected! MFLNStatus = %d\n", getMFLNStatus());
+	  }
+	#endif
+		LOG_HEAP_SIZE("_connectSSL.end");
 		stack_thunk_light_del_ref();
-    DEBUG_BSSL("_connectSSL: Out of memory\n");
-    return false;
-	}
+	  //stack_thunk_light_repaint();
+		LOG_HEAP_SIZE("_connectSSL.end, freeing StackThunk");
+	#ifdef USE_MQTT_AWS_IOT
+	#ifndef USE_MQTT_AWS_IOT_SKEY_ON_STACK
+		free(chain.data);
+		free(sk_ec.x);
+	#endif
+	#endif
 
-#ifdef USE_MQTT_AWS_IOT
-	// limited to P256 curve
-	br_ssl_client_set_single_ec(_sc.get(), &chain, 1,
-                              &sk_ec, _allowed_usages,
-                              _cert_issuer_key_type, &br_ec_p256_m15, br_ecdsa_sign_asn1_get_default());
-#endif
+	#ifdef USE_MQTT_TLS_CA_CERT
+		x509_minimal.reset(nullptr);
+	#else
+		//x509_insecure.reset(nullptr);	// we explicitly delete to check memory deallocation
+	#endif
+		free(x509_insecure);
+		LOG_HEAP_SIZE("_connectSSL after release of Priv Key");
+	  return ret;
+	} while (0);
 
-  if (!br_ssl_client_reset(_sc.get(), hostName, 0)) {
-#ifdef USE_MQTT_AWS_IOT
-#ifndef USE_MQTT_AWS_IOT_SKEY_ON_STACK
-    free(chain.data);
-    free(sk_ec.x);
-#endif
-#endif
-    free(x509_insecure);
-		stack_thunk_light_del_ref();
-    _freeSSL();
-    DEBUG_BSSL("_connectSSL: Can't reset client\n");
-    return false;
-  }
-
-  auto ret = _wait_for_handshake();
-#ifdef DEBUG_ESP_SSL
-  if (!ret) {
-    DEBUG_BSSL("Couldn't connect. Error = %d\n", getLastError());
-  } else {
-    DEBUG_BSSL("Connected! MFLNStatus = %d\n", getMFLNStatus());
-  }
-#endif
-	LOG_HEAP_SIZE("_connectSSL.end");
+	// if we arrived here, this means we had an OOM error, cleaning up
+	setLastError(ERR_OOM);
+	DEBUG_BSSL("_connectSSL: Out of memory\n");
 	stack_thunk_light_del_ref();
-  //stack_thunk_light_repaint();
-	LOG_HEAP_SIZE("_connectSSL.end, freeing StackThunk");
-#ifdef USE_MQTT_AWS_IOT
-#ifndef USE_MQTT_AWS_IOT_SKEY_ON_STACK
+#if defined(USE_MQTT_AWS_IOT) && !defined(USE_MQTT_AWS_IOT_SKEY_ON_STACK)
 	free(chain.data);
 	free(sk_ec.x);
 #endif
-#endif
-  free(x509_insecure);
-	LOG_HEAP_SIZE("_connectSSL after release of Priv Key");
-  return ret;
+	free(x509_insecure);
+	LOG_HEAP_SIZE("_connectSSL clean_on_error");
+	return false;
 }
 
 };
