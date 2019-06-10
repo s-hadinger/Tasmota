@@ -779,26 +779,16 @@ extern "C" {
   }
 }
 
-void *malloc_and_memcpy_P(void *src, size_t size) {
-	void * dst = malloc(size);
-	if (dst) memcpy_P(dst, src, size);
-	return dst;
-}
-
 // Called by connect() to do the actual SSL setup and handshake.
 // Returns if the SSL handshake succeeded.
 bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 #ifdef USE_MQTT_AWS_IOT
 	br_ec_private_key sk_ec = {0, nullptr, 0};
 	br_x509_certificate chain = {nullptr, 0};
-#ifdef USE_MQTT_AWS_IOT_SKEY_ON_STACK
 	if ((!_chain_P) || (!_sk_ec_P)) {
 		setLastError(ERR_MISSING_EC_KEY);
 		return false;
 	}
-	unsigned char chain_data[_chain_P->data_len];
-	unsigned char sk_data[_sk_ec_P->xlen];
-#endif
 #endif
 
 	// Validation context, either full CA validation or checking only fingerprints
@@ -826,15 +816,17 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 		// ============================================================
 		// Copy server CA from PROGMEM to RAM
 	#ifdef USE_MQTT_TLS_CA_CERT
-		unsigned char rsa_e[4];		// it's only 3 bytes long, spare the malloc
 		memcpy_P(&ta, _ta_P, sizeof(ta));	// copy the whole structure first
-		ta.dn.data = (unsigned char *) malloc_and_memcpy_P(_ta_P->dn.data, ta.dn.len);
-		if (!ta.dn.data) break;
-		ta.pkey.key.rsa.n = (unsigned char *) malloc_and_memcpy_P(_ta_P->pkey.key.rsa.n, ta.pkey.key.rsa.nlen);
-		if (!ta.pkey.key.rsa.n) break;
-		// rsa_e on stack
-		memcpy_P(rsa_e, _ta_P->pkey.key.rsa.e, ta.pkey.key.rsa.elen);
+		unsigned char rsa_e[_ta_P->pkey.key.rsa.elen];		// it's only 3 bytes long, spare the malloc
 		ta.pkey.key.rsa.e = rsa_e;
+		ta.dn.data = (unsigned char *) malloc(ta.dn.len);
+		if (!ta.dn.data) break;
+		ta.pkey.key.rsa.n = (unsigned char *) malloc(ta.pkey.key.rsa.nlen);
+		if (!ta.pkey.key.rsa.n) break;
+		memcpy_P(ta.dn.data, _ta_P->dn.data, ta.dn.len);
+		memcpy_P(ta.pkey.key.rsa.n, _ta_P->pkey.key.rsa.n, ta.pkey.key.rsa.nlen);
+		memcpy_P(rsa_e, _ta_P->pkey.key.rsa.e, ta.pkey.key.rsa.elen);
+
 	#endif
 
 	  _ctx_present = true;
@@ -869,25 +861,17 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 
 		// ============================================================
 		// allocate Private key if needed, only if USE_MQTT_AWS_IOT
-		LOG_HEAP_SIZE("_connectSSL after PrivKey allocation");
+		LOG_HEAP_SIZE("_connectSSL before PrivKey allocation");
 	#ifdef USE_MQTT_AWS_IOT
 	  // allocate Private key and client certificate
 		chain.data_len = _chain_P->data_len;
-	#ifdef USE_MQTT_AWS_IOT_SKEY_ON_STACK		// allocate on stack
-		chain.data = &chain_data[0];
-	#else										// allocate with malloc
 		chain.data = (unsigned char *) malloc(chain.data_len);
 		if (!chain.data) break;
-	#endif
 		memcpy_P(chain.data, _chain_P->data, chain.data_len);
 		sk_ec.curve = _sk_ec_P->curve;
 		sk_ec.xlen = _sk_ec_P->xlen;
-	#ifdef USE_MQTT_AWS_IOT_SKEY_ON_STACK
-		sk_ec.x = &sk_data[0];
-	#else // USE_MQTT_AWS_IOT_SKEY_ON_STACK
 		sk_ec.x = (unsigned char *) malloc(sk_ec.xlen);
 		if (!sk_ec.x) break;
-	#endif // USE_MQTT_AWS_IOT_SKEY_ON_STACK
 		memcpy_P(sk_ec.x, _sk_ec_P->x, sk_ec.xlen);
 		LOG_HEAP_SIZE("_connectSSL after PrivKey allocation");
 
@@ -915,7 +899,7 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 		stack_thunk_light_del_ref();
 	  //stack_thunk_light_repaint();
 		LOG_HEAP_SIZE("_connectSSL.end, freeing StackThunk");
-	#if defined(USE_MQTT_AWS_IOT) && !defined(USE_MQTT_AWS_IOT_SKEY_ON_STACK)
+	#if defined(USE_MQTT_AWS_IOT)
 		free(chain.data);
 		free(sk_ec.x);
 	#endif
@@ -936,7 +920,7 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 	setLastError(ERR_OOM);
 	DEBUG_BSSL("_connectSSL: Out of memory\n");
 	stack_thunk_light_del_ref();
-#if defined(USE_MQTT_AWS_IOT) && !defined(USE_MQTT_AWS_IOT_SKEY_ON_STACK)
+#ifdef USE_MQTT_AWS_IOT
 	free(chain.data);
 	free(sk_ec.x);
 #endif
