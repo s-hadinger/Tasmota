@@ -649,7 +649,7 @@ bool MqttCommand(void)
     }
     Response_P(S_JSON_COMMAND_INDEX_SVALUE, command, index, GetStateText(index -1));
   }
-#ifdef USE_MQTT_TLS
+#if defined(USE_MQTT_TLS) && !defined(USE_MQTT_TLS_CA_CERT)
   else if ((CMND_MQTTFINGERPRINT == command_code) && (index > 0) && (index <= 2)) {
     char fingerprint[60];
     if ((data_len > 0) && (data_len < sizeof(fingerprint))) {
@@ -944,11 +944,9 @@ bool Xdrv02(uint8_t function)
 
   if (Settings.flag.mqtt_enabled) {
     switch (function) {
-#ifdef USE_MQTT_TLS
       case FUNC_PRE_INIT:
         MqttInit();
         break;
-#endif
       case FUNC_EVERY_50_MSECOND:  // https://github.com/knolleary/pubsubclient/issues/556
         MqttClient.loop();
         break;
