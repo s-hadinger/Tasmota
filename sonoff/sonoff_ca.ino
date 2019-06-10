@@ -22,6 +22,8 @@
 // However, the CA are available below for future use if it appears to be useful
 
 #ifdef USE_MQTT_TLS_CA_CERT
+
+#ifndef USE_MQTT_AWS_IOT
 /*********************************************************************************************\
  * LetsEncrypt IdenTrust DST Root CA X3 certificate, RSA 2048 bits SHA 256, valid until 20210417
  *
@@ -140,7 +142,7 @@ const br_x509_certificate PROGMEM LetsencryptRootCA3_chain[] = {
 
 #define LETSENCRYPTROOTCA3LEN   1
 
-#endif  // USE_MQTT_TLS_CA_CERT
+#endif // not USE_MQTT_AWS_IOT
 
 #ifdef USE_MQTT_AWS_IOT
 /*********************************************************************************************\
@@ -233,4 +235,6 @@ const br_x509_certificate PROGMEM AmazonRootCA1_chain[] = {
 
 #define AMAZONROOTCA1_LEN   1
 
-#endif
+#endif  // USE_MQTT_AWS_IOT
+
+#endif  // USE_MQTT_TLS_CA_CERT

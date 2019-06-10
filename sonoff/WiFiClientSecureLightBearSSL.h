@@ -128,9 +128,7 @@ class WiFiClientSecure_light : public WiFiClient {
     bool _wait_for_handshake(); // Sets and return the _handshake_done after connecting
 
     // Optional client certificate
-    br_x509_certificate _chain;     // local RAM copy
     const br_x509_certificate *_chain_P;  // PROGMEM certificate
-    br_ec_private_key   _sk_ec;
     const br_ec_private_key   *_sk_ec_P;  // PROGMEM private key
     unsigned _allowed_usages;
     unsigned _cert_issuer_key_type;

@@ -218,12 +218,7 @@ void WiFiClientSecure_light::allocateBuffers(void) {
 void WiFiClientSecure_light::setClientECCert(const br_x509_certificate *cert, const br_ec_private_key *sk,
 																					unsigned allowed_usages, unsigned cert_issuer_key_type) {
 	_chain_P = cert;
-	_chain.data_len = _chain_P->data_len;
-	_chain.data = nullptr;
 	_sk_ec_P = sk;
-	_sk_ec.curve = _sk_ec_P->curve;
-	_sk_ec.xlen  = _sk_ec_P->xlen;
-	_sk_ec.x = nullptr;
   _allowed_usages = allowed_usages;
   _cert_issuer_key_type = cert_issuer_key_type;
 }
@@ -781,8 +776,8 @@ extern "C" {
 // Returns if the SSL handshake succeeded.
 bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 #ifdef USE_MQTT_AWS_IOT
-	br_ec_private_key sk_ec;
-	br_x509_certificate chain;
+	br_ec_private_key sk_ec = {0, nullptr, 0};
+	br_x509_certificate chain = {nullptr, 0};
 #ifdef USE_MQTT_AWS_IOT_SKEY_ON_STACK
 	unsigned char chain_data[_chain_P->data_len];
 	unsigned char sk_data[_sk_ec_P->xlen];
@@ -791,7 +786,7 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 
 	// Validation context, either full CA validation or checking only fingerprints
 #ifdef USE_MQTT_TLS_CA_CERT
-  std::unique_ptr<br_x509_minimal_context> x509_minimal;
+	br_x509_minimal_context *x509_minimal;
 #else
   br_x509_pubkeyfingerprint_context *x509_insecure;
 #endif
@@ -818,11 +813,11 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 		LOG_HEAP_SIZE("_connectSSL before DecoderContext allocation");
 	  // Only failure possible in the installation is OOM
 	#ifdef USE_MQTT_TLS_CA_CERT
-		x509_minimal = std::unique_ptr<br_x509_minimal_context>(new br_x509_minimal_context);
-		if (!x509_minimal.get()) break;
-		br_x509_minimal_init(_x509_minimal.get(), &br_sha256_vtable, _ta ? _ta->getTrustAnchors() : nullptr, _ta ? _ta->getCount() : 0);
-		br_x509_minimal_set_rsa(_x509_minimal.get(), br_ssl_engine_get_rsavrfy(_eng));
-		br_x509_minimal_install_hashes(_x509_minimal.get());		// TODO
+		x509_minimal = (br_x509_minimal_context*) malloc(sizeof(br_x509_minimal_context));
+		if (!x509_minimal) break;
+		br_x509_minimal_init(_x509_minimal, &br_sha256_vtable, _ta ? _ta->getTrustAnchors() : nullptr, _ta ? _ta->getCount() : 0);
+		br_x509_minimal_set_rsa(_x509_minimal, br_ssl_engine_get_rsavrfy(_eng));
+		br_x509_minimal_install_hashes(_x509_minimal;		// TODO
 		br_ssl_engine_set_x509(_eng, &_x509_minimal->vtable);
 
 	#else
@@ -902,11 +897,10 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 	#endif
 
 	#ifdef USE_MQTT_TLS_CA_CERT
-		x509_minimal.reset(nullptr);
+		free(x509_minimal);
 	#else
-		//x509_insecure.reset(nullptr);	// we explicitly delete to check memory deallocation
-	#endif
 		free(x509_insecure);
+	#endif
 		LOG_HEAP_SIZE("_connectSSL after release of Priv Key");
 	  return ret;
 	} while (0);
@@ -919,7 +913,11 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 	free(chain.data);
 	free(sk_ec.x);
 #endif
+#ifdef USE_MQTT_TLS_CA_CERT
+	free(x509_minimal);
+#else
 	free(x509_insecure);
+#endif
 	LOG_HEAP_SIZE("_connectSSL clean_on_error");
 	return false;
 }
