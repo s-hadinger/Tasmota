@@ -23,7 +23,7 @@
 #include "my_user_config.h"
 #ifdef USE_MQTT_TLS
 
-#define DEBUG_TLS
+//#define DEBUG_TLS
 
 #define LWIP_INTERNAL
 
@@ -780,8 +780,10 @@ extern "C" {
 		br_ssl_engine_set_aes_ctr(&cc->eng, &br_aes_small_ctr_vtable);
 		br_ssl_engine_set_ghash(&cc->eng, &br_ghash_ctmul32);
 
-		// we support only P256 EC curve
+#ifdef USE_MQTT_AWS_IOT
+		// we support only P256 EC curve for AWS IoT, no EC curve for Letsencrypt
 		br_ssl_engine_set_ec(&cc->eng, &br_ec_p256_m15);
+#endif
   }
 }
 
