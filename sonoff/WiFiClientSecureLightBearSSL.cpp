@@ -191,6 +191,7 @@ void WiFiClientSecure_light::_clear() {
 	_chain_P = nullptr;
 	_sk_ec_P = nullptr;
 	_ta_P = nullptr;
+	_max_thunkstack_use = 0;
 }
 
 // Constructor
@@ -757,7 +758,11 @@ extern "C" {
 	// We limit to a single cipher to reduce footprint
   // we reference it, don't put in PROGMEM
   static const uint16_t suites[] = {
+#ifdef USE_MQTT_AWS_IOT
 		BR_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+#else
+		BR_TLS_RSA_WITH_AES_128_GCM_SHA256
+#endif
   };
 
   // Default initializion for our SSL clients
@@ -908,6 +913,7 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 	  }
 	#endif
 		LOG_HEAP_SIZE("_connectSSL.end");
+		_max_thunkstack_use = stack_thunk_light_get_max_usage();
 		stack_thunk_light_del_ref();
 	  //stack_thunk_light_repaint();
 		LOG_HEAP_SIZE("_connectSSL.end, freeing StackThunk");
