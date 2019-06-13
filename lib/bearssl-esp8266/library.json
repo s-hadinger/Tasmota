@@ -1,0 +1,25 @@
+{
+  "name": "BearSSL",
+  "keywords": "bearssl tasmota arduino esp8266",
+  "description": "BearSSL TLS library optimized for Esp8266, Arduino and Tasmota",
+  "repository":
+  {
+    "type": "git",
+    "url": "https://github.com/earlephilhower/bearssl-esp8266.git"
+  },
+  "authors":
+  [
+    {
+      "name": "Earle F. Philhower, III",
+      "email": "earlephilhower@yahoo.com",
+      "maintainer": true
+    }
+  ],
+  "version": "0.6",
+  "frameworks": "arduino",
+  "platforms": "*",
+  "build":
+  {
+    "flags": ""
+  }
+}

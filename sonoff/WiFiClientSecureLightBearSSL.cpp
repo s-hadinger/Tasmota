@@ -23,7 +23,7 @@
 #include "my_user_config.h"
 #ifdef USE_MQTT_TLS
 
-//#define DEBUG_TLS
+#define DEBUG_TLS
 
 #define LWIP_INTERNAL
 
@@ -954,5 +954,7 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 }
 
 };
+
+#include "bearssl_tasmota_config.h"
 
 #endif  // USE_MQTT_TLS
