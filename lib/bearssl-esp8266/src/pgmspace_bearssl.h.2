@@ -4,9 +4,11 @@
 #define _PGMSPACEWRAPPER_H_
 
 #include <stdint.h>
+#include "bearssl_tasmota_config.h"
 
 #ifdef ESP8266_no
 
+#define PGM_READ_UNALIGNED 0    // force unaligned access
 #include <sys/pgmspace.h>
 
 #else //!ESP8266

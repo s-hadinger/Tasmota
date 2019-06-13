@@ -20,6 +20,6 @@
   "platforms": "*",
   "build":
   {
-    "flags": ""
+    "flags": "-O3 -nostdlib  -mlongcalls -ffunction-sections -fdata-sections -DICACHE_FLASH"
   }
 }

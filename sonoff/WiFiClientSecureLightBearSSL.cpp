@@ -23,7 +23,7 @@
 #include "my_user_config.h"
 #ifdef USE_MQTT_TLS
 
-#define DEBUG_TLS
+//#define DEBUG_TLS
 
 #define LWIP_INTERNAL
 
