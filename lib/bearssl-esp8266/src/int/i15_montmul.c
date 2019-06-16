@@ -23,12 +23,6 @@
  */
 
 #include "inner.h"
-//#undef pgm_read_word
-//#define pgm_read_word(addr)             (*(const uint16_t*)(addr))
-
-#include "ets_sys.h"
-#include "os_type.h"
-#include "osapi.h"
 
 /* see inner.h */
 __attribute__((optimize("-O3"))) void
@@ -142,109 +136,34 @@ loop%=:                                                            \n\
 		v = len4;
 #else
 		r = 0;
-		//#undef pgm_read_word
+#ifdef ESP8266
 		const uint16_t *py;
 		const uint16_t *pm;
-		#define pgm_read_word2(addr)             (*(const uint16_t*)(addr))
 
-		// py = &y[v];
-		// if (0) {
-		// 	if (((int)py) & 0x02) {
-		// 		// unaligned -- NEVER TAKEN
-		// 		py++;
-		// 		t = *(uint32_t*)py;
-		// 		y1 = t;
-		// 		y2 = t >> 16;
-		// 		py += 2;
-		// 		t = *(uint32_t*)py;
-		// 		y3 = t;
-		// 		y4 = t >> 16;
-		// 	} else {
-		// 		// aligned
-		// 		t = *(uint32_t*)py;
-		// 		y1 = t >> 16;
-		// 		py += 2;
-		// 		t = *(uint32_t*)py;
-		// 		y2 = t;
-		// 		y3 = t >> 16;
-		// 		py += 2;
-		// 		t = *(uint32_t*)py;
-		// 		y4 = t;
-		// 	}
-		// } else {
-		// 	// py++;
-		// 	// y1 = *py++;
-		// 	// y2 = *py++;
-		// 	// y3 = *py++;
-		// 	// y4 = *py++;
-		// 	// aligned
-		// 	t = *(uint32_t*)py;
-		// 	y1 = t >> 16;
-		// 	py += 2;
-		// 	t = *(uint32_t*)py;
-		// 	y2 = t;
-		// 	y3 = t >> 16;
-		// 	py += 2;
-		// 	t = *(uint32_t*)py;
-		// 	y4 = t;
-		// }
-		//
-		// pm = &m[v];
-		// if (0) {
-		// 	if (((int)py) & 0x02) {
-		// 		// unaligned
-		// 		pm++;
-		// 		t = *(uint32_t*)pm;
-		// 		m1 = t;
-		// 		m2 = t >> 16;
-		// 		pm += 2;
-		// 		t = *(uint32_t*)pm;
-		// 		m3 = t;
-		// 		m4 = t >> 16;
-		// 	} else {
-		// 		// aligned
-		// 		t = *(uint32_t*)pm;
-		// 		m1 = t >> 16;
-		// 		pm += 2;
-		// 		t = *(uint32_t*)pm;
-		// 		m2 = t;
-		// 		m3 = t >> 16;
-		// 		pm += 2;
-		// 		t = *(uint32_t*)pm;
-		// 		m4 = t;
-		// 	}
-		// } else {
-		// 	pm++;
-		// 	m1 = *pm++;
-		// 	m2 = *pm++;
-		// 	m3 = *pm++;
-		// 	m4 = *pm++;
-		// }
-
-
-		py = &y[0];
+		py = &y[0];				// addresses of both arrays that will be scanned as uint16_t
 		pm = &m[0];
-		uint32_t ty, tm;
-		if (!(((int)py) & 2) && !(((int)pm) & 2)) {
-			// both are aligned to 32 bits
-			ty = *(uint32_t*)py;		// pre-load with 32 bits value
+		int py_unaligned = (((int)py) & 2) != 0;
+		int pm_unaligned = (((int)pm) & 2) != 0;
+		uint32_t ty, tm;	// 32 bits buffers
+		if (!py_unaligned && !pm_unaligned) {
+			// both are aligned to 32 bits, we always skip the first 16 bits
+			ty = *(uint32_t*)py;		// pre-load with 32 bits value, next value will be loaded at end of loop iteration
 			tm = *(uint32_t*)pm;
 			for (v = 0; v < len4; v += 4) {
-				uint16_t y1, y2, y3, y4;
-				uint16_t m1, m2, m3, m4;
+				uint16_t y1, y2, y3, y4;		// we define 4 variables for easy reading
+				uint16_t m1, m2, m3, m4;		// but optimizer will collapse them into 1
+
 				uint32_t z;
 
-				y1 = ty >> 16;		// +1
+				y1 = ty >> 16;		// v+1, get upper 16 bits current 32 bits
 				m1 = tm >> 16;
 				z = d[v + 1] + MUL15(xu, y1) + MUL15(f, m1) + r;
 				r = z >> 15;
 				d[v + 0] = z & 0x7FFF;
 				//
-				py += 2;
-				ty = *(uint32_t*)py;
-				pm += 2;
-				tm = *(uint32_t*)pm;
-				y2 = ty;
+				ty = *(uint32_t*)(py = py + 2);		// next 32 bits
+				y2 = ty;											// get lower 16 bits
+				tm = *(uint32_t*)(pm = pm + 2);
 				m2 = tm;
 				z = d[v + 2] + MUL15(xu, y2) + MUL15(f, m2) + r;
 				r = z >> 15;
@@ -256,164 +175,148 @@ loop%=:                                                            \n\
 				r = z >> 15;
 				d[v + 2] = z & 0x7FFF;
 				//
-				py += 2;
-				ty = *(uint32_t*)py;
-				y4 = ty;
-				pm += 2;
-				tm = *(uint32_t*)pm;
+				ty = *(uint32_t*)(py = py + 2);		// next 32 bits
+				y4 = ty;											// get lower 16 bits
+				tm = *(uint32_t*)(pm = pm + 2);
 				m4 = tm;
 				z = d[v + 4] + MUL15(xu, y4) + MUL15(f, m4) + r;
 				r = z >> 15;
 				d[v + 3] = z & 0x7FFF;
 			}
-		} else if (!(((int)py) & 2) && (((int)pm) & 2)) {
-				pm--;
-				ty = *(uint32_t*)py;		// pre-load with 32 bits value
-				for (v = 0; v < len4; v += 4) {
-					uint16_t y1, y2, y3, y4;
-					uint16_t m1, m2, m3, m4;
-					uint32_t z;
+		} else if (!py_unaligned && pm_unaligned) {
+			pm--;		// we decrement by 1 because will increment by 2 at beginning of loop
+			ty = *(uint32_t*)py;		// pre-load with 32 bits value
+			for (v = 0; v < len4; v += 4) {
+				uint16_t y1, y2, y3, y4;
+				uint16_t m1, m2, m3, m4;
+				uint32_t z;
 
-					y1 = ty >> 16;		// +1
-					pm += 2;
-					tm = *(uint32_t*)pm;
-					m1 = tm;
-					z = d[v + 1] + MUL15(xu, y1) + MUL15(f, m1) + r;
-					r = z >> 15;
-					d[v + 0] = z & 0x7FFF;
-					//
-					py += 2;
-					ty = *(uint32_t*)py;
-					y2 = ty;
-					m2 = tm >> 16;
-					z = d[v + 2] + MUL15(xu, y2) + MUL15(f, m2) + r;
-					r = z >> 15;
-					d[v + 1] = z & 0x7FFF;
-					//
-					y3 = ty >> 16;
-					pm += 2;
-					tm = *(uint32_t*)pm;
-					m3 = tm;
-					z = d[v + 3] + MUL15(xu, y3) + MUL15(f, m3) + r;
-					r = z >> 15;
-					d[v + 2] = z & 0x7FFF;
-					//
-					py += 2;
-					ty = *(uint32_t*)py;
-					y4 = ty;
-					m4 = tm >> 16;
-					z = d[v + 4] + MUL15(xu, y4) + MUL15(f, m4) + r;
-					r = z >> 15;
-					d[v + 3] = z & 0x7FFF;
-				}
-			} else if ((((int)py) & 2) && !(((int)pm) & 2)) {		// buggy
-				// py unaligned, pm aligned
-				py--;
-				tm = *(uint32_t*)pm;
-				for (v = 0; v < len4; v += 4) {
-					uint16_t y1, y2, y3, y4;
-					uint16_t m1, m2, m3, m4;
-					uint32_t z;
-
-					py += 2;
-					ty = *(uint32_t*)py;
-					y1 = ty;
-					m1 = tm >> 16;
-					z = d[v + 1] + MUL15(xu, y1) + MUL15(f, m1) + r;
-					r = z >> 15;
-					d[v + 0] = z & 0x7FFF;
-					//
-					y2 = ty >> 16;
-					pm += 2;
-					tm = *(uint32_t*)pm;
-					m2 = tm;
-					z = d[v + 2] + MUL15(xu, y2) + MUL15(f, m2) + r;
-					r = z >> 15;
-					d[v + 1] = z & 0x7FFF;
-					//
-					py += 2;
-					ty = *(uint32_t*)py;
-					y3 = ty;
-					m3 = tm >> 16;
-					z = d[v + 3] + MUL15(xu, y3) + MUL15(f, m3) + r;
-					r = z >> 15;
-					d[v + 2] = z & 0x7FFF;
-					//
-					y4 = ty >> 16;
-					pm += 2;
-					tm = *(uint32_t*)pm;
-					m4 = tm;
-					z = d[v + 4] + MUL15(xu, y4) + MUL15(f, m4) + r;
-					r = z >> 15;
-					d[v + 3] = z & 0x7FFF;
-				}
-			} else if ((((int)py) & 2) && (((int)pm) & 2)) {
-					// py unaligned, pm unaligned
-					py--;
-					pm--;
-					for (v = 0; v < len4; v += 4) {
-						uint16_t y1, y2, y3, y4;
-						uint16_t m1, m2, m3, m4;
-						uint32_t z;
-
-						py += 2;
-						ty = *(uint32_t*)py;
-						y1 = ty;		// +1
-						pm += 2;
-						tm = *(uint32_t*)pm;
-						m1 = tm;
-						z = d[v + 1] + MUL15(xu, y1) + MUL15(f, m1) + r;
-						r = z >> 15;
-						d[v + 0] = z & 0x7FFF;
-						//
-						y2 = ty >> 16;
-						m2 = tm >> 16;
-						z = d[v + 2] + MUL15(xu, y2) + MUL15(f, m2) + r;
-						r = z >> 15;
-						d[v + 1] = z & 0x7FFF;
-						//
-						py += 2;
-						ty = *(uint32_t*)py;
-						y3 = ty;
-						pm += 2;
-						tm = *(uint32_t*)pm;
-						m3 = tm;
-						z = d[v + 3] + MUL15(xu, y3) + MUL15(f, m3) + r;
-						r = z >> 15;
-						d[v + 2] = z & 0x7FFF;
-						//
-						y4 = ty >> 16;
-						m4 = tm >> 16;
-						z = d[v + 4] + MUL15(xu, y4) + MUL15(f, m4) + r;
-						r = z >> 15;
-						d[v + 3] = z & 0x7FFF;
-					}
-		} else {
-				for (v = 0; v < len4; v += 4) {
-					uint32_t z;
-					z = d[v + 1] + MUL15(xu, pgm_read_word(&y[v + 1]))
-						+ MUL15(f, pgm_read_word(&m[v + 1])) + r;
-					r = z >> 15;
-					d[v + 0] = z & 0x7FFF;
-					z = d[v + 2] + MUL15(xu, pgm_read_word(&y[v + 2]))
-						+ MUL15(f, pgm_read_word(&m[v + 2])) + r;
-					r = z >> 15;
-					d[v + 1] = z & 0x7FFF;
-					z = d[v + 3] + MUL15(xu, pgm_read_word(&y[v + 3]))
-						+ MUL15(f, pgm_read_word(&m[v + 3])) + r;
-					r = z >> 15;
-					d[v + 2] = z & 0x7FFF;
-					z = d[v + 4] + MUL15(xu, pgm_read_word(&y[v + 4]))
-						+ MUL15(f, pgm_read_word(&m[v + 4])) + r;
-					r = z >> 15;
-					d[v + 3] = z & 0x7FFF;
-				}
+				y1 = ty >> 16;		// +1
+				tm = *(uint32_t*)(pm = pm + 2);
+				m1 = tm;
+				z = d[v + 1] + MUL15(xu, y1) + MUL15(f, m1) + r;
+				r = z >> 15;
+				d[v + 0] = z & 0x7FFF;
+				//
+				ty = *(uint32_t*)(py = py + 2);		// next 32 bits
+				y2 = ty;
+				m2 = tm >> 16;
+				z = d[v + 2] + MUL15(xu, y2) + MUL15(f, m2) + r;
+				r = z >> 15;
+				d[v + 1] = z & 0x7FFF;
+				//
+				y3 = ty >> 16;
+				tm = *(uint32_t*)(pm = pm + 2);
+				m3 = tm;
+				z = d[v + 3] + MUL15(xu, y3) + MUL15(f, m3) + r;
+				r = z >> 15;
+				d[v + 2] = z & 0x7FFF;
+				//
+				ty = *(uint32_t*)(py = py + 2);		// next 32 bits
+				y4 = ty;
+				m4 = tm >> 16;
+				z = d[v + 4] + MUL15(xu, y4) + MUL15(f, m4) + r;
+				r = z >> 15;
+				d[v + 3] = z & 0x7FFF;
 			}
+		} else if (py_unaligned && !pm_unaligned) {		// buggy
+			// py unaligned, pm aligned
+			py--;
+			tm = *(uint32_t*)pm;
+			for (v = 0; v < len4; v += 4) {
+				uint16_t y1, y2, y3, y4;
+				uint16_t m1, m2, m3, m4;
+				uint32_t z;
 
+				ty = *(uint32_t*)(py = py + 2);		// next 32 bits
+				y1 = ty;
+				m1 = tm >> 16;
+				z = d[v + 1] + MUL15(xu, y1) + MUL15(f, m1) + r;
+				r = z >> 15;
+				d[v + 0] = z & 0x7FFF;
+				//
+				y2 = ty >> 16;
+				tm = *(uint32_t*)(pm = pm + 2);
+				m2 = tm;
+				z = d[v + 2] + MUL15(xu, y2) + MUL15(f, m2) + r;
+				r = z >> 15;
+				d[v + 1] = z & 0x7FFF;
+				//
+				ty = *(uint32_t*)(py = py + 2);		// next 32 bits
+				y3 = ty;
+				m3 = tm >> 16;
+				z = d[v + 3] + MUL15(xu, y3) + MUL15(f, m3) + r;
+				r = z >> 15;
+				d[v + 2] = z & 0x7FFF;
+				//
+				y4 = ty >> 16;
+				tm = *(uint32_t*)(pm = pm + 2);
+				m4 = tm;
+				z = d[v + 4] + MUL15(xu, y4) + MUL15(f, m4) + r;
+				r = z >> 15;
+				d[v + 3] = z & 0x7FFF;
+			}
+		} else if (py_unaligned && pm_unaligned) {
+			// py unaligned, pm unaligned
+			py--;
+			pm--;
+			for (v = 0; v < len4; v += 4) {
+				uint16_t y1, y2, y3, y4;
+				uint16_t m1, m2, m3, m4;
+				uint32_t z;
 
+				ty = *(uint32_t*)(py = py + 2);		// next 32 bits
+				y1 = ty;		// +1
+				tm = *(uint32_t*)(pm = pm + 2);
+				m1 = tm;
+				z = d[v + 1] + MUL15(xu, y1) + MUL15(f, m1) + r;
+				r = z >> 15;
+				d[v + 0] = z & 0x7FFF;
+				//
+				y2 = ty >> 16;
+				m2 = tm >> 16;
+				z = d[v + 2] + MUL15(xu, y2) + MUL15(f, m2) + r;
+				r = z >> 15;
+				d[v + 1] = z & 0x7FFF;
+				//
+				ty = *(uint32_t*)(py = py + 2);		// next 32 bits
+				y3 = ty;
+				tm = *(uint32_t*)(pm = pm + 2);
+				m3 = tm;
+				z = d[v + 3] + MUL15(xu, y3) + MUL15(f, m3) + r;
+				r = z >> 15;
+				d[v + 2] = z & 0x7FFF;
+				//
+				y4 = ty >> 16;
+				m4 = tm >> 16;
+				z = d[v + 4] + MUL15(xu, y4) + MUL15(f, m4) + r;
+				r = z >> 15;
+				d[v + 3] = z & 0x7FFF;
+			}
+		} else {
+			for (v = 0; v < len4; v += 4) {
+				uint32_t z;
+				z = d[v + 1] + MUL15(xu, pgm_read_word(&y[v + 1]))
+					+ MUL15(f, pgm_read_word(&m[v + 1])) + r;
+				r = z >> 15;
+				d[v + 0] = z & 0x7FFF;
+				z = d[v + 2] + MUL15(xu, pgm_read_word(&y[v + 2]))
+					+ MUL15(f, pgm_read_word(&m[v + 2])) + r;
+				r = z >> 15;
+				d[v + 1] = z & 0x7FFF;
+				z = d[v + 3] + MUL15(xu, pgm_read_word(&y[v + 3]))
+					+ MUL15(f, pgm_read_word(&m[v + 3])) + r;
+				r = z >> 15;
+				d[v + 2] = z & 0x7FFF;
+				z = d[v + 4] + MUL15(xu, pgm_read_word(&y[v + 4]))
+					+ MUL15(f, pgm_read_word(&m[v + 4])) + r;
+				r = z >> 15;
+				d[v + 3] = z & 0x7FFF;
+			}
+		}
+#endif // ESP8266
 		// for (v = 0; v < len4; v += 4) {
 		// 	uint32_t z;
-		//
 		// 	z = d[v + 1] + MUL15(xu, pgm_read_word(&y[v + 1]))
 		// 		+ MUL15(f, pgm_read_word(&m[v + 1])) + r;
 		// 	r = z >> 15;
