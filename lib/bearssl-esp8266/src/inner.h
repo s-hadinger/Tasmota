@@ -29,9 +29,7 @@
 #include <limits.h>
 #include <alloca.h>
 
-#include "pgmspace_bearssl.h"	// SH TODO
-//#include "ets_sys.h"
-//#include "osapi.h"
+#include "pgmspace_bearssl.h"
 
 #include "config.h"
 #include "bearssl.h"
