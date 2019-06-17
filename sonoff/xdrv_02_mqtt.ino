@@ -117,7 +117,7 @@ PubSubClient MqttClient(EspClient);
 
 void MqttInit(void) {
 #ifdef USE_MQTT_TLS
-  tlsClient = new BearSSL::WiFiClientSecure_light(1024,1024);
+  tlsClient = new BearSSL::WiFiClientSecure_light(2048,2048);
 
 #ifdef USE_MQTT_AWS_IOT
   snprintf(AWS_endpoint, sizeof(AWS_endpoint), PSTR("%s%s"), Settings.mqtt_user, Settings.mqtt_host);
