@@ -71,8 +71,7 @@ class WiFiClientSecure_light : public WiFiClient {
       return _recv_fingerprint;
     }
 
-    void setClientECCert(const br_x509_certificate *cert, const br_ec_private_key *sk,
-                         unsigned allowed_usages, unsigned cert_issuer_key_type);
+    void setClientRSACert(const br_x509_certificate *cert, const br_rsa_private_key *sk);
 
     void setTrustAnchor(const br_x509_trust_anchor *ta);
 
@@ -134,7 +133,7 @@ class WiFiClientSecure_light : public WiFiClient {
 
     // Optional client certificate
     const br_x509_certificate *_chain_P;  // PROGMEM certificate
-    const br_ec_private_key   *_sk_ec_P;  // PROGMEM private key
+    const br_rsa_private_key  *_sk_rsa_P;  // PROGMEM private key
     const br_x509_trust_anchor *_ta_P;     // PROGMEM server CA
     unsigned _allowed_usages;
     unsigned _cert_issuer_key_type;

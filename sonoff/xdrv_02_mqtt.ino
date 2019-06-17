@@ -69,7 +69,7 @@ void to_hex(unsigned char * in, size_t insz, char * out, size_t outsz) {
 #ifdef USE_MQTT_AWS_IOT
 namespace aws_iot_privkey {
   // this is where the Private Key and Certificate are stored
-  extern const br_ec_private_key *AWS_IoT_Private_Key;
+  extern const br_rsa_private_key *AWS_IoT_RSA_Private_Key;
   extern const br_x509_certificate *AWS_IoT_Client_Certificate;
 }
 #endif
@@ -122,9 +122,8 @@ void MqttInit(void) {
 #ifdef USE_MQTT_AWS_IOT
   snprintf(AWS_endpoint, sizeof(AWS_endpoint), PSTR("%s%s"), Settings.mqtt_user, Settings.mqtt_host);
 
-  tlsClient->setClientECCert(aws_iot_privkey::AWS_IoT_Client_Certificate,
-                             aws_iot_privkey::AWS_IoT_Private_Key,
-                             0xFFFF /* all usages, don't care */, 0);
+  tlsClient->setClientRSACert(aws_iot_privkey::AWS_IoT_Client_Certificate,
+                             aws_iot_privkey::AWS_IoT_RSA_Private_Key);
 #endif
 
 #ifdef USE_MQTT_TLS_CA_CERT

@@ -189,7 +189,7 @@ void WiFiClientSecure_light::_clear() {
 	_fingerprint1 = nullptr;
 	_fingerprint2 = nullptr;
 	_chain_P = nullptr;
-	_sk_ec_P = nullptr;
+	_sk_rsa_P = nullptr;
 	_ta_P = nullptr;
 	_max_thunkstack_use = 0;
 }
@@ -225,12 +225,9 @@ void WiFiClientSecure_light::allocateBuffers(void) {
 	LOG_HEAP_SIZE("allocateBuffers after");
 }
 
-void WiFiClientSecure_light::setClientECCert(const br_x509_certificate *cert, const br_ec_private_key *sk,
-																					unsigned allowed_usages, unsigned cert_issuer_key_type) {
+void WiFiClientSecure_light::setClientRSACert(const br_x509_certificate *cert, const br_rsa_private_key *sk) {
 	_chain_P = cert;
-	_sk_ec_P = sk;
-  _allowed_usages = allowed_usages;
-  _cert_issuer_key_type = cert_issuer_key_type;
+	_sk_rsa_P = sk;
 }
 
 void WiFiClientSecure_light::setTrustAnchor(const br_x509_trust_anchor *ta) {
@@ -758,11 +755,7 @@ extern "C" {
 	// We limit to a single cipher to reduce footprint
   // we reference it, don't put in PROGMEM
   static const uint16_t suites[] = {
-#ifdef USE_MQTT_AWS_IOT
-		BR_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
-#else
 		BR_TLS_RSA_WITH_AES_128_GCM_SHA256
-#endif
   };
 
   // Default initializion for our SSL clients
@@ -784,21 +777,23 @@ extern "C" {
 		br_ssl_engine_set_gcm(&cc->eng, &br_sslrec_in_gcm_vtable, &br_sslrec_out_gcm_vtable);
 		br_ssl_engine_set_aes_ctr(&cc->eng, &br_aes_small_ctr_vtable);
 		br_ssl_engine_set_ghash(&cc->eng, &br_ghash_ctmul32);
-
-#ifdef USE_MQTT_AWS_IOT
-		// we support only P256 EC curve for AWS IoT, no EC curve for Letsencrypt
-		br_ssl_engine_set_ec(&cc->eng, &br_ec_p256_m15);
-#endif
   }
+}
+
+const void *malloc_and_memcpy_P(void *dst, const void *src, size_t size) {
+	const void *adr;
+	adr = malloc(size);
+	if (adr) memcpy_P(dst, src, size);
+	return adr;
 }
 
 // Called by connect() to do the actual SSL setup and handshake.
 // Returns if the SSL handshake succeeded.
 bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 #ifdef USE_MQTT_AWS_IOT
-	br_ec_private_key sk_ec = {0, nullptr, 0};
+  br_rsa_private_key sk_rsa = {0, nullptr, 0, nullptr, 0, nullptr, 0, nullptr, 0, nullptr, 0};
 	br_x509_certificate chain = {nullptr, 0};
-	if ((!_chain_P) || (!_sk_ec_P)) {
+	if ((!_chain_P) || (!_sk_rsa_P)) {
 		setLastError(ERR_MISSING_EC_KEY);
 		return false;
 	}
@@ -885,19 +880,25 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 		chain.data = (unsigned char *) malloc(chain.data_len);
 		if (!chain.data) break;
 		memcpy_P(chain.data, _chain_P->data, chain.data_len);
-		sk_ec.curve = _sk_ec_P->curve;
-		sk_ec.xlen = _sk_ec_P->xlen;
-		sk_ec.x = (unsigned char *) malloc(sk_ec.xlen);
-		if (!sk_ec.x) break;
-		memcpy_P(sk_ec.x, _sk_ec_P->x, sk_ec.xlen);
+
+		// copy skey
+		// memcpy_P(sk_rsa, _sk_rsa_P, sizeof(sk_rsa));
+		// sk_ec.x = (unsigned char *) malloc(sk_ec.xlen);
+		// if (!sk_ec.x) break;
+		// memcpy_P(sk_ec.x, _sk_ec_P->x, sk_ec.xlen);
 		LOG_HEAP_SIZE("_connectSSL after PrivKey allocation");
+
+		// ============================================================
+		// Set the RSA Private Key, only USE_MQTT_AWS_IOT
+		br_ssl_client_set_single_rsa(_sc.get(), &chain, 1,
+                                 _sk_rsa_P, br_rsa_pkcs1_sign_get_default());
 
 		// ============================================================
 		// Set the EC Private Key, only USE_MQTT_AWS_IOT
 		// limited to P256 curve
-		br_ssl_client_set_single_ec(_sc.get(), &chain, 1,
-	                              &sk_ec, _allowed_usages,
-	                              _cert_issuer_key_type, &br_ec_p256_m15, br_ecdsa_sign_asn1_get_default());
+		// br_ssl_client_set_single_ec(_sc.get(), &chain, 1,
+	  //                             &sk_ec, _allowed_usages,
+	  //                             _cert_issuer_key_type, &br_ec_p256_m15, br_ecdsa_sign_asn1_get_default());
 	#endif // USE_MQTT_AWS_IOT
 
 		// ============================================================
@@ -919,7 +920,7 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 		LOG_HEAP_SIZE("_connectSSL.end, freeing StackThunk");
 	#if defined(USE_MQTT_AWS_IOT)
 		free(chain.data);
-		free(sk_ec.x);
+		//free(sk_ec.x);
 	#endif
 
 	#ifdef USE_MQTT_TLS_CA_CERT
@@ -940,7 +941,7 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 	stack_thunk_light_del_ref();
 #ifdef USE_MQTT_AWS_IOT
 	free(chain.data);
-	free(sk_ec.x);
+	//free(sk_ec.x);
 #endif
 #ifdef USE_MQTT_TLS_CA_CERT
 	free(x509_minimal);
