@@ -807,12 +807,6 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 	// Validation context, either full CA validation or checking only fingerprints
 #ifdef USE_MQTT_TLS_CA_CERT
 	br_x509_minimal_context *x509_minimal;
-	br_x509_trust_anchor ta; // = {{nullptr,0},0,{0,{.rsa={nullptr,0,nullptr,0}}}};
-	memset(&ta, 0, sizeof(ta));
-	if (!_ta_P) {
-		setLastError(ERR_MISSING_CA);
-		return false;
-	}
 #else
   br_x509_pubkeyfingerprint_context *x509_insecure;
 #endif
@@ -829,23 +823,6 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 		clearLastError();
 		if (!stack_thunk_light_get_stack_bot()) break;
 
-
-		// ============================================================
-		// Copy server CA from PROGMEM to RAM
-	#ifdef USE_MQTT_TLS_CA_CERT
-		memcpy_P(&ta, _ta_P, sizeof(ta));	// copy the whole structure first
-		unsigned char rsa_e[_ta_P->pkey.key.rsa.elen];		// it's only 3 bytes long, spare the malloc
-		ta.pkey.key.rsa.e = rsa_e;
-		ta.dn.data = (unsigned char *) malloc(ta.dn.len);
-		if (!ta.dn.data) break;
-		ta.pkey.key.rsa.n = (unsigned char *) malloc(ta.pkey.key.rsa.nlen);
-		if (!ta.pkey.key.rsa.n) break;
-		memcpy_P(ta.dn.data, _ta_P->dn.data, ta.dn.len);
-		memcpy_P(ta.pkey.key.rsa.n, _ta_P->pkey.key.rsa.n, ta.pkey.key.rsa.nlen);
-		memcpy_P(rsa_e, _ta_P->pkey.key.rsa.e, ta.pkey.key.rsa.elen);
-
-	#endif
-
 	  _ctx_present = true;
 	  _eng = &_sc->eng; // Allocation/deallocation taken care of by the _sc shared_ptr
 
@@ -858,7 +835,7 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 	#ifdef USE_MQTT_TLS_CA_CERT
 		x509_minimal = (br_x509_minimal_context*) malloc(sizeof(br_x509_minimal_context));
 		if (!x509_minimal) break;
-		br_x509_minimal_init(x509_minimal, &br_sha256_vtable, &ta, 1);
+		br_x509_minimal_init(x509_minimal, &br_sha256_vtable, _ta_P, 1);
 		br_x509_minimal_set_rsa(x509_minimal, br_ssl_engine_get_rsavrfy(_eng));
 		br_x509_minimal_set_hash(x509_minimal, br_sha256_ID, &br_sha256_vtable);
 		br_ssl_engine_set_x509(_eng, &x509_minimal->vtable);
@@ -924,8 +901,6 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 
 	#ifdef USE_MQTT_TLS_CA_CERT
 		free(x509_minimal);
-		free(ta.dn.data);
-		free(ta.pkey.key.rsa.n);
 	#else
 		free(x509_insecure);
 	#endif
@@ -944,8 +919,6 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 #endif
 #ifdef USE_MQTT_TLS_CA_CERT
 	free(x509_minimal);
-	free(ta.dn.data);
-	free(ta.pkey.key.rsa.n);
 #else
 	free(x509_insecure);
 #endif
