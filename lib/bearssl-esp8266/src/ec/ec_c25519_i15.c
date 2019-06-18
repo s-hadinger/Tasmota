@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include "inner.h"
+#include "t_inner.h"
 
 /*
  * Parameters for the field:

@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include "inner.h"
+#include "t_inner.h"
 
 /*
  * During key schedule, we need to apply bit extraction PC-2 then permute

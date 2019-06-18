@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include "inner.h"
+#include "t_inner.h"
 
 /*
  * Make a random integer of the provided size. The size is encoded.

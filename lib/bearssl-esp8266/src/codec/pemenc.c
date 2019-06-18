@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include "inner.h"
+#include "t_inner.h"
 
 /*
  * Get the appropriate Base64 character for a numeric value in the

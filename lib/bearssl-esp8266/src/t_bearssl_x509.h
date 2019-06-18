@@ -28,9 +28,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "bearssl_ec.h"
-#include "bearssl_hash.h"
-#include "bearssl_rsa.h"
+#include "t_bearssl_ec.h"
+#include "t_bearssl_hash.h"
+#include "t_bearssl_rsa.h"
 
 #ifdef __cplusplus
 extern "C" {

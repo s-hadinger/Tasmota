@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include "inner.h"
+#include "t_inner.h"
 
 static void
 in_cbc_init(br_sslrec_in_cbc_context *cc,

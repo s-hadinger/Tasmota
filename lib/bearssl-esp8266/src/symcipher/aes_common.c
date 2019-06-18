@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include "inner.h"
+#include "t_inner.h"
 
 static const uint32_t Rcon[] PROGMEM = {
 	0x01000000, 0x02000000, 0x04000000, 0x08000000, 0x10000000, 0x20000000,

@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include "inner.h"
+#include "t_inner.h"
 
 /*
  * Compute ASN.1 encoded length for the provided integer. The ASN.1

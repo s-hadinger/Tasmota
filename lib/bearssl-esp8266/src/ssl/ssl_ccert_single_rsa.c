@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include "inner.h"
+#include "t_inner.h"
 
 static void
 cc_none0(const br_ssl_client_certificate_class **pctx)

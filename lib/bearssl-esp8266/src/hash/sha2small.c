@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include "inner.h"
+#include "t_inner.h"
 
 #define CH(X, Y, Z)    ((((Y) ^ (Z)) & (X)) ^ (Z))
 #define MAJ(X, Y, Z)   (((Y) & (Z)) | (((Y) | (Z)) & (X)))

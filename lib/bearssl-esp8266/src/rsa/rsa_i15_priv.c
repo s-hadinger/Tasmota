@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include "inner.h"
+#include "t_inner.h"
 
 #define U      (2 + ((BR_MAX_RSA_FACTOR + 14) / 15))
 #define TLEN   (8 * U)

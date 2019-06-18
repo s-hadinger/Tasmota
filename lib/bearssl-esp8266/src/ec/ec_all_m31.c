@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include "inner.h"
+#include "t_inner.h"
 
 static const unsigned char *
 api_generator(int curve, size_t *len)

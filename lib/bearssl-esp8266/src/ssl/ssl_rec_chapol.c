@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include "inner.h"
+#include "t_inner.h"
 
 static void
 gen_chapol_init(br_sslrec_chapol_context *cc,

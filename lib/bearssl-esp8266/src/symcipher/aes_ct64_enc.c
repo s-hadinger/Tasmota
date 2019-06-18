@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include "inner.h"
+#include "t_inner.h"
 
 static inline void
 add_round_key(uint64_t *q, const uint64_t *sk)

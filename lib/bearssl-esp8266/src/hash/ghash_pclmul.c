@@ -23,7 +23,7 @@
  */
 
 #define BR_ENABLE_INTRINSICS   1
-#include "inner.h"
+#include "t_inner.h"
 
 /*
  * This is the GHASH implementation that leverages the pclmulqdq opcode

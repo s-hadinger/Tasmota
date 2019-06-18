@@ -28,8 +28,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "bearssl_hash.h"
-#include "bearssl_hmac.h"
+#include "t_bearssl_hash.h"
+#include "t_bearssl_hmac.h"
 
 #ifdef __cplusplus
 extern "C" {

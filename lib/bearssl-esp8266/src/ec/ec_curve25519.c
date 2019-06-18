@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include "inner.h"
+#include "t_inner.h"
 
 static const unsigned char GEN[] PROGMEM = {
 	0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,

@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include "inner.h"
+#include "t_inner.h"
 
 /*
  * If BR_NO_ARITH_SHIFT is undefined, or defined to 0, then we _assume_

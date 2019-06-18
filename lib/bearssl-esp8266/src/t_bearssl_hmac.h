@@ -28,7 +28,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "bearssl_hash.h"
+#include "t_bearssl_hash.h"
 
 #ifdef __cplusplus
 extern "C" {

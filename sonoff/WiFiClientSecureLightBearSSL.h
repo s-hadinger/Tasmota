@@ -26,7 +26,7 @@
 #define wificlientlightbearssl_h
 #include <vector>
 #include "WiFiClient.h"
-#include <bearssl/bearssl.h>
+#include <t_bearssl.h>
 
 namespace BearSSL {
 

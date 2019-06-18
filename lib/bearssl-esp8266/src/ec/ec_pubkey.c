@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include "inner.h"
+#include "t_inner.h"
 
 static const unsigned char POINT_LEN[] PROGMEM = {
 	  0,   /* 0: not a valid curve ID */

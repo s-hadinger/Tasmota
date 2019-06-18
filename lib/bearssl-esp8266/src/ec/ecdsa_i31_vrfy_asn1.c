@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include "inner.h"
+#include "t_inner.h"
 
 #define FIELD_LEN   ((BR_MAX_EC_SIZE + 7) >> 3)
 

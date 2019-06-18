@@ -28,12 +28,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "bearssl_block.h"
-#include "bearssl_hash.h"
-#include "bearssl_hmac.h"
-#include "bearssl_prf.h"
-#include "bearssl_rand.h"
-#include "bearssl_x509.h"
+#include "t_bearssl_block.h"
+#include "t_bearssl_hash.h"
+#include "t_bearssl_hmac.h"
+#include "t_bearssl_prf.h"
+#include "t_bearssl_rand.h"
+#include "t_bearssl_x509.h"
 
 #ifdef __cplusplus
 extern "C" {

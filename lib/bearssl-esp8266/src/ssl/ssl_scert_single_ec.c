@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include "inner.h"
+#include "t_inner.h"
 
 static int
 se_choose(const br_ssl_server_policy_class **pctx,

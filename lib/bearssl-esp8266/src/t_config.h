@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include "bearssl_tasmota_config.h"
+#include "t_bearssl_tasmota_config.h"
 
 #ifndef CONFIG_H__
 #define CONFIG_H__

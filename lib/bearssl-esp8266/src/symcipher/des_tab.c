@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include "inner.h"
+#include "t_inner.h"
 
 /*
  * PC2left[x] tells where bit x goes when applying PC-2. 'x' is a bit

@@ -68,13 +68,13 @@ void br_x509_minimal_run(void *t0ctx);
 
 
 
-#include "inner.h"
+#include "t_inner.h"
 
 
 
 
 
-#include "inner.h"
+#include "t_inner.h"
 
 /*
  * Implementation Notes

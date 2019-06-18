@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include "inner.h"
+#include "t_inner.h"
 
 /*
  * This is the 64-bit variant of br_ghash_ctmul32(), with 64-bit operands

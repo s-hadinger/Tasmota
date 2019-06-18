@@ -23,7 +23,7 @@
  */
 
 #define BR_ENABLE_INTRINSICS   1
-#include "inner.h"
+#include "t_inner.h"
 
 #if BR_USE_URANDOM
 #include <sys/types.h>

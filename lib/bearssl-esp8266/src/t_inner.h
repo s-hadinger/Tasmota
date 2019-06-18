@@ -31,8 +31,8 @@
 
 #include "pgmspace_bearssl.h"
 
-#include "config.h"
-#include "bearssl.h"
+#include "t_config.h"
+#include "t_bearssl.h"
 
 /*
  * On MSVC, disable the warning about applying unary minus on an
@@ -2458,7 +2458,7 @@ int br_ssl_choose_hash(unsigned bf);
  *
  * Calling code conventions:
  *
- *  - Caller must define BR_ENABLE_INTRINSICS before including "inner.h".
+ *  - Caller must define BR_ENABLE_INTRINSICS before including "t_inner.h".
  *  - Functions that use intrinsics must be enclosed in an "enabled"
  *    region (between BR_TARGETS_X86_UP and BR_TARGETS_X86_DOWN).
  *  - Functions that use intrinsics must be tagged with the appropriate

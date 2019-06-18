@@ -955,6 +955,6 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 
 };
 
-#include "bearssl_tasmota_config.h"
+#include "t_bearssl_tasmota_config.h"
 
 #endif  // USE_MQTT_TLS

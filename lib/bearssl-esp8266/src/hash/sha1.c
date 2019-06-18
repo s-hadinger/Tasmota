@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include "inner.h"
+#include "t_inner.h"
 
 #define F(B, C, D)     ((((C) ^ (D)) & (B)) ^ (D))
 #define G(B, C, D)     ((B) ^ (C) ^ (D))

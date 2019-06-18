@@ -45,7 +45,7 @@
 
 preamble {
 
-#include "inner.h"
+#include "t_inner.h"
 
 }
 
