@@ -796,7 +796,6 @@ extern "C" {
 // Returns if the SSL handshake succeeded.
 bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 #ifdef USE_MQTT_AWS_IOT
-	br_ec_private_key sk_ec = {0, nullptr, 0};
 	if ((!_chain_P) || (!_sk_ec_P)) {
 		setLastError(ERR_MISSING_EC_KEY);
 		return false;
@@ -856,19 +855,11 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 		// allocate Private key if needed, only if USE_MQTT_AWS_IOT
 		LOG_HEAP_SIZE("_connectSSL before PrivKey allocation");
 	#ifdef USE_MQTT_AWS_IOT
-	  // allocate Private key and client certificate
-		sk_ec.curve = _sk_ec_P->curve;
-		sk_ec.xlen = _sk_ec_P->xlen;
-		sk_ec.x = (unsigned char *) malloc(sk_ec.xlen);
-		if (!sk_ec.x) break;
-		memcpy_P(sk_ec.x, _sk_ec_P->x, sk_ec.xlen);
-		LOG_HEAP_SIZE("_connectSSL after PrivKey allocation");
-
 		// ============================================================
 		// Set the EC Private Key, only USE_MQTT_AWS_IOT
 		// limited to P256 curve
 		br_ssl_client_set_single_ec(_sc.get(), _chain_P, 1,
-	                              &sk_ec, _allowed_usages,
+	                              _sk_ec_P, _allowed_usages,
 	                              _cert_issuer_key_type, &br_ec_p256_m15, br_ecdsa_sign_asn1_get_default());
 	#endif // USE_MQTT_AWS_IOT
 
@@ -889,9 +880,6 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 		stack_thunk_light_del_ref();
 	  //stack_thunk_light_repaint();
 		LOG_HEAP_SIZE("_connectSSL.end, freeing StackThunk");
-	#if defined(USE_MQTT_AWS_IOT)
-		free(sk_ec.x);
-	#endif
 
 	#ifdef USE_MQTT_TLS_CA_CERT
 		free(x509_minimal);
@@ -907,9 +895,6 @@ bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
 	setLastError(ERR_OOM);
 	DEBUG_BSSL("_connectSSL: Out of memory\n");
 	stack_thunk_light_del_ref();
-#ifdef USE_MQTT_AWS_IOT
-	free(sk_ec.x);
-#endif
 #ifdef USE_MQTT_TLS_CA_CERT
 	free(x509_minimal);
 #else
