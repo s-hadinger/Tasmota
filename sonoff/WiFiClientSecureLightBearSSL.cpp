@@ -36,9 +36,9 @@ extern "C" {
 #include "ets_sys.h"
 }
 #include "debug.h"
+#include "WiFiClientSecureLightBearSSL.h"	// needs to be before "ESP8266WiFi.h" to avoid conflict with Arduino headers
 #include "ESP8266WiFi.h"
 #include "WiFiClient.h"
-#include "WiFiClientSecureLightBearSSL.h"
 #include "StackThunk_light.h"
 #include "lwip/opt.h"
 #include "lwip/ip.h"
