@@ -243,6 +243,10 @@ uint8_t light_fixed_color_index = 1;
 
 unsigned long strip_timer_counter = 0;    // Bars and Gradient
 
+static uint32_t min3(uint32_t a, uint32_t b, uint32_t c) {
+  return (a < b && a < c) ? a : (b < c) ? b : c;
+}
+
 //
 // changeUIntScale
 // Change a value for range a..b to c..d, using only unsigned int math
@@ -1782,17 +1786,12 @@ void LightAnimate(void)
 
       // first adjust all colors to RgbwwTable if needed
       for (uint8_t i = 0; i < LST_MAX; i++) {
-        light_last_color[i] = light_new_color[i];
-        // adjust from 0.255 to 0..Settings.rgbwwTable[i] -- RgbwwTable command
-        // protect against overflow of rgbwwTable which is of size 5
-        cur_col[i] = changeUIntScale(light_last_color[i], 0, 255, 0, (i<5)? Settings.rgbwwTable[i] : 255);
+        cur_col[i] = light_last_color[i] = light_new_color[i];
         // Extend from 8 to 10 bits if no correction (in case no gamma correction is required)
         cur_col_10bits[i] = changeUIntScale(cur_col[i], 0, 255, 0, 1023);
       }
 
-
       if (PHILIPS == my_module_type) {
-        // TODO
         // Xiaomi Philips bulbs follow a different scheme:
         // channel 0=intensity, channel2=temperature
         uint16_t pxBri = cur_col[0] + cur_col[1];
@@ -1804,7 +1803,7 @@ void LightAnimate(void)
         } else {
           cur_col_10bits[0] = changeUIntScale(pxBri, 0, 255, 0, 1023);  // no gamma, extend to 10 bits
         }
-      } else {
+      } else {  // PHILIPS != my_module_type
         // Apply gamma correction for 8 and 10 bits resolutions, if needed
         if (Settings.light_correction) {
           // first apply gamma correction to all channels independently, from 8 bits value
@@ -1831,6 +1830,33 @@ void LightAnimate(void)
           // still keep an 8 bits gamma corrected version
           for (uint8_t i = 0; i < LST_MAX; i++) {
             cur_col[i] = ledGamma(cur_col[i]);
+          }
+        }
+
+        // Now see if we need to mix RGB and True White
+        // Valid only for LST_RGBW, LST_RGBWC, rgbwwTable[4] is zero, and white is zero (see doc)
+        if ((LST_RGBW <= light_subtype) && (0 == Settings.rgbwwTable[4]) && (0 == cur_col[3]+cur_col[4])) {
+          uint32_t min_rgb_10 = min3(cur_col_10bits[0], cur_col_10bits[1], cur_col_10bits[2]);
+          uint8_t min_rgb = min3(cur_col[0], cur_col[1], cur_col[2]);
+          for (uint32_t i=0; i<3; i++) {
+            // substract white and adjust according to rgbwwTable
+            cur_col_10bits[i] = changeUIntScale(cur_col_10bits[i] - min_rgb_10, 0, 255, 0, Settings.rgbwwTable[i]);
+            cur_col[i] = changeUIntScale(cur_col[i] - min_rgb, 0, 255, 0, Settings.rgbwwTable[i]);
+          }
+          // compute the adjusted white levels for 10 and 8 bits
+          uint32_t white_10 = changeUIntScale(min_rgb_10, 0, 255, 0, Settings.rgbwwTable[3]);  // set white power down corrected with rgbwwTable[3]
+          uint32_t white = changeUIntScale(min_rgb, 0, 255, 0, Settings.rgbwwTable[3]);  // set white power down corrected with rgbwwTable[3]
+          if (LST_RGBW == light_subtype) {
+            // we simply set the white channel
+            cur_col_10bits[3] = white_10;
+            cur_col[3] = white;
+          } else {  // LST_RGBWC
+            // we distribute white between cold and warm according to CT value
+            uint32_t ct = light_state.getCT();
+            cur_col_10bits[4] = changeUIntScale(ct, 153, 500, 0, white_10);
+            cur_col_10bits[3] = white_10 - cur_col_10bits[4];
+            cur_col[4] = changeUIntScale(ct, 153, 500, 0, white);
+            cur_col[3] = white - cur_col[4];
           }
         }
       }
