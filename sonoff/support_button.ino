@@ -96,6 +96,7 @@ uint8_t ButtonSerial(uint8_t serial_in_byte)
  * SetOption11 (0)     - If set perform single press action on double press and reverse
  * SetOption13 (0)     - If set act on single press only
  * SetOption32 (40)    - Max button hold time in Seconds
+ * SetOption40 (0)     - Number of 0.1 seconds until hold is discarded if SetOption1 1 and SetOption13 0
 \*********************************************************************************************/
 
 void ButtonHandler(void)
@@ -194,6 +195,13 @@ void ButtonHandler(void)
             }
           } else {
             if (Settings.flag.button_restrict) {               // SetOption1 (0) - Button restriction
+              if (Settings.param[P_HOLD_IGNORE] > 0) {         // SetOption40 (0) - Do not ignore button hold
+                if (holdbutton[button_index] > loops_per_second * Settings.param[P_HOLD_IGNORE] / 10) {
+                  holdbutton[button_index] = 0;                // Reset button hold counter to stay below hold trigger
+                  multipress[button_index] = 0;                // Discard button press to disable functionality
+//                  AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_APPLICATION D_BUTTON "%d cancel by " D_CMND_SETOPTION "40 %d"), button_index +1, Settings.param[P_HOLD_IGNORE]);
+                }
+              }
               if (holdbutton[button_index] == loops_per_second * Settings.param[P_HOLD_TIME] / 10) {  // SetOption32 (40) - Button hold
                 multipress[button_index] = 0;
                 SendKey(0, button_index +1, 3);                // Execute Hold command via MQTT if ButtonTopic is set
