@@ -240,7 +240,7 @@ void HandleUpnpSetupWemo(void)
 {
   AddLog_P(LOG_LEVEL_DEBUG, S_LOG_HTTP, PSTR(D_WEMO_SETUP));
 
-  String setup_xml = FPSTR(WEMO_SETUP_XML);
+  String_P setup_xml = FPSTR(WEMO_SETUP_XML);
   setup_xml.replace("{x1", Settings.friendlyname[0]);
   setup_xml.replace("{x2", WemoUuid());
   setup_xml.replace("{x3", WemoSerialnumber());
