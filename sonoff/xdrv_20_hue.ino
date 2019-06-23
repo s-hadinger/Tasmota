@@ -51,17 +51,17 @@ const char HUE_ST3[] PROGMEM =
   "USN: uuid:%s\r\n"
   "\r\n";
 
-String2 HueBridgeId(void)
+String HueBridgeId(void)
 {
-  String2 temp = WiFi.macAddress();
+  String temp = WiFi.macAddress();
   temp.replace(":", "");
-  String2 bridgeid = temp.substring(0, 6);
+  String bridgeid = temp.substring(0, 6);
   bridgeid += "FFFE";
   bridgeid += temp.substring(6);
   return bridgeid;  // 5CCF7FFFFE139F3D
 }
 
-String2 HueSerialnumber(void)
+String HueSerialnumber(void)
 {
   String serial = WiFi.macAddress();
   serial.replace(":", "");
@@ -69,9 +69,9 @@ String2 HueSerialnumber(void)
   return serial;  // 5ccf7f139f3d
 }
 
-String2 HueUuid(void)
+String HueUuid(void)
 {
-  String2 uuid = F("f6543a06-da50-11ba-8d8f-");
+  String uuid = F("f6543a06-da50-11ba-8d8f-");
   uuid += HueSerialnumber();
   return uuid;  // f6543a06-da50-11ba-8d8f-5ccf7f139f3d
 }
@@ -200,21 +200,21 @@ String GetHueUserId(void)
 void HandleUpnpSetupHue(void)
 {
   AddLog_P(LOG_LEVEL_DEBUG, S_LOG_HTTP, PSTR(D_HUE_BRIDGE_SETUP));
-  String2 description_xml = FPSTR(HUE_DESCRIPTION_XML);
+  String description_xml = FPSTR(HUE_DESCRIPTION_XML);
   description_xml.replace(F("{x1"), WiFi.localIP().toString());
   description_xml.replace(F("{x2"), HueUuid());
   description_xml.replace(F("{x3"), HueSerialnumber());
   WSSend(200, CT_XML, description_xml);
 }
 
-void HueNotImplemented(String2 *path)
+void HueNotImplemented(String *path)
 {
   AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR(D_LOG_HTTP D_HUE_API_NOT_IMPLEMENTED " (%s)"), path->c_str());
 
   WSSend(200, CT_JSON, "{}");
 }
 
-void HueConfigResponse(String2 *response)
+void HueConfigResponse(String *response)
 {
   *response += FPSTR(HueConfigResponse_JSON);
   response->replace("{ma", WiFi.macAddress());
@@ -226,9 +226,9 @@ void HueConfigResponse(String2 *response)
   response->replace("{id", GetHueUserId());
 }
 
-void HueConfig(String2 *path)
+void HueConfig(String *path)
 {
-  String2 response = "";
+  String response = "";
   HueConfigResponse(&response);
   WSSend(200, CT_JSON, response);
 }
@@ -247,11 +247,11 @@ uint16_t prev_ct  = 254;
 char     prev_x_str[24] = "\0"; // store previously set xy by Alexa app
 char     prev_y_str[24] = "\0";
 
-void HueLightStatus1(uint8_t device, String2 *response)
+void HueLightStatus1(uint8_t device, String *response)
 {
   uint16_t ct = 0;
   uint8_t  color_mode;
-  String2 light_status = "";
+  String light_status = "";
   uint16_t hue = 0;
   uint8_t  sat = 0;
   uint8_t  bri = 254;
@@ -339,7 +339,7 @@ void HueLightStatus1(uint8_t device, String2 *response)
   response->replace(F("{light_status}"), light_status);
 }
 
-void HueLightStatus2(uint8_t device, String2 *response)
+void HueLightStatus2(uint8_t device, String *response)
 {
   *response += FPSTR(HUE_LIGHTS_STATUS_JSON2);
   response->replace("{j1", Settings.friendlyname[device-1]);
@@ -361,12 +361,12 @@ uint32_t DecodeLightId(uint32_t id) {
   return id & 0xF;
 }
 
-void HueGlobalConfig(String2 *path)
+void HueGlobalConfig(String *path)
 {
   uint8_t maxhue = (devices_present > MAX_FRIENDLYNAMES) ? MAX_FRIENDLYNAMES : devices_present;
 
   path->remove(0,1);                                 // cut leading / to get <id>
-  String2 response = F("{\"lights\":{\"");
+  String response = F("{\"lights\":{\"");
   for (uint8_t i = 1; i <= maxhue; i++) {
     response += EncodeLightId(i);
     response += F("\":{\"state\":");
@@ -382,7 +382,7 @@ void HueGlobalConfig(String2 *path)
   WSSend(200, CT_JSON, response);
 }
 
-void HueAuthentication(String2 *path)
+void HueAuthentication(String *path)
 {
   char response[38];
 
@@ -390,12 +390,12 @@ void HueAuthentication(String2 *path)
   WSSend(200, CT_JSON, response);
 }
 
-void HueLights(String2 *path)
+void HueLights(String *path)
 {
 /*
  * http://sonoff/api/username/lights/1/state?1={"on":true,"hue":56100,"sat":254,"bri":254,"alert":"none","transitiontime":40}
  */
-  String2 response;
+  String response;
   int code = 200;
   uint16_t tmp = 0;
   uint16_t hue = 0;
@@ -596,12 +596,12 @@ void HueLights(String2 *path)
   WSSend(code, CT_JSON, response);
 }
 
-void HueGroups(String2 *path)
+void HueGroups(String *path)
 {
 /*
  * http://sonoff/api/username/groups?1={"name":"Woonkamer","lights":[],"type":"Room","class":"Living room"})
  */
-  String2 response = "{}";
+  String response = "{}";
   uint8_t maxhue = (devices_present > MAX_FRIENDLYNAMES) ? MAX_FRIENDLYNAMES : devices_present;
 
   if (path->endsWith(F("/0"))) {
@@ -620,7 +620,7 @@ void HueGroups(String2 *path)
   WSSend(200, CT_JSON, response);
 }
 
-void HandleHueApi(String *path_1)
+void HandleHueApi(String *path)
 {
   /* HUE API uses /api/<userid>/<command> syntax. The userid is created by the echo device and
    * on original HUE the pressed button allows for creation of this user. We simply ignore the
@@ -633,8 +633,6 @@ void HandleHueApi(String *path_1)
    * is converted by webserver to
    * http://sonoff/api/username/lights/1/state with arg plain={"on":true,"hue":56100,"sat":254,"bri":254,"alert":"none","transitiontime":40}
    */
-  String2 *path = (String2*) path_1;    // the cast is safe because String2 does not add any attribute
-
   path->remove(0, 4);                                // remove /api
   uint16_t apilen = path->length();
   AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR(D_LOG_HTTP D_HUE_API " (%s)"), path->c_str());         // HTP: Hue API (//lights/1/state
