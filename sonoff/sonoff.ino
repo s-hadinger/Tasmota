@@ -29,7 +29,7 @@
 #include <core_version.h>                   // Arduino_Esp8266 version information (ARDUINO_ESP8266_RELEASE and ARDUINO_ESP8266_RELEASE_2_3_0)
 #include "sonoff_version.h"                 // Sonoff-Tasmota version information
 #include "sonoff.h"                         // Enumeration used in my_user_config.h
-#include "sonoff_string_p.h"
+#include "WString2.h"
 #include "my_user_config.h"                 // Fixed user configurable options
 #ifdef USE_CONFIG_OVERRIDE
   #include "user_config_override.h"         // Configuration overrides for my_user_config.h
@@ -255,7 +255,7 @@ char* GetTopic_P(char *stopic, uint8_t prefix, char *topic, const char* subtopic
      prefix 6 = Tele fallback
   */
   char romram[CMDSZ];
-  String_P fulltopic;
+  String2 fulltopic;
 
   snprintf_P(romram, sizeof(romram), subtopic);
   if (fallback_topic_flag || (prefix > 3)) {

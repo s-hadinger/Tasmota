@@ -335,7 +335,7 @@ bool RuleSetProcess(uint8_t rule_set, String &event_saved)
     plen = tmin(plen, plen2);
     if (plen == plen2) { stop_all_rules = true; }     // If BREAK was used, Stop execution of this rule set
 
-    String_P commands = rules.substring(pevt +4, plen);     // "Backlog Dimmer 10;Color 100000"
+    String2 commands = rules.substring(pevt +4, plen);     // "Backlog Dimmer 10;Color 100000"
     plen += 6;
     rules_event_value = "";
     String event = event_saved;

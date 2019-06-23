@@ -1,5 +1,5 @@
 /*
-  sonoff_string_p.h - Post header file for Sonoff-Tasmota
+  WString2 - Post header file for Sonoff-Tasmota
 
   Copyright (C) 2019  Theo Arends
 
@@ -17,18 +17,18 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef _SONOFF_STRING_P_H_
-#define _SONOFF_STRING_P_H_
+#ifndef _SONOFF_STRING2_H_
+#define _SONOFF_STRING2_H_
 
 // This is a super class of String used to reduce code size when using replace()
 // and indexOf() with strings and PMEM strings
 // The regular String class converts inline all arguments to String objects
 // adding a lot of redundant code
-class String_P : public String {
+class String2 : public String {
   public:
-    String_P(const char *cstr = "") : String(cstr) {}
-    String_P(const String &str) : String(str) {}
-    String_P(const __FlashStringHelper *str) : String(str) {}
+    String2(const char *cstr = "") : String(cstr) {}
+    String2(const String &str) : String(str) {}
+    String2(const __FlashStringHelper *str) : String(str) {}
 
     int indexOf(const __FlashStringHelper * str) const {
       return String::indexOf(String(str));
@@ -60,7 +60,7 @@ class String_P : public String {
       String::replace(String(find), replace);
     }
 
-    String_P & operator = (const __FlashStringHelper *pstr) {
+    String2 & operator = (const __FlashStringHelper *pstr) {
       String::operator = (pstr);
     }
 };
