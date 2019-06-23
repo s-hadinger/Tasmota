@@ -40,7 +40,13 @@ class String2 : public String {
     unsigned char startsWith(const char * prefix) const {
       return String::startsWith(prefix);
     }
+    unsigned char startsWith(const __FlashStringHelper * prefix) const {
+      return String::startsWith(prefix);
+    }
     unsigned char endsWith(const char * suffix) const {
+      return String::endsWith(suffix);
+    }
+    unsigned char endsWith(const __FlashStringHelper * suffix) const {
       return String::endsWith(suffix);
     }
 
