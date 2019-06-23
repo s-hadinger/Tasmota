@@ -63,7 +63,7 @@ String2 HueBridgeId(void)
 
 String2 HueSerialnumber(void)
 {
-  String2 serial = WiFi.macAddress();
+  String serial = WiFi.macAddress();
   serial.replace(":", "");
   serial.toLowerCase();
   return serial;  // 5ccf7f139f3d
