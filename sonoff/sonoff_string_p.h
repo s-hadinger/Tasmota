@@ -53,6 +53,9 @@ class String_P : public String {
     void replace(const __FlashStringHelper * find, const String &replace) {
       String::replace(String(find), replace);
     }
+    void replace(const __FlashStringHelper * find, const char * replace) {
+      String::replace(String(find), String(replace));
+    }
     void replace(const char * find, const String &replace) {
       String::replace(String(find), replace);
     }
