@@ -299,7 +299,7 @@ void HueLightStatus1(uint8_t device, String2 *response)
   // Brightness for all devices with PWM
   //if (LST_SINGLE <= light_subtype) {
   light_status += "\"bri\":";
-  light_status += String(bri);
+  light_status += bri;
   light_status += ",";
   //}
   if (LST_COLDWARM <= light_subtype) {
@@ -324,11 +324,11 @@ void HueLightStatus1(uint8_t device, String2 *response)
       light_status += "],";
     }
     light_status += "\"hue\":";
-    light_status += String(hue);
+    light_status += hue;
     light_status += ",";
 
     light_status += "\"sat\":";
-    light_status += String(sat);
+    light_status += sat;
     light_status += ",";
   }
   if (LST_COLDWARM == light_subtype || LST_RGBW <= light_subtype) {  // white temp
@@ -633,7 +633,7 @@ void HandleHueApi(String *path_1)
    * is converted by webserver to
    * http://sonoff/api/username/lights/1/state with arg plain={"on":true,"hue":56100,"sat":254,"bri":254,"alert":"none","transitiontime":40}
    */
-  String2 *path = (String2*) path_1;    // the cast is safe because String2 does not add any attribute
+  String2 *path = new String2(*path_1);
 
   path->remove(0, 4);                                // remove /api
   uint16_t apilen = path->length();
