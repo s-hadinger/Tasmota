@@ -29,6 +29,7 @@
 #include <core_version.h>                   // Arduino_Esp8266 version information (ARDUINO_ESP8266_RELEASE and ARDUINO_ESP8266_RELEASE_2_3_0)
 #include "sonoff_version.h"                 // Sonoff-Tasmota version information
 #include "sonoff.h"                         // Enumeration used in my_user_config.h
+#include "WString2.h"
 #include "my_user_config.h"                 // Fixed user configurable options
 #ifdef USE_CONFIG_OVERRIDE
   #include "user_config_override.h"         // Configuration overrides for my_user_config.h
@@ -254,19 +255,19 @@ char* GetTopic_P(char *stopic, uint8_t prefix, char *topic, const char* subtopic
      prefix 6 = Tele fallback
   */
   char romram[CMDSZ];
-  String fulltopic;
+  String2 fulltopic;
 
   snprintf_P(romram, sizeof(romram), subtopic);
   if (fallback_topic_flag || (prefix > 3)) {
     prefix &= 3;
     fulltopic = FPSTR(kPrefixes[prefix]);
-    fulltopic += F("/");
+    fulltopic += F2("/");
     fulltopic += mqtt_client;
-    fulltopic += F("_fb");                    // cmnd/<mqttclient>_fb
+    fulltopic += F2("_fb");                    // cmnd/<mqttclient>_fb
   } else {
     fulltopic = Settings.mqtt_fulltopic;
     if ((0 == prefix) && (-1 == fulltopic.indexOf(FPSTR(MQTT_TOKEN_PREFIX)))) {
-      fulltopic += F("/");
+      fulltopic += F2("/");
       fulltopic += FPSTR(MQTT_TOKEN_PREFIX);  // Need prefix for commands to handle mqtt topic loops
     }
     for (uint8_t i = 0; i < 3; i++) {
@@ -276,13 +277,13 @@ char* GetTopic_P(char *stopic, uint8_t prefix, char *topic, const char* subtopic
     }
     fulltopic.replace(FPSTR(MQTT_TOKEN_PREFIX), Settings.mqtt_prefix[prefix]);
     fulltopic.replace(FPSTR(MQTT_TOKEN_TOPIC), topic);
-    fulltopic.replace(F("%hostname%"), my_hostname);
+    fulltopic.replace(F2("%hostname%"), my_hostname);
     String token_id = WiFi.macAddress();
     token_id.replace(":", "");
-    fulltopic.replace(F("%id%"), token_id);
+    fulltopic.replace(F2("%id%"), token_id);
   }
-  fulltopic.replace(F("#"), "");
-  fulltopic.replace(F("//"), "/");
+  fulltopic.replace(F2("#"), "");
+  fulltopic.replace(F2("//"), "/");
   if (!fulltopic.endsWith("/")) fulltopic += "/";
   snprintf_P(stopic, TOPSZ, PSTR("%s%s"), fulltopic.c_str(), romram);
   return stopic;

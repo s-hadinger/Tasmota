@@ -51,25 +51,27 @@ const char HUE_ST3[] PROGMEM =
   "USN: uuid:%s\r\n"
   "\r\n";
 
-String HueBridgeId(void)
+String2 HueBridgeId(void)
 {
-  String temp = WiFi.macAddress();
+  String2 temp = WiFi.macAddress();
   temp.replace(":", "");
-  String bridgeid = temp.substring(0, 6) + "FFFE" + temp.substring(6);
+  String2 bridgeid = temp.substring(0, 6);
+  bridgeid += "FFFE";
+  bridgeid += temp.substring(6);
   return bridgeid;  // 5CCF7FFFFE139F3D
 }
 
-String HueSerialnumber(void)
+String2 HueSerialnumber(void)
 {
-  String serial = WiFi.macAddress();
+  String2 serial = WiFi.macAddress();
   serial.replace(":", "");
   serial.toLowerCase();
   return serial;  // 5ccf7f139f3d
 }
 
-String HueUuid(void)
+String2 HueUuid(void)
 {
-  String uuid = F("f6543a06-da50-11ba-8d8f-");
+  String2 uuid = F2("f6543a06-da50-11ba-8d8f-");
   uuid += HueSerialnumber();
   return uuid;  // f6543a06-da50-11ba-8d8f-5ccf7f139f3d
 }
@@ -178,53 +180,55 @@ const char HUE_ERROR_JSON[] PROGMEM =
 
 /********************************************************************************************/
 
-String GetHueDeviceId(uint8_t id)
+String2 GetHueDeviceId(uint8_t id)
 {
-  String deviceid = WiFi.macAddress() + F(":00:11-") + String(id);
+  String2 deviceid = WiFi.macAddress();
+  deviceid += F2(":00:11-");
+  deviceid += id;
   deviceid.toLowerCase();
   return deviceid;  // 5c:cf:7f:13:9f:3d:00:11-1
 }
 
-String GetHueUserId(void)
+String2 GetHueUserId(void)
 {
   char userid[7];
 
   snprintf_P(userid, sizeof(userid), PSTR("%03x"), ESP.getChipId());
-  return String(userid);
+  return String2(userid);
 }
 
 void HandleUpnpSetupHue(void)
 {
   AddLog_P(LOG_LEVEL_DEBUG, S_LOG_HTTP, PSTR(D_HUE_BRIDGE_SETUP));
-  String description_xml = FPSTR(HUE_DESCRIPTION_XML);
-  description_xml.replace("{x1", WiFi.localIP().toString());
-  description_xml.replace("{x2", HueUuid());
-  description_xml.replace("{x3", HueSerialnumber());
+  String2 description_xml = FPSTR(HUE_DESCRIPTION_XML);
+  description_xml.replace(F2("{x1"), WiFi.localIP().toString());
+  description_xml.replace(F2("{x2"), HueUuid());
+  description_xml.replace(F2("{x3"), HueSerialnumber());
   WSSend(200, CT_XML, description_xml);
 }
 
-void HueNotImplemented(String *path)
+void HueNotImplemented(String2 *path)
 {
   AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR(D_LOG_HTTP D_HUE_API_NOT_IMPLEMENTED " (%s)"), path->c_str());
 
   WSSend(200, CT_JSON, "{}");
 }
 
-void HueConfigResponse(String *response)
+void HueConfigResponse(String2 *response)
 {
   *response += FPSTR(HueConfigResponse_JSON);
-  response->replace("{ma", WiFi.macAddress());
-  response->replace("{ip", WiFi.localIP().toString());
-  response->replace("{ms", WiFi.subnetMask().toString());
-  response->replace("{gw", WiFi.gatewayIP().toString());
-  response->replace("{br", HueBridgeId());
-  response->replace("{dt", GetDateAndTime(DT_UTC));
-  response->replace("{id", GetHueUserId());
+  response->replace(F2("{ma"), WiFi.macAddress());
+  response->replace(F2("{ip"), WiFi.localIP().toString());
+  response->replace(F2("{ms"), WiFi.subnetMask().toString());
+  response->replace(F2("{gw"), WiFi.gatewayIP().toString());
+  response->replace(F2("{br"), HueBridgeId());
+  response->replace(F2("{dt"), GetDateAndTime(DT_UTC));
+  response->replace(F2("{id"), GetHueUserId());
 }
 
-void HueConfig(String *path)
+void HueConfig(String2 *path)
 {
-  String response = "";
+  String2 response = "";
   HueConfigResponse(&response);
   WSSend(200, CT_JSON, response);
 }
@@ -243,11 +247,11 @@ uint16_t prev_ct  = 254;
 char     prev_x_str[24] = "\0"; // store previously set xy by Alexa app
 char     prev_y_str[24] = "\0";
 
-void HueLightStatus1(uint8_t device, String *response)
+void HueLightStatus1(uint8_t device, String2 *response)
 {
   uint16_t ct = 0;
   uint8_t  color_mode;
-  String light_status = "";
+  String2 light_status = "";
   uint16_t hue = 0;
   uint8_t  sat = 0;
   uint8_t  bri = 254;
@@ -291,55 +295,55 @@ void HueLightStatus1(uint8_t device, String *response)
   }
 
   *response += FPSTR(HUE_LIGHTS_STATUS_JSON1);
-  response->replace("{state}", (power & (1 << (device-1))) ? "true" : "false");
+  response->replace(F2("{state}"), (power & (1 << (device-1))) ? F2("true") : F2("false"));
   // Brightness for all devices with PWM
   //if (LST_SINGLE <= light_subtype) {
-  light_status += "\"bri\":";
-  light_status += String(bri);
-  light_status += ",";
+  light_status += F2("\"bri\":");
+  light_status += bri;
+  light_status += F2(",");
   //}
   if (LST_COLDWARM <= light_subtype) {
-    light_status += F("\"colormode\":\"");
-    light_status += (g_gotct ? "ct" : "hs");
-    light_status += "\",";
+    light_status += F2("\"colormode\":\"");
+    light_status += (g_gotct ? F2("ct") : F2("hs"));
+    light_status += F2("\",");
   }
   if (LST_RGB <= light_subtype) {  // colors
     if (prev_x_str[0] && prev_y_str[0]) {
-      light_status += "\"xy\":[";
+      light_status += F2("\"xy\":[");
       light_status += prev_x_str;
-      light_status += ",";
+      light_status += F2(",");
       light_status += prev_y_str;
-      light_status += "],";
+      light_status += F2("],");
     } else {
       float x, y;
         light_state.getXY(&x, &y);
-      light_status += "\"xy\":[";
+      light_status += F2("\"xy\":[");
       light_status += String(x, 5);
-      light_status += ",";
+      light_status += F2(",");
       light_status += String(y, 5);
-      light_status += "],";
+      light_status += F2("],");
     }
-    light_status += "\"hue\":";
-    light_status += String(hue);
-    light_status += ",";
+    light_status += F2("\"hue\":");
+    light_status += hue;
+    light_status += F2(",");
 
-    light_status += "\"sat\":";
-    light_status += String(sat);
-    light_status += ",";
+    light_status += F2("\"sat\":");
+    light_status += sat;
+    light_status += F2(",");
   }
   if (LST_COLDWARM == light_subtype || LST_RGBW <= light_subtype) {  // white temp
-    light_status += "\"ct\":";
-    light_status += String(ct > 0 ? ct : 284);
-    light_status += ",";  // if no ct, default to medium white
+    light_status += F2("\"ct\":");
+    light_status += ct > 0 ? ct : 284;
+    light_status += F2  (",");  // if no ct, default to medium white
   }
-  response->replace("{light_status}", light_status);
+  response->replace(F2("{light_status}"), light_status);
 }
 
-void HueLightStatus2(uint8_t device, String *response)
+void HueLightStatus2(uint8_t device, String2 *response)
 {
   *response += FPSTR(HUE_LIGHTS_STATUS_JSON2);
-  response->replace("{j1", Settings.friendlyname[device-1]);
-  response->replace("{j2", GetHueDeviceId(device));
+  response->replace(F2("{j1"), Settings.friendlyname[device-1]);
+  response->replace(F2("{j2"), GetHueDeviceId(device));
 }
 
 // generate a unique lightId mixing local IP address and device number
@@ -357,29 +361,28 @@ uint32_t DecodeLightId(uint32_t id) {
   return id & 0xF;
 }
 
-void HueGlobalConfig(String *path)
+void HueGlobalConfig(String2 *path)
 {
-  String response;
   uint8_t maxhue = (devices_present > MAX_FRIENDLYNAMES) ? MAX_FRIENDLYNAMES : devices_present;
 
   path->remove(0,1);                                 // cut leading / to get <id>
-  response = F("{\"lights\":{\"");
+  String2 response = F2("{\"lights\":{\"");
   for (uint8_t i = 1; i <= maxhue; i++) {
     response += EncodeLightId(i);
-    response += F("\":{\"state\":");
+    response += F2("\":{\"state\":");
     HueLightStatus1(i, &response);
     HueLightStatus2(i, &response);
     if (i < maxhue) {
-      response += ",\"";
+      response += F2(",\"");
     }
   }
-  response += F("},\"groups\":{},\"schedules\":{},\"config\":");
+  response += F2("},\"groups\":{},\"schedules\":{},\"config\":");
   HueConfigResponse(&response);
-  response += "}";
+  response += F2("}");
   WSSend(200, CT_JSON, response);
 }
 
-void HueAuthentication(String *path)
+void HueAuthentication(String2 *path)
 {
   char response[38];
 
@@ -387,12 +390,12 @@ void HueAuthentication(String *path)
   WSSend(200, CT_JSON, response);
 }
 
-void HueLights(String *path)
+void HueLights(String2 *path)
 {
 /*
  * http://sonoff/api/username/lights/1/state?1={"on":true,"hue":56100,"sat":254,"bri":254,"alert":"none","transitiontime":40}
  */
-  String response;
+  String2 response;
   int code = 200;
   uint16_t tmp = 0;
   uint16_t hue = 0;
@@ -405,29 +408,29 @@ void HueLights(String *path)
   uint8_t device = 1;
   uint8_t maxhue = (devices_present > MAX_FRIENDLYNAMES) ? MAX_FRIENDLYNAMES : devices_present;
 
-  path->remove(0,path->indexOf("/lights"));          // Remove until /lights
-  if (path->endsWith("/lights")) {                   // Got /lights
-    response = "{\"";
+  path->remove(0,path->indexOf(F2("/lights")));          // Remove until /lights
+  if (path->endsWith(F2("/lights"))) {                   // Got /lights
+    response += F2("{\"");
     for (uint8_t i = 1; i <= maxhue; i++) {
       response += EncodeLightId(i);
-      response += F("\":{\"state\":");
+      response += F2("\":{\"state\":");
       HueLightStatus1(i, &response);
       HueLightStatus2(i, &response);
       if (i < maxhue) {
-        response += ",\"";
+        response += F2(",\"");
       }
     }
-    response += "}";
+    response += F2("}");
   }
-  else if (path->endsWith("/state")) {               // Got ID/state
+  else if (path->endsWith(F2("/state"))) {               // Got ID/state
     path->remove(0,8);                               // Remove /lights/
-    path->remove(path->indexOf("/state"));           // Remove /state
+    path->remove(path->indexOf(F2("/state")));           // Remove /state
     device = DecodeLightId(atoi(path->c_str()));
     if ((device < 1) || (device > maxhue)) {
       device = 1;
     }
     if (WebServer->args()) {
-      response = "[";
+      response = F2("[");
 
       StaticJsonBuffer<400> jsonBuffer;
       JsonObject &hue_json = jsonBuffer.parseObject(WebServer->arg((WebServer->args())-1));
@@ -441,12 +444,12 @@ void HueLights(String *path)
         switch(on)
         {
           case false : ExecuteCommandPower(device, POWER_OFF, SRC_HUE);
-                       response.replace("{re", "false");
+                       response.replace(F2("{re"), F2("false"));
                        break;
           case true  : ExecuteCommandPower(device, POWER_ON, SRC_HUE);
-                       response.replace("{re", "true");
+                       response.replace(F2("{re"), F2("true"));
                        break;
-          default    : response.replace("{re", (power & (1 << (device-1))) ? "true" : "false");
+          default    : response.replace(F2("{re"), (power & (1 << (device-1))) ? F2("true") : F2("false"));
                        break;
         }
         resp = true;
@@ -472,7 +475,7 @@ void HueLights(String *path)
         response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
         response.replace("{id", String(device));
         response.replace("{cm", "bri");
-        response.replace("{re", String(tmp));
+        response.replace(F2("{re"), String(tmp));
         if (LST_SINGLE <= light_subtype) {
           change = true;
         }
@@ -499,7 +502,7 @@ void HueLights(String *path)
         response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
         response.replace("{id", String(device));
         response.replace("{cm", "xy");
-        response.replace("{re", "[" + x_str + "," + y_str + "]");
+        response.replace(F2("{re"), "[" + x_str + "," + y_str + "]");
         g_gotct = false;
         resp = true;
         change = true;
@@ -509,11 +512,11 @@ void HueLights(String *path)
         prev_hue = tmp;
         // change range from 0..65535 to 0..359
         hue = changeUIntScale(tmp, 0, 65535, 0, 359);
-        if (resp) { response += ","; }
+        if (resp) { response += F2(","); }
         response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-        response.replace("{id", String(device));
-        response.replace("{cm", "hue");
-        response.replace("{re", String(tmp));
+        response.replace(F2("{id"), String(device));
+        response.replace(F2("{cm"), F2("hue"));
+        response.replace(F2("{re"), String(tmp));
         if (LST_RGB <= light_subtype) {
           g_gotct = false;
           change = true;
@@ -527,9 +530,9 @@ void HueLights(String *path)
         if (254 <= sat) { sat = 255; }
         if (resp) { response += ","; }
         response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-        response.replace("{id", String(device));
-        response.replace("{cm", "sat");
-        response.replace("{re", String(tmp));
+        response.replace(F2("{id"), String(device));
+        response.replace(F2("{cm"), F2("sat"));
+        response.replace(F2("{re"), String(tmp));
         if (LST_RGB <= light_subtype) {
           g_gotct = false;
           change = true;
@@ -541,9 +544,9 @@ void HueLights(String *path)
         prev_ct = ct;   // store commande value
         if (resp) { response += ","; }
         response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-        response.replace("{id", String(device));
-        response.replace("{cm", "ct");
-        response.replace("{re", String(ct));
+        response.replace(F2("{id"), String(device));
+        response.replace(F2("{cm"), F2("ct"));
+        response.replace(F2("{re"), String(ct));
         if ((LST_COLDWARM == light_subtype) || (LST_RGBW <= light_subtype)) {
           g_gotct = true;
           change = true;
@@ -566,7 +569,7 @@ void HueLights(String *path)
         }
         change = false;
       }
-      response += "]";
+      response += F2("]");
       if (2 == response.length()) {
         response = FPSTR(HUE_ERROR_JSON);
       }
@@ -575,49 +578,50 @@ void HueLights(String *path)
       response = FPSTR(HUE_ERROR_JSON);
     }
   }
-  else if(path->indexOf("/lights/") >= 0) {          // Got /lights/ID
+  else if(path->indexOf(F2("/lights/")) >= 0) {          // Got /lights/ID
     path->remove(0,8);                               // Remove /lights/
     device = DecodeLightId(atoi(path->c_str()));
     if ((device < 1) || (device > maxhue)) {
       device = 1;
     }
-    response += F("{\"state\":");
+    response += F2("{\"state\":");
+//    response += F2("azertyuiopqsdfghjklmwxcvbnazertyuiopqsdfghjklmwxcvbn");     // TODO
     HueLightStatus1(device, &response);
     HueLightStatus2(device, &response);
   }
   else {
-    response = "{}";
+    response = F2("{}");
     code = 406;
   }
   AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR(D_LOG_HTTP D_HUE " Result (%s)"), response.c_str());
   WSSend(code, CT_JSON, response);
 }
 
-void HueGroups(String *path)
+void HueGroups(String2 *path)
 {
 /*
  * http://sonoff/api/username/groups?1={"name":"Woonkamer","lights":[],"type":"Room","class":"Living room"})
  */
-  String response = "{}";
+  String2 response = "{}";
   uint8_t maxhue = (devices_present > MAX_FRIENDLYNAMES) ? MAX_FRIENDLYNAMES : devices_present;
 
-  if (path->endsWith("/0")) {
+  if (path->endsWith(F2("/0"))) {
     response = FPSTR(HUE_GROUP0_STATUS_JSON);
-    String lights = F("\"1\"");
+    String lights = F2("\"1\"");
     for (uint8_t i = 2; i <= maxhue; i++) {
-      lights += ",\"";
+      lights += F2(",\"");
       lights += EncodeLightId(i);
-      lights += "\"";
+      lights += F2("\"");
     }
-    response.replace("{l1", lights);
+    response.replace(F2("{l1"), lights);
     HueLightStatus1(1, &response);
-    response += F("}");
+    response += F2("}");
   }
 
   WSSend(200, CT_JSON, response);
 }
 
-void HandleHueApi(String *path)
+void HandleHueApi(String *path_1)
 {
   /* HUE API uses /api/<userid>/<command> syntax. The userid is created by the echo device and
    * on original HUE the pressed button allows for creation of this user. We simply ignore the
@@ -630,27 +634,25 @@ void HandleHueApi(String *path)
    * is converted by webserver to
    * http://sonoff/api/username/lights/1/state with arg plain={"on":true,"hue":56100,"sat":254,"bri":254,"alert":"none","transitiontime":40}
    */
-
-  uint8_t args = 0;
+  String2 *path = new String2(*path_1);
 
   path->remove(0, 4);                                // remove /api
   uint16_t apilen = path->length();
   AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR(D_LOG_HTTP D_HUE_API " (%s)"), path->c_str());         // HTP: Hue API (//lights/1/state
-  for (args = 0; args < WebServer->args(); args++) {
-    String json = WebServer->arg(args);
-    AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR(D_LOG_HTTP D_HUE_POST_ARGS " (%s)"), json.c_str());  // HTP: Hue POST args ({"on":false})
+  for (uint8_t args = 0; args < WebServer->args(); args++) {
+    AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR(D_LOG_HTTP D_HUE_POST_ARGS " (%s)"), WebServer->arg(args).c_str());  // HTP: Hue POST args ({"on":false})
   }
 
-  if (path->endsWith("/invalid/")) {}                // Just ignore
+  if (path->endsWith(F2("/invalid/"))) {}                // Just ignore
   else if (!apilen) HueAuthentication(path);                  // New HUE App setup
-  else if (path->endsWith("/")) HueAuthentication(path);      // New HUE App setup
-  else if (path->endsWith("/config")) HueConfig(path);
-  else if (path->indexOf("/lights") >= 0) HueLights(path);
-  else if (path->indexOf("/groups") >= 0) HueGroups(path);
-  else if (path->endsWith("/schedules")) HueNotImplemented(path);
-  else if (path->endsWith("/sensors")) HueNotImplemented(path);
-  else if (path->endsWith("/scenes")) HueNotImplemented(path);
-  else if (path->endsWith("/rules")) HueNotImplemented(path);
+  else if (path->endsWith(F2("/"))) HueAuthentication(path);      // New HUE App setup
+  else if (path->endsWith(F2("/config"))) HueConfig(path);
+  else if (path->indexOf(F2("/lights")) >= 0) HueLights(path);
+  else if (path->indexOf(F2("/groups")) >= 0) HueGroups(path);
+  else if (path->endsWith(F2("/schedules"))) HueNotImplemented(path);
+  else if (path->endsWith(F2("/sensors"))) HueNotImplemented(path);
+  else if (path->endsWith(F2("/scenes"))) HueNotImplemented(path);
+  else if (path->endsWith(F2("/rules"))) HueNotImplemented(path);
   else HueGlobalConfig(path);
 }
 
@@ -665,7 +667,7 @@ bool Xdrv20(uint8_t function)
   if (devices_present && (EMUL_HUE == Settings.flag2.emulation)) {
     switch (function) {
       case FUNC_WEB_ADD_HANDLER:
-        WebServer->on("/description.xml", HandleUpnpSetupHue);
+        WebServer->on(F2("/description.xml"), HandleUpnpSetupHue);
         break;
     }
   }
