@@ -277,14 +277,14 @@ char* GetTopic_P(char *stopic, uint8_t prefix, char *topic, const char* subtopic
     }
     fulltopic.replace(FPSTR(MQTT_TOKEN_PREFIX), Settings.mqtt_prefix[prefix]);
     fulltopic.replace(FPSTR(MQTT_TOKEN_TOPIC), topic);
-    fulltopic.replace(F2("%hostname%"), my_hostname);
+    fulltopic.replace(F("%hostname%"), my_hostname);
     String token_id = WiFi.macAddress();
     token_id.replace(":", "");
-    fulltopic.replace(F2("%id%"), token_id);
+    fulltopic.replace(F("%id%"), token_id);
   }
   fulltopic.replace(F2("#"), "");
   fulltopic.replace(F2("//"), "/");
-  if (!fulltopic.endsWith("/")) fulltopic += "/";
+  if (!fulltopic.endsWith(F2("/"))) fulltopic += F2("/");
   snprintf_P(stopic, TOPSZ, PSTR("%s%s"), fulltopic.c_str(), romram);
   return stopic;
 }
