@@ -620,11 +620,11 @@ bool HttpCheckPriviledgedAccess(bool autorequestauth = true)
 
 void WSHeaderSend(void)
 {
-  WebServer->sendHeader(F("Cache-Control"), F("no-cache, no-store, must-revalidate"));
-  WebServer->sendHeader(F("Pragma"), F("no-cache"));
-  WebServer->sendHeader(F("Expires"), F("-1"));
+  WebServer->sendHeader(F2("Cache-Control"), F2("no-cache, no-store, must-revalidate"));
+  WebServer->sendHeader(F2("Pragma"), F2("no-cache"));
+  WebServer->sendHeader(F2("Expires"), F2("-1"));
 #ifndef ARDUINO_ESP8266_RELEASE_2_3_0
-  WebServer->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
+  WebServer->sendHeader(F2("Access-Control-Allow-Origin"), F2("*"));
 #endif
 }
 
@@ -647,8 +647,8 @@ void WSContentBegin(int code, int ctype)
   WebServer->client().flush();
   WSHeaderSend();
 #ifdef ARDUINO_ESP8266_RELEASE_2_3_0
-  WebServer->sendHeader(F("Accept-Ranges"),F("none"));
-  WebServer->sendHeader(F("Transfer-Encoding"),F("chunked"));
+  WebServer->sendHeader(F2("Accept-Ranges"),F2("none"));
+  WebServer->sendHeader(F2("Transfer-Encoding"),F2("chunked"));
 #endif
   WebServer->setContentLength(CONTENT_LENGTH_UNKNOWN);
   WSSend(code, ctype, "");                        // Signal start of chunked content
@@ -1329,14 +1329,14 @@ void ModuleSaveSettings(void)
         snprintf_P(webindex, sizeof(webindex), PSTR("g%d"), i);
         WebGetArg(webindex, tmp, sizeof(tmp));
         Settings.my_gp.io[i] = (!strlen(tmp)) ? 0 : atoi(tmp);
-        gpios += F(", " D_GPIO ); gpios += String(i); gpios += F(" "); gpios += String(Settings.my_gp.io[i]);
+        gpios += F2(", " D_GPIO ); gpios += String(i); gpios += F2(" "); gpios += String(Settings.my_gp.io[i]);
       }
     }
   }
 #ifndef USE_ADC_VCC
   WebGetArg("g17", tmp, sizeof(tmp));
   Settings.my_adc0 = (!strlen(tmp)) ? 0 : atoi(tmp);
-  gpios += F(", " D_ADC "0 "); gpios += String(Settings.my_adc0);
+  gpios += F2(", " D_ADC "0 "); gpios += String(Settings.my_adc0);
 #endif  // USE_ADC_VCC
 
   AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_MODULE "%s " D_CMND_MODULE "%s"), ModuleName().c_str(), gpios.c_str());
@@ -1661,7 +1661,7 @@ void HandleBackupConfiguration(void)
   char attachment[100];
   char friendlyname[sizeof(Settings.friendlyname[0])];
   snprintf_P(attachment, sizeof(attachment), PSTR("attachment; filename=Config_%s_%s.dmp"), NoAlNumToUnderscore(friendlyname, Settings.friendlyname[0]), my_version);
-  WebServer->sendHeader(F("Content-Disposition"), attachment);
+  WebServer->sendHeader(F2("Content-Disposition"), attachment);
 
   WSSend(200, CT_STREAM, "");
 
@@ -2117,9 +2117,9 @@ void HandleUploadLoop(void)
 
 void HandlePreflightRequest(void)
 {
-  WebServer->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
-  WebServer->sendHeader(F("Access-Control-Allow-Methods"), F("GET, POST"));
-  WebServer->sendHeader(F("Access-Control-Allow-Headers"), F("authorization"));
+  WebServer->sendHeader(F2("Access-Control-Allow-Origin"), F2("*"));
+  WebServer->sendHeader(F2("Access-Control-Allow-Methods"), F2("GET, POST"));
+  WebServer->sendHeader(F2("Access-Control-Allow-Headers"), F2("authorization"));
   WSSend(200, CT_HTML, "");
 }
 
@@ -2281,7 +2281,7 @@ bool CaptivePortal(void)
   if ((WifiIsInManagerMode()) && !ValidIpAddress(WebServer->hostHeader().c_str())) {
     AddLog_P(LOG_LEVEL_DEBUG, PSTR(D_LOG_HTTP D_REDIRECTED));
 
-    WebServer->sendHeader(F("Location"), String("http://") + WebServer->client().localIP().toString(), true);
+    WebServer->sendHeader(F2("Location"), String("http://") + WebServer->client().localIP().toString(), true);
     WSSend(302, CT_PLAIN, "");  // Empty content inhibits Content-length header so we have to close the socket ourselves.
     WebServer->client().stop();  // Stop is needed because we sent no content length
     return true;
@@ -2344,12 +2344,12 @@ int WebSend(char *buffer)
     RemoveSpace(host);                        // host = |[192.168.178.86:80,admin:joker|
     host++;                                   // host = |192.168.178.86:80,admin:joker| - Skip [
     host = strtok_r(host, ",", &user);        // host = |192.168.178.86:80|, user = |admin:joker|
-    String url = F("http://");                // url = |http://|
+    String url = F2("http://");                // url = |http://|
     url += host;                              // url = |http://192.168.178.86:80|
 
     command = Trim(command);                  // command = |POWER1 ON| or |/any/link/starting/with/a/slash.php?log=123|
     if (command[0] != '/') {
-      url += F("/cm?");                       // url = |http://192.168.178.86/cm?|
+      url += F2("/cm?");                       // url = |http://192.168.178.86/cm?|
       if (user) {
         user = strtok_r(user, ":", &password);  // user = |admin|, password = |joker|
         if (user && password) {
@@ -2358,7 +2358,7 @@ int WebSend(char *buffer)
           url += userpass;                    // url = |http://192.168.178.86/cm?user=admin&password=joker&|
         }
       }
-      url += F("cmnd=");                      // url = |http://192.168.178.86/cm?cmnd=| or |http://192.168.178.86/cm?user=admin&password=joker&cmnd=|
+      url += F2("cmnd=");                      // url = |http://192.168.178.86/cm?cmnd=| or |http://192.168.178.86/cm?user=admin&password=joker&cmnd=|
     }
     url += command;                           // url = |http://192.168.178.86/cm?cmnd=POWER1 ON|
 

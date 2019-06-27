@@ -20,6 +20,62 @@
 #ifndef _SONOFF_STRING2_H_
 #define _SONOFF_STRING2_H_
 
+#define FPSTR2(pstr_pointer) (reinterpret_cast<const __FlashStringHelper *>(pstr_pointer))
+#define PROGMEM2 __attribute__((section( "\".irom.text." __FILE__ "\"")))
+//#define PSTR2(s)            (__extension__({static const char __c[] __attribute__((__aligned__(4))) PROGMEM2 = (s); &__c[0];}))
+// #define PSTR2(std::string) \
+//   (__extension__({ \
+//     PGM_P ptr;  \
+//     asm volatile \
+//     ( \
+//       ".pushsection .irom.text, \"SM\", @progbits, 1" "\n\t" \
+//       "0: .string " #str                                 "\n\t" \
+//       ".popsection"                                      "\n\t" \
+//     ); \
+//     asm volatile \
+//     ( \
+//       "l32r	%0, %1"                                      "\n\t" \
+//       : "=r"(ptr) \
+//     ); \
+//     ptr; \
+//   }))
+#define PSTR2(str) \
+  (__extension__({ \
+    PGM_P ptr;  \
+    asm volatile \
+    ( \
+      ".pushsection .irom.text, \"SM\", @progbits, 1" "\n\t" \
+      ".align	4"                                       "\n\t" \
+      ".PSTR%=: .string " #str                            "\n\t" \
+      ".popsection"                                      "\n\t" \
+      ".literal .PSTR2%=, .PSTR%="                               "\n\t" \
+      "l32r %0, .PSTR2%="                             "\n\t" \
+      : "=r" (ptr) \
+    ); \
+    ptr; \
+  }))
+#define PSTR2_2(str) \
+  (__extension__({ \
+    PGM_P ptr;  \
+    asm volatile \
+    ( \
+      ".pushsection .irom.text, \"SM\", @progbits, 1" "\n\t" \
+      ".align	4"                                       "\n\t" \
+      ".PSTR%=: .string " #str                            "\n\t" \
+      ".popsection"                                      "\n\t" \
+      ".pushsection .test.literals, \"ax\", @progbits" "\n\t" \
+      ".literal_position"                               "\n\t" \
+      ".align 4"                               "\n\t" \
+      ".literal .PSTR2%=, .PSTR%="                               "\n\t" \
+      ".popsection"                                      "\n\t" \
+      "l32r %0, .PSTR2%="                             "\n\t" \
+      : "=r" (ptr) \
+    ); \
+    ptr; \
+  }))
+#define F2(string_literal) (FPSTR2(PSTR2(string_literal)))
+//#define F2(string_literal) (string_literal)
+
 // This is a super class of String used to reduce code size when using replace()
 // and indexOf() with strings and PMEM strings
 // The regular String class converts inline all arguments to String objects
@@ -30,41 +86,23 @@ class String2 : public String {
     String2(const String &str) : String(str) {}
     String2(const __FlashStringHelper *str) : String(str) {}
 
-    int indexOf(const __FlashStringHelper * str) const {
-      return String::indexOf(String(str));
-    }
-    int indexOf(const char * str) const {
-      return String::indexOf(String(str));
-    }
+    int indexOf(const __FlashStringHelper * str) const;
+    int indexOf(const char * str) const;
 
-    unsigned char startsWith(const char * prefix) const {
-      return String::startsWith(prefix);
-    }
-    unsigned char startsWith(const __FlashStringHelper * prefix) const {
-      return String::startsWith(prefix);
-    }
-    unsigned char endsWith(const char * suffix) const {
-      return String::endsWith(suffix);
-    }
-    unsigned char endsWith(const __FlashStringHelper * suffix) const {
-      return String::endsWith(suffix);
-    }
+    unsigned char startsWith(const char * prefix) const;
+    unsigned char startsWith(const __FlashStringHelper * prefix) const;
+    unsigned char endsWith(const char * suffix) const;
+    unsigned char endsWith(const __FlashStringHelper * suffix) const;
 
-    void replace(const __FlashStringHelper * find, const __FlashStringHelper * replace) {
-      String::replace(String(find), String(replace));
-    }
-    void replace(const char * find, const char * replace) {
-      String::replace(String(find), String(replace));
-    }
-    void replace(const __FlashStringHelper * find, const String &replace) {
-      String::replace(String(find), replace);
-    }
-    void replace(const __FlashStringHelper * find, const char * replace) {
-      String::replace(String(find), String(replace));
-    }
-    void replace(const char * find, const String &replace) {
-      String::replace(String(find), replace);
-    }
+    void replace(const __FlashStringHelper * find, const __FlashStringHelper * replace);
+    void replace(const __FlashStringHelper * find, __FlashStringHelper * replace);
+    void replace(const char * find, const char * replace);
+    void replace(char * find, char * replace);
+    void replace(const __FlashStringHelper * find, const String &replace);
+    void replace(const __FlashStringHelper * find, const char * replace);
+    void replace(const char * find, const __FlashStringHelper * replace);
+    void replace(const char * find, const String &replace);
+    void replace(const char * find, const String2 &replace);
 
     String2 & operator = (const __FlashStringHelper *pstr) {
       String::operator = (pstr);
