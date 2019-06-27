@@ -20,10 +20,29 @@
 #ifndef _SONOFF_STRING2_H_
 #define _SONOFF_STRING2_H_
 
-#define FPSTR2(pstr_pointer) (reinterpret_cast<const __FlashStringHelper *>(pstr_pointer))
-#define PROGMEM2 __attribute__((section( "\".irom.text." __FILE__ "\"")))
+#define PSTR2(str) PSTR_INTERNAL_1(str, __COUNTER__)
+#define PSTR_INTERNAL_1(str, num) PSTR_INTERNAL_2(str, num)
 
-#define PSTR2(str) \
+#define PSTR_INTERNAL_2(str, num) \
+  (__extension__({ \
+    PGM_P ptr;  \
+    asm volatile \
+    ( \
+      ".pushsection .irom.text, \"aSM\", @progbits, 1" "\n\t" \
+      ".align	4"                                       "\n\t" \
+      "PSTR_" #num ": .string " #str                            "\n\t" \
+      ".popsection"                                      "\n\t" \
+    ); \
+    asm volatile \
+    ( \
+      ".literal .PSTR%=, PSTR_" #num                                "\n\t" \
+      "l32r %0, .PSTR%="                             "\n\t" \
+      : "=r" (ptr) \
+    ); \
+    ptr; \
+  }))
+
+#define PSTR2_working(str) \
   (__extension__({ \
     PGM_P ptr;  \
     asm volatile \
@@ -39,7 +58,7 @@
     ptr; \
   }))
 
-#define F2(string_literal) (FPSTR2(PSTR2(string_literal)))
+#define F2(string_literal) (FPSTR(PSTR2(string_literal)))
 
 // This is a super class of String used to reduce code size when using replace()
 // and indexOf() with strings and PMEM strings
