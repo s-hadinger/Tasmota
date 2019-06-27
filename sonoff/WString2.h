@@ -22,29 +22,13 @@
 
 #define FPSTR2(pstr_pointer) (reinterpret_cast<const __FlashStringHelper *>(pstr_pointer))
 #define PROGMEM2 __attribute__((section( "\".irom.text." __FILE__ "\"")))
-//#define PSTR2(s)            (__extension__({static const char __c[] __attribute__((__aligned__(4))) PROGMEM2 = (s); &__c[0];}))
-// #define PSTR2(std::string) \
-//   (__extension__({ \
-//     PGM_P ptr;  \
-//     asm volatile \
-//     ( \
-//       ".pushsection .irom.text, \"SM\", @progbits, 1" "\n\t" \
-//       "0: .string " #str                                 "\n\t" \
-//       ".popsection"                                      "\n\t" \
-//     ); \
-//     asm volatile \
-//     ( \
-//       "l32r	%0, %1"                                      "\n\t" \
-//       : "=r"(ptr) \
-//     ); \
-//     ptr; \
-//   }))
+
 #define PSTR2(str) \
   (__extension__({ \
     PGM_P ptr;  \
     asm volatile \
     ( \
-      ".pushsection .irom.text, \"SM\", @progbits, 1" "\n\t" \
+      ".pushsection .irom.text, \"aSM\", @progbits, 1" "\n\t" \
       ".align	4"                                       "\n\t" \
       ".PSTR%=: .string " #str                            "\n\t" \
       ".popsection"                                      "\n\t" \
@@ -54,27 +38,8 @@
     ); \
     ptr; \
   }))
-#define PSTR2_2(str) \
-  (__extension__({ \
-    PGM_P ptr;  \
-    asm volatile \
-    ( \
-      ".pushsection .irom.text, \"SM\", @progbits, 1" "\n\t" \
-      ".align	4"                                       "\n\t" \
-      ".PSTR%=: .string " #str                            "\n\t" \
-      ".popsection"                                      "\n\t" \
-      ".pushsection .test.literals, \"ax\", @progbits" "\n\t" \
-      ".literal_position"                               "\n\t" \
-      ".align 4"                               "\n\t" \
-      ".literal .PSTR2%=, .PSTR%="                               "\n\t" \
-      ".popsection"                                      "\n\t" \
-      "l32r %0, .PSTR2%="                             "\n\t" \
-      : "=r" (ptr) \
-    ); \
-    ptr; \
-  }))
+
 #define F2(string_literal) (FPSTR2(PSTR2(string_literal)))
-//#define F2(string_literal) (string_literal)
 
 // This is a super class of String used to reduce code size when using replace()
 // and indexOf() with strings and PMEM strings
