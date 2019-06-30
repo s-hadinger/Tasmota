@@ -25,11 +25,13 @@
 //  This is demo code to guide developers in implementing their own approximation
 // software. This code is merely meant to illustrate algorithms.
 
-#define cosf(x) cos_52(x)
-#define sinf(x) sin_52(x)
-#define tanf(x) tan_56(x)
-#define atanf(x) atan_66(x)
-#define sqrtf(x) sqrt1(x)
+inline float sinf(float x) { return sin_52(x); }
+inline float cosf(float x) { return cos_52(x); }
+inline float tanf(float x) { return tan_56(x); }
+inline float atanf(float x) { return atan_66(x); }
+inline float asinf(float x) { return asinf1(x); }
+inline float acosf(float x) { return acosf1(x); }
+inline float sqrtf(float x) { return sqrt1(x); }
 
 // Math constants we'll use
 double const f_pi=3.1415926535897932384626433;	// f_pi
@@ -217,8 +219,24 @@ float atan_66(float x){
   return (y);
 }
 
-// https://www.codeproject.com/Articles/69941/Best-Square-Root-Method-Algorithm-Function-Precisi
+float asinf1(float x) {
+	float d = 1.0f - x*x;
+	if (d < 0.0f) { return nanf(""); }
+	return 2 * atan_66(x / (1 + sqrt1(d)));
+}
 
+float acosf1(float x) {
+	float d = 1.0f - x*x;
+	if (d < 0.0f) { return nanf(""); }
+	float y = asinf1(sqrt1(d));
+	if (x >= 0.0f) {
+		return y;
+	} else {
+		return (float)f_pi - y;
+	}
+}
+
+// https://www.codeproject.com/Articles/69941/Best-Square-Root-Method-Algorithm-Function-Precisi
 float sqrt1(const float x)
 {
   union
