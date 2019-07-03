@@ -90,7 +90,7 @@ uint32_t Ade7953Read(uint16_t reg)
     Wire.endTransmission(0);
     Wire.requestFrom(ADE7953_ADDR, size);
     if (size <= Wire.available()) {
-      for (int i = 0; i < size; i++) {
+      for (uint32_t i = 0; i < size; i++) {
         response = response << 8 | Wire.read();   // receive DATA (MSB first)
       }
     }
@@ -184,7 +184,7 @@ bool Ade7953Command(void)
 {
   bool serviced = true;
 
-  uint32_t value = (uint32_t)(CharToDouble(XdrvMailbox.data) * 100);  // 1.23 = 123
+  uint32_t value = (uint32_t)(CharToFloat(XdrvMailbox.data) * 100);  // 1.23 = 123
 
   if (CMND_POWERCAL == energy_command_code) {
     if (1 == XdrvMailbox.payload) { XdrvMailbox.payload = ADE7953_PREF; }
