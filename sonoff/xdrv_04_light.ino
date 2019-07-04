@@ -1853,8 +1853,8 @@ void LightAnimate(void)
               cur_col[i] = ledGamma(cur_col[i]);
             }
           }
-          // If RGBW, also adjust White channel
-          if (LST_RGBW == light_subtype) {
+          // If RGBW or Single channel, also adjust White channel
+          if (LST_COLDWARM != light_subtype) {
             cur_col_10bits[3] = ledGamma(cur_col[3], 10);
             cur_col[3] = ledGamma(cur_col[3]);
           }
