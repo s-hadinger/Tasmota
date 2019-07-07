@@ -170,7 +170,7 @@ bool backlog_mutex = false;                 // Command backlog pending
 bool interlock_mutex = false;               // Interlock power command pending
 bool stop_flash_rotate = false;             // Allow flash configuration rotation
 bool blinkstate = false;                    // LED state
-bool latest_uptime_flag = true;             // Signal latest uptime
+//bool latest_uptime_flag = true;             // Signal latest uptime
 bool pwm_present = false;                   // Any PWM channel configured with SetOption15 0
 bool dht_flg = false;                       // DHT configured
 bool i2c_flg = false;                       // I2C configured
@@ -1801,7 +1801,7 @@ void PublishStatus(uint8_t payload)
 {
   uint8_t option = STAT;
   char stemp[MAX_FRIENDLYNAMES * (sizeof(Settings.friendlyname[0]) +MAX_FRIENDLYNAMES)];
-  char stemp2[64];
+  char stemp2[100];
 
   // Workaround MQTT - TCP/IP stack queueing when SUB_PREFIX = PUB_PREFIX
   if (!strcmp(Settings.mqtt_prefix[0],Settings.mqtt_prefix[1]) && (!payload)) { option++; }  // TELE
@@ -2013,7 +2013,8 @@ void PerformEverySecond(void)
 
   if (ntp_synced_message) {
     // Moved here to fix syslog UDP exception 9 during RtcSecond
-    AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_APPLICATION "(" D_UTC_TIME ") %s, (" D_DST_TIME ") %s, (" D_STD_TIME ") %s"), GetTime(0).c_str(), GetTime(2).c_str(), GetTime(3).c_str());
+    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("NTP: Drift %d, (" D_UTC_TIME ") %s, (" D_DST_TIME ") %s, (" D_STD_TIME ") %s"),
+      DriftTime(), GetTime(0).c_str(), GetTime(2).c_str(), GetTime(3).c_str());
     ntp_synced_message = false;
   }
 
@@ -2074,13 +2075,14 @@ void PerformEverySecond(void)
 
   XdrvCall(FUNC_EVERY_SECOND);
   XsnsCall(FUNC_EVERY_SECOND);
-
+/*
   if ((2 == RtcTime.minute) && latest_uptime_flag) {
     latest_uptime_flag = false;
     Response_P(PSTR("{\"" D_JSON_TIME "\":\"%s\",\"" D_JSON_UPTIME "\":\"%s\"}"), GetDateAndTime(DT_LOCAL).c_str(), GetUptime().c_str());
     MqttPublishPrefixTopic_P(TELE, PSTR(D_RSLT_UPTIME));
   }
   if ((3 == RtcTime.minute) && !latest_uptime_flag) latest_uptime_flag = true;
+*/
 }
 
 /*********************************************************************************************\
