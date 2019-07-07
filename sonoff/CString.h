@@ -23,58 +23,60 @@
 #include <pgmspace.h>
 #include <WString.h>
 
-static const char PROGMEM s1[] = "%s";
-static const char PROGMEM s2[] = "%s%s";
-static const char PROGMEM s2u[] = "%s%u";
+static const char PROGMEM s1[] = "%_s";
+static const char PROGMEM s2[] = "%_s%_s";
+static const char PROGMEM s2u[] = "%_s%u";
+
+
+static void format_P(char *s, size_t size, const char* formatP, ...) {
+  va_list arg;
+  va_start(arg, formatP);
+  //vsnprintf_P(_s, CSIZE, formatP, arg);
+  vsnprintf_P(s, size, formatP, arg);
+  va_end(arg);
+}
 
 template <size_t CSIZE> class CString {
   public:
     CString() {}
     CString(char *cstr, size_t len) {
-      s = cstr;
+      _s = cstr;
     }
 
     ~CString(void) {}
 
     CString & operator =(const char *cstr) {
-      strncpy_P(s, cstr, strlen(s) - CSIZE - 1);
-      s[CSIZE-1] = '\0';;
+      strncpy_P(_s, cstr, strlen(_s) - CSIZE - 1);
+      _s[CSIZE-1] = '\0';;
     }
 
     inline CString & operator +=(const char *cstr) {
       return concat(cstr);
     }
     // CString & operator +=(const char *cstr) {
-    //   strncat_P(s, cstr, strlen(s) - CSIZE - 1);
+    //   strncat_P(_s, cstr, strlen(_s) - CSIZE - 1);
     // }
     CString & operator +=(const __FlashStringHelper *fstr) {
-      strncat_P(s, (PGM_P)fstr, strlen(s) - CSIZE - 1);
+      strncat_P(_s, (PGM_P)fstr, strlen(_s) - CSIZE - 1);
     }
     CString & operator +=(const String &str) {
-      strncat(s, str.c_str(), strlen(s) - CSIZE - 1);
+      strncat(_s, str.c_str(), strlen(_s) - CSIZE - 1);
     }
     inline CString & operator +=(const uint32_t num) {
       return concat(num);
     }
 
-    CString & concat(const char *cstr) {
-      format_P(s2, s, cstr);
+    inline CString & concat(const char *cstr) {
+      format_P(_s, CSIZE, s2, _s, cstr);
       return (*this);
     }
-    CString & concat(const uint32_t num) {
-      format_P(s2u, s, num);
+    inline CString & concat(const uint32_t num) {
+      format_P(_s, CSIZE, s2u, _s, num);
       return (*this);
-    }
-
-    void format_P(const char* formatP, ...) {
-      va_list arg;
-      va_start(arg, formatP);
-      vsnprintf_P(mqtt_data, sizeof(mqtt_data), formatP, arg);
-      va_end(arg);
     }
 
     size_t len(void) {
-      return strlen(s);
+      return strlen(_s);
     }
 
     // String2(const char *cstr = "") : String(cstr) {}
@@ -103,7 +105,8 @@ template <size_t CSIZE> class CString {
     //   String::operator = (pstr);
     // }
   private:
-    char s[CSIZE];    // allocate memory locally (ex: on the stack)
+    //size_t size = CSIZE;
+    char _s[CSIZE];    // allocate memory locally (ex: on the stack)
 };
 
 #endif  // _SONOFF_STRING_P_H_
