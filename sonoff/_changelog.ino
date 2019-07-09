@@ -4,6 +4,7 @@
  * Add command SetOption41 0..8 to control number of Tuya switches (#6039)
  * Add command SetOption42 0..255 to set overtemperature (Celsius only) threshold resulting in power off all on energy monitoring devices. Default setting is 90 (#6036)
  * Fix Domoticz battery level set to 100 if define USE_ADC_VCC is not used (#6033)
+ * Fix Force Elliptic Curve for Letsencrypt TLS #6042
  *
  * 6.6.0 20190707
  * Remove support of TLS on core 2.3.0 and extent support on core 2.4.2 and up
