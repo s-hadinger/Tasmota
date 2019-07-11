@@ -25,5 +25,8 @@ int TestCString(void) {
   s2 += 42;
   t += "azert";
   t += "azert";
+
+  CString0 s0;
+  TestCString22(s0);
   return s.len();
 }

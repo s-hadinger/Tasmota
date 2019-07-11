@@ -23,9 +23,9 @@
 #include <pgmspace.h>
 #include <WString.h>
 
-static const char PROGMEM s1[] = "%_s";
-static const char PROGMEM s2[] = "%_s%_s";
-static const char PROGMEM s2u[] = "%_s%u";
+static const char PROGMEM s1[] = "%s";
+static const char PROGMEM s2[] = "%s%s";
+static const char PROGMEM s2u[] = "%s%u";
 
 
 static void format_P(char *s, size_t size, const char* formatP, ...) {
@@ -109,4 +109,106 @@ template <size_t CSIZE> class CString {
     char _s[CSIZE];    // allocate memory locally (ex: on the stack)
 };
 
+
+class CString0 {
+public:
+  CString0() {}
+
+  size_t getSize(void) { return _size; }
+  char *getChar(void) { return _s; }
+
+
+  size_t _size;
+  char _s[];
+
+private:
+};
+
+
+class CString00 {
+public:
+  inline CString00(size_t size):_size(size), _s((char*)malloc(size)) {}
+  inline CString00(size_t size, void *ptr):_size(size), _s((char*)ptr) {}
+//  inline CString00(size_t size) { _size = size; _s = (char*) malloc(size); }
+
+  size_t getSize(void) { return _size; }
+  char *getChar(void) { return _s; }
+
+  ~CString00(void) { free(_s); }
+
+  CString00 & operator =(const char *cstr) {
+    strncpy_P(_s, cstr, strlen(_s) - _size - 1);
+    _s[_size-1] = '\0';;
+  }
+
+private:
+  size_t _size;
+  char * _s;
+
+};
+
+typedef struct lstr {
+  uint16_t size;
+  char s[];
+} lstr;
+
+class LString {
+public:
+  inline LString(size_t size) {
+    //_ls = (lstr*)malloc(size+2);
+    _ls = (lstr*) new char[size+2];
+    *((uint32_t*)_ls) = size;
+  }
+
+  size_t getSize(void) { return _ls->size; }
+  char *getChar(void) { return _ls->s; }
+
+  inline ~LString(void) {
+    delete _ls;
+  }
+
+  LString & operator =(const char *cstr) {
+    strncpy_P(_ls->s, cstr, strlen(_ls->s) - _ls->size - 1);
+    _ls->s[_ls->size-1] = '\0';;
+  }
+
+
+  inline LString & operator +=(const char *cstr) {
+    return concat(cstr);
+  }
+  // CString & operator +=(const char *cstr) {
+  //   strncat_P(_s, cstr, strlen(_s) - CSIZE - 1);
+  // }
+  LString & operator +=(const __FlashStringHelper *fstr) {
+    strncat_P(_ls->s, (PGM_P)fstr, strlen(_ls->s) - _ls->size - 1);
+  }
+  LString & operator +=(const String &str) {
+    strncat(_ls->s, str.c_str(), strlen(_ls->s) - _ls->size - 1);
+  }
+  LString & operator +=(const LString lstr) {
+    format_P(_ls->s, _ls->size, s2, _ls->s, lstr._ls->s);
+    //strncat(_ls->s, lstr._ls->s, strlen(_ls->s) - _ls->size - 1);
+  }
+  LString & operator +=(const uint32_t num) {
+    return concat(num);
+  }
+
+  LString & concat(const char *cstr) {
+    format_P(_ls->s, _ls->size, s2, _ls->s, cstr);
+    return (*this);
+  }
+
+  LString & concat(const uint32_t num) {
+    format_P(_ls->s, _ls->size, s2u, _ls->s, num);
+    return (*this);
+  }
+
+  size_t len(void) {
+    return strlen(_ls->s);
+  }
+
+private:
+  lstr * _ls;
+
+};
 #endif  // _SONOFF_STRING_P_H_
