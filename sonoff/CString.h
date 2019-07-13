@@ -23,192 +23,130 @@
 #include <pgmspace.h>
 #include <WString.h>
 
-static const char PROGMEM s1[] = "%s";
-static const char PROGMEM s2[] = "%s%s";
-static const char PROGMEM s2u[] = "%s%u";
 
+//
+// static void format_P(char *s, size_t size, const char* formatP, ...) {
+//   va_list arg;
+//   va_start(arg, formatP);
+//   //vsnprintf_P(_s, CSIZE, formatP, arg);
+//   vsnprintf_P(s, size, formatP, arg);
+//   va_end(arg);
+// }
+//
+// template <size_t CSIZE> class CString {
+//   public:
+//     CString() {}
+//     CString(char *cstr, size_t len) {
+//       _s = cstr;
+//     }
+//
+//     ~CString(void) {}
+//
+//     CString & operator =(const char *cstr) {
+//       strncpy_P(_s, cstr, strlen(_s) - CSIZE - 1);
+//       _s[CSIZE-1] = '\0';;
+//     }
+//
+//     inline CString & operator +=(const char *cstr) {
+//       return concat(cstr);
+//     }
+//     // CString & operator +=(const char *cstr) {
+//     //   strncat_P(_s, cstr, strlen(_s) - CSIZE - 1);
+//     // }
+//     CString & operator +=(const __FlashStringHelper *fstr) {
+//       strncat_P(_s, (PGM_P)fstr, strlen(_s) - CSIZE - 1);
+//     }
+//     CString & operator +=(const String &str) {
+//       strncat(_s, str.c_str(), strlen(_s) - CSIZE - 1);
+//     }
+//     inline CString & operator +=(const uint32_t num) {
+//       return concat(num);
+//     }
+//
+//     inline CString & concat(const char *cstr) {
+//       format_P(_s, CSIZE, s2, _s, cstr);
+//       return (*this);
+//     }
+//     inline CString & concat(const uint32_t num) {
+//       format_P(_s, CSIZE, s2u, _s, num);
+//       return (*this);
+//     }
+//
+//     size_t len(void) {
+//       return strlen(_s);
+//     }
+//
+//     // String2(const char *cstr = "") : String(cstr) {}
+//     // String2(const String &str) : String(str) {}
+//     // String2(const __FlashStringHelper *str) : String(str) {}
+//     //
+//     // int indexOf(const __FlashStringHelper * str) const;
+//     // int indexOf(const char * str) const;
+//     //
+//     // unsigned char startsWith(const char * prefix) const;
+//     // unsigned char startsWith(const __FlashStringHelper * prefix) const;
+//     // unsigned char endsWith(const char * suffix) const;
+//     // unsigned char endsWith(const __FlashStringHelper * suffix) const;
+//     //
+//     // void replace(const __FlashStringHelper * find, const __FlashStringHelper * replace);
+//     // void replace(const __FlashStringHelper * find, __FlashStringHelper * replace);
+//     // void replace(const char * find, const char * replace);
+//     // void replace(char * find, char * replace);
+//     // void replace(const __FlashStringHelper * find, const String &replace);
+//     // void replace(const __FlashStringHelper * find, const char * replace);
+//     // void replace(const char * find, const __FlashStringHelper * replace);
+//     // void replace(const char * find, const String &replace);
+//     // void replace(const char * find, const String2 &replace);
+//     //
+//     // String2 & operator = (const __FlashStringHelper *pstr) {
+//     //   String::operator = (pstr);
+//     // }
+//   private:
+//     //size_t size = CSIZE;
+//     char _s[CSIZE];    // allocate memory locally (ex: on the stack)
+// };
+//
+//
+// class CString0 {
+// public:
+//   CString0() {}
+//
+//   size_t getSize(void) { return _size; }
+//   char *getChar(void) { return _s; }
+//
+//
+//   size_t _size;
+//   char _s[];
+//
+// private:
+// };
+//
+//
+// class CString00 {
+// public:
+//   inline CString00(size_t size):_size(size), _s((char*)malloc(size)) {}
+//   inline CString00(size_t size, void *ptr):_size(size), _s((char*)ptr) {}
+// //  inline CString00(size_t size) { _size = size; _s = (char*) malloc(size); }
+//
+//   size_t getSize(void) { return _size; }
+//   char *getChar(void) { return _s; }
+//
+//   ~CString00(void) { free(_s); }
+//
+//   CString00 & operator =(const char *cstr) {
+//     strncpy_P(_s, cstr, strlen(_s) - _size - 1);
+//     _s[_size-1] = '\0';;
+//   }
+//
+// private:
+//   size_t _size;
+//   char * _s;
+//
+// };
+//
+// typedef struct lstr {
+//   uint16_t size;
+//   char s[];
+// } lstr;
 
-static void format_P(char *s, size_t size, const char* formatP, ...) {
-  va_list arg;
-  va_start(arg, formatP);
-  //vsnprintf_P(_s, CSIZE, formatP, arg);
-  vsnprintf_P(s, size, formatP, arg);
-  va_end(arg);
-}
-
-template <size_t CSIZE> class CString {
-  public:
-    CString() {}
-    CString(char *cstr, size_t len) {
-      _s = cstr;
-    }
-
-    ~CString(void) {}
-
-    CString & operator =(const char *cstr) {
-      strncpy_P(_s, cstr, strlen(_s) - CSIZE - 1);
-      _s[CSIZE-1] = '\0';;
-    }
-
-    inline CString & operator +=(const char *cstr) {
-      return concat(cstr);
-    }
-    // CString & operator +=(const char *cstr) {
-    //   strncat_P(_s, cstr, strlen(_s) - CSIZE - 1);
-    // }
-    CString & operator +=(const __FlashStringHelper *fstr) {
-      strncat_P(_s, (PGM_P)fstr, strlen(_s) - CSIZE - 1);
-    }
-    CString & operator +=(const String &str) {
-      strncat(_s, str.c_str(), strlen(_s) - CSIZE - 1);
-    }
-    inline CString & operator +=(const uint32_t num) {
-      return concat(num);
-    }
-
-    inline CString & concat(const char *cstr) {
-      format_P(_s, CSIZE, s2, _s, cstr);
-      return (*this);
-    }
-    inline CString & concat(const uint32_t num) {
-      format_P(_s, CSIZE, s2u, _s, num);
-      return (*this);
-    }
-
-    size_t len(void) {
-      return strlen(_s);
-    }
-
-    // String2(const char *cstr = "") : String(cstr) {}
-    // String2(const String &str) : String(str) {}
-    // String2(const __FlashStringHelper *str) : String(str) {}
-    //
-    // int indexOf(const __FlashStringHelper * str) const;
-    // int indexOf(const char * str) const;
-    //
-    // unsigned char startsWith(const char * prefix) const;
-    // unsigned char startsWith(const __FlashStringHelper * prefix) const;
-    // unsigned char endsWith(const char * suffix) const;
-    // unsigned char endsWith(const __FlashStringHelper * suffix) const;
-    //
-    // void replace(const __FlashStringHelper * find, const __FlashStringHelper * replace);
-    // void replace(const __FlashStringHelper * find, __FlashStringHelper * replace);
-    // void replace(const char * find, const char * replace);
-    // void replace(char * find, char * replace);
-    // void replace(const __FlashStringHelper * find, const String &replace);
-    // void replace(const __FlashStringHelper * find, const char * replace);
-    // void replace(const char * find, const __FlashStringHelper * replace);
-    // void replace(const char * find, const String &replace);
-    // void replace(const char * find, const String2 &replace);
-    //
-    // String2 & operator = (const __FlashStringHelper *pstr) {
-    //   String::operator = (pstr);
-    // }
-  private:
-    //size_t size = CSIZE;
-    char _s[CSIZE];    // allocate memory locally (ex: on the stack)
-};
-
-
-class CString0 {
-public:
-  CString0() {}
-
-  size_t getSize(void) { return _size; }
-  char *getChar(void) { return _s; }
-
-
-  size_t _size;
-  char _s[];
-
-private:
-};
-
-
-class CString00 {
-public:
-  inline CString00(size_t size):_size(size), _s((char*)malloc(size)) {}
-  inline CString00(size_t size, void *ptr):_size(size), _s((char*)ptr) {}
-//  inline CString00(size_t size) { _size = size; _s = (char*) malloc(size); }
-
-  size_t getSize(void) { return _size; }
-  char *getChar(void) { return _s; }
-
-  ~CString00(void) { free(_s); }
-
-  CString00 & operator =(const char *cstr) {
-    strncpy_P(_s, cstr, strlen(_s) - _size - 1);
-    _s[_size-1] = '\0';;
-  }
-
-private:
-  size_t _size;
-  char * _s;
-
-};
-
-typedef struct lstr {
-  uint16_t size;
-  char s[];
-} lstr;
-
-class LString {
-public:
-  inline LString(size_t size) {
-    //_ls = (lstr*)malloc(size+2);
-    _ls = (lstr*) new char[size+2];
-    *((uint32_t*)_ls) = size;
-  }
-
-  size_t getSize(void) { return _ls->size; }
-  char *getChar(void) { return _ls->s; }
-
-  inline ~LString(void) {
-    delete _ls;
-  }
-
-  LString & operator =(const char *cstr) {
-    strncpy_P(_ls->s, cstr, strlen(_ls->s) - _ls->size - 1);
-    _ls->s[_ls->size-1] = '\0';;
-  }
-
-
-  inline LString & operator +=(const char *cstr) {
-    return concat(cstr);
-  }
-  // CString & operator +=(const char *cstr) {
-  //   strncat_P(_s, cstr, strlen(_s) - CSIZE - 1);
-  // }
-  LString & operator +=(const __FlashStringHelper *fstr) {
-    strncat_P(_ls->s, (PGM_P)fstr, strlen(_ls->s) - _ls->size - 1);
-  }
-  LString & operator +=(const String &str) {
-    strncat(_ls->s, str.c_str(), strlen(_ls->s) - _ls->size - 1);
-  }
-  LString & operator +=(const LString lstr) {
-    format_P(_ls->s, _ls->size, s2, _ls->s, lstr._ls->s);
-    //strncat(_ls->s, lstr._ls->s, strlen(_ls->s) - _ls->size - 1);
-  }
-  LString & operator +=(const uint32_t num) {
-    return concat(num);
-  }
-
-  LString & concat(const char *cstr) {
-    format_P(_ls->s, _ls->size, s2, _ls->s, cstr);
-    return (*this);
-  }
-
-  LString & concat(const uint32_t num) {
-    format_P(_ls->s, _ls->size, s2u, _ls->s, num);
-    return (*this);
-  }
-
-  size_t len(void) {
-    return strlen(_ls->s);
-  }
-
-private:
-  lstr * _ls;
-
-};
 #endif  // _SONOFF_STRING_P_H_
