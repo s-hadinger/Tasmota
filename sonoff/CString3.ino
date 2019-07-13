@@ -24,7 +24,9 @@ int TestLString(void) {
 }
 
 void TestCString(void) {
-
+  LString deviceid = GetHueDeviceId2(255);
+  LString userid = GetHueUserId2();
+  Serial.printf("%s - %s\n", deviceid.c_str(), userid.c_str());
 }
 
 LString GetHueDeviceId2(uint8_t id)
@@ -37,7 +39,21 @@ LString GetHueDeviceId2(uint8_t id)
 LString GetHueUserId2(void)
 {
   LString userid(7);
-  //char userid[7];
   userid.format(PSTR("%03x"), ESP.getChipId());
   return userid;
+}
+
+String HueSerialnumber2(void)
+{
+  String serial = WiFi.macAddress();
+  serial.replace(":", "");
+  serial.toLowerCase();
+  return serial;  // 5ccf7f139f3d
+}
+
+LString HueUuid2(void)
+{
+  LString uuid(40);
+  uuid.format(PSTR("f6543a06-da50-11ba-8d8f-%s"), HueSerialnumber2().c_str());
+  return uuid;  // f6543a06-da50-11ba-8d8f-5ccf7f139f3d
 }
