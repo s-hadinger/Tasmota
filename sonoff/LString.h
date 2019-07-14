@@ -23,6 +23,16 @@ public:
     *((uint32_t*)_ls) = size;
   }
 
+
+  LString(size_t size, const char *fmt, ...) {
+    va_list arg;
+    va_start(arg, fmt);
+    //_ls = (lstr*)malloc(size+2);
+    _ls = (lstr*) new char[size+2];
+    *((uint32_t*)_ls) = size;
+    vsnprintf_P(_ls->s, _ls->size, fmt, arg);
+  }
+
   size_t getSize(void) { return _ls->size; }
   char *getChar(void) { return _ls->s; }
 
