@@ -23,14 +23,12 @@ public:
     *((uint32_t*)_ls) = size;
   }
 
-
   LString(size_t size, const char *fmt, ...) {
     va_list arg;
     va_start(arg, fmt);
-    //_ls = (lstr*)malloc(size+2);
     _ls = (lstr*) new char[size+2];
     *((uint32_t*)_ls) = size;
-    vsnprintf_P(_ls->s, _ls->size, fmt, arg);
+    vsnprintf_P(_ls->s, size, fmt, arg);
   }
 
   size_t getSize(void) { return _ls->size; }
@@ -42,9 +40,20 @@ public:
 
   LString & operator =(const char *cstr) {
     strncpy_P(_ls->s, cstr, strlen(_ls->s) - _ls->size - 1);
-    _ls->s[_ls->size-1] = '\0';;
+    _ls->s[_ls->size-1] = '\0';
   }
 
+  inline size_t len(void) const {
+    return strlen(_ls->s);
+  }
+
+  int32_t lastIndexOf(const char * s2, size_t fromIndex) const ;
+
+  void setLen(size_t len) {
+    if (len < _ls->size) {
+      _ls->s[len] = '\0';
+    }
+  }
 
   inline LString & operator +=(const char *cstr) {
     return concat(cstr);
@@ -83,14 +92,12 @@ public:
     return (*this);
   }
 
-  void toLowerCase(void);
+  LString & toLowerCase(void);
   /*explicit*/ operator char*() const { return _ls->s; }
 
-  const char * c_str(void) { return _ls->s; }
+  LString & replace(const char * find, const char * replace);
 
-  size_t len(void) {
-    return strlen(_ls->s);
-  }
+  const char * c_str(void) { return _ls->s; }
 
 private:
   lstr * _ls;
