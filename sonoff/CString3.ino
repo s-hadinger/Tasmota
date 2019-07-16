@@ -24,6 +24,7 @@ int TestLString(void) {
 }
 
 void TestCString(void) {
+  TestNew();
   LString deviceid = GetHueDeviceId2(255);
   LString userid = GetHueUserId2();
   Serial.printf("%s - %s\n", deviceid.c_str(), userid.c_str());
@@ -54,4 +55,14 @@ LString HueUuid2(void)
 {
   LString uuid(40, PSTR("f6543a06-da50-11ba-8d8f-%s"), HueSerialnumber2().c_str());
   return uuid;  // f6543a06-da50-11ba-8d8f-5ccf7f139f3d
+}
+
+void TestNew(void) {
+  char *s = new char[342];
+
+  size_t len = *((size_t*)s - 1);
+
+  Serial.printf("Size = %d\n", len);
+
+  delete[] s;
 }
