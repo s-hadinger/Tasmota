@@ -60,9 +60,12 @@ LString HueUuid2(void)
 void TestNew(void) {
   char *s = new char[342];
 
-  size_t len = *((size_t*)s - 1);
+  uint32_t len = *(((uint32_t*)s) - 1);
+  uint32_t len2 = *(((uint32_t*)s) - 2);
+  uint32_t len3 = *(((uint32_t*)s) - 3);
+  uint32_t len4 = *(((uint32_t*)s) - 4);
 
-  Serial.printf("Size = %d\n", len);
+  Serial.printf("Size = %d, %d, %d, %d\n", len, len2, len3, len4);
 
   delete[] s;
 }
