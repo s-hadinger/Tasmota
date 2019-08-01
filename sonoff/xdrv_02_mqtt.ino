@@ -1103,8 +1103,8 @@ uint32_t bswap32(uint32_t x) {
 		((x >> 24) & 0x000000ff );
 }
 void CmndTlsDump(void) {
-  uint32_t start = 0x40200400;
-  uint32_t end   = 0x402007FF;
+  uint32_t start = 0x402FF400;
+  uint32_t end   = 0x402FF7FF;
   for (uint32_t pos = start; pos < end; pos += 0x10) {
       uint32_t* values = (uint32_t*)(pos);
       Serial.printf(PSTR("%08x:  %08x %08x %08x %08x\n"), pos, bswap32(values[0]), bswap32(values[1]), bswap32(values[2]), bswap32(values[3]));
