@@ -19,7 +19,7 @@
 
 #define XDRV_02                2
 
-#define DEBUG_DUMP_TLS    // allow dumping of TLS Flash keys
+// #define DEBUG_DUMP_TLS    // allow dumping of TLS Flash keys
 
 #ifdef USE_MQTT_TLS
   #include "WiFiClientSecureLightBearSSL.h"
