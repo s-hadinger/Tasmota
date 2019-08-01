@@ -19,7 +19,7 @@
 
 #define XDRV_02                2
 
-// #define DEBUG_DUMP_TLS    // allow dumping of TLS Flash keys
+#define DEBUG_DUMP_TLS    // allow dumping of TLS Flash keys
 
 #ifdef USE_MQTT_TLS
   #include "WiFiClientSecureLightBearSSL.h"
@@ -986,21 +986,35 @@ inline void TlsEraseBuffer(uint8_t *buffer) {
   memset(buffer + tls_block_offset, 0xFF, tls_block_len);
 }
 
+static br_ec_private_key EC = {
+	23,
+	nullptr, 0
+};
+
+static br_x509_certificate CHAIN[] = {
+	{ nullptr, 0 }
+};
+
 // load a copy of the tls_dir from flash into ram
 void loadTlsDir(void) {
   memcpy_P(&tls_dir, tls_spi_start + tls_block_offset, sizeof(tls_dir));
 
   // calculate the addresses for Key and Cert in Flash
   if ((TLS_NAME_SKEY == tls_dir.entry[0].name) && (tls_dir.entry[0].len > 0)) {
-    AWS_IoT_Private_Key = (br_ec_private_key*) (tls_spi_start + tls_obj_store_offset + tls_dir.entry[0].start);
+    EC.x = (unsigned char *)(tls_spi_start + tls_obj_store_offset + tls_dir.entry[0].start);
+    EC.xlen = tls_dir.entry[0].len;
+    AWS_IoT_Private_Key = &EC;
   } else {
     AWS_IoT_Private_Key = nullptr;
   }
   if ((TLS_NAME_CRT == tls_dir.entry[1].name) && (tls_dir.entry[1].len > 0)) {
-    AWS_IoT_Client_Certificate = (br_x509_certificate*) (tls_spi_start + tls_obj_store_offset + tls_dir.entry[1].start);
+    CHAIN[0].data = (unsigned char *) (tls_spi_start + tls_obj_store_offset + tls_dir.entry[1].start);
+    CHAIN[0].data_len = tls_dir.entry[1].len;
+    AWS_IoT_Client_Certificate = CHAIN;
   } else {
     AWS_IoT_Client_Certificate = nullptr;
   }
+Serial.printf("AWS_IoT_Private_Key = %x, AWS_IoT_Client_Certificate = %x\n", AWS_IoT_Private_Key, AWS_IoT_Client_Certificate);
 }
 
 void CmndTlsKey(void) {
