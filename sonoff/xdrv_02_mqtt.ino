@@ -19,7 +19,7 @@
 
 #define XDRV_02                2
 
-// #define DEBUG_DUMP_TLS    // allow dumping of TLS Flash keys
+#define DEBUG_DUMP_TLS    // allow dumping of TLS Flash keys
 
 #ifdef USE_MQTT_TLS
   #include "WiFiClientSecureLightBearSSL.h"
@@ -986,6 +986,8 @@ inline void TlsEraseBuffer(uint8_t *buffer) {
   memset(buffer + tls_block_offset, 0xFF, tls_block_len);
 }
 
+// static data structures for Private Key and Certificate, only the pointer
+// to binary data will change to a region in SPI Flash
 static br_ec_private_key EC = {
 	23,
 	nullptr, 0
@@ -996,6 +998,7 @@ static br_x509_certificate CHAIN[] = {
 };
 
 // load a copy of the tls_dir from flash into ram
+// and calculate the appropriate data structures for AWS_IoT_Private_Key and AWS_IoT_Client_Certificate
 void loadTlsDir(void) {
   memcpy_P(&tls_dir, tls_spi_start + tls_block_offset, sizeof(tls_dir));
 
@@ -1014,8 +1017,10 @@ void loadTlsDir(void) {
   } else {
     AWS_IoT_Client_Certificate = nullptr;
   }
-Serial.printf("AWS_IoT_Private_Key = %x, AWS_IoT_Client_Certificate = %x\n", AWS_IoT_Private_Key, AWS_IoT_Client_Certificate);
+//Serial.printf("AWS_IoT_Private_Key = %x, AWS_IoT_Client_Certificate = %x\n", AWS_IoT_Private_Key, AWS_IoT_Client_Certificate);
 }
+
+const char ALLOCATE_ERROR[] PROGMEM = "TLSKey " D_JSON_ERROR ": cannot allocate buffer.";
 
 void CmndTlsKey(void) {
 #ifdef DEBUG_DUMP_TLS
@@ -1030,22 +1035,27 @@ void CmndTlsKey(void) {
       // first copy SPI buffer into ram
       uint8_t *spi_buffer = (uint8_t*) malloc(tls_spi_len);
       if (!spi_buffer) {
-        AddLog_P(LOG_LEVEL_ERROR, PSTR("TlsStore: cannot allocate buffer."));
+        AddLog_P(LOG_LEVEL_ERROR, ALLOCATE_ERROR);
         return;
       }
       memcpy_P(spi_buffer, tls_spi_start, tls_spi_len);
 
       // allocate buffer for decoded base64
       uint32_t bin_len = decode_base64_length((unsigned char*)XdrvMailbox.data);
-      uint8_t  *bin_buf = (uint8_t*) malloc(bin_len + 4);
-      if (!bin_buf) {
-        AddLog_P(LOG_LEVEL_ERROR, PSTR("TlsStore: cannot allocate buffer."));
-        free(spi_buffer);
-        return;
+      uint8_t  *bin_buf = nullptr;
+      if (bin_len > 0) {
+        bin_buf = (uint8_t*) malloc(bin_len + 4);
+        if (!bin_buf) {
+          AddLog_P(LOG_LEVEL_ERROR, ALLOCATE_ERROR);
+          free(spi_buffer);
+          return;
+        }
       }
 
       // decode base64
-      decode_base64((unsigned char*)XdrvMailbox.data, bin_buf);
+      if (bin_len > 0) {
+        decode_base64((unsigned char*)XdrvMailbox.data, bin_buf);
+      }
 
       // address of writable tls_dir in buffer
       tls_dir_write = (tls_dir_t*) (spi_buffer + tls_block_offset);
@@ -1054,23 +1064,41 @@ void CmndTlsKey(void) {
         // Try to write Private key
         // Start by erasing all
         TlsEraseBuffer(spi_buffer);   // Erase any previously stored data
-        tls_entry_t *entry = &tls_dir_write->entry[0];
-        entry->name = TLS_NAME_SKEY;
-        entry->start = 0;
-        entry->len = bin_len;
-        memcpy(spi_buffer + tls_obj_store_offset + entry->start, bin_buf, entry->len);
+        if (bin_len > 0) {
+          if (bin_len != 32) {
+            // no private key was previously stored, abort
+            AddLog_P2(LOG_LEVEL_INFO, PSTR("TLSKey: Certificate must be 32 bytes: %d."), bin_len);
+            free(spi_buffer);
+            free(bin_buf);
+            return;
+          }
+          tls_entry_t *entry = &tls_dir_write->entry[0];
+          entry->name = TLS_NAME_SKEY;
+          entry->start = 0;
+          entry->len = bin_len;
+          memcpy(spi_buffer + tls_obj_store_offset + entry->start, bin_buf, entry->len);
+        } else {
+          // if lenght is zero, simply erase this SPI flash area
+        }
       } else if (2 == XdrvMailbox.index) {
         // Try to write Certificate
         if (TLS_NAME_SKEY != tls_dir.entry[0].name) {
           // no private key was previously stored, abort
-          AddLog_P(LOG_LEVEL_INFO, PSTR("TlsStore: cannot store Cert if no Key previously stored."));
+          AddLog_P(LOG_LEVEL_INFO, PSTR("TLSKey: cannot store Cert if no Key previously stored."));
+          free(spi_buffer);
+          free(bin_buf);
+          return;
+        }
+        if (bin_len <= 256) {
+          // Certificate lenght too short
+          AddLog_P2(LOG_LEVEL_INFO, PSTR("TLSKey: Certificate length too short: %d."), bin_len);
           free(spi_buffer);
           free(bin_buf);
           return;
         }
         tls_entry_t *entry = &tls_dir_write->entry[1];
         entry->name = TLS_NAME_CRT;
-        entry->start = tls_dir_write->entry[0].start + tls_dir_write->entry[0].len;
+        entry->start = (tls_dir_write->entry[0].start + tls_dir_write->entry[0].len + 3) & ~0x03; // align to 4 bytes boundary
         entry->len = bin_len;
         memcpy(spi_buffer + tls_obj_store_offset + entry->start, bin_buf, entry->len);
       }
@@ -1078,14 +1106,12 @@ void CmndTlsKey(void) {
       TlsWriteSpiBuffer(spi_buffer);
       free(spi_buffer);
       free(bin_buf);
-
     }
 
     loadTlsDir();   // reload into memory any potential change
-    //ResponseAppend_P(PSTR(",\"" D_CMND_HSBCOLOR "\":\"%d,%d,%d\""), hue,sat,bri);
-    Response_P(PSTR("{\"%s1\":\"key\",\"%s1Len\":%d,\"%s2\":\"crt\",\"%s2Len\":%d}"),
-      XdrvMailbox.command, XdrvMailbox.command, AWS_IoT_Private_Key ? tls_dir.entry[0].len : -1,
-      XdrvMailbox.command, XdrvMailbox.command, AWS_IoT_Client_Certificate ? tls_dir.entry[1].len : -1);
+    Response_P(PSTR("{\"%s1\":%d,\"%s2\":%d}"),
+      XdrvMailbox.command, AWS_IoT_Private_Key ? tls_dir.entry[0].len : -1,
+      XdrvMailbox.command, AWS_IoT_Client_Certificate ? tls_dir.entry[1].len : -1);
   }
 }
 
