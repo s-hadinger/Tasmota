@@ -24,58 +24,90 @@
 
 #define XDRV_23                    23
 
-const uint32_t ZIGBEE_BUFFER_SIZE = 256;
+const uint32_t ZIGBEE_BUFFER_SIZE = 256;  // Max ZNP frame is SOF+LEN+CMD1+CMD2+250+FCS = 255
+const uint8_t  ZIGBEE_SOF = 0xFE;
 
 #include <TasmotaSerial.h>
 
 TasmotaSerial *ZigbeeSerial = nullptr;
 
 unsigned long zigbee_polling_window = 0;
-char *zigbee_buffer = nullptr;
-int zigbee_in_byte_counter = 0;
+uint8_t *zigbee_buffer = nullptr;
+uint32_t zigbee_in_byte_counter = 0;
+uint32_t zigbee_frame_len = 256;
 bool zigbee_active = true;
 bool zigbee_raw = false;
 
+// see https://stackoverflow.com/questions/6357031/how-do-you-convert-a-byte-array-to-a-hexadecimal-string-in-c
+static void tohex(unsigned char * in, size_t insz, char * out, size_t outsz) {
+	unsigned char * pin = in;
+	static const char * hex = "0123456789ABCDEF";
+	char * pout = out;
+	for(; pin < in+insz; pout +=3, pin++){
+		pout[0] = hex[(*pin>>4) & 0xF];
+		pout[1] = hex[ *pin     & 0xF];
+		pout[2] = ':';
+		if (pout + 3 - out > outsz){
+			/* Better to truncate output string than overflow buffer */
+			/* it would be still better to either return a status */
+			/* or ensure the target buffer is large enough and it never happen */
+			break;
+		}
+	}
+	pout[-1] = 0;
+}
+
+
 void ZigbeeInput(void)
 {
+  // Receive only valid ZNP frames:
+  // 00 - SOF = 0xFE
+  // 01 - Length of Data Field - 0..250
+  // 02 - CMD1 - first byte of command
+  // 03 - CMD2 - second byte of command
+  // 04..FD - Data Field
+  // FE (or last) - FCS Checksum
+
   while (ZigbeeSerial->available()) {
     yield();
     uint8_t serial_in_byte = ZigbeeSerial->read();
 
-    if ((serial_in_byte > 127) && !zigbee_raw) {                        // Discard binary data above 127 if no raw reception allowed
-      zigbee_in_byte_counter = 0;
-      ZigbeeSerial->flush();
-      return;
+    if ((0 == zigbee_in_byte_counter) && (ZIGBEE_SOF != serial_in_byte)) {
+      // waiting for SOF (Start Of Frame) byte, discard anything else
+      continue;     // discard
     }
-    if (serial_in_byte || zigbee_raw) {                                 // Any char between 1 and 127 or any char (0 - 255)
+    // if ((serial_in_byte > 127) && !zigbee_raw) {                        // Discard binary data above 127 if no raw reception allowed
+    //   zigbee_in_byte_counter = 0;
+    //   ZigbeeSerial->flush();
+    //   return;
+    // }
 
-      if ((zigbee_in_byte_counter < SERIAL_BRIDGE_BUFFER_SIZE -1) &&    // Add char to string if it still fits and ...
-          ((isprint(serial_in_byte) && (128 == Settings.serial_delimiter)) ||  // Any char between 32 and 127
-          ((serial_in_byte != Settings.serial_delimiter) && (128 != Settings.serial_delimiter)) ||  // Any char between 1 and 127 and not being delimiter
-            zigbee_raw)) {                                              // Any char between 0 and 255
-        zigbee_buffer[zigbee_in_byte_counter++] = serial_in_byte;
-        zigbee_polling_window = millis();                               // Wait for more data
-      } else {
-        zigbee_polling_window = 0;                                      // Publish now
-        break;
-      }
+    if (zigbee_in_byte_counter < zigbee_frame_len) {
+      zigbee_buffer[zigbee_in_byte_counter++] = serial_in_byte;
+      zigbee_polling_window = millis();                               // Wait for more data
+    } else {
+      zigbee_polling_window = 0;                                      // Publish now
+      break;
+    }
+
+    // recalculate frame length
+    if (02 == zigbee_in_byte_counter) {
+      // We just received the Lenght byte
+      uint8_t len_byte = zigbee_buffer[1];
+      if (len_byte > 250)  len_byte = 250;    // ZNP spec says len is 250 max
+
+      zigbee_frame_len = len_byte + 5;        // SOF + LEN + CMD1 + CMD2 + FCS = 5 bytes overhead
     }
   }
 
-  if (zigbee_in_byte_counter && (millis() > (zigbee_polling_window + SERIAL_POLLING))) {
-    zigbee_buffer[zigbee_in_byte_counter] = 0;                   // Serial data completed
-    if (!zigbee_raw) {
-      Response_P(PSTR("{\"" D_JSON_SSERIALRECEIVED "\":\"%s\"}"), zigbee_buffer);
-    } else {
-      Response_P(PSTR("{\"" D_JSON_SSERIALRECEIVED "\":\""));
-      for (uint32_t i = 0; i < zigbee_in_byte_counter; i++) {
-        ResponseAppend_P(PSTR("%02x"), zigbee_buffer[i]);
-      }
-      ResponseAppend_P(PSTR("\"}"));
-    }
-    MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_SSERIALRECEIVED));
+  if (zigbee_in_byte_counter && (millis() > (zigbee_polling_window + ZIGBEE_POLLING))) {
+    char hex[512];
+    tohex(zigbee_buffer, zigbee_in_byte_counter, hex, sizeof(hex));
+    Response_P(PSTR("{\"" D_JSON_ZIGBEERECEIVED "\":\"%s\"}"), hex);
+    MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEERECEIVED));
     XdrvRulesProcess();
     zigbee_in_byte_counter = 0;
+    zigbee_frame_len = 254;
   }
 }
 
@@ -84,14 +116,14 @@ void ZigbeeInput(void)
 void ZigbeeInit(void)
 {
   zigbee_active = false;
-  if ((pin[GPIO_SBR_RX] < 99) && (pin[GPIO_SBR_TX] < 99)) {
-    ZigbeeSerial = new TasmotaSerial(pin[GPIO_SBR_RX], pin[GPIO_SBR_TX]);
-    if (ZigbeeSerial->begin(Settings.sbaudrate * 1200)) {  // Baud rate is stored div 1200 so it fits into one byte
+  if ((pin[GPIO_ZIGBEE_RX] < 99) && (pin[GPIO_ZIGBEE_TX] < 99)) {
+    ZigbeeSerial = new TasmotaSerial(pin[GPIO_ZIGBEE_RX], pin[GPIO_ZIGBEE_TX]);
+    if (ZigbeeSerial->begin(115200)) {    // ZNP is 115200, RTS/CTS (ignored), 8N1
       if (ZigbeeSerial->hardwareSerial()) {
         ClaimSerial();
-        zigbee_buffer = serial_in_buffer;  // Use idle serial buffer to save RAM
+        zigbee_buffer = (uint8_t*) serial_in_buffer;  // Use idle serial buffer to save RAM
       } else {
-        zigbee_buffer = (char*)(malloc(SERIAL_BRIDGE_BUFFER_SIZE));
+        zigbee_buffer = (uint8_t*) malloc(SERIAL_BRIDGE_BUFFER_SIZE);
       }
       zigbee_active = true;
       ZigbeeSerial->flush();
