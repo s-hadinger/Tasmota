@@ -27,6 +27,11 @@
 const uint32_t ZIGBEE_BUFFER_SIZE = 256;  // Max ZNP frame is SOF+LEN+CMD1+CMD2+250+FCS = 255
 const uint8_t  ZIGBEE_SOF = 0xFE;
 
+
+const char kZigbeeCommands[] PROGMEM = D_CMND_ZIGBEESEND;
+
+void (* const ZigbeeCommand[])(void) PROGMEM = { &CmndZigbeeSend };
+
 #include <TasmotaSerial.h>
 
 TasmotaSerial *ZigbeeSerial = nullptr;
@@ -101,9 +106,11 @@ void ZigbeeInput(void)
   }
 
   if (zigbee_in_byte_counter && (millis() > (zigbee_polling_window + ZIGBEE_POLLING))) {
-    char hex[512];
-    tohex(zigbee_buffer, zigbee_in_byte_counter, hex, sizeof(hex));
-    Response_P(PSTR("{\"" D_JSON_ZIGBEERECEIVED "\":\"%s\"}"), hex);
+    Response_P(PSTR("{\"" D_JSON_ZIGBEERECEIVED "\":\""));
+    for (uint32_t i = 0; i < serial_bridge_in_byte_counter; i++) {
+      ResponseAppend_P(PSTR("%02x"), serial_bridge_buffer[i]);
+    }
+    ResponseAppend_P(PSTR("\"}"));
     MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEERECEIVED));
     XdrvRulesProcess();
     zigbee_in_byte_counter = 0;
@@ -132,6 +139,30 @@ void ZigbeeInit(void)
 }
 
 /*********************************************************************************************\
+ * Commands
+\*********************************************************************************************/
+
+void CmndZigbeeSend(void)
+{
+  if (XdrvMailbox.data_len > 0) {
+    uint8_t code;
+
+    char *codes = RemoveSpace(XdrvMailbox.data);
+    int32_t size = strlen(XdrvMailbox.data);
+
+    while (size > 0) {
+      char stemp[3];
+      strlcpy(stemp, codes, sizeof(stemp));
+      code = strtol(stemp, nullptr, 16);
+      SerialBridgeSerial->write(code);                                  // "AA004566" as hex values
+      size -= 2;
+      codes += 2;
+    }
+  }
+  ResponseCmndDone();
+}
+
+/*********************************************************************************************\
  * Interface
 \*********************************************************************************************/
 
@@ -146,6 +177,9 @@ bool Xdrv23(uint8_t function)
         break;
       case FUNC_PRE_INIT:
         ZigbeeInit();
+        break;
+      case FUNC_COMMAND:
+        result = DecodeCommand(kZigbeeCommands, ZigbeeCommand);
         break;
     }
   }

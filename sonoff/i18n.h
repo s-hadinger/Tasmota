@@ -431,7 +431,7 @@
 #define D_CMND_LONGITUDE "Longitude"
 
 // Commands xdrv_23_zigbee.ino
-//#define D_CMND_SSERIALSEND "SSerialSend"
+#define D_CMND_ZIGBEESEND "ZigbeeSend"
 //#define D_CMND_SBAUDRATE "SBaudrate"
   #define D_JSON_ZIGBEERECEIVED "ZigbeeReceived"
 /********************************************************************************************/
