@@ -83,6 +83,7 @@ unsigned long feature_drv1;                 // Compiled driver feature map
 unsigned long feature_drv2;                 // Compiled driver feature map
 unsigned long feature_sns1;                 // Compiled sensor feature map
 unsigned long feature_sns2;                 // Compiled sensor feature map
+unsigned long feature5;                     // Compiled feature map
 unsigned long serial_polling_window = 0;    // Serial polling window
 unsigned long state_second = 0;             // State second timer
 unsigned long state_50msecond = 0;          // State 50msecond timer
@@ -1453,9 +1454,9 @@ void GpioInit(void)
 #endif  // USE_SM16716
 
   // post-process for lights
-  if (Settings.flag3.pmw_multi_channels) {
+  if (Settings.flag3.pwm_multi_channels) {
     uint32_t pwm_channels = (light_type & 7) > LST_MAX ? LST_MAX : (light_type & 7);
-    if (0 == pwm_channels)  pwm_channels = 1;
+    if (0 == pwm_channels) { pwm_channels = 1; }
     devices_present += pwm_channels - 1;  // add the pwm channels controls at the end
   }
 #endif  // USE_LIGHT
