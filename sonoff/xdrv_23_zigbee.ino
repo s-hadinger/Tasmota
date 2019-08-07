@@ -28,9 +28,9 @@ const uint32_t ZIGBEE_BUFFER_SIZE = 256;  // Max ZNP frame is SOF+LEN+CMD1+CMD2+
 const uint8_t  ZIGBEE_SOF = 0xFE;
 
 
-const char kZigbeeCommands[] PROGMEM = D_CMND_ZIGBEESEND;
+const char kZigbeeCommands[] PROGMEM = D_CMND_ZIGBEEZNPSEND;
 
-void (* const ZigbeeCommand[])(void) PROGMEM = { &CmndZigbeeSend };
+void (* const ZigbeeCommand[])(void) PROGMEM = { &CmndZigbeeZNPSend };
 
 #include <TasmotaSerial.h>
 
@@ -106,12 +106,12 @@ void ZigbeeInput(void)
   }
 
   if (zigbee_in_byte_counter && (millis() > (zigbee_polling_window + ZIGBEE_POLLING))) {
-    Response_P(PSTR("{\"" D_JSON_ZIGBEERECEIVED "\":\""));
+    Response_P(PSTR("{\"" D_JSON_ZIGBEEZNPRECEIVED "\":\""));
     for (uint32_t i = 0; i < serial_bridge_in_byte_counter; i++) {
       ResponseAppend_P(PSTR("%02x"), serial_bridge_buffer[i]);
     }
     ResponseAppend_P(PSTR("\"}"));
-    MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEERECEIVED));
+    MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZNPRECEIVED));
     XdrvRulesProcess();
     zigbee_in_byte_counter = 0;
     zigbee_frame_len = 254;
@@ -142,7 +142,7 @@ void ZigbeeInit(void)
  * Commands
 \*********************************************************************************************/
 
-void CmndZigbeeSend(void)
+void CmndZigbeeZNPSend(void)
 {
   if (XdrvMailbox.data_len > 0) {
     uint8_t code;
