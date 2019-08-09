@@ -18,9 +18,6 @@
 */
 
 #ifdef USE_ZIGBEE
-/*********************************************************************************************\
- * Serial Bridge using Software Serial library (TasmotaSerial)
-\*********************************************************************************************/
 
 #define XDRV_23                    23
 
@@ -321,20 +318,15 @@ void ZigbeeInput(void)
 
   while (ZigbeeSerial->available()) {
     yield();
-    uint8_t serial_in_byte = ZigbeeSerial->read();
+    uint8_t zigbee_in_byte = ZigbeeSerial->read();
 
-    if ((0 == zigbee_in_byte_counter) && (ZIGBEE_SOF != serial_in_byte)) {
+    if ((0 == zigbee_in_byte_counter) && (ZIGBEE_SOF != zigbee_in_byte)) {
       // waiting for SOF (Start Of Frame) byte, discard anything else
       continue;     // discard
     }
-    // if ((serial_in_byte > 127) && !zigbee_raw) {                        // Discard binary data above 127 if no raw reception allowed
-    //   zigbee_in_byte_counter = 0;
-    //   ZigbeeSerial->flush();
-    //   return;
-    // }
 
     if (zigbee_in_byte_counter < zigbee_frame_len) {
-      zigbee_buffer[zigbee_in_byte_counter++] = serial_in_byte;
+      zigbee_buffer[zigbee_in_byte_counter++] = zigbee_in_byte;
       zigbee_polling_window = millis();                               // Wait for more data
     } else {
       zigbee_polling_window = 0;                                      // Publish now
@@ -353,8 +345,8 @@ void ZigbeeInput(void)
 
   if (zigbee_in_byte_counter && (millis() > (zigbee_polling_window + ZIGBEE_POLLING))) {
     Response_P(PSTR("{\"" D_JSON_ZIGBEEZNPRECEIVED "\":\""));
-    for (uint32_t i = 0; i < serial_bridge_in_byte_counter; i++) {
-      ResponseAppend_P(PSTR("%02x"), serial_bridge_buffer[i]);
+    for (uint32_t i = 0; i < zigbee_in_byte_counter; i++) {
+      ResponseAppend_P(PSTR("%02X"), zigbee_buffer[i]);
     }
     ResponseAppend_P(PSTR("\"}"));
     MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZNPRECEIVED));
@@ -376,7 +368,7 @@ void ZigbeeInit(void)
         ClaimSerial();
         zigbee_buffer = (uint8_t*) serial_in_buffer;  // Use idle serial buffer to save RAM
       } else {
-        zigbee_buffer = (uint8_t*) malloc(SERIAL_BRIDGE_BUFFER_SIZE);
+        zigbee_buffer = (uint8_t*) malloc(ZIGBEE_BUFFER_SIZE);
       }
       zigbee_active = true;
       ZigbeeSerial->flush();
@@ -400,7 +392,7 @@ void CmndZigbeeZNPSend(void)
       char stemp[3];
       strlcpy(stemp, codes, sizeof(stemp));
       code = strtol(stemp, nullptr, 16);
-      SerialBridgeSerial->write(code);                                  // "AA004566" as hex values
+      ZigbeeSerial->write(code);
       size -= 2;
       codes += 2;
     }
