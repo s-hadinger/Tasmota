@@ -187,6 +187,8 @@ enum UserSelectablePins {
   GPIO_BUZZER,         // Buzzer
   GPIO_BUZZER_INV,     // Inverted buzzer
   GPIO_OLED_RESET,     // OLED Display Reset
+  GPIO_SOLAXX1_TX,     // Solax Inverter tx pin
+  GPIO_SOLAXX1_RX,     // Solax Inverter rx pin
   GPIO_ZIGBEE_TX,      // Zigbee Serial interface
   GPIO_ZIGBEE_RX,      // Zigbee Serial interface
   GPIO_SENSOR_END };
@@ -258,7 +260,11 @@ const char kSensorNames[] PROGMEM =
   D_SENSOR_ARIRFSEL "|"
   D_SENSOR_BUZZER "|" D_SENSOR_BUZZER "i|"
   D_SENSOR_OLED_RESET "|"
+<<<<<<< HEAD
   D_SENSOR_ZIGBEE_TXD "|" D_SENSOR_ZIGBEE_RXD
+=======
+  D_SENSOR_SOLAXX1_TX "|" D_SENSOR_SOLAXX1_RX "|"
+>>>>>>> 4f40084c6916225eec389f1a5ae7266dcd285a67
   ;
 
 // User selectable ADC0 functionality
@@ -652,6 +658,10 @@ const uint8_t kGpioNiceList[] PROGMEM = {
 #ifdef USE_HRE
   GPIO_HRE_CLOCK,
   GPIO_HRE_DATA
+#endif
+#ifdef USE_SOLAX_X1
+  GPIO_SOLAXX1_TX,     // Solax Inverter tx pin
+  GPIO_SOLAXX1_RX,     // Solax Inverter rx pin
 #endif
 };
 
