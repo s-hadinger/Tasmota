@@ -242,8 +242,8 @@ void ZigbeeZNPSend(class SBuffer &message) {
 			fcs ^= b;
 			//Serial.printf("ZNPSend byte %02X\n", b);
 		}
-		//ZigbeeSerial->write(fcs);			// finally send fcs checksum byte
-		Serial.printf("ZNPSend byte %02X\n", fcs);
+		ZigbeeSerial->write(fcs);			// finally send fcs checksum byte
+		//Serial.printf("ZNPSend byte %02X\n", fcs);
   }
 	// Now send a MQTT message to report the sent message
 	char hex_char[(len * 2) + 2];
