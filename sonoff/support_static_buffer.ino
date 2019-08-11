@@ -126,6 +126,7 @@ public:
 
     SBuffer buf2(len);
     memcpy(buf2.buf(), buf()+start, len);
+    buf2._buf->len = len;
     return buf2;
   }
 

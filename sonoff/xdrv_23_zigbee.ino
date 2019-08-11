@@ -25,14 +25,41 @@ const uint32_t ZIGBEE_BUFFER_SIZE = 256;  // Max ZNP frame is SOF+LEN+CMD1+CMD2+
 const uint8_t  ZIGBEE_SOF = 0xFE;
 
 // State machine states
-enum class ZnpStates {
+enum ZnpStates {
 	S_START = 0,
-	S_READY
+	S_READY,										// all initialization complete, ready to operate
+	S_ABORT,										// fatal error, abort zigbee
 };
 
 const char kZigbeeCommands[] PROGMEM = D_CMND_ZIGBEEZNPSEND;
 
 void (* const ZigbeeCommand[])(void) PROGMEM = { &CmndZigbeeZNPSend };
+
+// return value: 0=Ok proceed to next step, <0 Error, >0 go to a specific state
+typedef int32_t (*State_EnterFunc)(uint32_t state);
+typedef int32_t (*State_ReceivedFrameFunc)(uint32_t state, class SBuffer buf);
+
+typedef struct ZigbeeInitState {
+	State_EnterFunc						init_func;					// function called when entering this state
+	State_ReceivedFrameFunc	  recv_func;					// fucnrion called when receiving a frame in this state
+	uint16_t									timeout;						// timeout in ms in this state
+	uint8_t										ok_next_state;			// next state if no error
+	uint8_t										timeout_next_state;	// what is the next state if timeout
+	uint8_t										error_next_state;		// what is the next state if error
+} ZigbeeInitState;
+
+static const ZigbeeInitState init_states[] PROGMEM = {
+	{ &enter_NoOp, &recv_Err, 2000, S_READY, S_ABORT, S_ABORT },		// S_START = 0
+};
+
+
+int32_t enter_NoOp(uint32_t state) {
+	return 0;
+}
+
+int32_t recv_Err(uint32_t state, class SBuffer buf) {
+	return -1;	// error
+}
 
 #include <TasmotaSerial.h>
 
@@ -73,7 +100,7 @@ void ZigbeeInput(void)
   while (ZigbeeSerial->available()) {
     yield();
     uint8_t zigbee_in_byte = ZigbeeSerial->read();
-//Serial.printf("ZigbeeInput byte=%d len=%d\n", zigbee_in_byte, zigbee_buffer->len());
+		AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZigbeeInput byte=%d len=%d"), zigbee_in_byte, zigbee_buffer->len());
 
     if ((0 == zigbee_buffer->len()) && (ZIGBEE_SOF != zigbee_in_byte)) {
       // waiting for SOF (Start Of Frame) byte, discard anything else
@@ -112,12 +139,15 @@ void ZigbeeInput(void)
       AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_JSON_ZIGBEEZNPRECEIVED ": received bad FCS frame %s"), hex_char);
 		} else {
 			// frame is correct
-      AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_JSON_ZIGBEEZNPRECEIVED ": received correct frame %s"), hex_char);
+			AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_JSON_ZIGBEEZNPRECEIVED ": received correct frame %s"), hex_char);
+
+			// now process the message
+			SBuffer znp_buffer = zigbee_buffer->subBuffer(2, zigbee_frame_len - 3);	// remove SOF, LEN and FCS
+
+			ToHex((unsigned char*)znp_buffer.getBuffer(), znp_buffer.len(), hex_char, sizeof(hex_char));
 	    Response_P(PSTR("{\"" D_JSON_ZIGBEEZNPRECEIVED "\":\"%s\"}"), hex_char);
 	    MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZNPRECEIVED));
 	    XdrvRulesProcess();
-
-			// now process the message
 		}
 		zigbee_buffer->setLen(0);		// empty buffer
 		zigbee_frame_len = 254;
@@ -148,6 +178,25 @@ void ZigbeeInit(void)
  * Commands
 \*********************************************************************************************/
 
+// void CmndZigbeeZNPSend(void)
+// {
+//   if (ZigbeeSerial && (XdrvMailbox.data_len > 0)) {
+//     uint8_t code;
+//
+//     char *codes = RemoveSpace(XdrvMailbox.data);
+//     int32_t size = strlen(XdrvMailbox.data);
+//
+//     while (size > 0) {
+//       char stemp[3];
+//       strlcpy(stemp, codes, sizeof(stemp));
+//       code = strtol(stemp, nullptr, 16);
+//       ZigbeeSerial->write(code);
+//       size -= 2;
+//       codes += 2;
+//     }
+//   }
+//   ResponseCmndDone();
+// }
 void CmndZigbeeZNPSend(void)
 {
   if (ZigbeeSerial && (XdrvMailbox.data_len > 0)) {
@@ -156,32 +205,51 @@ void CmndZigbeeZNPSend(void)
     char *codes = RemoveSpace(XdrvMailbox.data);
     int32_t size = strlen(XdrvMailbox.data);
 
+		SBuffer buf((size+1)/2);
+
     while (size > 0) {
       char stemp[3];
       strlcpy(stemp, codes, sizeof(stemp));
       code = strtol(stemp, nullptr, 16);
-      ZigbeeSerial->write(code);
+			buf.add8(code);
       size -= 2;
       codes += 2;
     }
+		ZigbeeZNPSend(buf);
   }
   ResponseCmndDone();
 }
 
-void ZigbeeZNPSend(class SBuffer message) {
+void ZigbeeZNPSend(class SBuffer &message) {
 	size_t len = message.len();
+	if ((len < 2) || (len > 252)) {
+		// abort, message cannot be less than 2 bytes for CMD1 and CMD2
+		AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_JSON_ZIGBEEZNPSENT ": bad message len %d"), len);
+		return;
+	}
+	uint8_t data_len = len - 2;		// removing CMD1 and CMD2
 
   if (ZigbeeSerial) {
+		uint8_t fcs = data_len;
+
+		ZigbeeSerial->write(ZIGBEE_SOF);		// 0xFE
+		//Serial.printf("ZNPSend byte %02X\n", ZIGBEE_SOF);
+		ZigbeeSerial->write(data_len);
+		//Serial.printf("ZNPSend byte %02X\n", data_len);
 		for (uint32_t i = 0; i < len; i++) {
-			ZigbeeSerial->write(message.get8(i));
-			// Serial.printf("ZNPSend byte %02X\n", message->get8(i));
+			uint8_t b = message.get8(i);
+			ZigbeeSerial->write(b);
+			fcs ^= b;
+			//Serial.printf("ZNPSend byte %02X\n", b);
 		}
+		//ZigbeeSerial->write(fcs);			// finally send fcs checksum byte
+		Serial.printf("ZNPSend byte %02X\n", fcs);
   }
 	// Now send a MQTT message to report the sent message
 	char hex_char[(len * 2) + 2];
 	Response_P(PSTR("{\"" D_JSON_ZIGBEEZNPSENT "\":\"%s\"}"),
 			ToHex(message.getBuffer(), len, hex_char, sizeof(hex_char)));
-	MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZNPRECEIVED));
+	MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZNPSENT));
 	XdrvRulesProcess();
 }
 
