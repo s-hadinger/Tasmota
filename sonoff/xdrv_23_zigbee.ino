@@ -32,8 +32,8 @@ const char kZigbeeCommands[] PROGMEM = D_CMND_ZIGBEEZNPSEND;
 void (* const ZigbeeCommand[])(void) PROGMEM = { &CmndZigbeeZNPSend };
 
 // return value: 0=Ok proceed to next step, <0 Error, >0 go to a specific state
-typedef int32_t (*State_EnterFunc)(uint32_t state);
-typedef int32_t (*State_ReceivedFrameFunc)(uint32_t state, class SBuffer &buf);
+typedef int32_t (*State_EnterFunc)(uint8_t state);
+typedef int32_t (*State_ReceivedFrameFunc)(uint8_t state, class SBuffer &buf);
 
 typedef struct ZigbeeInitState {
 	uint8_t										state_cur;					// current state
@@ -70,6 +70,7 @@ bool zigbee_active = true;
 bool zigbee_init_state_machine = false;		// the cc2530 initialization state machine is working
 bool zigbee_ready = false;								// cc2530 initialization is complet, ready to operate
 uint8_t zigbee_state_cur = S_START;				// start at first step in state machine
+uint8_t  zigbee_state_next = 0;						// mailbox for next state, O=no change
 
 // ZBS_* Zigbee Send
 // ZBR_* Zigbee Recv
@@ -91,7 +92,7 @@ static const ZigbeeInitState zb_states[] PROGMEM = {
 
 };
 
-int32_t Z_Recv_Vers(uint32_t state, class SBuffer &buf) {
+int32_t Z_Recv_Vers(uint8_t state, class SBuffer &buf) {
 	return 0;	// ok
 }
 
@@ -107,6 +108,7 @@ int32_t recv_Err(uint32_t state, class SBuffer &buf) {
 	return -1;	// error
 }
 
+// retrieve the detailed information for a specific state
 const ZigbeeInitState * ZigbeeStateInfo(uint8_t state_cur) {
 	size_t num_states = sizeof(zb_states) / sizeof(ZigbeeInitState);
   AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeStateInfo: num_states = %d"), num_states);
@@ -130,9 +132,17 @@ const ZigbeeInitState * ZigbeeStateInfo(uint8_t state_cur) {
 
 void ZigbeeInitStateMachine(void) {
 	static uint32_t next_timeout = 0;			// when is the next timeout occurring
-	static uint8_t  next_state = 0;				// are we triggering a new state? O=no
-	const ZigbeeInitState * state = ZigbeeStateInfo(zigbee_state_cur);
+	bool state_entering = false;					// are we entering the new state?
+	uint32_t now = millis();
 
+	if (zigbee_state_next) {
+		// a state transition is triggered
+		zigbee_state_cur = zigbee_state_next;
+		zigbee_state_next = 0;		// reinit mailbox
+		state_entering = true;
+	}
+
+	const ZigbeeInitState * state = ZigbeeStateInfo(zigbee_state_cur);
 	if (!state) {
 		// Fatal error, abort everything
 	  AddLog_P2(LOG_LEVEL_ERROR, PSTR("ZigbeeInitStateMachine: unknown state = %d"), zigbee_state_cur);
@@ -140,12 +150,24 @@ void ZigbeeInitStateMachine(void) {
 		return;
 	}
 
-	uint32_t now = millis();
-	if (now > next_timeout) {
+	if (state_entering) {
+		// We are entering a new state
+		next_timeout = now + state->timeout;
+		if (state->init_func) {
+			int32_t res = (*state->init_func)(zigbee_state_cur);
+			AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeInitStateMachine: called init_func() state = %d, res = %d"), zigbee_state_cur, res);
+			if (res > 0) {
+				zigbee_state_next = res;
+			} else if (res < 0) {
+				zigbee_state_next = state->state_err;
+			}
+			// if res == 0 then ok, no change
+		}
+	} else if (now > next_timeout) {
 		// timeout occured, move to next state
 		AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeInitStateMachine: timeout occured state = %d"), zigbee_state_cur);
 		//ZigbeeMoveToState(uint8_t state_next);
-		next_state = state->state_timeout;
+		zigbee_state_next = state->state_timeout;
 	}
 }
 
