@@ -132,11 +132,12 @@ const ZigbeeInitState * ZigbeeStateInfo(uint8_t state_cur) {
 
 void ZigbeeInitStateMachine(void) {
 	static uint32_t next_timeout = 0;			// when is the next timeout occurring
-	bool state_entering = false;					// are we entering the new state?
+	bool state_entering = false;					// are we entering a new state?
 	uint32_t now = millis();
 
 	if (zigbee_state_next) {
 		// a state transition is triggered
+		AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeInitStateMachine: transitioning fram state %d to %d"), zigbee_state_cur, zigbee_state_next);
 		zigbee_state_cur = zigbee_state_next;
 		zigbee_state_next = 0;		// reinit mailbox
 		state_entering = true;
@@ -150,11 +151,18 @@ void ZigbeeInitStateMachine(void) {
 		return;
 	}
 
+		if (S_START == zigbee_state_cur) {		// fake start state, transitioning immediately
+			AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeInitStateMachine: Initial transition from S_STATT"));
+			zigbee_state_next = state->state_next;
+			return;
+		}
+
 	if (state_entering) {
 		// We are entering a new state
 		next_timeout = now + state->timeout;
+		int32_t res = 0;
 		if (state->init_func) {
-			int32_t res = (*state->init_func)(zigbee_state_cur);
+			res = (*state->init_func)(zigbee_state_cur);
 			AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeInitStateMachine: called init_func() state = %d, res = %d"), zigbee_state_cur, res);
 			if (res > 0) {
 				zigbee_state_next = res;
@@ -162,6 +170,10 @@ void ZigbeeInitStateMachine(void) {
 				zigbee_state_next = state->state_err;
 			}
 			// if res == 0 then ok, no change
+		}
+		// if res == 0 or no function called, send the ZNP message if any
+		if ((0 == res) && (state->msg_sent) && (state->msg_sent_len)) {
+
 		}
 	} else if (now > next_timeout) {
 		// timeout occured, move to next state
@@ -309,13 +321,12 @@ void CmndZigbeeZNPSend(void)
       size -= 2;
       codes += 2;
     }
-		ZigbeeZNPSend(buf);
+		ZigbeeZNPSend(buf.getBuffer(), buf.len());
   }
   ResponseCmndDone();
 }
 
-void ZigbeeZNPSend(class SBuffer &message) {
-	size_t len = message.len();
+void ZigbeeZNPSend(const uint8_t *msg, size_t len) {
 	if ((len < 2) || (len > 252)) {
 		// abort, message cannot be less than 2 bytes for CMD1 and CMD2
 		AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_JSON_ZIGBEEZNPSENT ": bad message len %d"), len);
@@ -331,7 +342,7 @@ void ZigbeeZNPSend(class SBuffer &message) {
 		ZigbeeSerial->write(data_len);
 		AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZNPSend LEN %02X"), data_len);
 		for (uint32_t i = 0; i < len; i++) {
-			uint8_t b = message.get8(i);
+			uint8_t b = pgm_read_byte(msg + i);
 			ZigbeeSerial->write(b);
 			fcs ^= b;
 			AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZNPSend byt %02X"), b);
@@ -342,7 +353,7 @@ void ZigbeeZNPSend(class SBuffer &message) {
 	// Now send a MQTT message to report the sent message
 	char hex_char[(len * 2) + 2];
 	Response_P(PSTR("{\"" D_JSON_ZIGBEEZNPSENT "\":\"%s\"}"),
-			ToHex(message.getBuffer(), len, hex_char, sizeof(hex_char)));
+			ToHex(msg, len, hex_char, sizeof(hex_char)));
 	MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZNPSENT));
 	XdrvRulesProcess();
 }

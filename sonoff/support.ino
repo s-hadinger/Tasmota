@@ -294,14 +294,14 @@ char* ulltoa(unsigned long long value, char *str, int radix)
 
 // see https://stackoverflow.com/questions/6357031/how-do-you-convert-a-byte-array-to-a-hexadecimal-string-in-c
 // char* ToHex(unsigned char * in, size_t insz, char * out, size_t outsz, char inbetween = '\0'); in sonoff_post.h
-char* ToHex(unsigned char * in, size_t insz, char * out, size_t outsz, char inbetween)
+char* ToHex(const unsigned char * in, size_t insz, char * out, size_t outsz, char inbetween)
 {
   // ToHex(in, insz, out, outz)      -> "12345667"
   // ToHex(in, insz, out, outz, ' ') -> "12 34 56 67"
   // ToHex(in, insz, out, outz, ':') -> "12:34:56:67"
   static const char * hex = "0123456789ABCDEF";
   int between = (inbetween) ? 3 : 2;
-  unsigned char * pin = in;
+  const unsigned char * pin = in;
   char * pout = out;
   for (; pin < in+insz; pout += between, pin++) {
     pout[0] = hex[(*pin>>4) & 0xF];
