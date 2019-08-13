@@ -19,21 +19,8 @@
 
 #ifdef USE_ZIGBEE
 
-// ZNP Constants taken from https://github.com/Frans-Willem/AqaraHub/blob/master/src/znp/znp.h
-enum class ZnpCommandType { POLL = 0, SREQ = 2, AREQ = 4, SRSP = 6 };
 
-enum class ZnpSubsystem {
-  RPC_Error = 0,
-  SYS = 1,
-  MAC = 2,
-  NWK = 3,
-  AF = 4,
-  ZDO = 5,
-  SAPI = 6,
-  UTIL = 7,
-  DEBUG = 8,
-  APP = 9
-};
+
 
 enum class ZnpStatus : uint8_t {
   Success = 0x00,
@@ -54,33 +41,7 @@ enum class AddrMode : uint8_t {
   Broadcast = 0xFF
 };
 
-// Commands in the SYS subsystem
-enum class SysCommand : uint8_t {
-  RESET = 0x00,
-  PING = 0x01,
-  VERSION = 0x02,
-  SET_EXTADDR = 0x03,
-  GET_EXTADDR = 0x04,
-  RAM_READ = 0x05,
-  RAM_WRITE = 0x06,
-  OSAL_NV_ITEM_INIT = 0x07,
-  OSAL_NV_READ = 0x08,
-  OSAL_NV_WRITE = 0x09,
-  OSAL_START_TIMER = 0x0A,
-  OSAL_STOP_TIMER = 0x0B,
-  RANDOM = 0x0C,
-  ADC_READ = 0x0D,
-  GPIO = 0x0E,
-  STACK_TUNE = 0x0F,
-  SET_TIME = 0x10,
-  GET_TIME = 0x11,
-  OSAL_NV_DELETE = 0x12,
-  OSAL_NV_LENGTH = 0x13,
-  TEST_RF = 0x40,
-  TEST_LOOPBACK = 0x41,
-  RESET_IND = 0x80,
-  OSAL_TIMER_EXPIRED = 0x81,
-};
+
 
 // Commands in the AF subsystem
 enum class AfCommand : uint8_t {
@@ -235,7 +196,7 @@ enum class Capability : uint16_t {
   ZOAD = 0x1000
 };
 
-enum class ConfigurationOption : uint8_t {
+enum : uint8_t {
   STARTUP_OPTION = 0x03,
   POLL_RATE = 0x24,
   QUEUED_POLL_RATE = 0x25,

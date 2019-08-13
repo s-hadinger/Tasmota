@@ -24,6 +24,53 @@
 const uint32_t ZIGBEE_BUFFER_SIZE = 256;  // Max ZNP frame is SOF+LEN+CMD1+CMD2+250+FCS = 255
 const uint8_t  ZIGBEE_SOF = 0xFE;
 
+enum ZnpCommandType {
+  POLL = 0x00,
+  SREQ = 0x20,
+  AREQ = 0x40,
+  SRSP = 0x60 };
+enum ZnpSubsystem {
+  RPC_Error = 0x00,
+  SYS = 0x01,
+  MAC = 0x02,
+  NWK = 0x03,
+  AF = 0x04,
+  ZDO = 0x05,
+  SAPI = 0x06,
+  UTIL = 0x07,
+  DEBUG = 0x08,
+  APP = 0x09
+};
+
+// Commands in the SYS subsystem
+enum SysCommand {
+  SYS_RESET = 0x00,
+  SYS_PING = 0x01,
+  SYS_VERSION = 0x02,
+  SYS_SET_EXTADDR = 0x03,
+  SYS_GET_EXTADDR = 0x04,
+  SYS_RAM_READ = 0x05,
+  SYS_RAM_WRITE = 0x06,
+  SYS_OSAL_NV_ITEM_INIT = 0x07,
+  SYS_OSAL_NV_READ = 0x08,
+  SYS_OSAL_NV_WRITE = 0x09,
+  SYS_OSAL_START_TIMER = 0x0A,
+  SYS_OSAL_STOP_TIMER = 0x0B,
+  SYS_RANDOM = 0x0C,
+  SYS_ADC_READ = 0x0D,
+  SYS_GPIO = 0x0E,
+  SYS_STACK_TUNE = 0x0F,
+  SYS_SET_TIME = 0x10,
+  SYS_GET_TIME = 0x11,
+  SYS_OSAL_NV_DELETE = 0x12,
+  SYS_OSAL_NV_LENGTH = 0x13,
+  SYS_TEST_RF = 0x40,
+  SYS_TEST_LOOPBACK = 0x41,
+  SYS_RESET_IND = 0x80,
+  SYS_OSAL_TIMER_EXPIRED = 0x81,
+};
+
+
 #include <TasmotaSerial.h>
 
 
@@ -40,11 +87,11 @@ typedef struct ZigbeeInitState {
 	uint8_t                   state_next;					// next state if ok
 	uint8_t                   state_err;					// next state if error (bad message)
 	uint8_t                   state_timeout;			// next state if timeout
-	uint16_t									timeout;						// timeout in ms
 	const uint8_t *           msg_sent;           // message to send
 	const uint8_t *           msg_recv;           // filter to accept received message
 	uint8_t										msg_sent_len;				// sizeof msg_sent
 	uint8_t                   msg_recv_len;       // sizeof msg_recv
+	uint16_t									timeout;						// timeout in ms
 	State_EnterFunc						init_func;					// function called when entering this state
 	State_ReceivedFrameFunc	  recv_func;					// fucnrion called when receiving a frame in this state
 	//uint16_t									timeout;						// timeout in ms in this state
@@ -70,31 +117,45 @@ bool zigbee_active = true;
 bool zigbee_init_state_machine = false;		// the cc2530 initialization state machine is working
 bool zigbee_ready = false;								// cc2530 initialization is complet, ready to operate
 uint8_t zigbee_state_cur = S_START;				// start at first step in state machine
+ZigbeeInitState zigbee_state_cur_info;
 uint8_t  zigbee_state_next = 0;						// mailbox for next state, O=no change
 
 // ZBS_* Zigbee Send
 // ZBR_* Zigbee Recv
-static const uint8_t ZBS_RESET[] PROGMEM = { 0x41, 0x00, 0x01 };	// SYS_RESET_REQ Software reset
-static const uint8_t ZBR_RESET[] PROGMEM = { 0x41, 0x80 };				// SYS_RESET_REQ Software reset response
-static const uint8_t ZBS_VERS[]  PROGMEM =  { 0x21, 0x02 };				// SYS:version
-static const uint8_t ZBR_VERS[]  PROGMEM = { 0x61, 0x02 };				// SYS:version
+static const uint8_t ZBS_RESET[] PROGMEM = { AREQ | SYS, SYS_RESET, 0x01 };	  // 410001 SYS_RESET_REQ Software reset
+static const uint8_t ZBR_RESET[] PROGMEM = { AREQ | SYS, SYS_RESET_IND };			// 4180 SYS_RESET_REQ Software reset response
+static const uint8_t ZBS_VERS[]  PROGMEM = { SREQ | SYS, SYS_VERSION };				// 2102 SYS:version
+static const uint8_t ZBR_VERS[]  PROGMEM = { SRSP | SYS, SYS_VERSION };				// 6102 SYS:version
 
 
 static const ZigbeeInitState zb_states[] PROGMEM = {
 	// S_START - fake state that immediately transitions to next state
-	{ S_START, S_BOOT, S_BOOT, S_BOOT, 0, nullptr, nullptr, 0, 0, nullptr, nullptr },
+	{ S_START, S_BOOT, S_BOOT, S_BOOT, nullptr, nullptr, 0, 0, 0, nullptr, nullptr },
 	// S_BOOT - wait for 1 second that the cc2530 is fully initialized, or if we receive any frame
-	{ S_BOOT, S_INIT, S_INIT, S_INIT, 1000, nullptr, nullptr, 0, 0, nullptr, nullptr },
+	{ S_BOOT, S_INIT, S_INIT, S_INIT, nullptr, nullptr, 0, 0, 2000, nullptr, nullptr },
 	// S_INIT - send reinit command to cc2530 and wait for response,
-	{ S_INIT, S_VERS, S_ABORT, S_ABORT, 5000, ZBS_RESET, ZBR_RESET, sizeof(ZBS_RESET), sizeof(ZBR_RESET), nullptr, nullptr },
+	{ S_INIT, S_VERS, S_ABORT, S_ABORT, ZBS_RESET, ZBR_RESET, sizeof(ZBS_RESET), sizeof(ZBR_RESET), 5000, nullptr, nullptr },
 	// S_VERS - read version
-	{ S_VERS, S_READY, S_ABORT, S_ABORT, 500, ZBS_RESET, ZBR_RESET, sizeof(ZBS_RESET), sizeof(ZBR_RESET), nullptr, &Z_Recv_Vers },
-
+	{ S_VERS, S_READY, S_ABORT, S_ABORT, ZBS_VERS, ZBR_VERS, sizeof(ZBR_VERS), sizeof(ZBR_VERS), 500, nullptr, &Z_Recv_Vers },
+	// S_ABORT - fatal error, abort zigbee
+	{ S_ABORT, S_ABORT, S_ABORT, S_ABORT, nullptr, nullptr, 0, 0, 0, &Z_State_Abort, nullptr },
 };
 
 int32_t Z_Recv_Vers(uint8_t state, class SBuffer &buf) {
 	return 0;	// ok
 }
+
+int32_t Z_State_Abort(uint8_t state) {
+	AddLog_P(LOG_LEVEL_DEBUG, PSTR("Z_State_Abort: aborting Zigbee initialization"));
+	zigbee_init_state_machine = false;
+	zigbee_active = false;
+}
+
+int32_t Z_State_Ready(uint8_t state) {
+	AddLog_P(LOG_LEVEL_DEBUG, PSTR("Z_State_Ready: zigbee initialization complete"));
+	zigbee_init_state_machine = false;
+}
+
 
 // static const ZigbeeInitState init_states[] PROGMEM = {
 // 	{ &enter_NoOp, &recv_Err, 2000, S_READY, S_ABORT, S_ABORT },		// S_START = 0
@@ -108,27 +169,20 @@ int32_t recv_Err(uint32_t state, class SBuffer &buf) {
 	return -1;	// error
 }
 
-// retrieve the detailed information for a specific state
-const ZigbeeInitState * ZigbeeStateInfo(uint8_t state_cur) {
+// copy the cur_state_info into ram for current state
+ZigbeeInitState * ZigbeeStateInfo(uint8_t state_cur) {
 	size_t num_states = sizeof(zb_states) / sizeof(ZigbeeInitState);
-  AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeStateInfo: num_states = %d"), num_states);
 
 	for (uint8_t i = 0; i < num_states; i++) {
 		const ZigbeeInitState * state_info = &zb_states[i];
-		if (state_info->state_cur == state_cur) {
-			return state_info;
+		if (pgm_read_byte(&state_info->state_cur) == state_cur) {
+			// copy from PROGMEM into RAM
+			memcpy_P(&zigbee_state_cur_info, state_info, sizeof(zigbee_state_cur_info));
+			return &zigbee_state_cur_info;
 		}
 	}
 	return nullptr;
 }
-
-// ZigbeeMoveToState(uint8_t state_next, State_EnterFunc func) {
-// 	zigbee_state_cur = state_next;
-// 	if (func) {
-// 		int32_t res = (*func)(zigbee_state_cur);
-// 		if ()
-// 	}
-// }
 
 void ZigbeeInitStateMachine(void) {
 	static uint32_t next_timeout = 0;			// when is the next timeout occurring
@@ -151,11 +205,11 @@ void ZigbeeInitStateMachine(void) {
 		return;
 	}
 
-		if (S_START == zigbee_state_cur) {		// fake start state, transitioning immediately
-			AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeInitStateMachine: Initial transition from S_STATT"));
-			zigbee_state_next = state->state_next;
-			return;
-		}
+	if (S_START == zigbee_state_cur) {		// fake start state, transitioning immediately
+		AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeInitStateMachine: Initial transition from S_STATT"));
+		zigbee_state_next = state->state_next;
+		return;
+	}
 
 	if (state_entering) {
 		// We are entering a new state
@@ -173,7 +227,7 @@ void ZigbeeInitStateMachine(void) {
 		}
 		// if res == 0 or no function called, send the ZNP message if any
 		if ((0 == res) && (state->msg_sent) && (state->msg_sent_len)) {
-
+			ZigbeeZNPSend(state->msg_sent, state->msg_sent_len);
 		}
 	} else if (now > next_timeout) {
 		// timeout occured, move to next state
@@ -235,7 +289,7 @@ void ZigbeeInput(void)
 
   if (zigbee_buffer->len() && (millis() > (zigbee_polling_window + ZIGBEE_POLLING))) {
     char hex_char[(zigbee_buffer->len() * 2) + 2];
-		ToHex((unsigned char*)zigbee_buffer->getBuffer(), zigbee_buffer->len(), hex_char, sizeof(hex_char));
+		ToHex_P((unsigned char*)zigbee_buffer->getBuffer(), zigbee_buffer->len(), hex_char, sizeof(hex_char));
 
 		// buffer received, now check integrity
 		if (zigbee_buffer->len() != zigbee_frame_len) {
@@ -251,7 +305,7 @@ void ZigbeeInput(void)
 			// now process the message
 			SBuffer znp_buffer = zigbee_buffer->subBuffer(2, zigbee_frame_len - 3);	// remove SOF, LEN and FCS
 
-			ToHex((unsigned char*)znp_buffer.getBuffer(), znp_buffer.len(), hex_char, sizeof(hex_char));
+			ToHex_P((unsigned char*)znp_buffer.getBuffer(), znp_buffer.len(), hex_char, sizeof(hex_char));
 	    Response_P(PSTR("{\"" D_JSON_ZIGBEEZNPRECEIVED "\":\"%s\"}"), hex_char);
 	    MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZNPRECEIVED));
 	    XdrvRulesProcess();
@@ -266,6 +320,7 @@ void ZigbeeInit(void)
 {
   zigbee_active = false;
   if ((pin[GPIO_ZIGBEE_RX] < 99) && (pin[GPIO_ZIGBEE_TX] < 99)) {
+		AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("Zigbee: GPIOs Rx:%d Tx:%d"), pin[GPIO_ZIGBEE_RX], pin[GPIO_ZIGBEE_TX]);
     ZigbeeSerial = new TasmotaSerial(pin[GPIO_ZIGBEE_RX], pin[GPIO_ZIGBEE_TX]);
     if (ZigbeeSerial->begin(115200)) {    // ZNP is 115200, RTS/CTS (ignored), 8N1
       if (ZigbeeSerial->hardwareSerial()) {
@@ -275,6 +330,7 @@ void ZigbeeInit(void)
 				zigbee_buffer = new SBuffer(ZIGBEE_BUFFER_SIZE);
 			}
       zigbee_active = true;
+			zigbee_init_state_machine = true;			// start the state machine
       ZigbeeSerial->flush();
     }
   }
@@ -284,25 +340,6 @@ void ZigbeeInit(void)
  * Commands
 \*********************************************************************************************/
 
-// void CmndZigbeeZNPSend(void)
-// {
-//   if (ZigbeeSerial && (XdrvMailbox.data_len > 0)) {
-//     uint8_t code;
-//
-//     char *codes = RemoveSpace(XdrvMailbox.data);
-//     int32_t size = strlen(XdrvMailbox.data);
-//
-//     while (size > 0) {
-//       char stemp[3];
-//       strlcpy(stemp, codes, sizeof(stemp));
-//       code = strtol(stemp, nullptr, 16);
-//       ZigbeeSerial->write(code);
-//       size -= 2;
-//       codes += 2;
-//     }
-//   }
-//   ResponseCmndDone();
-// }
 void CmndZigbeeZNPSend(void)
 {
   if (ZigbeeSerial && (XdrvMailbox.data_len > 0)) {
@@ -353,7 +390,7 @@ void ZigbeeZNPSend(const uint8_t *msg, size_t len) {
 	// Now send a MQTT message to report the sent message
 	char hex_char[(len * 2) + 2];
 	Response_P(PSTR("{\"" D_JSON_ZIGBEEZNPSENT "\":\"%s\"}"),
-			ToHex(msg, len, hex_char, sizeof(hex_char)));
+			ToHex_P(msg, len, hex_char, sizeof(hex_char)));
 	MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZNPSENT));
 	XdrvRulesProcess();
 }
@@ -370,7 +407,12 @@ bool Xdrv23(uint8_t function)
     switch (function) {
       case FUNC_LOOP:
         if (ZigbeeSerial) { ZigbeeInput(); }
-				if (zigbee_init_state_machine) { ZigbeeInitStateMachine(); }
+				if (zigbee_init_state_machine) {
+					if (local_time > 1451602800) {  // 2016-01-01
+						// make sure time is ok, otherwise crash TODO
+						ZigbeeInitStateMachine();
+					}
+				}
         break;
       case FUNC_PRE_INIT:
         ZigbeeInit();
