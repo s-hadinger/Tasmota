@@ -284,7 +284,7 @@
   #define USE_EMULATION_WEMO                     // Enable Belkin WeMo emulation for Alexa (+6k code, +2k mem common)
 
 // -- mDNS ----------------------------------------
-#define USE_DISCOVERY                            // Enable mDNS for the following services (+8k code or +23.5k code with core 2_5_x, +0.3k mem)
+//#define USE_DISCOVERY                            // Enable mDNS for the following services (+8k code or +23.5k code with core 2_5_x, +0.3k mem)
   #define WEBSERVER_ADVERTISE                    // Provide access to webserver by name <Hostname>.local/
   #define MQTT_HOST_DISCOVERY                    // Find MQTT host server (overrides MQTT_HOST if found)
 
@@ -304,11 +304,11 @@
 //  #define SUPPORT_MQTT_EVENT                     // Support trigger event with MQTT subscriptions (+3k5 code)
 
 // -- Optional modules ----------------------------
-#define USE_SONOFF_IFAN                          // Add support for Sonoff iFan02 and iFan03 (+2k code)
-#define USE_TUYA_DIMMER                          // Add support for Tuya Serial Dimmer
+//#define USE_SONOFF_IFAN                          // Add support for Sonoff iFan02 and iFan03 (+2k code)
+//#define USE_TUYA_DIMMER                          // Add support for Tuya Serial Dimmer
   #define TUYA_DIMMER_ID       0                 // Default dimmer Id
-#define USE_ARMTRONIX_DIMMERS                    // Add support for Armtronix Dimmers (+1k4 code)
-#define USE_PS_16_DZ                             // Add support for PS-16-DZ Dimmer and Sonoff L1 (+2k code)
+//#define USE_ARMTRONIX_DIMMERS                    // Add support for Armtronix Dimmers (+1k4 code)
+//#define USE_PS_16_DZ                             // Add support for PS-16-DZ Dimmer and Sonoff L1 (+2k code)
 //#define ROTARY_V1                                // Add support for MI Desk Lamp
 
 // -- Counter input -------------------------------
@@ -320,12 +320,12 @@
 // -- One wire sensors ----------------------------
                                                  // WARNING: Select none for default one DS18B20 sensor or enable one of the following two options for multiple sensors
 //#define USE_DS18x20_LEGACY                       // Optional for more than one DS18x20 sensors with dynamic scan using library OneWire (+1k5 code)
-#define USE_DS18x20                              // Optional for more than one DS18x20 sensors with id sort, single scan and read retry (+1k3 code)
+//#define USE_DS18x20                              // Optional for more than one DS18x20 sensors with id sort, single scan and read retry (+1k3 code)
 //  #define W1_PARASITE_POWER                      // If using USE_DS18x20 then optimize for parasite powered sensors
 //  #define DS18B20_INTERNAL_PULLUP                // Use INPUT_PULLUP internal pullup resistors for single DS18B20
 
 // -- I2C sensors ---------------------------------
-#define USE_I2C                                  // I2C using library wire (+10k code, 0k2 mem, 124 iram)
+//#define USE_I2C                                  // I2C using library wire (+10k code, 0k2 mem, 124 iram)
 
 #ifdef USE_I2C
   #define USE_SHT                                // Enable SHT1X sensor (+1k4 code)
@@ -396,14 +396,14 @@
 #endif  // USE_SPI
 
 // -- Serial sensors ------------------------------
-#define USE_MHZ19                                // Add support for MH-Z19 CO2 sensor (+2k code)
-#define USE_SENSEAIR                             // Add support for SenseAir K30, K70 and S8 CO2 sensor (+2k3 code)
+//#define USE_MHZ19                                // Add support for MH-Z19 CO2 sensor (+2k code)
+//#define USE_SENSEAIR                             // Add support for SenseAir K30, K70 and S8 CO2 sensor (+2k3 code)
   #define CO2_LOW              800               // Below this CO2 value show green light (needs PWM or WS2812 RG(B) led and enable with SetOption18 1)
   #define CO2_HIGH             1200              // Above this CO2 value show red light (needs PWM or WS2812 RG(B) led and enable with SetOption18 1)
-#define USE_PMS5003                              // Add support for PMS5003 and PMS7003 particle concentration sensor (+1k3 code)
-#define USE_NOVA_SDS                             // Add support for SDS011 and SDS021 particle concentration sensor (+0k7 code)
+//#define USE_PMS5003                              // Add support for PMS5003 and PMS7003 particle concentration sensor (+1k3 code)
+//#define USE_NOVA_SDS                             // Add support for SDS011 and SDS021 particle concentration sensor (+0k7 code)
   #define WORKING_PERIOD       5                 // Working period of the SDS Sensor, Takes a reading every X Minutes
-#define USE_SERIAL_BRIDGE                        // Add support for software Serial Bridge (+0k8 code)
+//#define USE_SERIAL_BRIDGE                        // Add support for software Serial Bridge (+0k8 code)
 //#define USE_MP3_PLAYER                           // Use of the DFPlayer Mini MP3 Player RB-DFR-562 commands: play, volume and stop
   #define MP3_VOLUME           10                // Set the startup volume on init, the range can be 0..30(max)
 //#define USE_AZ7798                               // Add support for AZ-Instrument 7798 CO2 datalogger (+1k6 code)
@@ -430,7 +430,7 @@
   #define SOLAXX1_PV2                            // Solax X1 using second PV
 
 // -- Low level interface devices -----------------
-#define USE_DHT                                  // Add support for DHT11, AM2301 (DHT21, DHT22, AM2302, AM2321) and SI7021 Temperature and Humidity sensor (1k6 code)
+//#define USE_DHT                                  // Add support for DHT11, AM2301 (DHT21, DHT22, AM2302, AM2321) and SI7021 Temperature and Humidity sensor (1k6 code)
 
 //#define USE_MAX31855                             // Add support for MAX31855 K-Type thermocouple sensor using softSPI
 //#define USE_MAX31865                             // Add support for MAX31865 RTD sensors using softSPI
@@ -470,23 +470,23 @@
     #define IR_RCV_MIN_UNKNOWN_SIZE 6            // Set the smallest sized "UNKNOWN" message packets we actually care about (default 6, max 255)
 
 // -- Zigbee interface ----------------------------
-//#define USE_ZIGBEE                               // Enable serial communication with Zigbee CC2530 flashed with ZNP
+#define USE_ZIGBEE                               // Enable serial communication with Zigbee CC2530 flashed with ZNP
 
 // ------------------------------------------------
 
-#define USE_WS2812                               // WS2812 Led string using library NeoPixelBus (+5k code, +1k mem, 232 iram) - Disable by //
+//#define USE_WS2812                               // WS2812 Led string using library NeoPixelBus (+5k code, +1k mem, 232 iram) - Disable by //
   #define USE_WS2812_CTYPE     NEO_GRB           // WS2812 Color type (NEO_RGB, NEO_GRB, NEO_BRG, NEO_RBG, NEO_RGBW, NEO_GRBW)
 //  #define USE_WS2812_DMA                         // DMA supports only GPIO03 (= Serial RXD) (+1k mem). When USE_WS2812_DMA is enabled expect Exceptions on Pow
 
-#define USE_ARILUX_RF                            // Add support for Arilux RF remote controller (+0k8 code, 252 iram (non 2.3.0))
+//#define USE_ARILUX_RF                            // Add support for Arilux RF remote controller (+0k8 code, 252 iram (non 2.3.0))
 
-#define USE_SR04                                 // Add support for HC-SR04 ultrasonic devices (+1k code)
+//#define USE_SR04                                 // Add support for HC-SR04 ultrasonic devices (+1k code)
 
 //#define USE_TM1638                               // Add support for TM1638 switches copying Switch1 .. Switch8 (+1k code)
-#define USE_HX711                                // Add support for HX711 load cell (+1k5 code)
+//#define USE_HX711                                // Add support for HX711 load cell (+1k5 code)
 //  #define USE_HX711_GUI                          // Add optional web GUI to HX711 as scale (+1k8 code)
 
-#define USE_RF_FLASH                             // Add support for flashing the EFM8BB1 chip on the Sonoff RF Bridge. C2CK must be connected to GPIO4, C2D to GPIO5 on the PCB (+3k code)
+//#define USE_RF_FLASH                             // Add support for flashing the EFM8BB1 chip on the Sonoff RF Bridge. C2CK must be connected to GPIO4, C2D to GPIO5 on the PCB (+3k code)
 
 //#define USE_TX20_WIND_SENSOR                     // Add support for La Crosse TX20 anemometer (+2k code)
 
@@ -496,7 +496,7 @@
 //  #define USE_THEO_V2                            // Add support for decoding Theo V2 sensors as documented on https://sidweb.nl using 434MHz RF sensor receiver (+1k4 code)
 //  #define USE_ALECTO_V2                          // Add support for decoding Alecto V2 sensors like ACH2010, WS3000 and DKW2012 weather stations using 868MHz RF sensor receiver (+1k7 code)
 
-#define USE_SM16716                              // Add support for SM16716 RGB LED controller (+0k7 code)
+//#define USE_SM16716                              // Add support for SM16716 RGB LED controller (+0k7 code)
 
 //#define USE_HRE                                  // Add support for Badger HR-E Water Meter (+1k4 code)
 
