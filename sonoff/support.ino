@@ -740,14 +740,15 @@ int GetCommandCode(char* destination, size_t destination_size, const char* needl
 
 bool DecodeCommand(const char* haystack, void (* const MyCommand[])(void))
 {
-  bool result = false;
-
-  int command_code = GetCommandCode(XdrvMailbox.command, CMDSZ, XdrvMailbox.topic, haystack);
-  if (command_code >= 0) {
-    MyCommand[command_code]();
-    result = true;
+  GetTextIndexed(XdrvMailbox.command, CMDSZ, 0, haystack);  // Get prefix if available
+  int prefix_length = strlen(XdrvMailbox.command);
+  int command_code = GetCommandCode(XdrvMailbox.command + prefix_length, CMDSZ, XdrvMailbox.topic + prefix_length, haystack);
+  if (command_code > 0) {                                   // Skip prefix
+    XdrvMailbox.command_code = command_code -1;
+    MyCommand[XdrvMailbox.command_code]();
+    return true;
   }
-  return result;
+  return false;
 }
 
 int GetStateNumber(char *state_text)

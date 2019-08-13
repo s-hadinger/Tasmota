@@ -145,6 +145,7 @@ int32_t Z_Recv_Vers(uint8_t state, class SBuffer &buf) {
 	return 0;	// ok
 }
 
+<<<<<<< HEAD
 int32_t Z_State_Abort(uint8_t state) {
 	AddLog_P(LOG_LEVEL_DEBUG, PSTR("Z_State_Abort: aborting Zigbee initialization"));
 	zigbee_init_state_machine = false;
@@ -155,6 +156,18 @@ int32_t Z_State_Ready(uint8_t state) {
 	AddLog_P(LOG_LEVEL_DEBUG, PSTR("Z_State_Ready: zigbee initialization complete"));
 	zigbee_init_state_machine = false;
 }
+=======
+#define D_JSON_ZIGBEEZNPRECEIVED "ZigbeeZNPReceived"
+
+#define D_PRFX_ZIGBEE        "Zigbee"
+#define D_CMND_ZIGBEEZNPSEND "ZNPSend"
+
+const char kZigbeeCommands[] PROGMEM = D_PRFX_ZIGBEE "|"  // Prefix
+  D_CMND_ZIGBEEZNPSEND;
+
+void (* const ZigbeeCommand[])(void) PROGMEM =
+  { &CmndZigbeeZNPSend };
+>>>>>>> 09f8a7967e41c5e52852ce0e922414d05eac36b6
 
 
 // static const ZigbeeInitState init_states[] PROGMEM = {
