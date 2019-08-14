@@ -251,7 +251,7 @@ void ZigbeeStateMachine(void) {
 	}
 }
 
-void ZigbeeProcessInput(SBuffer &buf) {
+void ZigbeeProcessInput(class SBuffer &buf) {
   if (zigbee.state_machine) {
     // state is known not to be null, otherwise the error would have been catched in ZigbeeStateMachine()
     const ZigbeeState * state = ZigbeeStateInfo(zigbee.state_cur);
@@ -260,7 +260,7 @@ void ZigbeeProcessInput(SBuffer &buf) {
     bool recv_filter_match = true;
     if ((state->msg_recv) && (state->msg_recv_len)) {
       for (uint32_t i = 0; i < state->msg_recv_len; i++) {
-        if (state->msg_recv[i] != buf.get8(i)) {
+        if (pgm_read_byte(&state->msg_recv[i]) != buf.get8(i)) {
           recv_filter_match = false;
           break;
         }
@@ -408,6 +408,7 @@ void ZigbeeInit(void)
 
 void CmndZigbeeZNPSend(void)
 {
+  AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("CmndZigbeeZNPSend: entering, data_len = %d"), XdrvMailbox.data_len);
   if (ZigbeeSerial && (XdrvMailbox.data_len > 0)) {
     uint8_t code;
 
