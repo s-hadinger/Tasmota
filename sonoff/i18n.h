@@ -428,13 +428,10 @@
 #define D_CMND_LATITUDE "Latitude"
 #define D_CMND_LONGITUDE "Longitude"
 
-<<<<<<< HEAD
 // Commands xdrv_23_zigbee.ino
 #define D_CMND_ZIGBEEZNPSEND "ZigbeeZNPSend"
   #define D_JSON_ZIGBEEZNPRECEIVED "ZigbeeZNPReceived"
   #define D_JSON_ZIGBEEZNPSENT "ZigbeeZNPSent"
-=======
->>>>>>> 09f8a7967e41c5e52852ce0e922414d05eac36b6
 /********************************************************************************************/
 
 #define D_ASTERISK_PWD "****"
