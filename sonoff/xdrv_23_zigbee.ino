@@ -112,13 +112,24 @@ enum ZnpStates {
 
 TasmotaSerial *ZigbeeSerial = nullptr;
 
+struct ZigbeeStatus {
+  bool active = true;
+  bool init_state_machine = false;		// the cc2530 initialization state machine is working
+  bool ready = false;								  // cc2530 initialization is complet, ready to operate
+  uint8_t state_cur = S_START;				// start at first step in state machine
+  uint8_t state_next = 0;						  // mailbox for next state, O=no change
+};
+struct ZigbeeStatus zigbee;
+//  = {
+//   true,                                     // active
+//   false,                                    // init_state_machine
+//   false,                                    // ready
+//   S_START,                                  // state_cur
+//   0                                         // state_next
+// };
+
 SBuffer *zigbee_buffer = nullptr;
-bool zigbee_active = true;
-bool zigbee_init_state_machine = false;		// the cc2530 initialization state machine is working
-bool zigbee_ready = false;								// cc2530 initialization is complet, ready to operate
-uint8_t zigbee_state_cur = S_START;				// start at first step in state machine
 ZigbeeInitState zigbee_state_cur_info;
-uint8_t  zigbee_state_next = 0;						// mailbox for next state, O=no change
 
 // ZBS_* Zigbee Send
 // ZBR_* Zigbee Recv
@@ -147,13 +158,13 @@ int32_t Z_Recv_Vers(uint8_t state, class SBuffer &buf) {
 
 int32_t Z_State_Abort(uint8_t state) {
 	AddLog_P(LOG_LEVEL_DEBUG, PSTR("Z_State_Abort: aborting Zigbee initialization"));
-	zigbee_init_state_machine = false;
-	zigbee_active = false;
+	zigbee.init_state_machine = false;
+	zigbee.active = false;
 }
 
 int32_t Z_State_Ready(uint8_t state) {
 	AddLog_P(LOG_LEVEL_DEBUG, PSTR("Z_State_Ready: zigbee initialization complete"));
-	zigbee_init_state_machine = false;
+	zigbee.init_state_machine = false;
 }
 
 // static const ZigbeeInitState init_states[] PROGMEM = {
@@ -188,25 +199,25 @@ void ZigbeeInitStateMachine(void) {
 	bool state_entering = false;					// are we entering a new state?
 	uint32_t now = millis();
 
-	if (zigbee_state_next) {
+	if (zigbee.state_next) {
 		// a state transition is triggered
-		AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeInitStateMachine: transitioning fram state %d to %d"), zigbee_state_cur, zigbee_state_next);
-		zigbee_state_cur = zigbee_state_next;
-		zigbee_state_next = 0;		// reinit mailbox
+		AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeInitStateMachine: transitioning fram state %d to %d"), zigbee.state_cur, zigbee.state_next);
+		zigbee.state_cur = zigbee.state_next;
+		zigbee.state_next = 0;		// reinit mailbox
 		state_entering = true;
 	}
 
-	const ZigbeeInitState * state = ZigbeeStateInfo(zigbee_state_cur);
+	const ZigbeeInitState * state = ZigbeeStateInfo(zigbee.state_cur);
 	if (!state) {
 		// Fatal error, abort everything
-	  AddLog_P2(LOG_LEVEL_ERROR, PSTR("ZigbeeInitStateMachine: unknown state = %d"), zigbee_state_cur);
-		zigbee_init_state_machine = false;
+	  AddLog_P2(LOG_LEVEL_ERROR, PSTR("ZigbeeInitStateMachine: unknown state = %d"), zigbee.state_cur);
+		zigbee.init_state_machine = false;
 		return;
 	}
 
-	if (S_START == zigbee_state_cur) {		// fake start state, transitioning immediately
-		AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeInitStateMachine: Initial transition from S_STATT"));
-		zigbee_state_next = state->state_next;
+	if (S_START == zigbee.state_cur) {		// fake start state, transitioning immediately
+		AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeInitStateMachine: Initial transition from S_START"));
+		zigbee.state_next = state->state_next;
 		return;
 	}
 
@@ -215,12 +226,12 @@ void ZigbeeInitStateMachine(void) {
 		next_timeout = now + state->timeout;
 		int32_t res = 0;
 		if (state->init_func) {
-			res = (*state->init_func)(zigbee_state_cur);
-			AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeInitStateMachine: called init_func() state = %d, res = %d"), zigbee_state_cur, res);
+			res = (*state->init_func)(zigbee.state_cur);
+			AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeInitStateMachine: called init_func() state = %d, res = %d"), zigbee.state_cur, res);
 			if (res > 0) {
-				zigbee_state_next = res;
+				zigbee.state_next = res;
 			} else if (res < 0) {
-				zigbee_state_next = state->state_err;
+				zigbee.state_next = state->state_err;
 			}
 			// if res == 0 then ok, no change
 		}
@@ -230,9 +241,9 @@ void ZigbeeInitStateMachine(void) {
 		}
 	} else if (now > next_timeout) {
 		// timeout occured, move to next state
-		AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeInitStateMachine: timeout occured state = %d"), zigbee_state_cur);
+		AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeInitStateMachine: timeout occured state = %d"), zigbee.state_cur);
 		//ZigbeeMoveToState(uint8_t state_next);
-		zigbee_state_next = state->state_timeout;
+		zigbee.state_next = state->state_timeout;
 	}
 }
 
@@ -317,7 +328,7 @@ void ZigbeeInput(void)
 
 void ZigbeeInit(void)
 {
-  zigbee_active = false;
+  zigbee.active = false;
   if ((pin[GPIO_ZIGBEE_RX] < 99) && (pin[GPIO_ZIGBEE_TX] < 99)) {
 		AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("Zigbee: GPIOs Rx:%d Tx:%d"), pin[GPIO_ZIGBEE_RX], pin[GPIO_ZIGBEE_TX]);
     ZigbeeSerial = new TasmotaSerial(pin[GPIO_ZIGBEE_RX], pin[GPIO_ZIGBEE_TX]);
@@ -328,8 +339,8 @@ void ZigbeeInit(void)
 			} else {
 				zigbee_buffer = new SBuffer(ZIGBEE_BUFFER_SIZE);
 			}
-      zigbee_active = true;
-			zigbee_init_state_machine = true;			// start the state machine
+      zigbee.active = true;
+			zigbee.init_state_machine = true;			// start the state machine
       ZigbeeSerial->flush();
     }
   }
@@ -402,11 +413,11 @@ bool Xdrv23(uint8_t function)
 {
   bool result = false;
 
-  if (zigbee_active) {
+  if (zigbee.active) {
     switch (function) {
       case FUNC_LOOP:
         if (ZigbeeSerial) { ZigbeeInput(); }
-				if (zigbee_init_state_machine) {
+				if (zigbee.init_state_machine) {
 					if (local_time > 1451602800) {  // 2016-01-01
 						// make sure time is ok, otherwise crash TODO
 						ZigbeeInitStateMachine();
