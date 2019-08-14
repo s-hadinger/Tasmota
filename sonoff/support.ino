@@ -304,8 +304,6 @@ char* ToHex_P(const unsigned char * in, size_t insz, char * out, size_t outsz, c
   const unsigned char * pin = in;
   char * pout = out;
   for (; pin < in+insz; pout += between, pin++) {
-    // pout[0] = hex[(*pin>>4) & 0xF];
-    // pout[1] = hex[ *pin     & 0xF];
     pout[0] = hex[(pgm_read_byte(pin)>>4) & 0xF];
     pout[1] = hex[ pgm_read_byte(pin)     & 0xF];
     if (inbetween) { pout[2] = inbetween; }
