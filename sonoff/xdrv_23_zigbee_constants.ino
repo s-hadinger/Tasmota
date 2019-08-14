@@ -22,13 +22,6 @@
 
 
 
-enum class ZnpStatus : uint8_t {
-  Success = 0x00,
-  Failure = 0x01,
-  InvalidParameter = 0x02,
-  MemError = 0x03,
-  BufferFull = 0x11
-};
 
 typedef uint64_t IEEEAddress;
 typedef uint16_t ShortAddress;
@@ -129,26 +122,6 @@ enum class ZdoCommand : uint8_t {
   MSG_CB_INCOMING = 0xFF
 };
 
-// Commands in the SAPI subsystem
-enum class SapiCommand : uint8_t {
-  START_REQUEST = 0x00,
-  BIND_DEVICE = 0x01,
-  ALLOW_BIND = 0x02,
-  SEND_DATA_REQUEST = 0x03,
-  READ_CONFIGURATION = 0x04,
-  WRITE_CONFIGURATION = 0x05,
-  GET_DEVICE_INFO = 0x06,
-  FIND_DEVICE_REQUEST = 0x07,
-  PERMIT_JOINING_REQUEST = 0x08,
-  SYSTEM_RESET = 0x09,
-  START_CONFIRM = 0x80,
-  BIND_CONFIRM = 0x81,
-  ALLOW_BIND_CONFIRM = 0x82,
-  SEND_DATA_CONFIRM = 0x83,
-  FIND_DEVICE_CONFIRM = 0x85,
-  RECEIVE_DATA_INDICATION = 0x87,
-};
-
 // Commands in the UTIL subsystem
 enum class UtilCommand : uint8_t {
   GET_DEVICE_INFO = 0x00,
@@ -196,29 +169,5 @@ enum class Capability : uint16_t {
   ZOAD = 0x1000
 };
 
-enum : uint8_t {
-  STARTUP_OPTION = 0x03,
-  POLL_RATE = 0x24,
-  QUEUED_POLL_RATE = 0x25,
-  RESPONSE_POLL_RATE = 0x26,
-  POLL_FAILURE_RETRIES = 0x29,
-  INDIRECT_MSG_TIMEOUT = 0x2B,
-  ROUTE_EXPIRY_TIME = 0x2C,
-  EXTENDED_PAN_ID = 0x2D,
-  BCAST_RETRIES = 0x2E,
-  PASSIVE_ACK_TIMEOUT = 0x2F,
-  BCAST_DELIVERY_TIME = 0x30,
-  APS_FRAME_RETRIES = 0x43,
-  APS_ACK_WAIT_DURATION = 0x44,
-  BINDING_TIME = 0x46,
-  PRECFGKEY = 0x62,
-  PRECFGKEYS_ENABLE = 0x63,
-  SECURITY_MODE = 0x64,
-  USERDESC = 0x81,
-  PANID = 0x83,
-  CHANLIST = 0x84,
-  LOGICAL_TYPE = 0x87,
-  ZDO_DIRECT_CB = 0x8F
-};
 
 #endif // USE_ZIGBEE

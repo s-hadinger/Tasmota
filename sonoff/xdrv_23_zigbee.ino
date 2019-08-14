@@ -69,7 +69,56 @@ enum SysCommand {
   SYS_RESET_IND = 0x80,
   SYS_OSAL_TIMER_EXPIRED = 0x81,
 };
-
+// Commands in the SAPI subsystem
+enum SapiCommand {
+  START_REQUEST = 0x00,
+  BIND_DEVICE = 0x01,
+  ALLOW_BIND = 0x02,
+  SEND_DATA_REQUEST = 0x03,
+  READ_CONFIGURATION = 0x04,
+  WRITE_CONFIGURATION = 0x05,
+  GET_DEVICE_INFO = 0x06,
+  FIND_DEVICE_REQUEST = 0x07,
+  PERMIT_JOINING_REQUEST = 0x08,
+  SYSTEM_RESET = 0x09,
+  START_CONFIRM = 0x80,
+  BIND_CONFIRM = 0x81,
+  ALLOW_BIND_CONFIRM = 0x82,
+  SEND_DATA_CONFIRM = 0x83,
+  FIND_DEVICE_CONFIRM = 0x85,
+  RECEIVE_DATA_INDICATION = 0x87,
+};
+enum Z_configuration {
+  STARTUP_OPTION = 0x03,
+  POLL_RATE = 0x24,
+  QUEUED_POLL_RATE = 0x25,
+  RESPONSE_POLL_RATE = 0x26,
+  POLL_FAILURE_RETRIES = 0x29,
+  INDIRECT_MSG_TIMEOUT = 0x2B,
+  ROUTE_EXPIRY_TIME = 0x2C,
+  EXTENDED_PAN_ID = 0x2D,
+  BCAST_RETRIES = 0x2E,
+  PASSIVE_ACK_TIMEOUT = 0x2F,
+  BCAST_DELIVERY_TIME = 0x30,
+  APS_FRAME_RETRIES = 0x43,
+  APS_ACK_WAIT_DURATION = 0x44,
+  BINDING_TIME = 0x46,
+  PRECFGKEY = 0x62,
+  PRECFGKEYS_ENABLE = 0x63,
+  SECURITY_MODE = 0x64,
+  USERDESC = 0x81,
+  PANID = 0x83,
+  CHANLIST = 0x84,
+  LOGICAL_TYPE = 0x87,
+  ZDO_DIRECT_CB = 0x8F
+};
+enum Z_Status {
+  Z_Success = 0x00,
+  Z_Failure = 0x01,
+  Z_InvalidParameter = 0x02,
+  Z_MemError = 0x03,
+  Z_BufferFull = 0x11
+};
 
 #include <TasmotaSerial.h>
 
@@ -106,6 +155,8 @@ enum ZnpStates {
 	S_BOOT,
 	S_INIT,
 	S_VERS,
+  S_PANID,                    // check PANID
+  S_EXTPAN,                   // Extended PANID
 	S_READY,										// all initialization complete, ready to operate
 	S_ABORT,										// fatal error, abort zigbee
 };
@@ -131,6 +182,11 @@ static const uint8_t ZBS_RESET[] PROGMEM = { AREQ | SYS, SYS_RESET, 0x01 };	  //
 static const uint8_t ZBR_RESET[] PROGMEM = { AREQ | SYS, SYS_RESET_IND };			// 4180 SYS_RESET_REQ Software reset response
 static const uint8_t ZBS_VERS[]  PROGMEM = { SREQ | SYS, SYS_VERSION };				// 2102 SYS:version
 static const uint8_t ZBR_VERS[]  PROGMEM = { SRSP | SYS, SYS_VERSION };				// 6102 SYS:version
+static const uint8_t ZBS_PAN[]   PROGMEM = { SREQ | SAPI, READ_CONFIGURATION, PANID };				// 260483
+static const uint8_t ZBR_PAN[]   PROGMEM = { SRSP | SAPI, READ_CONFIGURATION, Z_Success, PANID, 0x02, 0xFF, 0xFF };				// 6604008302FFFF
+static const uint8_t ZBS_EXTPAN[]   PROGMEM = { SREQ | SAPI, READ_CONFIGURATION, EXTENDED_PAN_ID };				// 26042D
+static const uint8_t ZBR_EXTPAN[]   PROGMEM = { SRSP | SAPI, READ_CONFIGURATION, Z_Success, EXTENDED_PAN_ID,
+                                                0x08 /* len */, 0x62, 0x63, 0x15, 0x1D, 0x00, 0x4B, 0x12, 0x00 };				// 6604002D086263151D004B1200
 
 
 static const ZigbeeState zb_states[] PROGMEM = {
@@ -141,13 +197,31 @@ static const ZigbeeState zb_states[] PROGMEM = {
 	// S_INIT - send reinit command to cc2530 and wait for response,
 	{ S_INIT, S_VERS, S_ABORT, S_ABORT, ZBS_RESET, ZBR_RESET, sizeof(ZBS_RESET), sizeof(ZBR_RESET), 5000, nullptr, nullptr },
 	// S_VERS - read version
-	{ S_VERS, S_READY, S_ABORT, S_ABORT, ZBS_VERS, ZBR_VERS, sizeof(ZBR_VERS), sizeof(ZBR_VERS), 500, nullptr, &Z_Recv_Vers },
+	{ S_VERS, S_PANID, S_ABORT, S_ABORT, ZBS_VERS, ZBR_VERS, sizeof(ZBR_VERS), sizeof(ZBR_VERS), 500, nullptr, &Z_Recv_Vers },
+	// S_PANID - check the PAN ID
+	{ S_PANID, S_EXTPAN, S_ABORT, S_ABORT, ZBS_PAN, ZBR_PAN, sizeof(ZBS_PAN), sizeof(ZBR_PAN), 500, nullptr, nullptr },
+	// S_PANID - check the PAN ID
+	{ S_EXTPAN, S_READY, S_ABORT, S_ABORT, ZBS_EXTPAN, ZBR_EXTPAN, sizeof(ZBS_EXTPAN), sizeof(ZBR_EXTPAN), 500, nullptr, nullptr },
+
 	// S_ABORT - fatal error, abort zigbee
 	{ S_ABORT, S_ABORT, S_ABORT, S_ABORT, nullptr, nullptr, 0, 0, 0, &Z_State_Abort, nullptr },
 };
 
 int32_t Z_Recv_Vers(uint8_t state, class SBuffer &buf) {
-	return 0;	// ok
+  // check that the version is supported
+  // typical version for ZNP 1.2
+  // 61020200-020603D91434010200000000
+    // TranportRev = 02
+    // Product = 00
+    // MajorRel = 2
+    // MinorRel = 6
+    // MaintRel = 3
+    // Revision = 20190425 d (0x013414D9)
+  if ((0x02 == buf.get8(4)) && (0x06 == buf.get8(5))) {
+  	return 0;	  // version 2.6.x is ok
+  } else {
+    return -2;  // abort
+  }
 }
 
 
