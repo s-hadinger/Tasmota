@@ -150,16 +150,30 @@ int32_t Z_Recv_Vers(uint8_t state, class SBuffer &buf) {
 	return 0;	// ok
 }
 
+
+int32_t Z_Recv_Default(uint8_t state, class SBuffer &buf) {
+  // Default message handler for new messages
+  if (zigbee.init_phase) {
+    // if still during initialization phase, ignore any unexpected message
+  	return -1;	// ignore message
+  } else {
+    // for now ignore message
+    return -1;
+  }
+}
+
 int32_t Z_State_Abort(uint8_t state) {
 	AddLog_P(LOG_LEVEL_DEBUG, PSTR("Z_State_Abort: aborting Zigbee initialization"));
 	zigbee.state_machine = false;
 	zigbee.active = false;
+  return 0;
 }
 
 int32_t Z_State_Ready(uint8_t state) {
 	AddLog_P(LOG_LEVEL_DEBUG, PSTR("Z_State_Ready: zigbee initialization complete"));
 	zigbee.state_machine = false;
   zigbee.init_phase = false;            // initialization phase complete
+  return 0;
 }
 
 int32_t enter_NoOp(uint32_t state) {
@@ -167,7 +181,7 @@ int32_t enter_NoOp(uint32_t state) {
 }
 
 int32_t recv_Err(uint32_t state, class SBuffer &buf) {
-	return -1;	// error
+	return -2;	// error
 }
 
 // copy the cur_state_info into ram for current state
@@ -237,6 +251,55 @@ void ZigbeeStateMachine(void) {
 	}
 }
 
+void ZigbeeProcessInput(SBuffer &buf) {
+  if (zigbee.state_machine) {
+    // state is known not to be null, otherwise the error would have been catched in ZigbeeStateMachine()
+    const ZigbeeState * state = ZigbeeStateInfo(zigbee.state_cur);
+
+    // apply the receive filter, acts as 'startsWith()'
+    bool recv_filter_match = true;
+    if ((state->msg_recv) && (state->msg_recv_len)) {
+      for (uint32_t i = 0; i < state->msg_recv_len; i++) {
+        if (state->msg_recv[i] != buf.get8(i)) {
+          recv_filter_match = false;
+          break;
+        }
+      }
+    }
+    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeProcessInput: recv_filter_match = %d"), recv_filter_match);
+
+    // if there is a recv_callback, call it now
+    int32_t res = 0;          // default to ok
+                              // res  =  0   - proceed to next state
+                              // res  >  0   - proceed to the specified state
+                              // res  = -1  - silently ignore the message
+                              // res <= -2 - move to error state
+    if (recv_filter_match) {
+      if (state->recv_func) {
+        res = (*state->recv_func)(zigbee.state_cur, buf);
+      }
+    } else {
+      // if filter does not match, call default handler
+      Z_Recv_Default(zigbee.state_cur, buf);
+    }
+    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeProcessInput: res = %d"), res);
+
+    // change state accordingly
+    if (0 == res) {
+      // if ok, move to next ok state
+      ZigbeeNextState(state->state_next);
+    } else if (res > 0) {
+      // move to arbitrary state
+      ZigbeeNextState(res);
+    } else if (-1 == res) {
+      // -1 means ignore message
+    } else {
+      // any other negative value means error
+      ZigbeeNextState(state->state_err);
+    }
+  }
+}
+
 void ZigbeeInput(void)
 {
 	static uint32_t zigbee_polling_window = 0;
@@ -302,13 +365,15 @@ void ZigbeeInput(void)
 			// frame is correct
 			AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_JSON_ZIGBEEZNPRECEIVED ": received correct frame %s"), hex_char);
 
-			// now process the message
 			SBuffer znp_buffer = zigbee_buffer->subBuffer(2, zigbee_frame_len - 3);	// remove SOF, LEN and FCS
 
 			ToHex_P((unsigned char*)znp_buffer.getBuffer(), znp_buffer.len(), hex_char, sizeof(hex_char));
 	    Response_P(PSTR("{\"" D_JSON_ZIGBEEZNPRECEIVED "\":\"%s\"}"), hex_char);
 	    MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZNPRECEIVED));
 	    XdrvRulesProcess();
+
+			// now process the message
+      ZigbeeProcessInput(znp_buffer);
 		}
 		zigbee_buffer->setLen(0);		// empty buffer
   }
