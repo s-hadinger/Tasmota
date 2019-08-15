@@ -89,29 +89,121 @@ enum SapiCommand {
   RECEIVE_DATA_INDICATION = 0x87,
 };
 enum Z_configuration {
+  EXTADDR = 0x01,
+  BOOTCOUNTER = 0x02,
   STARTUP_OPTION = 0x03,
+  START_DELAY = 0x04,
+  NIB = 0x21,
+  DEVICE_LIST = 0x22,
+  ADDRMGR = 0x23,
   POLL_RATE = 0x24,
   QUEUED_POLL_RATE = 0x25,
   RESPONSE_POLL_RATE = 0x26,
+  REJOIN_POLL_RATE = 0x27,
+  DATA_RETRIES = 0x28,
   POLL_FAILURE_RETRIES = 0x29,
+  STACK_PROFILE = 0x2A,
   INDIRECT_MSG_TIMEOUT = 0x2B,
   ROUTE_EXPIRY_TIME = 0x2C,
   EXTENDED_PAN_ID = 0x2D,
   BCAST_RETRIES = 0x2E,
   PASSIVE_ACK_TIMEOUT = 0x2F,
   BCAST_DELIVERY_TIME = 0x30,
+  NWK_MODE = 0x31,
+  CONCENTRATOR_ENABLE = 0x32,
+  CONCENTRATOR_DISCOVERY = 0x33,
+  CONCENTRATOR_RADIUS = 0x34,
+  CONCENTRATOR_RC = 0x36,
+  NWK_MGR_MODE = 0x37,
+  SRC_RTG_EXPIRY_TIME = 0x38,
+  ROUTE_DISCOVERY_TIME = 0x39,
+  NWK_ACTIVE_KEY_INFO = 0x3A,
+  NWK_ALTERN_KEY_INFO = 0x3B,
+  ROUTER_OFF_ASSOC_CLEANUP = 0x3C,
+  NWK_LEAVE_REQ_ALLOWED = 0x3D,
+  NWK_CHILD_AGE_ENABLE = 0x3E,
+  DEVICE_LIST_KA_TIMEOUT = 0x3F,
+  BINDING_TABLE = 0x41,
+  GROUP_TABLE = 0x42,
   APS_FRAME_RETRIES = 0x43,
   APS_ACK_WAIT_DURATION = 0x44,
+  APS_ACK_WAIT_MULTIPLIER = 0x45,
   BINDING_TIME = 0x46,
+  APS_USE_EXT_PANID = 0x47,
+  APS_USE_INSECURE_JOIN = 0x48,
+  COMMISSIONED_NWK_ADDR = 0x49,
+  APS_NONMEMBER_RADIUS = 0x4B,
+  APS_LINK_KEY_TABLE = 0x4C,
+  APS_DUPREJ_TIMEOUT_INC = 0x4D,
+  APS_DUPREJ_TIMEOUT_COUNT = 0x4E,
+  APS_DUPREJ_TABLE_SIZE = 0x4F,
+  DIAGNOSTIC_STATS = 0x50,
+  SECURITY_LEVEL = 0x61,
   PRECFGKEY = 0x62,
   PRECFGKEYS_ENABLE = 0x63,
   SECURITY_MODE = 0x64,
+  SECURE_PERMIT_JOIN = 0x65,
+  APS_LINK_KEY_TYPE = 0x66,
+  APS_ALLOW_R19_SECURITY = 0x67,
+  IMPLICIT_CERTIFICATE = 0x69,
+  DEVICE_PRIVATE_KEY = 0x6A,
+  CA_PUBLIC_KEY = 0x6B,
+  KE_MAX_DEVICES = 0x6C,
+  USE_DEFAULT_TCLK = 0x6D,
+  RNG_COUNTER = 0x6F,
+  RANDOM_SEED = 0x70,
+  TRUSTCENTER_ADDR = 0x71,
   USERDESC = 0x81,
+  NWKKEY = 0x82,
   PANID = 0x83,
   CHANLIST = 0x84,
+  LEAVE_CTRL = 0x85,
+  SCAN_DURATION = 0x86,
   LOGICAL_TYPE = 0x87,
-  ZDO_DIRECT_CB = 0x8F
+  NWKMGR_MIN_TX = 0x88,
+  NWKMGR_ADDR = 0x89,
+  ZDO_DIRECT_CB = 0x8F,
+  ZNP_HAS_CONFIGURED = 0xF00
 };
+
+// enum Z_nvItemIds {
+//   SCENE_TABLE = 145,
+//   MIN_FREE_NWK_ADDR = 146,
+//   MAX_FREE_NWK_ADDR = 147,
+//   MIN_FREE_GRP_ID = 148,
+//   MAX_FREE_GRP_ID = 149,
+//   MIN_GRP_IDS = 150,
+//   MAX_GRP_IDS = 151,
+//   OTA_BLOCK_REQ_DELAY = 152,
+//   SAPI_ENDPOINT = 161,
+//   SAS_SHORT_ADDR = 177,
+//   SAS_EXT_PANID = 178,
+//   SAS_PANID = 179,
+//   SAS_CHANNEL_MASK = 180,
+//   SAS_PROTOCOL_VER = 181,
+//   SAS_STACK_PROFILE = 182,
+//   SAS_STARTUP_CTRL = 183,
+//   SAS_TC_ADDR = 193,
+//   SAS_TC_MASTER_KEY = 194,
+//   SAS_NWK_KEY = 195,
+//   SAS_USE_INSEC_JOIN = 196,
+//   SAS_PRECFG_LINK_KEY = 197,
+//   SAS_NWK_KEY_SEQ_NUM = 198,
+//   SAS_NWK_KEY_TYPE = 199,
+//   SAS_NWK_MGR_ADDR = 200,
+//   SAS_CURR_TC_MASTER_KEY = 209,
+//   SAS_CURR_NWK_KEY = 210,
+//   SAS_CURR_PRECFG_LINK_KEY = 211,
+//   TCLK_TABLE_START = 257,
+//   TCLK_TABLE_END = 511,
+//   APS_LINK_KEY_DATA_START = 513,
+//   APS_LINK_KEY_DATA_END = 767,
+//   DUPLICATE_BINDING_TABLE = 768,
+//   DUPLICATE_DEVICE_LIST = 769,
+//   DUPLICATE_DEVICE_LIST_KA_TIMEOUT = 770,
+//};
+
+
 enum Z_Status {
   Z_Success = 0x00,
   Z_Failure = 0x01,
@@ -123,9 +215,9 @@ enum Z_Status {
 #include <TasmotaSerial.h>
 
 
-const char kZigbeeCommands[] PROGMEM = D_CMND_ZIGBEEZNPSEND;
+const char kZigbeeCommands[] PROGMEM = "|" D_CMND_ZIGBEEZNPSEND "|" D_CMND_ZIGBEEZNPRECEIVE;
 
-void (* const ZigbeeCommand[])(void) PROGMEM = { &CmndZigbeeZNPSend };
+void (* const ZigbeeCommand[])(void) PROGMEM = { &CmndZigbeeZNPSend, &CmndZigbeeZNPRecv };
 
 // return value: 0=Ok proceed to next step, <0 Error, >0 go to a specific state
 typedef int32_t (*State_EnterFunc)(uint8_t state);
@@ -183,9 +275,10 @@ const uint8_t ZBR_RESET[] PROGMEM = { AREQ | SYS, SYS_RESET_IND };			// 4180 SYS
 
 const uint8_t ZBS_VERS[]  PROGMEM = { SREQ | SYS, SYS_VERSION };				// 2102 SYS:version
 const uint8_t ZBR_VERS[]  PROGMEM = { SRSP | SYS, SYS_VERSION };				// 6102 SYS:version
-
-const uint8_t ZBS_APPEN[]   PROGMEM = { SREQ | SYS, SYS_OSAL_NV_READ, 0x00, 0x0F, 0x00 };				// 2108000F00
+// Check if ZNP_HAS_CONFIGURED is set
+const uint8_t ZBS_APPEN[]   PROGMEM = { SREQ | SYS, SYS_OSAL_NV_READ, SYS_OSAL_NV_READ, SYS_OSAL_NV_READ >> 8, 0x00 /* offset */ };				// 2108000F00
 const uint8_t ZBR_APPEN[]   PROGMEM = { SRSP | SYS, SYS_OSAL_NV_READ, Z_Success, 0x02 /* len */, 0x62, 0x1A };				// 61080002621A
+// If not set, the response is 61-08-02-00 = SRSP | SYS, SYS_OSAL_NV_READ, Z_InvalidParameter, 0x00 /* len */
 
 const uint8_t ZBS_PAN[]   PROGMEM = { SREQ | SAPI, READ_CONFIGURATION, PANID };				// 260483
 const uint8_t ZBR_PAN[]   PROGMEM = { SRSP | SAPI, READ_CONFIGURATION, Z_Success, PANID, 0x02 /* len */, 0xFF, 0xFF };				// 6604008302FFFF
@@ -508,7 +601,7 @@ void ZigbeeInit(void)
 
 void CmndZigbeeZNPSend(void)
 {
-  AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("CmndZigbeeZNPSend: entering, data_len = %d"), XdrvMailbox.data_len);
+  AddLog_P2(LOG_LEVEL_INFO, PSTR("CmndZigbeeZNPSend: entering, data_len = %d"), XdrvMailbox.data_len); // TODO
   if (ZigbeeSerial && (XdrvMailbox.data_len > 0)) {
     uint8_t code;
 
@@ -560,6 +653,30 @@ void ZigbeeZNPSend(const uint8_t *msg, size_t len) {
 			ToHex_P(msg, len, hex_char, sizeof(hex_char)));
 	MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZNPSENT));
 	XdrvRulesProcess();
+}
+
+void CmndZigbeeZNPRecv(void)
+{
+  AddLog_P2(LOG_LEVEL_INFO, PSTR("CmndZigbeeZNPRecv: entering, data_len = %d"), XdrvMailbox.data_len); // TODO
+  // if (ZigbeeSerial && (XdrvMailbox.data_len > 0)) {
+  //   uint8_t code;
+  //
+  //   char *codes = RemoveSpace(XdrvMailbox.data);
+  //   int32_t size = strlen(XdrvMailbox.data);
+  //
+	// 	SBuffer buf((size+1)/2);
+  //
+  //   while (size > 0) {
+  //     char stemp[3];
+  //     strlcpy(stemp, codes, sizeof(stemp));
+  //     code = strtol(stemp, nullptr, 16);
+	// 		buf.add8(code);
+  //     size -= 2;
+  //     codes += 2;
+  //   }
+	// 	ZigbeeZNPSend(buf.getBuffer(), buf.len());
+  // }
+  ResponseCmndDone();
 }
 
 /*********************************************************************************************\
