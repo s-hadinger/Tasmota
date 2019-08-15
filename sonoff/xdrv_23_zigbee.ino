@@ -178,27 +178,34 @@ ZigbeeState zigbee_state_cur_info;
 
 // ZBS_* Zigbee Send
 // ZBR_* Zigbee Recv
-static const uint8_t ZBS_RESET[] PROGMEM = { AREQ | SYS, SYS_RESET, 0x01 };	  // 410001 SYS_RESET_REQ Software reset
-static const uint8_t ZBR_RESET[] PROGMEM = { AREQ | SYS, SYS_RESET_IND };			// 4180 SYS_RESET_REQ Software reset response
-static const uint8_t ZBS_VERS[]  PROGMEM = { SREQ | SYS, SYS_VERSION };				// 2102 SYS:version
-static const uint8_t ZBR_VERS[]  PROGMEM = { SRSP | SYS, SYS_VERSION };				// 6102 SYS:version
-static const uint8_t ZBS_APPEN[]   PROGMEM = { SREQ | SYS, SYS_OSAL_NV_READ, 0x00, 0x0F, 0x00 };				// 2108000F00
-static const uint8_t ZBR_APPEN[]   PROGMEM = { SRSP | SYS, SYS_OSAL_NV_READ, Z_Success, 0x02 /* len */, 0x62, 0x1A };				// 61080002621A
-static const uint8_t ZBS_PAN[]   PROGMEM = { SREQ | SAPI, READ_CONFIGURATION, PANID };				// 260483
-static const uint8_t ZBR_PAN[]   PROGMEM = { SRSP | SAPI, READ_CONFIGURATION, Z_Success, PANID, 0x02 /* len */, 0xFF, 0xFF };				// 6604008302FFFF
-static const uint8_t ZBS_EXTPAN[]   PROGMEM = { SREQ | SAPI, READ_CONFIGURATION, EXTENDED_PAN_ID };				// 26042D
-static const uint8_t ZBR_EXTPAN[]   PROGMEM = { SRSP | SAPI, READ_CONFIGURATION, Z_Success, EXTENDED_PAN_ID,
-                                                0x08 /* len */, 0x62, 0x63, 0x15, 0x1D, 0x00, 0x4B, 0x12, 0x00 };				// 6604002D086263151D004B1200
-static const uint8_t ZBS_CHANN[]   PROGMEM = { SREQ | SAPI, READ_CONFIGURATION, CHANLIST };				// 260484
-static const uint8_t ZBR_CHANN[]   PROGMEM = { SRSP | SAPI, READ_CONFIGURATION, Z_Success, CHANLIST,
-                                                0x04 /* len */, 0x00, 0x08, 0x00, 0x00 };				// 660400840400080000
-static const uint8_t ZBS_PFGK[]   PROGMEM = { SREQ | SAPI, READ_CONFIGURATION, PRECFGKEY };				// 260462
-static const uint8_t ZBR_PFGK[]   PROGMEM = { SRSP | SAPI, READ_CONFIGURATION, Z_Success, PRECFGKEY,
-                                                0x10 /* len */, 0x01, 0x03, 0x05, 0x07, 0x09, 0x0B, 0x0D, 0x0F,
-                                                                0x00, 0x02, 0x04, 0x06, 0x08, 0x0A, 0x0C, 0x0D };				// 660400621001030507090B0D0F00020406080A0C0D
-static const uint8_t ZBS_PFGKEN[]   PROGMEM = { SREQ | SAPI, READ_CONFIGURATION, PRECFGKEYS_ENABLE };				// 260463
-static const uint8_t ZBR_PFGKEN[]   PROGMEM = { SRSP | SAPI, READ_CONFIGURATION, Z_Success, PRECFGKEYS_ENABLE,
-                                                0x01 /* len */, 0x00 };				// 660400630100
+const uint8_t ZBS_RESET[] PROGMEM = { AREQ | SYS, SYS_RESET, 0x01 };	  // 410001 SYS_RESET_REQ Software reset
+const uint8_t ZBR_RESET[] PROGMEM = { AREQ | SYS, SYS_RESET_IND };			// 4180 SYS_RESET_REQ Software reset response
+
+const uint8_t ZBS_VERS[]  PROGMEM = { SREQ | SYS, SYS_VERSION };				// 2102 SYS:version
+const uint8_t ZBR_VERS[]  PROGMEM = { SRSP | SYS, SYS_VERSION };				// 6102 SYS:version
+
+const uint8_t ZBS_APPEN[]   PROGMEM = { SREQ | SYS, SYS_OSAL_NV_READ, 0x00, 0x0F, 0x00 };				// 2108000F00
+const uint8_t ZBR_APPEN[]   PROGMEM = { SRSP | SYS, SYS_OSAL_NV_READ, Z_Success, 0x02 /* len */, 0x62, 0x1A };				// 61080002621A
+
+const uint8_t ZBS_PAN[]   PROGMEM = { SREQ | SAPI, READ_CONFIGURATION, PANID };				// 260483
+const uint8_t ZBR_PAN[]   PROGMEM = { SRSP | SAPI, READ_CONFIGURATION, Z_Success, PANID, 0x02 /* len */, 0xFF, 0xFF };				// 6604008302FFFF
+
+const uint8_t ZBS_EXTPAN[]   PROGMEM = { SREQ | SAPI, READ_CONFIGURATION, EXTENDED_PAN_ID };				// 26042D
+const uint8_t ZBR_EXTPAN[]   PROGMEM = { SRSP | SAPI, READ_CONFIGURATION, Z_Success, EXTENDED_PAN_ID,
+                                        0x08 /* len */, 0x62, 0x63, 0x15, 0x1D, 0x00, 0x4B, 0x12, 0x00 };				// 6604002D086263151D004B1200
+
+const uint8_t ZBS_CHANN[]   PROGMEM = { SREQ | SAPI, READ_CONFIGURATION, CHANLIST };				// 260484
+const uint8_t ZBR_CHANN[]   PROGMEM = { SRSP | SAPI, READ_CONFIGURATION, Z_Success, CHANLIST,
+                                        0x04 /* len */, 0x00, 0x08, 0x00, 0x00 };				// 660400840400080000
+
+const uint8_t ZBS_PFGK[]   PROGMEM = { SREQ | SAPI, READ_CONFIGURATION, PRECFGKEY };				// 260462
+const uint8_t ZBR_PFGK[]   PROGMEM = { SRSP | SAPI, READ_CONFIGURATION, Z_Success, PRECFGKEY,
+                                        0x10 /* len */, 0x01, 0x03, 0x05, 0x07, 0x09, 0x0B, 0x0D, 0x0F,
+                                                        0x00, 0x02, 0x04, 0x06, 0x08, 0x0A, 0x0C, 0x0D };				// 660400621001030507090B0D0F00020406080A0C0D
+
+const uint8_t ZBS_PFGKEN[]   PROGMEM = { SREQ | SAPI, READ_CONFIGURATION, PRECFGKEYS_ENABLE };				// 260463
+const uint8_t ZBR_PFGKEN[]   PROGMEM = { SRSP | SAPI, READ_CONFIGURATION, Z_Success, PRECFGKEYS_ENABLE,
+                                        0x01 /* len */, 0x00 };				// 660400630100
 
 static const ZigbeeState zb_states[] PROGMEM = {
 	// S_START - fake state that immediately transitions to next state
@@ -213,6 +220,10 @@ static const ZigbeeState zb_states[] PROGMEM = {
 	{ S_PANID, S_EXTPAN, S_ABORT, S_ABORT, ZBS_PAN, ZBR_PAN, sizeof(ZBS_PAN), sizeof(ZBR_PAN), 500, nullptr, nullptr },
 	// S_PANID - check the PAN ID
 	{ S_EXTPAN, S_READY, S_ABORT, S_ABORT, ZBS_EXTPAN, ZBR_EXTPAN, sizeof(ZBS_EXTPAN), sizeof(ZBR_EXTPAN), 500, nullptr, nullptr },
+
+  // S_READY - ready to receive state
+	{ S_READY, S_READY, S_ABORT, S_READY, nullptr, nullptr, 0, 0, 0xFFFF, &Z_State_Ready, nullptr },
+
 
 	// S_ABORT - fatal error, abort zigbee
 	{ S_ABORT, S_ABORT, S_ABORT, S_ABORT, nullptr, nullptr, 0, 0, 0, &Z_State_Abort, nullptr },
@@ -290,7 +301,7 @@ void ZigbeeNextState(uint8_t next) {
 }
 
 void ZigbeeStateMachine(void) {
-	static uint32_t next_timeout = 0;			// when is the next timeout occurring
+	static int32_t next_timeout = 0;			// when is the next timeout occurring
 	bool state_entering = false;					// are we entering a new state?
 	uint32_t now = millis();
 
@@ -312,7 +323,11 @@ void ZigbeeStateMachine(void) {
 
 	if (state_entering) {
 		// We are entering a new state
-		next_timeout = now + state->timeout;
+    if (0xFFFF != state->timeout) {
+      next_timeout = now + state->timeout;
+    } else {
+      next_timeout = -1;      // no timeout
+    }
 		int32_t res = 0;
 		if (state->init_func) {
 			res = (*state->init_func)(zigbee.state_cur);
@@ -328,7 +343,7 @@ void ZigbeeStateMachine(void) {
 		if ((0 == res) && (state->msg_sent) && (state->msg_sent_len)) {
 			ZigbeeZNPSend(state->msg_sent, state->msg_sent_len);
 		}
-	} else if (now > next_timeout) {
+	} else if ((next_timeout >= 0) && (now > next_timeout)) {
 		// timeout occured, move to next state
 		AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeStateMachine: timeout occured state = %d"), zigbee.state_cur);
 		//ZigbeeMoveToState(uint8_t state_next);
