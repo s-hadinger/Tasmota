@@ -232,13 +232,9 @@ typedef struct ZigbeeState {
 	const uint8_t *           msg_recv;           // filter to accept received message
 	uint8_t										msg_sent_len;				// sizeof msg_sent
 	uint8_t                   msg_recv_len;       // sizeof msg_recv
-	uint16_t									timeout;						// timeout in ms
+	int16_t 									timeout;						// timeout in ms, 0=move immediately to next step, -1=forever
 	State_EnterFunc						init_func;					// function called when entering this state
 	State_ReceivedFrameFunc	  recv_func;					// fucnrion called when receiving a frame in this state
-	//uint16_t									timeout;						// timeout in ms in this state
-	//uint8_t										ok_next_state;			// next state if no error
-	//uint8_t										timeout_next_state;	// what is the next state if timeout
-	//uint8_t										error_next_state;		// what is the next state if error
 } ZigbeeState;
 
 // State machine states
@@ -276,7 +272,7 @@ const uint8_t ZBR_RESET[] PROGMEM = { AREQ | SYS, SYS_RESET_IND };			// 4180 SYS
 const uint8_t ZBS_VERS[]  PROGMEM = { SREQ | SYS, SYS_VERSION };				// 2102 SYS:version
 const uint8_t ZBR_VERS[]  PROGMEM = { SRSP | SYS, SYS_VERSION };				// 6102 SYS:version
 // Check if ZNP_HAS_CONFIGURED is set
-const uint8_t ZBS_APPEN[]   PROGMEM = { SREQ | SYS, SYS_OSAL_NV_READ, SYS_OSAL_NV_READ, SYS_OSAL_NV_READ >> 8, 0x00 /* offset */ };				// 2108000F00
+const uint8_t ZBS_APPEN[]   PROGMEM = { SREQ | SYS, SYS_OSAL_NV_READ, ZNP_HAS_CONFIGURED & 0xFF, ZNP_HAS_CONFIGURED >> 8, 0x00 /* offset */ };				// 2108000F00
 const uint8_t ZBR_APPEN[]   PROGMEM = { SRSP | SYS, SYS_OSAL_NV_READ, Z_Success, 0x02 /* len */, 0x62, 0x1A };				// 61080002621A
 // If not set, the response is 61-08-02-00 = SRSP | SYS, SYS_OSAL_NV_READ, Z_InvalidParameter, 0x00 /* len */
 
@@ -300,6 +296,12 @@ const uint8_t ZBS_PFGKEN[]   PROGMEM = { SREQ | SAPI, READ_CONFIGURATION, PRECFG
 const uint8_t ZBR_PFGKEN[]   PROGMEM = { SRSP | SAPI, READ_CONFIGURATION, Z_Success, PRECFGKEYS_ENABLE,
                                         0x01 /* len */, 0x00 };				// 660400630100
 
+// commands to "format" the device
+// Factory reset
+const uint8_t ZBS_FACTRES[]   PROGMEM = { SREQ | SAPI, WRITE_CONFIGURATION, STARTUP_OPTION, 0x01 /* len */, 0x02 };				// 2605030102
+const uint8_t ZBR_FACTRES[]   PROGMEM = { SRSP | SAPI, WRITE_CONFIGURATION, Z_Success };				// 660500
+
+
 static const ZigbeeState zb_states[] PROGMEM = {
 	// S_START - fake state that immediately transitions to next state
 	{ S_START, S_BOOT, S_BOOT, S_BOOT, nullptr, nullptr, 0, 0, 0, nullptr, nullptr },
@@ -315,7 +317,7 @@ static const ZigbeeState zb_states[] PROGMEM = {
 	{ S_EXTPAN, S_READY, S_ABORT, S_ABORT, ZBS_EXTPAN, ZBR_EXTPAN, sizeof(ZBS_EXTPAN), sizeof(ZBR_EXTPAN), 500, nullptr, nullptr },
 
   // S_READY - ready to receive state
-	{ S_READY, S_READY, S_ABORT, S_READY, nullptr, nullptr, 0, 0, 0xFFFF, &Z_State_Ready, nullptr },
+	{ S_READY, S_READY, S_ABORT, S_READY, nullptr, nullptr, 0, 0, -1, &Z_State_Ready, nullptr },
 
 
 	// S_ABORT - fatal error, abort zigbee
@@ -416,10 +418,10 @@ void ZigbeeStateMachine(void) {
 
 	if (state_entering) {
 		// We are entering a new state
-    if (0xFFFF != state->timeout) {
+    if (state->timeout > 0) {
       next_timeout = now + state->timeout;
     } else {
-      next_timeout = -1;      // no timeout
+      next_timeout = state->timeout;      // 0=immediate, -1=forever
     }
 		int32_t res = 0;
 		if (state->init_func) {
@@ -436,7 +438,7 @@ void ZigbeeStateMachine(void) {
 		if ((0 == res) && (state->msg_sent) && (state->msg_sent_len)) {
 			ZigbeeZNPSend(state->msg_sent, state->msg_sent_len);
 		}
-	} else if ((next_timeout >= 0) && (now > next_timeout)) {
+	} else if ((0 == next_timeout) || ((next_timeout > 0) && (now > next_timeout))) {
 		// timeout occured, move to next state
 		AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeStateMachine: timeout occured state = %d"), zigbee.state_cur);
 		//ZigbeeMoveToState(uint8_t state_next);
