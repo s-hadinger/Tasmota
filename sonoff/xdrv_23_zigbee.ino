@@ -244,9 +244,13 @@ enum ZnpStates {
 	S_START = 0,
 	S_BOOT,
 	S_INIT,
+  S_CHECKZNPHC,               // Check if ZNP Has Configured is set and correct
 	S_VERS,
   S_PANID,                    // check PANID
   S_EXTPAN,                   // Extended PANID
+  S_INIT_CHANN,               // Check CHANNEL
+  S_INIT_PFGK,
+  S_INIT_PFGKEN,
 	S_READY,										// all initialization complete, ready to operate
   S_FORMAT,                   // start a complete re-format of the device (empty state)
   S_FORM_1,                   // format startup-option
@@ -258,6 +262,9 @@ enum ZnpStates {
   S_FORM_7,                   // format startup-option
   S_FORM_8,                   // format startup-option
   S_FORM_9,                   // format startup-option
+  S_FORM_10,                  // format startup-option
+  S_FORM_11,                  // format startup-option
+  S_FORM_12,                  // format startup-option
 	S_ABORT,										// fatal error, abort zigbee
 };
 
@@ -284,8 +291,8 @@ const uint8_t ZBR_RESET[] PROGMEM = { AREQ | SYS, SYS_RESET_IND };			// 4180 SYS
 const uint8_t ZBS_VERS[]  PROGMEM = { SREQ | SYS, SYS_VERSION };				// 2102 SYS:version
 const uint8_t ZBR_VERS[]  PROGMEM = { SRSP | SYS, SYS_VERSION };				// 6102 SYS:version
 // Check if ZNP_HAS_CONFIGURED is set
-const uint8_t ZBS_APPEN[]   PROGMEM = { SREQ | SYS, SYS_OSAL_NV_READ, ZNP_HAS_CONFIGURED & 0xFF, ZNP_HAS_CONFIGURED >> 8, 0x00 /* offset */ };				// 2108000F00
-const uint8_t ZBR_APPEN[]   PROGMEM = { SRSP | SYS, SYS_OSAL_NV_READ, Z_Success, 0x02 /* len */, 0x62, 0x1A };				// 61080002621A
+const uint8_t ZBS_ZNPHC[]   PROGMEM = { SREQ | SYS, SYS_OSAL_NV_READ, ZNP_HAS_CONFIGURED & 0xFF, ZNP_HAS_CONFIGURED >> 8, 0x00 /* offset */ };				// 2108000F00 - 6108000155
+const uint8_t ZBR_ZNPHC[]   PROGMEM = { SRSP | SYS, SYS_OSAL_NV_READ, Z_Success, 0x01 /* len */, 0x55 };				// 6108000155
 // If not set, the response is 61-08-02-00 = SRSP | SYS, SYS_OSAL_NV_READ, Z_InvalidParameter, 0x00 /* len */
 
 const uint8_t ZBS_PAN[]   PROGMEM = { SREQ | SAPI, READ_CONFIGURATION, PANID };				// 260483
@@ -329,7 +336,7 @@ const uint8_t ZBS_W_PFGK[]   PROGMEM = { SREQ | SAPI, WRITE_CONFIGURATION, PRECF
 // Write precfgkey enable
 const uint8_t ZBS_W_PFGKEN[]   PROGMEM = { SREQ | SAPI, WRITE_CONFIGURATION, PRECFGKEYS_ENABLE, 0x01 /* len */, 0x00  };				// 2605630100
 // Write Security Mode
-const uint8_t ZBS_W_SECMODE[]   PROGMEM = { SREQ | SYS, SYS_OSAL_NV_WRITE, TCLK_TABLE_START & 0xFF, TCLK_TABLE_START >> 8,
+const uint8_t ZBS_WNV_SECMODE[]   PROGMEM = { SREQ | SYS, SYS_OSAL_NV_WRITE, TCLK_TABLE_START & 0xFF, TCLK_TABLE_START >> 8,
                                             0x00 /* offset */, 0x20 /* len */,
                                             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
                                             0x5a, 0x69, 0x67, 0x42, 0x65, 0x65, 0x41, 0x6c,
@@ -339,25 +346,36 @@ const uint8_t ZBS_W_SECMODE[]   PROGMEM = { SREQ | SYS, SYS_OSAL_NV_WRITE, TCLK_
 const uint8_t ZBS_W_ZDODCB[]   PROGMEM = { SREQ | SAPI, WRITE_CONFIGURATION, ZDO_DIRECT_CB, 0x01 /* len */, 0x01  };				// 26058F0101
 // NV Init ZNP Has Configured
 const uint8_t ZBS_WNV_INITZNPHC[]   PROGMEM = { SREQ | SYS, SYS_OSAL_NV_ITEM_INIT, ZNP_HAS_CONFIGURED & 0xFF, ZNP_HAS_CONFIGURED >> 8,
-                                                0x01, 0x00 /* InitLen 16 bits */, 0x01 /* len */, 0x00 };  // 21070F0001000100
+                                                0x01, 0x00 /* InitLen 16 bits */, 0x01 /* len */, 0x00 };  // 2107000F01000100 - 610709
 // Init succeeded
 const uint8_t ZBR_WNV_INIT_OK[]   PROGMEM = { SRSP | SYS, SYS_OSAL_NV_WRITE, Z_Created };				// 610709 - NV Write
+// Write ZNP Has Configured
+const uint8_t ZBS_WNV_ZNPHC[]   PROGMEM = { SREQ | SYS, SYS_OSAL_NV_WRITE, ZNP_HAS_CONFIGURED & 0xFF, ZNP_HAS_CONFIGURED >> 8,
+                                            0x00 /* offset */, 0x01 /* len */, 0x55 };				// 2109000F000155 - 610900
 
 
 
 static const ZigbeeState zb_states[] PROGMEM = {
 	// S_START - fake state that immediately transitions to next state
 	{ S_START, S_BOOT, S_BOOT, S_BOOT, nullptr, nullptr, 0, 0, 0, nullptr, nullptr },
-	// S_BOOT - wait for 1 second that the cc2530 is fully initialized, or if we receive any frame
+	// S_BOOT - wait for 2 seconds that the cc2530 is fully initialized, or if we receive any frame
 	{ S_BOOT, S_INIT, S_INIT, S_INIT, nullptr, nullptr, 0, 0, 2000, nullptr, nullptr },
 	// S_INIT - send reinit command to cc2530 and wait for response,
-	{ S_INIT, S_VERS, S_ABORT, S_ABORT, ZBS_RESET, ZBR_RESET, sizeof(ZBS_RESET), sizeof(ZBR_RESET), 5000, nullptr, nullptr },
+	{ S_INIT, S_CHECKZNPHC, S_ABORT, S_ABORT, ZBS_RESET, ZBR_RESET, sizeof(ZBS_RESET), sizeof(ZBR_RESET), 5000, nullptr, nullptr },
+	// S_VERS - read ZNP Has Configured
+	{ S_CHECKZNPHC, S_VERS, S_FORMAT, S_ABORT, ZBS_ZNPHC, ZBR_ZNPHC, sizeof(ZBS_ZNPHC), sizeof(ZBR_ZNPHC), 500, nullptr, nullptr },
 	// S_VERS - read version
-	{ S_VERS, S_PANID, S_ABORT, S_ABORT, ZBS_VERS, ZBR_VERS, sizeof(ZBR_VERS), sizeof(ZBR_VERS), 500, nullptr, &Z_Recv_Vers },
+	{ S_VERS, S_PANID, S_FORMAT, S_ABORT, ZBS_VERS, ZBR_VERS, sizeof(ZBR_VERS), sizeof(ZBR_VERS), 500, nullptr, &Z_Recv_Vers },
 	// S_PANID - check the PAN ID
-	{ S_PANID, S_EXTPAN, S_ABORT, S_ABORT, ZBS_PAN, ZBR_PAN, sizeof(ZBS_PAN), sizeof(ZBR_PAN), 500, nullptr, nullptr },
+	{ S_PANID, S_EXTPAN, S_FORMAT, S_ABORT, ZBS_PAN, ZBR_PAN, sizeof(ZBS_PAN), sizeof(ZBR_PAN), 500, nullptr, nullptr },
 	// S_PANID - check the PAN ID
-	{ S_EXTPAN, S_READY, S_ABORT, S_ABORT, ZBS_EXTPAN, ZBR_EXTPAN, sizeof(ZBS_EXTPAN), sizeof(ZBR_EXTPAN), 500, nullptr, nullptr },
+	{ S_EXTPAN, S_INIT_CHANN, S_FORMAT, S_ABORT, ZBS_EXTPAN, ZBR_EXTPAN, sizeof(ZBS_EXTPAN), sizeof(ZBR_EXTPAN), 500, nullptr, nullptr },
+	// S_INIT_CHANN - check the CHANNEL
+	{ S_INIT_CHANN, S_INIT_PFGK, S_FORMAT, S_ABORT, ZBS_CHANN, ZBR_CHANN, sizeof(ZBS_CHANN), sizeof(ZBR_CHANN), 500, nullptr, nullptr },
+	// S_INIT_CHANN - check the CHANNEL
+	{ S_INIT_PFGK, S_INIT_PFGKEN, S_FORMAT, S_ABORT, ZBS_PFGK, ZBR_PFGK, sizeof(ZBS_PFGK), sizeof(ZBR_PFGK), 500, nullptr, nullptr },
+	// S_INIT_CHANN - check the CHANNEL
+	{ S_INIT_PFGKEN, S_READY, S_FORMAT, S_ABORT, ZBS_PFGKEN, ZBR_PFGKEN, sizeof(ZBS_PFGKEN), sizeof(ZBR_PFGKEN), 500, nullptr, nullptr },
 
   // S_READY - ready to receive state
 	{ S_READY, S_READY, S_ABORT, S_READY, nullptr, nullptr, 0, 0, -1, &Z_State_Ready, nullptr },
@@ -374,6 +392,20 @@ static const ZigbeeState zb_states[] PROGMEM = {
   { S_FORM_4, S_FORM_5, S_ABORT, S_ABORT, ZBS_W_EXTPAN, ZBR_W_OK, sizeof(ZBS_W_EXTPAN), sizeof(ZBR_W_OK), 500, nullptr, nullptr },
   // S_FORM_5 - write CHANNEL LIST
   { S_FORM_5, S_FORM_6, S_ABORT, S_ABORT, ZBS_W_CHANN, ZBR_W_OK, sizeof(ZBS_W_CHANN), sizeof(ZBR_W_OK), 500, nullptr, nullptr },
+  // S_FORM_6 - Logical type to coordinator
+  { S_FORM_6, S_FORM_7, S_ABORT, S_ABORT, ZBS_W_LOGTYP, ZBR_W_OK, sizeof(ZBS_W_LOGTYP), sizeof(ZBR_W_OK), 500, nullptr, nullptr },
+  // S_FORM_7 - write PRECFGKEY
+  { S_FORM_7, S_FORM_8, S_ABORT, S_ABORT, ZBS_W_PFGK, ZBR_W_OK, sizeof(ZBS_W_PFGK), sizeof(ZBR_W_OK), 500, nullptr, nullptr },
+  // S_FORM_8 - write PRECFGKEY Enable
+  { S_FORM_8, S_FORM_9, S_ABORT, S_ABORT, ZBS_W_PFGKEN, ZBR_W_OK, sizeof(ZBS_W_PFGKEN), sizeof(ZBR_W_OK), 500, nullptr, nullptr },
+  // S_FORM_9 - write Security Mode
+  { S_FORM_9, S_FORM_10, S_ABORT, S_ABORT, ZBS_WNV_SECMODE, ZBR_WNV_OK, sizeof(ZBS_WNV_SECMODE), sizeof(ZBR_WNV_OK), 500, nullptr, nullptr },
+  // S_FORM_10 - write ZDO Direct CB
+  { S_FORM_10, S_FORM_11, S_ABORT, S_ABORT, ZBS_W_ZDODCB, ZBR_W_OK, sizeof(ZBS_W_ZDODCB), sizeof(ZBR_W_OK), 500, nullptr, nullptr },
+  // S_FORM_11 - Init NV ZNP Has Configured
+  { S_FORM_11, S_FORM_12, S_ABORT, S_ABORT, ZBS_WNV_INITZNPHC, ZBR_WNV_INIT_OK, sizeof(ZBS_WNV_INITZNPHC), sizeof(ZBR_WNV_INIT_OK), 500, nullptr, nullptr },
+  // S_FORM_12 - Init Write NV ZNP Has Configured
+  { S_FORM_12, S_READY, S_ABORT, S_ABORT, ZBS_WNV_ZNPHC, ZBR_WNV_OK, sizeof(ZBS_WNV_ZNPHC), sizeof(ZBR_WNV_OK), 500, nullptr, nullptr },
 
 	// S_ABORT - fatal error, abort zigbee
 	{ S_ABORT, S_ABORT, S_ABORT, S_ABORT, nullptr, nullptr, 0, 0, 0, &Z_State_Abort, nullptr },
@@ -416,9 +448,9 @@ int32_t Z_State_Abort(uint8_t state) {
 }
 
 int32_t Z_State_Ready(uint8_t state) {
-	AddLog_P(LOG_LEVEL_DEBUG, PSTR("Z_State_Ready: zigbee initialization complete"));
-	zigbee.state_machine = false;
-  zigbee.init_phase = false;            // initialization phase complete
+	AddLog_P(LOG_LEVEL_INFO, PSTR("Zigbee: Initialization complete"));
+	zigbee.state_machine = false;          // stop state machine for now
+  zigbee.init_phase = false;             // initialization phase complete
   return 0;
 }
 
@@ -516,7 +548,15 @@ void ZigbeeProcessInput(class SBuffer &buf) {
         }
       }
     }
-    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeProcessInput: recv_filter_match = %d"), recv_filter_match);
+    bool recv_prefix_match = true;      // do the first 2 bytes match the response
+    if (state->msg_recv_len >= 2) {
+      recv_prefix_match = false;
+      if ( (pgm_read_byte(&state->msg_recv[0]) == buf.get8(0)) &&
+           (pgm_read_byte(&state->msg_recv[1]) == buf.get8(1)) ) {
+        recv_prefix_match = true;
+      }
+    }
+    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeProcessInput: recv_prefix_match = %d, recv_filter_match = %d"), recv_prefix_match, recv_filter_match);
 
     // if there is a recv_callback, call it now
     int32_t res = 0;          // default to ok
@@ -524,10 +564,12 @@ void ZigbeeProcessInput(class SBuffer &buf) {
                               // res  >  0   - proceed to the specified state
                               // res  = -1  - silently ignore the message
                               // res <= -2 - move to error state
-    if (recv_filter_match) {
+    if (recv_prefix_match) {
       if (state->recv_func) {
         res = (*state->recv_func)(zigbee.state_cur, buf);
-      }
+      } else if (!recv_filter_match) {
+        res = -2;
+      }   // if no full match, then error
     } else {
       // if filter does not match, call default handler
       Z_Recv_Default(zigbee.state_cur, buf);
@@ -543,6 +585,8 @@ void ZigbeeProcessInput(class SBuffer &buf) {
       ZigbeeNextState(res);
     } else if (-1 == res) {
       // -1 means ignore message
+    } else if (-2 == res) {
+      ZigbeeNextState(state->state_err);
     } else {
       // any other negative value means error
       ZigbeeNextState(state->state_err);
