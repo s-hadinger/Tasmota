@@ -163,6 +163,7 @@ enum Z_configuration {
   NWKMGR_MIN_TX = 0x88,
   NWKMGR_ADDR = 0x89,
   ZDO_DIRECT_CB = 0x8F,
+  TCLK_TABLE_START = 0x0101,
   ZNP_HAS_CONFIGURED = 0xF00
 };
 
@@ -209,6 +210,7 @@ enum Z_Status {
   Z_Failure = 0x01,
   Z_InvalidParameter = 0x02,
   Z_MemError = 0x03,
+  Z_Created = 0x09,
   Z_BufferFull = 0x11
 };
 
@@ -246,6 +248,16 @@ enum ZnpStates {
   S_PANID,                    // check PANID
   S_EXTPAN,                   // Extended PANID
 	S_READY,										// all initialization complete, ready to operate
+  S_FORMAT,                   // start a complete re-format of the device (empty state)
+  S_FORM_1,                   // format startup-option
+  S_FORM_2,                   // format startup-option
+  S_FORM_3,                   // format startup-option
+  S_FORM_4,                   // format startup-option
+  S_FORM_5,                   // format startup-option
+  S_FORM_6,                   // format startup-option
+  S_FORM_7,                   // format startup-option
+  S_FORM_8,                   // format startup-option
+  S_FORM_9,                   // format startup-option
 	S_ABORT,										// fatal error, abort zigbee
 };
 
@@ -297,9 +309,40 @@ const uint8_t ZBR_PFGKEN[]   PROGMEM = { SRSP | SAPI, READ_CONFIGURATION, Z_Succ
                                         0x01 /* len */, 0x00 };				// 660400630100
 
 // commands to "format" the device
+// Write configuration - write success
+const uint8_t ZBR_W_OK[]   PROGMEM = { SRSP | SAPI, WRITE_CONFIGURATION, Z_Success };				// 660500 - Write Configuration
+const uint8_t ZBR_WNV_OK[]   PROGMEM = { SRSP | SYS, SYS_OSAL_NV_WRITE, Z_Success };				// 610900 - NV Write
 // Factory reset
 const uint8_t ZBS_FACTRES[]   PROGMEM = { SREQ | SAPI, WRITE_CONFIGURATION, STARTUP_OPTION, 0x01 /* len */, 0x02 };				// 2605030102
-const uint8_t ZBR_FACTRES[]   PROGMEM = { SRSP | SAPI, WRITE_CONFIGURATION, Z_Success };				// 660500
+// Write PAN ID
+const uint8_t ZBS_W_PAN[]   PROGMEM = { SREQ | SAPI, WRITE_CONFIGURATION, PANID, 0x02 /* len */, 0xFF, 0xFF  };				// 26058302FFFF
+// Write EXT PAN ID
+const uint8_t ZBS_W_EXTPAN[]   PROGMEM = { SREQ | SAPI, WRITE_CONFIGURATION, EXTENDED_PAN_ID, 0x08 /* len */, 0x62, 0x63, 0x15, 0x1D, 0x00, 0x4B, 0x12, 0x00  };				// 26052D086263151D004B1200
+// Write Channel ID
+const uint8_t ZBS_W_CHANN[]   PROGMEM = { SREQ | SAPI, WRITE_CONFIGURATION, CHANLIST, 0x04 /* len */, 0x00, 0x08, 0x00, 0x00  };				// 2605840400080000
+// Write Logical Type = 00 = coordinator
+const uint8_t ZBS_W_LOGTYP[]   PROGMEM = { SREQ | SAPI, WRITE_CONFIGURATION, LOGICAL_TYPE, 0x01 /* len */, 0x00  };				// 2605870100
+// Write precfgkey
+const uint8_t ZBS_W_PFGK[]   PROGMEM = { SREQ | SAPI, WRITE_CONFIGURATION, PRECFGKEY,
+                                         0x10 /* len */, 0x01, 0x03, 0x05, 0x07, 0x09, 0x0B, 0x0D, 0x0F,
+                                         0x00, 0x02, 0x04, 0x06, 0x08, 0x0A, 0x0C, 0x0D };				// 2605621001030507090B0D0F00020406080A0C0D
+// Write precfgkey enable
+const uint8_t ZBS_W_PFGKEN[]   PROGMEM = { SREQ | SAPI, WRITE_CONFIGURATION, PRECFGKEYS_ENABLE, 0x01 /* len */, 0x00  };				// 2605630100
+// Write Security Mode
+const uint8_t ZBS_W_SECMODE[]   PROGMEM = { SREQ | SYS, SYS_OSAL_NV_WRITE, TCLK_TABLE_START & 0xFF, TCLK_TABLE_START >> 8,
+                                            0x00 /* offset */, 0x20 /* len */,
+                                            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                                            0x5a, 0x69, 0x67, 0x42, 0x65, 0x65, 0x41, 0x6c,
+                                            0x6c, 0x69, 0x61, 0x6e, 0x63, 0x65, 0x30, 0x39,
+                                            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};				// 2109010100200FFFFFFFFFFFFFFFF5A6967426565416C6C69616E636530390000000000000000
+// Write ZDO Direct CB
+const uint8_t ZBS_W_ZDODCB[]   PROGMEM = { SREQ | SAPI, WRITE_CONFIGURATION, ZDO_DIRECT_CB, 0x01 /* len */, 0x01  };				// 26058F0101
+// NV Init ZNP Has Configured
+const uint8_t ZBS_WNV_INITZNPHC[]   PROGMEM = { SREQ | SYS, SYS_OSAL_NV_ITEM_INIT, ZNP_HAS_CONFIGURED & 0xFF, ZNP_HAS_CONFIGURED >> 8,
+                                                0x01, 0x00 /* InitLen 16 bits */, 0x01 /* len */, 0x00 };  // 21070F0001000100
+// Init succeeded
+const uint8_t ZBR_WNV_INIT_OK[]   PROGMEM = { SRSP | SYS, SYS_OSAL_NV_WRITE, Z_Created };				// 610709 - NV Write
+
 
 
 static const ZigbeeState zb_states[] PROGMEM = {
@@ -319,6 +362,18 @@ static const ZigbeeState zb_states[] PROGMEM = {
   // S_READY - ready to receive state
 	{ S_READY, S_READY, S_ABORT, S_READY, nullptr, nullptr, 0, 0, -1, &Z_State_Ready, nullptr },
 
+  // Re-format the device - empty step
+	{ S_FORMAT, S_FORM_1, S_FORM_1, S_FORM_1, nullptr, nullptr, 0, 0, 0, nullptr, nullptr },
+  // S_FORM_1 - Use startup option to do a factory reset
+  { S_FORM_1, S_FORM_2, S_ABORT, S_ABORT, ZBS_FACTRES, ZBR_W_OK, sizeof(ZBS_FACTRES), sizeof(ZBR_W_OK), 500, nullptr, nullptr },
+  // S_FORM_2 - reboot device
+  { S_FORM_2, S_FORM_3, S_ABORT, S_ABORT, ZBS_RESET, ZBR_RESET, sizeof(ZBS_RESET), sizeof(ZBR_RESET), 5000, nullptr, nullptr },
+  // S_FORM_3 - write PAN ID
+  { S_FORM_3, S_FORM_4, S_ABORT, S_ABORT, ZBS_W_PAN, ZBR_W_OK, sizeof(ZBS_W_PAN), sizeof(ZBR_W_OK), 500, nullptr, nullptr },
+  // S_FORM_4 - write EXT PAN ID
+  { S_FORM_4, S_FORM_5, S_ABORT, S_ABORT, ZBS_W_EXTPAN, ZBR_W_OK, sizeof(ZBS_W_EXTPAN), sizeof(ZBR_W_OK), 500, nullptr, nullptr },
+  // S_FORM_5 - write CHANNEL LIST
+  { S_FORM_5, S_FORM_6, S_ABORT, S_ABORT, ZBS_W_CHANN, ZBR_W_OK, sizeof(ZBS_W_CHANN), sizeof(ZBR_W_OK), 500, nullptr, nullptr },
 
 	// S_ABORT - fatal error, abort zigbee
 	{ S_ABORT, S_ABORT, S_ABORT, S_ABORT, nullptr, nullptr, 0, 0, 0, &Z_State_Abort, nullptr },
