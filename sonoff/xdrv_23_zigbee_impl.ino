@@ -78,10 +78,13 @@ enum Zigbee_StateMachine_Instruction_Ser {
 #define ZI_NOOP()           { ZGB_INSTR_NOOP,     0x00 },
 #define ZI_LABEL(x)         { ZGB_INSTR_LABEL,    (x) },
 #define ZI_GOTO(x)          { ZGB_INSTR_GOTO,     (x) },
+#define ZI_ON_ERROR_GOTO(x) { ZGB_INSTR_ON_ERROR_GOTO, (x) },
+#define ZI_ON_TIMEOUT_GOTO(x) { ZGB_INSTR_ON_TIMEOUT_GOTO, (x) },
 #define ZI_WAIT(x)          { ZGB_INSTR_WAIT,     ((x)+50)/100 },
 #define ZI_STOP()           { ZGB_INSTR_STOP,     0x00 },
 
 #define ZI_LOG(x, m)        { ZGB_INSTR_LOG,      (x) }, { ZI_B0(m), ZI_B1(m) }, { ZI_B2(m), ZI_B3(m) },
+#define ZI_ON_RECV_UNEXPECTED(f) { ZGB_ON_RECV_UNEXPECTED, 0x00}, { ZI_B0(f), ZI_B1(f) }, { ZI_B2(f), ZI_B3(f) },
 
 typedef struct ZigbeeState {
 	uint8_t										state_cur;					// current state
@@ -129,10 +132,15 @@ enum ZnpStates {
 TasmotaSerial *ZigbeeSerial = nullptr;
 
 struct ZigbeeStatus {
-  bool active = true;
-  bool state_machine = false;		// the cc2530 initialization state machine is working
+  bool active = true;                 // is Zigbee active for this device, i.e. GPIOs configured
+  bool state_machine = false;		      // the state machine is running
+  bool state_waiting = false;         // the state machine is waiting for external event or timeout
   bool ready = false;								  // cc2530 initialization is complet, ready to operate
+  uint8_t on_error_goto = 99;         // on error goto label, 99 default to abort
+  uint8_t on_timeout_goto = 99;       // on timeout goto label, 99 default to abort
   int16_t pc = 0;                     // program counter, -1 means abort
+  uint32_t next_timeout = 0;          // millis for the next timeout
+
   ZGB_ReceivedFrameFunc *recv_unexpected = nullptr;   // function called when unexpected message is received
 
   uint8_t state_cur = S_START;				// start at first step in state machine
@@ -217,8 +225,15 @@ const uint8_t ZBS_WNV_ZNPHC[]   PROGMEM = { SREQ | SYS, SYS_OSAL_NV_WRITE, ZNP_H
 static const Zigbee_Instruction_Type zb_prog[] PROGMEM = {
   ZI_LABEL(0)
     ZI_NOOP()
+    ZI_ON_ERROR_GOTO(99)
+    ZI_ON_TIMEOUT_GOTO(99)
+    ZI_ON_RECV_UNEXPECTED(&Z_Recv_Default)
     ZI_WAIT(1000)
     ZI_LOG(LOG_LEVEL_INFO, ">>>>>> Log")
+    ZI_STOP()
+
+  ZI_LABEL(99)                                  // Label 99: abort
+    ZI_LOG(LOG_LEVEL_ERROR, "ZGB: Abort")
     ZI_STOP()
 };
 
@@ -336,10 +351,20 @@ void ZigbeeStateMachine_Run(void) {
   void*   cur_ptr1 = nullptr;
   void*   cur_ptr2 = nullptr;
   uint8_t cur_instr_len = 2;      // current instruction length in bytes
+  uint32_t now = millis();
 
   //if ((!zigbee.state_machine) || (zigbee.pc < 0)) { return; }   // don't run if machine is stopped or pc bad
 
-  while (zigbee.state_machine) {
+  if (zigbee.state_waiting) {     // state machine is waiting for external event or timeout
+    // checking if timeout expired
+    if ((zigbee.next_timeout) && (now > zigbee.next_timeout)) {    // if next_timeout == 0 then wait forever
+      AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZGB: timeout occured pc=%d"), zigbee.pc);
+      zigbee.state_waiting = false;
+      // TODO GOTO LABEL
+    }
+  }
+
+  while ((zigbee.state_machine) && (!zigbee.state_waiting)) {
     if (zigbee.pc > (sizeof(zb_prog)/sizeof(zb_prog[0]))) {
       AddLog_P2(LOG_LEVEL_ERROR, PSTR("ZGB: Invalid pc: %d, aborting"), zigbee.pc);
       zigbee.pc = -1;
@@ -350,6 +375,7 @@ void ZigbeeStateMachine_Run(void) {
     }
 
     // load current instruction details
+    AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZGB: Executing instruction pc=%d"), zigbee.pc);
     const Zigbee_Instruction_Type *cur_instr_line = &zb_prog[zigbee.pc];
     cur_instr = pgm_read_byte(&cur_instr_line->instr);
     cur_data  = pgm_read_byte(&cur_instr_line->data);
@@ -383,16 +409,18 @@ void ZigbeeStateMachine_Run(void) {
           // TODO
           break;
         case ZGB_INSTR_ON_ERROR_GOTO:
-          // TODO
+          zigbee.on_error_goto = cur_data;
           break;
         case ZGB_INSTR_ON_TIMEOUT_GOTO:
-          // TODO
+          zigbee.on_timeout_goto = cur_data;
           break;
         case ZGB_INSTR_WAIT:
-          // TODO
+          zigbee.next_timeout = now + cur_data * 100;
+          zigbee.state_waiting = true;
           break;
         case ZGB_INSTR_WAIT_FOREVER:
-          // TODO
+          zigbee.next_timeout = 0;
+          zigbee.state_waiting = true;
           break;
         case ZGB_INSTR_STOP:
           zigbee.state_machine = false;
@@ -410,6 +438,8 @@ void ZigbeeStateMachine_Run(void) {
           ZigbeeZNPSend((uint8_t*) cur_ptr1, cur_data /* len */);
           break;
         case ZGB_INSTR_WAIT_RECV:
+          zigbee.next_timeout = now + cur_data * 100;
+          zigbee.state_waiting = true;
           // TODO
           break;
         case ZGB_ON_RECV_UNEXPECTED:
