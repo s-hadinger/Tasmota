@@ -585,8 +585,6 @@ void ZigbeeProcessInput(class SBuffer &buf) {
       ZigbeeNextState(res);
     } else if (-1 == res) {
       // -1 means ignore message
-    } else if (-2 == res) {
-      ZigbeeNextState(state->state_err);
     } else {
       // any other negative value means error
       ZigbeeNextState(state->state_err);
