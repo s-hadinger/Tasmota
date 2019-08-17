@@ -24,195 +24,7 @@
 const uint32_t ZIGBEE_BUFFER_SIZE = 256;  // Max ZNP frame is SOF+LEN+CMD1+CMD2+250+FCS = 255
 const uint8_t  ZIGBEE_SOF = 0xFE;
 
-enum ZnpCommandType {
-  POLL = 0x00,
-  SREQ = 0x20,
-  AREQ = 0x40,
-  SRSP = 0x60 };
-enum ZnpSubsystem {
-  RPC_Error = 0x00,
-  SYS = 0x01,
-  MAC = 0x02,
-  NWK = 0x03,
-  AF = 0x04,
-  ZDO = 0x05,
-  SAPI = 0x06,
-  UTIL = 0x07,
-  DEBUG = 0x08,
-  APP = 0x09
-};
 
-// Commands in the SYS subsystem
-enum SysCommand {
-  SYS_RESET = 0x00,
-  SYS_PING = 0x01,
-  SYS_VERSION = 0x02,
-  SYS_SET_EXTADDR = 0x03,
-  SYS_GET_EXTADDR = 0x04,
-  SYS_RAM_READ = 0x05,
-  SYS_RAM_WRITE = 0x06,
-  SYS_OSAL_NV_ITEM_INIT = 0x07,
-  SYS_OSAL_NV_READ = 0x08,
-  SYS_OSAL_NV_WRITE = 0x09,
-  SYS_OSAL_START_TIMER = 0x0A,
-  SYS_OSAL_STOP_TIMER = 0x0B,
-  SYS_RANDOM = 0x0C,
-  SYS_ADC_READ = 0x0D,
-  SYS_GPIO = 0x0E,
-  SYS_STACK_TUNE = 0x0F,
-  SYS_SET_TIME = 0x10,
-  SYS_GET_TIME = 0x11,
-  SYS_OSAL_NV_DELETE = 0x12,
-  SYS_OSAL_NV_LENGTH = 0x13,
-  SYS_TEST_RF = 0x40,
-  SYS_TEST_LOOPBACK = 0x41,
-  SYS_RESET_IND = 0x80,
-  SYS_OSAL_TIMER_EXPIRED = 0x81,
-};
-// Commands in the SAPI subsystem
-enum SapiCommand {
-  START_REQUEST = 0x00,
-  BIND_DEVICE = 0x01,
-  ALLOW_BIND = 0x02,
-  SEND_DATA_REQUEST = 0x03,
-  READ_CONFIGURATION = 0x04,
-  WRITE_CONFIGURATION = 0x05,
-  GET_DEVICE_INFO = 0x06,
-  FIND_DEVICE_REQUEST = 0x07,
-  PERMIT_JOINING_REQUEST = 0x08,
-  SYSTEM_RESET = 0x09,
-  START_CONFIRM = 0x80,
-  BIND_CONFIRM = 0x81,
-  ALLOW_BIND_CONFIRM = 0x82,
-  SEND_DATA_CONFIRM = 0x83,
-  FIND_DEVICE_CONFIRM = 0x85,
-  RECEIVE_DATA_INDICATION = 0x87,
-};
-enum Z_configuration {
-  EXTADDR = 0x01,
-  BOOTCOUNTER = 0x02,
-  STARTUP_OPTION = 0x03,
-  START_DELAY = 0x04,
-  NIB = 0x21,
-  DEVICE_LIST = 0x22,
-  ADDRMGR = 0x23,
-  POLL_RATE = 0x24,
-  QUEUED_POLL_RATE = 0x25,
-  RESPONSE_POLL_RATE = 0x26,
-  REJOIN_POLL_RATE = 0x27,
-  DATA_RETRIES = 0x28,
-  POLL_FAILURE_RETRIES = 0x29,
-  STACK_PROFILE = 0x2A,
-  INDIRECT_MSG_TIMEOUT = 0x2B,
-  ROUTE_EXPIRY_TIME = 0x2C,
-  EXTENDED_PAN_ID = 0x2D,
-  BCAST_RETRIES = 0x2E,
-  PASSIVE_ACK_TIMEOUT = 0x2F,
-  BCAST_DELIVERY_TIME = 0x30,
-  NWK_MODE = 0x31,
-  CONCENTRATOR_ENABLE = 0x32,
-  CONCENTRATOR_DISCOVERY = 0x33,
-  CONCENTRATOR_RADIUS = 0x34,
-  CONCENTRATOR_RC = 0x36,
-  NWK_MGR_MODE = 0x37,
-  SRC_RTG_EXPIRY_TIME = 0x38,
-  ROUTE_DISCOVERY_TIME = 0x39,
-  NWK_ACTIVE_KEY_INFO = 0x3A,
-  NWK_ALTERN_KEY_INFO = 0x3B,
-  ROUTER_OFF_ASSOC_CLEANUP = 0x3C,
-  NWK_LEAVE_REQ_ALLOWED = 0x3D,
-  NWK_CHILD_AGE_ENABLE = 0x3E,
-  DEVICE_LIST_KA_TIMEOUT = 0x3F,
-  BINDING_TABLE = 0x41,
-  GROUP_TABLE = 0x42,
-  APS_FRAME_RETRIES = 0x43,
-  APS_ACK_WAIT_DURATION = 0x44,
-  APS_ACK_WAIT_MULTIPLIER = 0x45,
-  BINDING_TIME = 0x46,
-  APS_USE_EXT_PANID = 0x47,
-  APS_USE_INSECURE_JOIN = 0x48,
-  COMMISSIONED_NWK_ADDR = 0x49,
-  APS_NONMEMBER_RADIUS = 0x4B,
-  APS_LINK_KEY_TABLE = 0x4C,
-  APS_DUPREJ_TIMEOUT_INC = 0x4D,
-  APS_DUPREJ_TIMEOUT_COUNT = 0x4E,
-  APS_DUPREJ_TABLE_SIZE = 0x4F,
-  DIAGNOSTIC_STATS = 0x50,
-  SECURITY_LEVEL = 0x61,
-  PRECFGKEY = 0x62,
-  PRECFGKEYS_ENABLE = 0x63,
-  SECURITY_MODE = 0x64,
-  SECURE_PERMIT_JOIN = 0x65,
-  APS_LINK_KEY_TYPE = 0x66,
-  APS_ALLOW_R19_SECURITY = 0x67,
-  IMPLICIT_CERTIFICATE = 0x69,
-  DEVICE_PRIVATE_KEY = 0x6A,
-  CA_PUBLIC_KEY = 0x6B,
-  KE_MAX_DEVICES = 0x6C,
-  USE_DEFAULT_TCLK = 0x6D,
-  RNG_COUNTER = 0x6F,
-  RANDOM_SEED = 0x70,
-  TRUSTCENTER_ADDR = 0x71,
-  USERDESC = 0x81,
-  NWKKEY = 0x82,
-  PANID = 0x83,
-  CHANLIST = 0x84,
-  LEAVE_CTRL = 0x85,
-  SCAN_DURATION = 0x86,
-  LOGICAL_TYPE = 0x87,
-  NWKMGR_MIN_TX = 0x88,
-  NWKMGR_ADDR = 0x89,
-  ZDO_DIRECT_CB = 0x8F,
-  TCLK_TABLE_START = 0x0101,
-  ZNP_HAS_CONFIGURED = 0xF00
-};
-
-// enum Z_nvItemIds {
-//   SCENE_TABLE = 145,
-//   MIN_FREE_NWK_ADDR = 146,
-//   MAX_FREE_NWK_ADDR = 147,
-//   MIN_FREE_GRP_ID = 148,
-//   MAX_FREE_GRP_ID = 149,
-//   MIN_GRP_IDS = 150,
-//   MAX_GRP_IDS = 151,
-//   OTA_BLOCK_REQ_DELAY = 152,
-//   SAPI_ENDPOINT = 161,
-//   SAS_SHORT_ADDR = 177,
-//   SAS_EXT_PANID = 178,
-//   SAS_PANID = 179,
-//   SAS_CHANNEL_MASK = 180,
-//   SAS_PROTOCOL_VER = 181,
-//   SAS_STACK_PROFILE = 182,
-//   SAS_STARTUP_CTRL = 183,
-//   SAS_TC_ADDR = 193,
-//   SAS_TC_MASTER_KEY = 194,
-//   SAS_NWK_KEY = 195,
-//   SAS_USE_INSEC_JOIN = 196,
-//   SAS_PRECFG_LINK_KEY = 197,
-//   SAS_NWK_KEY_SEQ_NUM = 198,
-//   SAS_NWK_KEY_TYPE = 199,
-//   SAS_NWK_MGR_ADDR = 200,
-//   SAS_CURR_TC_MASTER_KEY = 209,
-//   SAS_CURR_NWK_KEY = 210,
-//   SAS_CURR_PRECFG_LINK_KEY = 211,
-//   TCLK_TABLE_START = 257,
-//   TCLK_TABLE_END = 511,
-//   APS_LINK_KEY_DATA_START = 513,
-//   APS_LINK_KEY_DATA_END = 767,
-//   DUPLICATE_BINDING_TABLE = 768,
-//   DUPLICATE_DEVICE_LIST = 769,
-//   DUPLICATE_DEVICE_LIST_KA_TIMEOUT = 770,
-//};
-
-
-enum Z_Status {
-  Z_Success = 0x00,
-  Z_Failure = 0x01,
-  Z_InvalidParameter = 0x02,
-  Z_MemError = 0x03,
-  Z_Created = 0x09,
-  Z_BufferFull = 0x11
-};
 
 #include <TasmotaSerial.h>
 
@@ -224,6 +36,52 @@ void (* const ZigbeeCommand[])(void) PROGMEM = { &CmndZigbeeZNPSend, &CmndZigbee
 // return value: 0=Ok proceed to next step, <0 Error, >0 go to a specific state
 typedef int32_t (*State_EnterFunc)(uint8_t state);
 typedef int32_t (*State_ReceivedFrameFunc)(uint8_t state, class SBuffer &buf);
+
+
+typedef int32_t (*ZGB_ReceivedFrameFunc)(uint8_t state, class SBuffer &buf);
+
+typedef struct Zigbee_Instruction_Type {
+  uint8_t instr;
+  uint8_t data;
+} Zigbee_Instruction_Type;
+
+enum Zigbee_StateMachine_Instruction_Ser {
+  // 2 bytes instructions
+  ZGB_INSTR_2_BYTES = 0,
+  ZGB_INSTR_NOOP = 0,                   // do nothing
+  ZGB_INSTR_LABEL,                      // define a label
+  ZGB_INSTR_GOTO,                       // goto label
+  ZGB_INSTR_ON_ERROR_GOTO,              // goto label if error
+  ZGB_INSTR_ON_TIMEOUT_GOTO,            // goto label if timeout
+  ZGB_INSTR_WAIT,                       // wait for x ms (in chunks of 100ms)
+  ZGB_INSTR_WAIT_FOREVER,               // wait forever but state machine still active
+  ZGB_INSTR_STOP,                       // stop state machine with optional error code
+
+  // 6 bytes instructions
+  ZGB_INSTR_6_BYTES = 0x80,
+  ZGB_INSTR_CALL = 0x80,                // call a function
+  ZGB_INSTR_LOG,                        // log a message, if more detailed logging required, call a function
+  ZGB_INSTR_SEND,                       // send a ZNP message
+  ZGB_INSTR_WAIT_RECV,                  // wait for a message according to the filter
+  ZGB_ON_RECV_UNEXPECTED,               // function to handle unexpected messages, or nullptr
+
+  // 10 bytes instructions
+  ZGB_INSTR_10_BYTES = 0xF0,
+  ZGB_INSTR_WAIT_RECV_CALL,             // wait for a filtered message and call function upon receive
+};
+
+#define ZI_B0(a)            (uint8_t)( (((intptr_t)(a))      ) & 0xFF )
+#define ZI_B1(a)            (uint8_t)( (((intptr_t)(a)) >>  8) & 0xFF )
+#define ZI_B2(a)            (uint8_t)( (((intptr_t)(a)) >> 16) & 0xFF )
+#define ZI_B3(a)            (uint8_t)( (((intptr_t)(a)) >> 24) & 0xFF )
+
+#define ZI_NOOP()           { ZGB_INSTR_NOOP,     0x00 },
+#define ZI_LABEL(x)         { ZGB_INSTR_LABEL,    (x) },
+#define ZI_GOTO(x)          { ZGB_INSTR_GOTO,     (x) },
+#define ZI_WAIT(x)          { ZGB_INSTR_WAIT,     ((x)+50)/100 },
+#define ZI_STOP()           { ZGB_INSTR_STOP,     0x00 },
+
+#define ZI_LOG(x, m)        { ZGB_INSTR_LOG,      (x) }, { ZI_B0(m), ZI_B1(m) }, { ZI_B2(m), ZI_B3(m) },
 
 typedef struct ZigbeeState {
 	uint8_t										state_cur;					// current state
@@ -274,6 +132,9 @@ struct ZigbeeStatus {
   bool active = true;
   bool state_machine = false;		// the cc2530 initialization state machine is working
   bool ready = false;								  // cc2530 initialization is complet, ready to operate
+  int16_t pc = 0;                     // program counter, -1 means abort
+  ZGB_ReceivedFrameFunc *recv_unexpected = nullptr;   // function called when unexpected message is received
+
   uint8_t state_cur = S_START;				// start at first step in state machine
   uint8_t state_next = 0;						  // mailbox for next state, O=no change
   bool init_phase = true;             // initialization phase, before accepting zigbee traffic
@@ -353,7 +214,13 @@ const uint8_t ZBR_WNV_INIT_OK[]   PROGMEM = { SRSP | SYS, SYS_OSAL_NV_WRITE, Z_C
 const uint8_t ZBS_WNV_ZNPHC[]   PROGMEM = { SREQ | SYS, SYS_OSAL_NV_WRITE, ZNP_HAS_CONFIGURED & 0xFF, ZNP_HAS_CONFIGURED >> 8,
                                             0x00 /* offset */, 0x01 /* len */, 0x55 };				// 2109000F000155 - 610900
 
-
+static const Zigbee_Instruction_Type zb_prog[] PROGMEM = {
+  ZI_LABEL(0)
+    ZI_NOOP()
+    ZI_WAIT(1000)
+    ZI_LOG(LOG_LEVEL_INFO, ">>>>>> Log")
+    ZI_STOP()
+};
 
 static const ZigbeeState zb_states[] PROGMEM = {
 	// S_START - fake state that immediately transitions to next state
@@ -461,6 +328,152 @@ int32_t enter_NoOp(uint32_t state) {
 int32_t recv_Err(uint32_t state, class SBuffer &buf) {
 	return -2;	// error
 }
+
+
+void ZigbeeStateMachine_Run(void) {
+  uint8_t cur_instr = 0;
+  uint8_t cur_data = 0;
+  void*   cur_ptr1 = nullptr;
+  void*   cur_ptr2 = nullptr;
+  uint8_t cur_instr_len = 2;      // current instruction length in bytes
+
+  if ((!zigbee.state_machine) || (zigbee.pc < 0)) { return; }   // don't run if machine is stopped or pc bad
+  if (zigbee.pc > (sizeof(zb_prog)/sizeof(zb_prog[0]))) {
+    AddLog_P2(LOG_LEVEL_ERROR, PSTR("ZGB: Invalid pc: %d, aborting"), zigbee.pc);
+    zigbee.pc = -1;
+    zigbee.state_machine = false;
+    return;
+  }
+
+  // load current instruction details
+  const Zigbee_Instruction_Type *cur_instr_line = &zb_prog[zigbee.pc];
+  cur_instr = pgm_read_byte(&cur_instr_line->instr);
+  cur_data  = pgm_read_byte(&cur_instr_line->data);
+  if (cur_instr >= ZGB_INSTR_6_BYTES) {
+    uint32 temp;
+    cur_instr_line++;
+    temp = pgm_read_byte(&cur_instr_line->instr) | (pgm_read_byte(&cur_instr_line->data) << 8);
+    cur_instr_line++;
+    temp |= (pgm_read_byte(&cur_instr_line->instr) << 16) | (pgm_read_byte(&cur_instr_line->data) << 24);
+    cur_ptr1 = (void*) temp;
+    cur_instr_len = 6;
+  }
+  if (cur_instr >= ZGB_INSTR_10_BYTES) {
+    uint32 temp;
+    cur_instr_line++;
+    temp = pgm_read_byte(&cur_instr_line->instr) | (pgm_read_byte(&cur_instr_line->data) << 8);
+    cur_instr_line++;
+    temp |= (pgm_read_byte(&cur_instr_line->instr) << 16) | (pgm_read_byte(&cur_instr_line->data) << 24);
+    cur_ptr2 = (void*) temp;
+    cur_instr_len = 10;
+  }
+
+  zigbee.pc += cur_instr_len;               // move pc to next instruction, before any goto
+  if (cur_instr < ZGB_INSTR_6_BYTES) {
+    switch (cur_instr) {
+      case ZGB_INSTR_NOOP:
+      case ZGB_INSTR_LABEL:
+        // do nothing
+        break;
+      case ZGB_INSTR_GOTO:
+        // TODO
+        break;
+      case ZGB_INSTR_ON_ERROR_GOTO:
+        // TODO
+        break;
+      case ZGB_INSTR_ON_TIMEOUT_GOTO:
+        // TODO
+        break;
+      case ZGB_INSTR_WAIT:
+        // TODO
+        break;
+      case ZGB_INSTR_WAIT_FOREVER:
+        // TODO
+        break;
+      case ZGB_INSTR_STOP:
+        zigbee.state_machine = false;
+        break;
+    }
+  } else if (cur_instr < ZGB_INSTR_10_BYTES) {
+    switch (cur_instr) {
+      case ZGB_INSTR_CALL:
+        // TODO
+        break;
+      case ZGB_INSTR_LOG:
+        AddLog_P(cur_data, (char*) cur_ptr1);
+        break;
+      case ZGB_INSTR_SEND:
+        ZigbeeZNPSend((uint8_t*) cur_ptr1, cur_data /* len */);
+        break;
+      case ZGB_INSTR_WAIT_RECV:
+        // TODO
+        break;
+      case ZGB_ON_RECV_UNEXPECTED:
+        zigbee.recv_unexpected = (ZGB_ReceivedFrameFunc*) cur_ptr1;
+        break;
+    }
+  } else {
+    switch (cur_instr) {
+      case ZGB_INSTR_WAIT_RECV_CALL:
+        // TODO
+        break;
+    }
+  }
+
+  //
+  //
+  //
+	// static int32_t next_timeout = 0;			// when is the next timeout occurring
+	// bool state_entering = false;					// are we entering a new state?
+	// uint32_t now = millis();
+  //
+	// if (zigbee.state_next) {
+	// 	// a state transition is triggered
+	// 	AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeStateMachine: transitioning fram state %d to %d"), zigbee.state_cur, zigbee.state_next);
+	// 	zigbee.state_cur = zigbee.state_next;
+	// 	zigbee.state_next = 0;		// reinit mailbox
+	// 	state_entering = true;
+	// }
+  //
+	// const ZigbeeState * state = ZigbeeStateInfo(zigbee.state_cur);
+	// if (!state) {
+	// 	// Fatal error, abort everything
+	//   AddLog_P2(LOG_LEVEL_ERROR, PSTR("ZigbeeStateMachine: unknown state = %d"), zigbee.state_cur);
+	// 	zigbee.state_machine = false;
+	// 	return;
+	// }
+  //
+	// if (state_entering) {
+	// 	// We are entering a new state
+  //   if (state->timeout > 0) {
+  //     next_timeout = now + state->timeout;
+  //   } else {
+  //     next_timeout = state->timeout;      // 0=immediate, -1=forever
+  //   }
+	// 	int32_t res = 0;
+	// 	if (state->init_func) {
+	// 		res = (*state->init_func)(zigbee.state_cur);
+	// 		AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeStateMachine: called init_func() state = %d, res = %d"), zigbee.state_cur, res);
+	// 		if (res > 0) {
+  //       ZigbeeNextState(res);
+	// 		} else if (res < 0) {
+  //       ZigbeeNextState(state->state_err);
+	// 		}
+	// 		// if res == 0 then ok, no change
+	// 	}
+	// 	// if res == 0 or no function called, send the ZNP message if any
+	// 	if ((0 == res) && (state->msg_sent) && (state->msg_sent_len)) {
+	// 		ZigbeeZNPSend(state->msg_sent, state->msg_sent_len);
+	// 	}
+	// } else if ((0 == next_timeout) || ((next_timeout > 0) && (now > next_timeout))) {
+	// 	// timeout occured, move to next state
+	// 	AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeStateMachine: timeout occured state = %d"), zigbee.state_cur);
+	// 	//ZigbeeMoveToState(uint8_t state_next);
+  //   ZigbeeNextState(state->state_timeout);
+	// }
+}
+
+
 
 // copy the cur_state_info into ram for current state
 ZigbeeState * ZigbeeStateInfo(uint8_t state_cur) {
