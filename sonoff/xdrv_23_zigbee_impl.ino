@@ -337,87 +337,95 @@ void ZigbeeStateMachine_Run(void) {
   void*   cur_ptr2 = nullptr;
   uint8_t cur_instr_len = 2;      // current instruction length in bytes
 
-  if ((!zigbee.state_machine) || (zigbee.pc < 0)) { return; }   // don't run if machine is stopped or pc bad
-  if (zigbee.pc > (sizeof(zb_prog)/sizeof(zb_prog[0]))) {
-    AddLog_P2(LOG_LEVEL_ERROR, PSTR("ZGB: Invalid pc: %d, aborting"), zigbee.pc);
-    zigbee.pc = -1;
-    zigbee.state_machine = false;
-    return;
-  }
+  //if ((!zigbee.state_machine) || (zigbee.pc < 0)) { return; }   // don't run if machine is stopped or pc bad
 
-  // load current instruction details
-  const Zigbee_Instruction_Type *cur_instr_line = &zb_prog[zigbee.pc];
-  cur_instr = pgm_read_byte(&cur_instr_line->instr);
-  cur_data  = pgm_read_byte(&cur_instr_line->data);
-  if (cur_instr >= ZGB_INSTR_6_BYTES) {
-    uint32 temp;
-    cur_instr_line++;
-    temp = pgm_read_byte(&cur_instr_line->instr) | (pgm_read_byte(&cur_instr_line->data) << 8);
-    cur_instr_line++;
-    temp |= (pgm_read_byte(&cur_instr_line->instr) << 16) | (pgm_read_byte(&cur_instr_line->data) << 24);
-    cur_ptr1 = (void*) temp;
-    cur_instr_len = 6;
-  }
-  if (cur_instr >= ZGB_INSTR_10_BYTES) {
-    uint32 temp;
-    cur_instr_line++;
-    temp = pgm_read_byte(&cur_instr_line->instr) | (pgm_read_byte(&cur_instr_line->data) << 8);
-    cur_instr_line++;
-    temp |= (pgm_read_byte(&cur_instr_line->instr) << 16) | (pgm_read_byte(&cur_instr_line->data) << 24);
-    cur_ptr2 = (void*) temp;
-    cur_instr_len = 10;
-  }
+  while (zigbee.state_machine) {
+    if (zigbee.pc > (sizeof(zb_prog)/sizeof(zb_prog[0]))) {
+      AddLog_P2(LOG_LEVEL_ERROR, PSTR("ZGB: Invalid pc: %d, aborting"), zigbee.pc);
+      zigbee.pc = -1;
+    }
+    if (zigbee.pc < 0) {
+      zigbee.state_machine = false;
+      return;
+    }
 
-  zigbee.pc += cur_instr_len;               // move pc to next instruction, before any goto
-  if (cur_instr < ZGB_INSTR_6_BYTES) {
-    switch (cur_instr) {
-      case ZGB_INSTR_NOOP:
-      case ZGB_INSTR_LABEL:
-        // do nothing
-        break;
-      case ZGB_INSTR_GOTO:
-        // TODO
-        break;
-      case ZGB_INSTR_ON_ERROR_GOTO:
-        // TODO
-        break;
-      case ZGB_INSTR_ON_TIMEOUT_GOTO:
-        // TODO
-        break;
-      case ZGB_INSTR_WAIT:
-        // TODO
-        break;
-      case ZGB_INSTR_WAIT_FOREVER:
-        // TODO
-        break;
-      case ZGB_INSTR_STOP:
-        zigbee.state_machine = false;
-        break;
+    // load current instruction details
+    const Zigbee_Instruction_Type *cur_instr_line = &zb_prog[zigbee.pc];
+    cur_instr = pgm_read_byte(&cur_instr_line->instr);
+    cur_data  = pgm_read_byte(&cur_instr_line->data);
+    if (cur_instr >= ZGB_INSTR_6_BYTES) {
+      uint32 temp;
+      cur_instr_line++;
+      temp = pgm_read_byte(&cur_instr_line->instr) | (pgm_read_byte(&cur_instr_line->data) << 8);
+      cur_instr_line++;
+      temp |= (pgm_read_byte(&cur_instr_line->instr) << 16) | (pgm_read_byte(&cur_instr_line->data) << 24);
+      cur_ptr1 = (void*) temp;
+      cur_instr_len = 6;
     }
-  } else if (cur_instr < ZGB_INSTR_10_BYTES) {
-    switch (cur_instr) {
-      case ZGB_INSTR_CALL:
-        // TODO
-        break;
-      case ZGB_INSTR_LOG:
-        AddLog_P(cur_data, (char*) cur_ptr1);
-        break;
-      case ZGB_INSTR_SEND:
-        ZigbeeZNPSend((uint8_t*) cur_ptr1, cur_data /* len */);
-        break;
-      case ZGB_INSTR_WAIT_RECV:
-        // TODO
-        break;
-      case ZGB_ON_RECV_UNEXPECTED:
-        zigbee.recv_unexpected = (ZGB_ReceivedFrameFunc*) cur_ptr1;
-        break;
+    if (cur_instr >= ZGB_INSTR_10_BYTES) {
+      uint32 temp;
+      cur_instr_line++;
+      temp = pgm_read_byte(&cur_instr_line->instr) | (pgm_read_byte(&cur_instr_line->data) << 8);
+      cur_instr_line++;
+      temp |= (pgm_read_byte(&cur_instr_line->instr) << 16) | (pgm_read_byte(&cur_instr_line->data) << 24);
+      cur_ptr2 = (void*) temp;
+      cur_instr_len = 10;
     }
-  } else {
-    switch (cur_instr) {
-      case ZGB_INSTR_WAIT_RECV_CALL:
-        // TODO
-        break;
+
+    zigbee.pc += cur_instr_len;               // move pc to next instruction, before any goto
+    if (cur_instr < ZGB_INSTR_6_BYTES) {
+      switch (cur_instr) {
+        case ZGB_INSTR_NOOP:
+        case ZGB_INSTR_LABEL:
+          // do nothing
+          break;
+        case ZGB_INSTR_GOTO:
+          // TODO
+          break;
+        case ZGB_INSTR_ON_ERROR_GOTO:
+          // TODO
+          break;
+        case ZGB_INSTR_ON_TIMEOUT_GOTO:
+          // TODO
+          break;
+        case ZGB_INSTR_WAIT:
+          // TODO
+          break;
+        case ZGB_INSTR_WAIT_FOREVER:
+          // TODO
+          break;
+        case ZGB_INSTR_STOP:
+          zigbee.state_machine = false;
+          break;
+      }
+    } else if (cur_instr < ZGB_INSTR_10_BYTES) {
+      switch (cur_instr) {
+        case ZGB_INSTR_CALL:
+          // TODO
+          break;
+        case ZGB_INSTR_LOG:
+          AddLog_P(cur_data, (char*) cur_ptr1);
+          break;
+        case ZGB_INSTR_SEND:
+          ZigbeeZNPSend((uint8_t*) cur_ptr1, cur_data /* len */);
+          break;
+        case ZGB_INSTR_WAIT_RECV:
+          // TODO
+          break;
+        case ZGB_ON_RECV_UNEXPECTED:
+          zigbee.recv_unexpected = (ZGB_ReceivedFrameFunc*) cur_ptr1;
+          break;
+      }
+    } else {
+      switch (cur_instr) {
+        case ZGB_INSTR_WAIT_RECV_CALL:
+          // TODO
+          break;
+      }
     }
+
+
+
   }
 
   //
