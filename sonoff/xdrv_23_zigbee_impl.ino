@@ -57,7 +57,7 @@ typedef struct Zigbee_Instruction_Type {
   uint8_t data;
 } Zigbee_Instruction_Type;
 
-enum Zigbee_StateMachine_Instruction_Ser {
+enum Zigbee_StateMachine_Instruction_Set {
   // 2 bytes instructions
   ZGB_INSTR_4_BYTES = 0,
   ZGB_INSTR_NOOP = 0,                   // do nothing
@@ -197,14 +197,15 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_ABORT)
     ZI_ON_TIMEOUT_GOTO(ZIGBEE_LABEL_ABORT)
     ZI_ON_RECV_UNEXPECTED(&Z_Recv_Default)
-    ZI_WAIT(1000)
+    ZI_WAIT(2000)
     ZI_LOG(LOG_LEVEL_INFO, ">>>>>> Log")
+    ZI_GOTO(ZIGBEE_LABEL_ABORT)
     ZI_STOP(0)
 
   ZI_LABEL(ZIGBEE_LABEL_ABORT)                                  // Label 99: abort
     ZI_LOG(LOG_LEVEL_ERROR, "ZGB: Abort")
     ZI_SEND(ZBS_VERS)
-    ZI_STOP(99)
+    ZI_STOP(ZIGBEE_LABEL_ABORT)
 
 };
 
@@ -326,11 +327,13 @@ void ZigbeeGotoLabel(uint8_t label) {
   uint8_t  cur_instr_len = 1;       // size of current instruction in words
 
   for (uint32_t i = 0; i < sizeof(zb_prog)/sizeof(zb_prog[0]); i += cur_instr_len) {
-    const Zigbee_Instruction *cur_instr_line = &zb_prog[zigbee.pc];
+    const Zigbee_Instruction *cur_instr_line = &zb_prog[i];
     cur_instr = pgm_read_byte(&cur_instr_line->i.i);
     cur_d8    = pgm_read_byte(&cur_instr_line->i.d8);
+    //AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZGB GOTO: pc %d instr %d"), i, cur_instr);
 
     if (ZGB_INSTR_LABEL == cur_instr) {
+      //AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZGB: found label %d at pc %d"), cur_d8, i);
       if (label == cur_d8) {
         // label found, goto to this pc
         zigbee.pc = i;
@@ -422,6 +425,7 @@ void ZigbeeStateMachine_Run(void) {
         break;
       case ZGB_INSTR_STOP:
         zigbee.state_machine = false;
+        AddLog_P2(LOG_LEVEL_ERROR, PSTR("ZGB: Stopping (%d)"), cur_d8);
         break;
       case ZGB_INSTR_CALL:
         // TODO
@@ -654,8 +658,8 @@ void ZigbeeInit(void)
 				zigbee_buffer = new SBuffer(ZIGBEE_BUFFER_SIZE);
 			}
       zigbee.active = true;
-      //ZigbeeNextState(S_START);             // start state machine in S_START state
 			zigbee.init_phase = true;			// start the state machine
+      zigbee.state_machine = true;      // start the state machine
       ZigbeeSerial->flush();
     }
   }
