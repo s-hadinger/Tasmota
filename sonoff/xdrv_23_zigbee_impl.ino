@@ -442,58 +442,52 @@ void ZigbeeStateMachine_Run(void) {
     }
 
     zigbee.pc += cur_instr_len;               // move pc to next instruction, before any goto
-    if (cur_instr < ZGB_INSTR_6_BYTES) {
-      switch (cur_instr) {
-        case ZGB_INSTR_NOOP:
-        case ZGB_INSTR_LABEL:   // do nothing
-          break;
-        case ZGB_INSTR_GOTO:
-          ZigbeeGotoLabel(cur_data);
-          break;
-        case ZGB_INSTR_ON_ERROR_GOTO:
-          zigbee.on_error_goto = cur_data;
-          break;
-        case ZGB_INSTR_ON_TIMEOUT_GOTO:
-          zigbee.on_timeout_goto = cur_data;
-          break;
-        case ZGB_INSTR_WAIT:
-          zigbee.next_timeout = now + cur_data * 100;
-          zigbee.state_waiting = true;
-          break;
-        case ZGB_INSTR_WAIT_FOREVER:
-          zigbee.next_timeout = 0;
-          zigbee.state_waiting = true;
-          break;
-        case ZGB_INSTR_STOP:
-          zigbee.state_machine = false;
-          break;
-      }
-    } else if (cur_instr < ZGB_INSTR_10_BYTES) {
-      switch (cur_instr) {
-        case ZGB_INSTR_CALL:
-          // TODO
-          break;
-        case ZGB_INSTR_LOG:
-          AddLog_P(cur_data, (char*) cur_ptr1);
-          break;
-        case ZGB_INSTR_SEND:
-          ZigbeeZNPSend((uint8_t*) cur_ptr1, cur_data /* len */);
-          break;
-        case ZGB_INSTR_WAIT_RECV:
-          zigbee.next_timeout = now + cur_data * 100;
-          zigbee.state_waiting = true;
-          // TODO
-          break;
-        case ZGB_ON_RECV_UNEXPECTED:
-          zigbee.recv_unexpected = (ZGB_ReceivedFrameFunc*) cur_ptr1;
-          break;
-      }
-    } else {
-      switch (cur_instr) {
-        case ZGB_INSTR_WAIT_RECV_CALL:
-          // TODO
-          break;
-      }
+
+    switch (cur_instr) {
+      case ZGB_INSTR_NOOP:
+      case ZGB_INSTR_LABEL:   // do nothing
+        break;
+      case ZGB_INSTR_GOTO:
+        ZigbeeGotoLabel(cur_data);
+        break;
+      case ZGB_INSTR_ON_ERROR_GOTO:
+        zigbee.on_error_goto = cur_data;
+        break;
+      case ZGB_INSTR_ON_TIMEOUT_GOTO:
+        zigbee.on_timeout_goto = cur_data;
+        break;
+      case ZGB_INSTR_WAIT:
+        zigbee.next_timeout = now + cur_data * 100;
+        zigbee.state_waiting = true;
+        break;
+      case ZGB_INSTR_WAIT_FOREVER:
+        zigbee.next_timeout = 0;
+        zigbee.state_waiting = true;
+        break;
+      case ZGB_INSTR_STOP:
+        zigbee.state_machine = false;
+        break;
+      case ZGB_INSTR_CALL:
+        // TODO
+        break;
+      case ZGB_INSTR_LOG:
+        AddLog_P(cur_data, (char*) cur_ptr1);
+        break;
+      case ZGB_INSTR_SEND:
+        ZigbeeZNPSend((uint8_t*) cur_ptr1, cur_data /* len */);
+        break;
+      case ZGB_INSTR_WAIT_RECV:
+        zigbee.next_timeout = now + cur_data * 100;
+        zigbee.state_waiting = true;
+        // TODO
+        break;
+      case ZGB_ON_RECV_UNEXPECTED:
+        zigbee.recv_unexpected = (ZGB_ReceivedFrameFunc*) cur_ptr1;
+        break;
+      case ZGB_INSTR_WAIT_RECV_CALL:
+        // TODO
+        break;
+
     }
 
 
