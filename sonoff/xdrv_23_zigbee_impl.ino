@@ -40,6 +40,18 @@ typedef int32_t (*State_ReceivedFrameFunc)(uint8_t state, class SBuffer &buf);
 
 typedef int32_t (*ZGB_ReceivedFrameFunc)(uint8_t state, class SBuffer &buf);
 
+typedef union Zigbee_Instruction {
+  struct {
+    uint8_t  i;      // instruction
+    uint8_t  d8;     // 8 bits data
+    uint16_t d16;    // 16 bits data
+  } i;
+  const void *p;           // pointer
+} Zigbee_Instruction;
+//
+// Zigbee_Instruction z1 = { .i = {1,2,3}};
+// Zigbee_Instruction z3 = { .p = nullptr };
+
 typedef struct Zigbee_Instruction_Type {
   uint8_t instr;
   uint8_t data;
@@ -70,21 +82,24 @@ enum Zigbee_StateMachine_Instruction_Ser {
   ZGB_INSTR_WAIT_RECV_CALL,             // wait for a filtered message and call function upon receive
 };
 
-#define ZI_B0(a)            (uint8_t)( (((intptr_t)(a))      ) & 0xFF )
-#define ZI_B1(a)            (uint8_t)( (((intptr_t)(a)) >>  8) & 0xFF )
-#define ZI_B2(a)            (uint8_t)( (((intptr_t)(a)) >> 16) & 0xFF )
-#define ZI_B3(a)            (uint8_t)( (((intptr_t)(a)) >> 24) & 0xFF )
+// #define ZI_B0(a)            (uint8_t)( (((intptr_t)(a))      ) & 0xFF )
+// #define ZI_B1(a)            (uint8_t)( (((intptr_t)(a)) >>  8) & 0xFF )
+// #define ZI_B2(a)            (uint8_t)( (((intptr_t)(a)) >> 16) & 0xFF )
+// #define ZI_B3(a)            (uint8_t)( (((intptr_t)(a)) >> 24) & 0xFF )
 
-#define ZI_NOOP()           { ZGB_INSTR_NOOP,     0x00 },
-#define ZI_LABEL(x)         { ZGB_INSTR_LABEL,    (x) },
-#define ZI_GOTO(x)          { ZGB_INSTR_GOTO,     (x) },
-#define ZI_ON_ERROR_GOTO(x) { ZGB_INSTR_ON_ERROR_GOTO, (x) },
-#define ZI_ON_TIMEOUT_GOTO(x) { ZGB_INSTR_ON_TIMEOUT_GOTO, (x) },
-#define ZI_WAIT(x)          { ZGB_INSTR_WAIT,     ((x)+50)/100 },
-#define ZI_STOP()           { ZGB_INSTR_STOP,     0x00 },
+#define ZI_NOOP()           { .i = { ZGB_INSTR_NOOP,   0x00, 0x0000} },
+#define ZI_LABEL(x)         { .i = { ZGB_INSTR_LABEL,  (x),  0x0000} },
+#define ZI_GOTO(x)          { .i = { ZGB_INSTR_GOTO,   (x),  0x0000} },
+#define ZI_ON_ERROR_GOTO(x) { .i = { ZGB_INSTR_ON_ERROR_GOTO, (x), 0x0000} },
+#define ZI_ON_TIMEOUT_GOTO(x) { .i = { ZGB_INSTR_ON_TIMEOUT_GOTO, (x), 0x0000} },
+#define ZI_WAIT(x)          { .i = { ZGB_INSTR_WAIT,   0x00, (x)} },
+#define ZI_STOP(x)          { .i = { ZGB_INSTR_STOP,   (x), 0x0000} },
 
-#define ZI_LOG(x, m)        { ZGB_INSTR_LOG,      (x) }, { ZI_B0(m), ZI_B1(m) }, { ZI_B2(m), ZI_B3(m) },
-#define ZI_ON_RECV_UNEXPECTED(f) { ZGB_ON_RECV_UNEXPECTED, 0x00}, { ZI_B0(f), ZI_B1(f) }, { ZI_B2(f), ZI_B3(f) },
+#define ZI_LOG(x, m)        { .i = { ZGB_INSTR_LOG,    (x), 0x0000 } }, { .p = ((const void*)(m)) },
+#define ZI_ON_RECV_UNEXPECTED(f) { .i = { ZGB_ON_RECV_UNEXPECTED, 0x00, 0x0000} }, { .p = (const void*)(f) },
+#define ZI_SEND(m)          { .i = { ZGB_INSTR_SEND, sizeof(m), 0x0000} }, { .p = ((const void*)(m)) },
+// #define ZI_LOG(x, m)        { ZGB_INSTR_LOG,      (x) }, { ZI_B0(m), ZI_B1(m) }, { ZI_B2(m), ZI_B3(m) },
+// #define ZI_ON_RECV_UNEXPECTED(f) { ZGB_ON_RECV_UNEXPECTED, 0x00}, { ZI_B0(f), ZI_B1(f) }, { ZI_B2(f), ZI_B3(f) },
 
 typedef struct ZigbeeState {
 	uint8_t										state_cur;					// current state
@@ -222,7 +237,7 @@ const uint8_t ZBR_WNV_INIT_OK[]   PROGMEM = { SRSP | SYS, SYS_OSAL_NV_WRITE, Z_C
 const uint8_t ZBS_WNV_ZNPHC[]   PROGMEM = { SREQ | SYS, SYS_OSAL_NV_WRITE, ZNP_HAS_CONFIGURED & 0xFF, ZNP_HAS_CONFIGURED >> 8,
                                             0x00 /* offset */, 0x01 /* len */, 0x55 };				// 2109000F000155 - 610900
 
-static const Zigbee_Instruction_Type zb_prog[] PROGMEM = {
+static const Zigbee_Instruction zb_prog2[] PROGMEM = {
   ZI_LABEL(0)
     ZI_NOOP()
     ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_ABORT)
@@ -230,11 +245,28 @@ static const Zigbee_Instruction_Type zb_prog[] PROGMEM = {
     ZI_ON_RECV_UNEXPECTED(&Z_Recv_Default)
     ZI_WAIT(1000)
     ZI_LOG(LOG_LEVEL_INFO, ">>>>>> Log")
-    ZI_STOP()
+    ZI_STOP(0)
 
   ZI_LABEL(ZIGBEE_LABEL_ABORT)                                  // Label 99: abort
     ZI_LOG(LOG_LEVEL_ERROR, "ZGB: Abort")
-    ZI_STOP()
+    ZI_SEND(ZBS_VERS)
+    ZI_STOP(99)
+
+};
+
+static const Zigbee_Instruction_Type zb_prog[] PROGMEM = {
+  // ZI_LABEL(0)
+  //   ZI_NOOP()
+  //   ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_ABORT)
+  //   ZI_ON_TIMEOUT_GOTO(ZIGBEE_LABEL_ABORT)
+  //   ZI_ON_RECV_UNEXPECTED(&Z_Recv_Default)
+  //   ZI_WAIT(1000)
+  //   ZI_LOG(LOG_LEVEL_INFO, ">>>>>> Log")
+  //   ZI_STOP()
+  //
+  // ZI_LABEL(ZIGBEE_LABEL_ABORT)                                  // Label 99: abort
+  //   ZI_LOG(LOG_LEVEL_ERROR, "ZGB: Abort")
+  //   ZI_STOP()
 };
 
 static const ZigbeeState zb_states[] PROGMEM = {
