@@ -23,7 +23,7 @@
 
 const uint32_t ZIGBEE_BUFFER_SIZE = 256;  // Max ZNP frame is SOF+LEN+CMD1+CMD2+250+FCS = 255
 const uint8_t  ZIGBEE_SOF = 0xFE;
-
+const uint8_t  ZIGBEE_LABEL_ABORT = 99;   // goto label 99 in case of fatal error
 
 
 #include <TasmotaSerial.h>
@@ -136,8 +136,8 @@ struct ZigbeeStatus {
   bool state_machine = false;		      // the state machine is running
   bool state_waiting = false;         // the state machine is waiting for external event or timeout
   bool ready = false;								  // cc2530 initialization is complet, ready to operate
-  uint8_t on_error_goto = 99;         // on error goto label, 99 default to abort
-  uint8_t on_timeout_goto = 99;       // on timeout goto label, 99 default to abort
+  uint8_t on_error_goto = ZIGBEE_LABEL_ABORT;         // on error goto label, 99 default to abort
+  uint8_t on_timeout_goto = ZIGBEE_LABEL_ABORT;       // on timeout goto label, 99 default to abort
   int16_t pc = 0;                     // program counter, -1 means abort
   uint32_t next_timeout = 0;          // millis for the next timeout
 
@@ -225,14 +225,14 @@ const uint8_t ZBS_WNV_ZNPHC[]   PROGMEM = { SREQ | SYS, SYS_OSAL_NV_WRITE, ZNP_H
 static const Zigbee_Instruction_Type zb_prog[] PROGMEM = {
   ZI_LABEL(0)
     ZI_NOOP()
-    ZI_ON_ERROR_GOTO(99)
-    ZI_ON_TIMEOUT_GOTO(99)
+    ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_ABORT)
+    ZI_ON_TIMEOUT_GOTO(ZIGBEE_LABEL_ABORT)
     ZI_ON_RECV_UNEXPECTED(&Z_Recv_Default)
     ZI_WAIT(1000)
     ZI_LOG(LOG_LEVEL_INFO, ">>>>>> Log")
     ZI_STOP()
 
-  ZI_LABEL(99)                                  // Label 99: abort
+  ZI_LABEL(ZIGBEE_LABEL_ABORT)                                  // Label 99: abort
     ZI_LOG(LOG_LEVEL_ERROR, "ZGB: Abort")
     ZI_STOP()
 };
@@ -344,6 +344,49 @@ int32_t recv_Err(uint32_t state, class SBuffer &buf) {
 	return -2;	// error
 }
 
+void ZigbeeGotoLabel(uint8_t label) {
+  // look for the label scanning entire code
+  uint16_t goto_pc = 0xFFFF;    // 0xFFFF means not found
+  uint8_t cur_instr = 0;
+  uint8_t cur_data = 0;
+  uint8_t  cur_instr_len = 2;       // size of current instruction in bytes
+
+  for (uint32_t i = 0; i < sizeof(zb_prog)/sizeof(zb_prog[0]); i += cur_instr_len) {
+    const Zigbee_Instruction_Type *cur_instr_line = &zb_prog[zigbee.pc];
+    cur_instr = pgm_read_byte(&cur_instr_line->instr);
+    cur_data  = pgm_read_byte(&cur_instr_line->data);
+
+    if (ZGB_INSTR_LABEL == cur_instr) {
+      if (label == cur_data) {
+        // label found, goto to this pc
+        zigbee.pc = i;
+        zigbee.state_machine = true;
+        zigbee.state_waiting = false;
+        return;
+      }
+    }
+
+    // get instruction length
+    if (cur_instr >= ZGB_INSTR_10_BYTES) {
+      cur_instr_len = 10;
+    } else if (cur_instr >= ZGB_INSTR_6_BYTES) {
+      cur_instr_len = 6;
+    } else {
+      cur_instr_len = 2;
+    }
+  }
+
+  // no label found, abort
+  AddLog_P2(LOG_LEVEL_ERROR, PSTR("ZGB: Goto label not found, label=%d pc=%d"), label, zigbee.pc);
+  if (ZIGBEE_LABEL_ABORT != label) {
+    // if not already looking for ZIGBEE_LABEL_ABORT, goto ZIGBEE_LABEL_ABORT
+    ZigbeeGotoLabel(ZIGBEE_LABEL_ABORT);
+  } else {
+    AddLog_P2(LOG_LEVEL_ERROR, PSTR("ZGB: Label Abort (%d) not present, aborting Zigbee"), ZIGBEE_LABEL_ABORT);
+    zigbee.state_machine = false;
+    zigbee.active = false;
+  }
+}
 
 void ZigbeeStateMachine_Run(void) {
   uint8_t cur_instr = 0;
@@ -406,7 +449,7 @@ void ZigbeeStateMachine_Run(void) {
           // do nothing
           break;
         case ZGB_INSTR_GOTO:
-          // TODO
+          ZigbeeGotoLabel(zigbee.cur_data);
           break;
         case ZGB_INSTR_ON_ERROR_GOTO:
           zigbee.on_error_goto = cur_data;
