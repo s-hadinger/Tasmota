@@ -59,7 +59,7 @@ typedef struct Zigbee_Instruction_Type {
 
 enum Zigbee_StateMachine_Instruction_Ser {
   // 2 bytes instructions
-  ZGB_INSTR_2_BYTES = 0,
+  ZGB_INSTR_4_BYTES = 0,
   ZGB_INSTR_NOOP = 0,                   // do nothing
   ZGB_INSTR_LABEL,                      // define a label
   ZGB_INSTR_GOTO,                       // goto label
@@ -70,7 +70,7 @@ enum Zigbee_StateMachine_Instruction_Ser {
   ZGB_INSTR_STOP,                       // stop state machine with optional error code
 
   // 6 bytes instructions
-  ZGB_INSTR_6_BYTES = 0x80,
+  ZGB_INSTR_8_BYTES = 0x80,
   ZGB_INSTR_CALL = 0x80,                // call a function
   ZGB_INSTR_LOG,                        // log a message, if more detailed logging required, call a function
   ZGB_INSTR_SEND,                       // send a ZNP message
@@ -78,7 +78,7 @@ enum Zigbee_StateMachine_Instruction_Ser {
   ZGB_ON_RECV_UNEXPECTED,               // function to handle unexpected messages, or nullptr
 
   // 10 bytes instructions
-  ZGB_INSTR_10_BYTES = 0xF0,
+  ZGB_INSTR_12_BYTES = 0xF0,
   ZGB_INSTR_WAIT_RECV_CALL,             // wait for a filtered message and call function upon receive
 };
 
@@ -101,49 +101,6 @@ enum Zigbee_StateMachine_Instruction_Ser {
 // #define ZI_LOG(x, m)        { ZGB_INSTR_LOG,      (x) }, { ZI_B0(m), ZI_B1(m) }, { ZI_B2(m), ZI_B3(m) },
 // #define ZI_ON_RECV_UNEXPECTED(f) { ZGB_ON_RECV_UNEXPECTED, 0x00}, { ZI_B0(f), ZI_B1(f) }, { ZI_B2(f), ZI_B3(f) },
 
-typedef struct ZigbeeState {
-	uint8_t										state_cur;					// current state
-	uint8_t                   state_next;					// next state if ok
-	uint8_t                   state_err;					// next state if error (bad message)
-	uint8_t                   state_timeout;			// next state if timeout
-	const uint8_t *           msg_sent;           // message to send
-	const uint8_t *           msg_recv;           // filter to accept received message
-	uint8_t										msg_sent_len;				// sizeof msg_sent
-	uint8_t                   msg_recv_len;       // sizeof msg_recv
-	int16_t 									timeout;						// timeout in ms, 0=move immediately to next step, -1=forever
-	State_EnterFunc						init_func;					// function called when entering this state
-	State_ReceivedFrameFunc	  recv_func;					// fucnrion called when receiving a frame in this state
-} ZigbeeState;
-
-// State machine states
-enum ZnpStates {
-	S_START = 0,
-	S_BOOT,
-	S_INIT,
-  S_CHECKZNPHC,               // Check if ZNP Has Configured is set and correct
-	S_VERS,
-  S_PANID,                    // check PANID
-  S_EXTPAN,                   // Extended PANID
-  S_INIT_CHANN,               // Check CHANNEL
-  S_INIT_PFGK,
-  S_INIT_PFGKEN,
-	S_READY,										// all initialization complete, ready to operate
-  S_FORMAT,                   // start a complete re-format of the device (empty state)
-  S_FORM_1,                   // format startup-option
-  S_FORM_2,                   // format startup-option
-  S_FORM_3,                   // format startup-option
-  S_FORM_4,                   // format startup-option
-  S_FORM_5,                   // format startup-option
-  S_FORM_6,                   // format startup-option
-  S_FORM_7,                   // format startup-option
-  S_FORM_8,                   // format startup-option
-  S_FORM_9,                   // format startup-option
-  S_FORM_10,                  // format startup-option
-  S_FORM_11,                  // format startup-option
-  S_FORM_12,                  // format startup-option
-	S_ABORT,										// fatal error, abort zigbee
-};
-
 TasmotaSerial *ZigbeeSerial = nullptr;
 
 struct ZigbeeStatus {
@@ -158,14 +115,11 @@ struct ZigbeeStatus {
 
   ZGB_ReceivedFrameFunc *recv_unexpected = nullptr;   // function called when unexpected message is received
 
-  uint8_t state_cur = S_START;				// start at first step in state machine
-  uint8_t state_next = 0;						  // mailbox for next state, O=no change
   bool init_phase = true;             // initialization phase, before accepting zigbee traffic
 };
 struct ZigbeeStatus zigbee;
 
 SBuffer *zigbee_buffer = nullptr;
-ZigbeeState zigbee_state_cur_info;
 
 // ZBS_* Zigbee Send
 // ZBR_* Zigbee Recv
@@ -237,7 +191,7 @@ const uint8_t ZBR_WNV_INIT_OK[]   PROGMEM = { SRSP | SYS, SYS_OSAL_NV_WRITE, Z_C
 const uint8_t ZBS_WNV_ZNPHC[]   PROGMEM = { SREQ | SYS, SYS_OSAL_NV_WRITE, ZNP_HAS_CONFIGURED & 0xFF, ZNP_HAS_CONFIGURED >> 8,
                                             0x00 /* offset */, 0x01 /* len */, 0x55 };				// 2109000F000155 - 610900
 
-static const Zigbee_Instruction zb_prog2[] PROGMEM = {
+static const Zigbee_Instruction zb_prog[] PROGMEM = {
   ZI_LABEL(0)
     ZI_NOOP()
     ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_ABORT)
@@ -254,76 +208,62 @@ static const Zigbee_Instruction zb_prog2[] PROGMEM = {
 
 };
 
-static const Zigbee_Instruction_Type zb_prog[] PROGMEM = {
-  // ZI_LABEL(0)
-  //   ZI_NOOP()
-  //   ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_ABORT)
-  //   ZI_ON_TIMEOUT_GOTO(ZIGBEE_LABEL_ABORT)
-  //   ZI_ON_RECV_UNEXPECTED(&Z_Recv_Default)
-  //   ZI_WAIT(1000)
-  //   ZI_LOG(LOG_LEVEL_INFO, ">>>>>> Log")
-  //   ZI_STOP()
-  //
-  // ZI_LABEL(ZIGBEE_LABEL_ABORT)                                  // Label 99: abort
-  //   ZI_LOG(LOG_LEVEL_ERROR, "ZGB: Abort")
-  //   ZI_STOP()
-};
 
-static const ZigbeeState zb_states[] PROGMEM = {
-	// S_START - fake state that immediately transitions to next state
-	{ S_START, S_BOOT, S_BOOT, S_BOOT, nullptr, nullptr, 0, 0, 0, nullptr, nullptr },
-	// S_BOOT - wait for 2 seconds that the cc2530 is fully initialized, or if we receive any frame
-	{ S_BOOT, S_INIT, S_INIT, S_INIT, nullptr, nullptr, 0, 0, 2000, nullptr, nullptr },
-	// S_INIT - send reinit command to cc2530 and wait for response,
-	{ S_INIT, S_CHECKZNPHC, S_ABORT, S_ABORT, ZBS_RESET, ZBR_RESET, sizeof(ZBS_RESET), sizeof(ZBR_RESET), 5000, nullptr, nullptr },
-	// S_VERS - read ZNP Has Configured
-	{ S_CHECKZNPHC, S_VERS, S_FORMAT, S_ABORT, ZBS_ZNPHC, ZBR_ZNPHC, sizeof(ZBS_ZNPHC), sizeof(ZBR_ZNPHC), 500, nullptr, nullptr },
-	// S_VERS - read version
-	{ S_VERS, S_PANID, S_FORMAT, S_ABORT, ZBS_VERS, ZBR_VERS, sizeof(ZBR_VERS), sizeof(ZBR_VERS), 500, nullptr, &Z_Recv_Vers },
-	// S_PANID - check the PAN ID
-	{ S_PANID, S_EXTPAN, S_FORMAT, S_ABORT, ZBS_PAN, ZBR_PAN, sizeof(ZBS_PAN), sizeof(ZBR_PAN), 500, nullptr, nullptr },
-	// S_PANID - check the PAN ID
-	{ S_EXTPAN, S_INIT_CHANN, S_FORMAT, S_ABORT, ZBS_EXTPAN, ZBR_EXTPAN, sizeof(ZBS_EXTPAN), sizeof(ZBR_EXTPAN), 500, nullptr, nullptr },
-	// S_INIT_CHANN - check the CHANNEL
-	{ S_INIT_CHANN, S_INIT_PFGK, S_FORMAT, S_ABORT, ZBS_CHANN, ZBR_CHANN, sizeof(ZBS_CHANN), sizeof(ZBR_CHANN), 500, nullptr, nullptr },
-	// S_INIT_CHANN - check the CHANNEL
-	{ S_INIT_PFGK, S_INIT_PFGKEN, S_FORMAT, S_ABORT, ZBS_PFGK, ZBR_PFGK, sizeof(ZBS_PFGK), sizeof(ZBR_PFGK), 500, nullptr, nullptr },
-	// S_INIT_CHANN - check the CHANNEL
-	{ S_INIT_PFGKEN, S_READY, S_FORMAT, S_ABORT, ZBS_PFGKEN, ZBR_PFGKEN, sizeof(ZBS_PFGKEN), sizeof(ZBR_PFGKEN), 500, nullptr, nullptr },
-
-  // S_READY - ready to receive state
-	{ S_READY, S_READY, S_ABORT, S_READY, nullptr, nullptr, 0, 0, -1, &Z_State_Ready, nullptr },
-
-  // Re-format the device - empty step
-	{ S_FORMAT, S_FORM_1, S_FORM_1, S_FORM_1, nullptr, nullptr, 0, 0, 0, nullptr, nullptr },
-  // S_FORM_1 - Use startup option to do a factory reset
-  { S_FORM_1, S_FORM_2, S_ABORT, S_ABORT, ZBS_FACTRES, ZBR_W_OK, sizeof(ZBS_FACTRES), sizeof(ZBR_W_OK), 500, nullptr, nullptr },
-  // S_FORM_2 - reboot device
-  { S_FORM_2, S_FORM_3, S_ABORT, S_ABORT, ZBS_RESET, ZBR_RESET, sizeof(ZBS_RESET), sizeof(ZBR_RESET), 5000, nullptr, nullptr },
-  // S_FORM_3 - write PAN ID
-  { S_FORM_3, S_FORM_4, S_ABORT, S_ABORT, ZBS_W_PAN, ZBR_W_OK, sizeof(ZBS_W_PAN), sizeof(ZBR_W_OK), 500, nullptr, nullptr },
-  // S_FORM_4 - write EXT PAN ID
-  { S_FORM_4, S_FORM_5, S_ABORT, S_ABORT, ZBS_W_EXTPAN, ZBR_W_OK, sizeof(ZBS_W_EXTPAN), sizeof(ZBR_W_OK), 500, nullptr, nullptr },
-  // S_FORM_5 - write CHANNEL LIST
-  { S_FORM_5, S_FORM_6, S_ABORT, S_ABORT, ZBS_W_CHANN, ZBR_W_OK, sizeof(ZBS_W_CHANN), sizeof(ZBR_W_OK), 500, nullptr, nullptr },
-  // S_FORM_6 - Logical type to coordinator
-  { S_FORM_6, S_FORM_7, S_ABORT, S_ABORT, ZBS_W_LOGTYP, ZBR_W_OK, sizeof(ZBS_W_LOGTYP), sizeof(ZBR_W_OK), 500, nullptr, nullptr },
-  // S_FORM_7 - write PRECFGKEY
-  { S_FORM_7, S_FORM_8, S_ABORT, S_ABORT, ZBS_W_PFGK, ZBR_W_OK, sizeof(ZBS_W_PFGK), sizeof(ZBR_W_OK), 500, nullptr, nullptr },
-  // S_FORM_8 - write PRECFGKEY Enable
-  { S_FORM_8, S_FORM_9, S_ABORT, S_ABORT, ZBS_W_PFGKEN, ZBR_W_OK, sizeof(ZBS_W_PFGKEN), sizeof(ZBR_W_OK), 500, nullptr, nullptr },
-  // S_FORM_9 - write Security Mode
-  { S_FORM_9, S_FORM_10, S_ABORT, S_ABORT, ZBS_WNV_SECMODE, ZBR_WNV_OK, sizeof(ZBS_WNV_SECMODE), sizeof(ZBR_WNV_OK), 500, nullptr, nullptr },
-  // S_FORM_10 - write ZDO Direct CB
-  { S_FORM_10, S_FORM_11, S_ABORT, S_ABORT, ZBS_W_ZDODCB, ZBR_W_OK, sizeof(ZBS_W_ZDODCB), sizeof(ZBR_W_OK), 500, nullptr, nullptr },
-  // S_FORM_11 - Init NV ZNP Has Configured
-  { S_FORM_11, S_FORM_12, S_ABORT, S_ABORT, ZBS_WNV_INITZNPHC, ZBR_WNV_INIT_OK, sizeof(ZBS_WNV_INITZNPHC), sizeof(ZBR_WNV_INIT_OK), 500, nullptr, nullptr },
-  // S_FORM_12 - Init Write NV ZNP Has Configured
-  { S_FORM_12, S_READY, S_ABORT, S_ABORT, ZBS_WNV_ZNPHC, ZBR_WNV_OK, sizeof(ZBS_WNV_ZNPHC), sizeof(ZBR_WNV_OK), 500, nullptr, nullptr },
-
-	// S_ABORT - fatal error, abort zigbee
-	{ S_ABORT, S_ABORT, S_ABORT, S_ABORT, nullptr, nullptr, 0, 0, 0, &Z_State_Abort, nullptr },
-};
+// static const ZigbeeState zb_states[] PROGMEM = {
+// 	// S_START - fake state that immediately transitions to next state
+// 	{ S_START, S_BOOT, S_BOOT, S_BOOT, nullptr, nullptr, 0, 0, 0, nullptr, nullptr },
+// 	// S_BOOT - wait for 2 seconds that the cc2530 is fully initialized, or if we receive any frame
+// 	{ S_BOOT, S_INIT, S_INIT, S_INIT, nullptr, nullptr, 0, 0, 2000, nullptr, nullptr },
+// 	// S_INIT - send reinit command to cc2530 and wait for response,
+// 	{ S_INIT, S_CHECKZNPHC, S_ABORT, S_ABORT, ZBS_RESET, ZBR_RESET, sizeof(ZBS_RESET), sizeof(ZBR_RESET), 5000, nullptr, nullptr },
+// 	// S_VERS - read ZNP Has Configured
+// 	{ S_CHECKZNPHC, S_VERS, S_FORMAT, S_ABORT, ZBS_ZNPHC, ZBR_ZNPHC, sizeof(ZBS_ZNPHC), sizeof(ZBR_ZNPHC), 500, nullptr, nullptr },
+// 	// S_VERS - read version
+// 	{ S_VERS, S_PANID, S_FORMAT, S_ABORT, ZBS_VERS, ZBR_VERS, sizeof(ZBR_VERS), sizeof(ZBR_VERS), 500, nullptr, &Z_Recv_Vers },
+// 	// S_PANID - check the PAN ID
+// 	{ S_PANID, S_EXTPAN, S_FORMAT, S_ABORT, ZBS_PAN, ZBR_PAN, sizeof(ZBS_PAN), sizeof(ZBR_PAN), 500, nullptr, nullptr },
+// 	// S_PANID - check the PAN ID
+// 	{ S_EXTPAN, S_INIT_CHANN, S_FORMAT, S_ABORT, ZBS_EXTPAN, ZBR_EXTPAN, sizeof(ZBS_EXTPAN), sizeof(ZBR_EXTPAN), 500, nullptr, nullptr },
+// 	// S_INIT_CHANN - check the CHANNEL
+// 	{ S_INIT_CHANN, S_INIT_PFGK, S_FORMAT, S_ABORT, ZBS_CHANN, ZBR_CHANN, sizeof(ZBS_CHANN), sizeof(ZBR_CHANN), 500, nullptr, nullptr },
+// 	// S_INIT_CHANN - check the CHANNEL
+// 	{ S_INIT_PFGK, S_INIT_PFGKEN, S_FORMAT, S_ABORT, ZBS_PFGK, ZBR_PFGK, sizeof(ZBS_PFGK), sizeof(ZBR_PFGK), 500, nullptr, nullptr },
+// 	// S_INIT_CHANN - check the CHANNEL
+// 	{ S_INIT_PFGKEN, S_READY, S_FORMAT, S_ABORT, ZBS_PFGKEN, ZBR_PFGKEN, sizeof(ZBS_PFGKEN), sizeof(ZBR_PFGKEN), 500, nullptr, nullptr },
+//
+//   // S_READY - ready to receive state
+// 	{ S_READY, S_READY, S_ABORT, S_READY, nullptr, nullptr, 0, 0, -1, &Z_State_Ready, nullptr },
+//
+//   // Re-format the device - empty step
+// 	{ S_FORMAT, S_FORM_1, S_FORM_1, S_FORM_1, nullptr, nullptr, 0, 0, 0, nullptr, nullptr },
+//   // S_FORM_1 - Use startup option to do a factory reset
+//   { S_FORM_1, S_FORM_2, S_ABORT, S_ABORT, ZBS_FACTRES, ZBR_W_OK, sizeof(ZBS_FACTRES), sizeof(ZBR_W_OK), 500, nullptr, nullptr },
+//   // S_FORM_2 - reboot device
+//   { S_FORM_2, S_FORM_3, S_ABORT, S_ABORT, ZBS_RESET, ZBR_RESET, sizeof(ZBS_RESET), sizeof(ZBR_RESET), 5000, nullptr, nullptr },
+//   // S_FORM_3 - write PAN ID
+//   { S_FORM_3, S_FORM_4, S_ABORT, S_ABORT, ZBS_W_PAN, ZBR_W_OK, sizeof(ZBS_W_PAN), sizeof(ZBR_W_OK), 500, nullptr, nullptr },
+//   // S_FORM_4 - write EXT PAN ID
+//   { S_FORM_4, S_FORM_5, S_ABORT, S_ABORT, ZBS_W_EXTPAN, ZBR_W_OK, sizeof(ZBS_W_EXTPAN), sizeof(ZBR_W_OK), 500, nullptr, nullptr },
+//   // S_FORM_5 - write CHANNEL LIST
+//   { S_FORM_5, S_FORM_6, S_ABORT, S_ABORT, ZBS_W_CHANN, ZBR_W_OK, sizeof(ZBS_W_CHANN), sizeof(ZBR_W_OK), 500, nullptr, nullptr },
+//   // S_FORM_6 - Logical type to coordinator
+//   { S_FORM_6, S_FORM_7, S_ABORT, S_ABORT, ZBS_W_LOGTYP, ZBR_W_OK, sizeof(ZBS_W_LOGTYP), sizeof(ZBR_W_OK), 500, nullptr, nullptr },
+//   // S_FORM_7 - write PRECFGKEY
+//   { S_FORM_7, S_FORM_8, S_ABORT, S_ABORT, ZBS_W_PFGK, ZBR_W_OK, sizeof(ZBS_W_PFGK), sizeof(ZBR_W_OK), 500, nullptr, nullptr },
+//   // S_FORM_8 - write PRECFGKEY Enable
+//   { S_FORM_8, S_FORM_9, S_ABORT, S_ABORT, ZBS_W_PFGKEN, ZBR_W_OK, sizeof(ZBS_W_PFGKEN), sizeof(ZBR_W_OK), 500, nullptr, nullptr },
+//   // S_FORM_9 - write Security Mode
+//   { S_FORM_9, S_FORM_10, S_ABORT, S_ABORT, ZBS_WNV_SECMODE, ZBR_WNV_OK, sizeof(ZBS_WNV_SECMODE), sizeof(ZBR_WNV_OK), 500, nullptr, nullptr },
+//   // S_FORM_10 - write ZDO Direct CB
+//   { S_FORM_10, S_FORM_11, S_ABORT, S_ABORT, ZBS_W_ZDODCB, ZBR_W_OK, sizeof(ZBS_W_ZDODCB), sizeof(ZBR_W_OK), 500, nullptr, nullptr },
+//   // S_FORM_11 - Init NV ZNP Has Configured
+//   { S_FORM_11, S_FORM_12, S_ABORT, S_ABORT, ZBS_WNV_INITZNPHC, ZBR_WNV_INIT_OK, sizeof(ZBS_WNV_INITZNPHC), sizeof(ZBR_WNV_INIT_OK), 500, nullptr, nullptr },
+//   // S_FORM_12 - Init Write NV ZNP Has Configured
+//   { S_FORM_12, S_READY, S_ABORT, S_ABORT, ZBS_WNV_ZNPHC, ZBR_WNV_OK, sizeof(ZBS_WNV_ZNPHC), sizeof(ZBR_WNV_OK), 500, nullptr, nullptr },
+//
+// 	// S_ABORT - fatal error, abort zigbee
+// 	{ S_ABORT, S_ABORT, S_ABORT, S_ABORT, nullptr, nullptr, 0, 0, 0, &Z_State_Abort, nullptr },
+// };
 
 int32_t Z_Recv_Vers(uint8_t state, class SBuffer &buf) {
   // check that the version is supported
@@ -368,38 +308,30 @@ int32_t Z_State_Ready(uint8_t state) {
   return 0;
 }
 
-int32_t enter_NoOp(uint32_t state) {
-	return 0;
-}
-
-int32_t recv_Err(uint32_t state, class SBuffer &buf) {
-	return -2;	// error
-}
-
-uint32_t ZigbeeGetInstructionSize(uint8_t instr) {
-  if (instr >= ZGB_INSTR_10_BYTES) {
-    return 10;
-  } else if (instr >= ZGB_INSTR_6_BYTES) {
-    return 6;
-  } else {
+uint8_t ZigbeeGetInstructionSize(uint8_t instr) {   // in Zigbee_Instruction lines (words)
+  if (instr >= ZGB_INSTR_12_BYTES) {
+    return 3;
+  } else if (instr >= ZGB_INSTR_8_BYTES) {
     return 2;
+  } else {
+    return 1;
   }
 }
 
 void ZigbeeGotoLabel(uint8_t label) {
   // look for the label scanning entire code
   uint16_t goto_pc = 0xFFFF;    // 0xFFFF means not found
-  uint8_t cur_instr = 0;
-  uint8_t cur_data = 0;
-  uint8_t  cur_instr_len = 2;       // size of current instruction in bytes
+  uint8_t  cur_instr = 0;
+  uint8_t  cur_d8 = 0;
+  uint8_t  cur_instr_len = 1;       // size of current instruction in words
 
   for (uint32_t i = 0; i < sizeof(zb_prog)/sizeof(zb_prog[0]); i += cur_instr_len) {
-    const Zigbee_Instruction_Type *cur_instr_line = &zb_prog[zigbee.pc];
-    cur_instr = pgm_read_byte(&cur_instr_line->instr);
-    cur_data  = pgm_read_byte(&cur_instr_line->data);
+    const Zigbee_Instruction *cur_instr_line = &zb_prog[zigbee.pc];
+    cur_instr = pgm_read_byte(&cur_instr_line->i.i);
+    cur_d8    = pgm_read_byte(&cur_instr_line->i.d8);
 
     if (ZGB_INSTR_LABEL == cur_instr) {
-      if (label == cur_data) {
+      if (label == cur_d8) {
         // label found, goto to this pc
         zigbee.pc = i;
         zigbee.state_machine = true;
@@ -407,7 +339,6 @@ void ZigbeeGotoLabel(uint8_t label) {
         return;
       }
     }
-
     // get instruction length
     cur_instr_len = ZigbeeGetInstructionSize(cur_instr);
   }
@@ -426,13 +357,11 @@ void ZigbeeGotoLabel(uint8_t label) {
 
 void ZigbeeStateMachine_Run(void) {
   uint8_t cur_instr = 0;
-  uint8_t cur_data = 0;
-  void*   cur_ptr1 = nullptr;
-  void*   cur_ptr2 = nullptr;
-  uint8_t cur_instr_len = 2;      // current instruction length in bytes
+  uint8_t cur_d8 = 0;
+  uint16_t cur_d16 = 0;
+  const void*   cur_ptr1 = nullptr;
+  const void*   cur_ptr2 = nullptr;
   uint32_t now = millis();
-
-  //if ((!zigbee.state_machine) || (zigbee.pc < 0)) { return; }   // don't run if machine is stopped or pc bad
 
   if (zigbee.state_waiting) {     // state machine is waiting for external event or timeout
     // checking if timeout expired
@@ -455,45 +384,36 @@ void ZigbeeStateMachine_Run(void) {
 
     // load current instruction details
     AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZGB: Executing instruction pc=%d"), zigbee.pc);
-    const Zigbee_Instruction_Type *cur_instr_line = &zb_prog[zigbee.pc];
-    cur_instr = pgm_read_byte(&cur_instr_line->instr);
-    cur_data  = pgm_read_byte(&cur_instr_line->data);
-    if (cur_instr >= ZGB_INSTR_6_BYTES) {
-      uint32 temp;
+    const Zigbee_Instruction *cur_instr_line = &zb_prog[zigbee.pc];
+    cur_instr = pgm_read_byte(&cur_instr_line->i.i);
+    cur_d8    = pgm_read_byte(&cur_instr_line->i.d8);
+    cur_d16   = pgm_read_word(&cur_instr_line->i.d16);
+    if (cur_instr >= ZGB_INSTR_8_BYTES) {
       cur_instr_line++;
-      temp = pgm_read_byte(&cur_instr_line->instr) | (pgm_read_byte(&cur_instr_line->data) << 8);
-      cur_instr_line++;
-      temp |= (pgm_read_byte(&cur_instr_line->instr) << 16) | (pgm_read_byte(&cur_instr_line->data) << 24);
-      cur_ptr1 = (void*) temp;
-      cur_instr_len = 6;
+      cur_ptr1 = cur_instr_line->p;
     }
-    if (cur_instr >= ZGB_INSTR_10_BYTES) {
-      uint32 temp;
+    if (cur_instr >= ZGB_INSTR_12_BYTES) {
       cur_instr_line++;
-      temp = pgm_read_byte(&cur_instr_line->instr) | (pgm_read_byte(&cur_instr_line->data) << 8);
-      cur_instr_line++;
-      temp |= (pgm_read_byte(&cur_instr_line->instr) << 16) | (pgm_read_byte(&cur_instr_line->data) << 24);
-      cur_ptr2 = (void*) temp;
-      cur_instr_len = 10;
+      cur_ptr2 = cur_instr_line->p;
     }
 
-    zigbee.pc += cur_instr_len;               // move pc to next instruction, before any goto
+    zigbee.pc += ZigbeeGetInstructionSize(cur_instr);               // move pc to next instruction, before any goto
 
     switch (cur_instr) {
       case ZGB_INSTR_NOOP:
       case ZGB_INSTR_LABEL:   // do nothing
         break;
       case ZGB_INSTR_GOTO:
-        ZigbeeGotoLabel(cur_data);
+        ZigbeeGotoLabel(cur_d8);
         break;
       case ZGB_INSTR_ON_ERROR_GOTO:
-        zigbee.on_error_goto = cur_data;
+        zigbee.on_error_goto = cur_d8;
         break;
       case ZGB_INSTR_ON_TIMEOUT_GOTO:
-        zigbee.on_timeout_goto = cur_data;
+        zigbee.on_timeout_goto = cur_d8;
         break;
       case ZGB_INSTR_WAIT:
-        zigbee.next_timeout = now + cur_data * 100;
+        zigbee.next_timeout = now + cur_d16;
         zigbee.state_waiting = true;
         break;
       case ZGB_INSTR_WAIT_FOREVER:
@@ -507,13 +427,13 @@ void ZigbeeStateMachine_Run(void) {
         // TODO
         break;
       case ZGB_INSTR_LOG:
-        AddLog_P(cur_data, (char*) cur_ptr1);
+        AddLog_P(cur_d8, (char*) cur_ptr1);
         break;
       case ZGB_INSTR_SEND:
-        ZigbeeZNPSend((uint8_t*) cur_ptr1, cur_data /* len */);
+        ZigbeeZNPSend((uint8_t*) cur_ptr1, cur_d8 /* len */);
         break;
       case ZGB_INSTR_WAIT_RECV:
-        zigbee.next_timeout = now + cur_data * 100;
+        zigbee.next_timeout = now + cur_d16;
         zigbee.state_waiting = true;
         // TODO
         break;
@@ -523,11 +443,7 @@ void ZigbeeStateMachine_Run(void) {
       case ZGB_INSTR_WAIT_RECV_CALL:
         // TODO
         break;
-
     }
-
-
-
   }
 
   //
@@ -584,136 +500,64 @@ void ZigbeeStateMachine_Run(void) {
 }
 
 
-
-// copy the cur_state_info into ram for current state
-ZigbeeState * ZigbeeStateInfo(uint8_t state_cur) {
-	size_t num_states = sizeof(zb_states) / sizeof(ZigbeeState);
-
-	for (uint8_t i = 0; i < num_states; i++) {
-		const ZigbeeState * state_info = &zb_states[i];
-		if (pgm_read_byte(&state_info->state_cur) == state_cur) {
-			// copy from PROGMEM into RAM
-			memcpy_P(&zigbee_state_cur_info, state_info, sizeof(zigbee_state_cur_info));
-			return &zigbee_state_cur_info;
-		}
-	}
-	return nullptr;
-}
-
-void ZigbeeNextState(uint8_t next) {
-  zigbee.state_next = next;
-  zigbee.state_machine = true;     // restart state machine if it was stopped
-}
-
-void ZigbeeStateMachine(void) {
-	static int32_t next_timeout = 0;			// when is the next timeout occurring
-	bool state_entering = false;					// are we entering a new state?
-	uint32_t now = millis();
-
-	if (zigbee.state_next) {
-		// a state transition is triggered
-		AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeStateMachine: transitioning fram state %d to %d"), zigbee.state_cur, zigbee.state_next);
-		zigbee.state_cur = zigbee.state_next;
-		zigbee.state_next = 0;		// reinit mailbox
-		state_entering = true;
-	}
-
-	const ZigbeeState * state = ZigbeeStateInfo(zigbee.state_cur);
-	if (!state) {
-		// Fatal error, abort everything
-	  AddLog_P2(LOG_LEVEL_ERROR, PSTR("ZigbeeStateMachine: unknown state = %d"), zigbee.state_cur);
-		zigbee.state_machine = false;
-		return;
-	}
-
-	if (state_entering) {
-		// We are entering a new state
-    if (state->timeout > 0) {
-      next_timeout = now + state->timeout;
-    } else {
-      next_timeout = state->timeout;      // 0=immediate, -1=forever
-    }
-		int32_t res = 0;
-		if (state->init_func) {
-			res = (*state->init_func)(zigbee.state_cur);
-			AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeStateMachine: called init_func() state = %d, res = %d"), zigbee.state_cur, res);
-			if (res > 0) {
-        ZigbeeNextState(res);
-			} else if (res < 0) {
-        ZigbeeNextState(state->state_err);
-			}
-			// if res == 0 then ok, no change
-		}
-		// if res == 0 or no function called, send the ZNP message if any
-		if ((0 == res) && (state->msg_sent) && (state->msg_sent_len)) {
-			ZigbeeZNPSend(state->msg_sent, state->msg_sent_len);
-		}
-	} else if ((0 == next_timeout) || ((next_timeout > 0) && (now > next_timeout))) {
-		// timeout occured, move to next state
-		AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeStateMachine: timeout occured state = %d"), zigbee.state_cur);
-		//ZigbeeMoveToState(uint8_t state_next);
-    ZigbeeNextState(state->state_timeout);
-	}
-}
-
-void ZigbeeProcessInput(class SBuffer &buf) {
-  if (zigbee.state_machine) {
-    // state is known not to be null, otherwise the error would have been catched in ZigbeeStateMachine()
-    const ZigbeeState * state = ZigbeeStateInfo(zigbee.state_cur);
-
-    // apply the receive filter, acts as 'startsWith()'
-    bool recv_filter_match = true;
-    if ((state->msg_recv) && (state->msg_recv_len)) {
-      for (uint32_t i = 0; i < state->msg_recv_len; i++) {
-        if (pgm_read_byte(&state->msg_recv[i]) != buf.get8(i)) {
-          recv_filter_match = false;
-          break;
-        }
-      }
-    }
-    bool recv_prefix_match = true;      // do the first 2 bytes match the response
-    if (state->msg_recv_len >= 2) {
-      recv_prefix_match = false;
-      if ( (pgm_read_byte(&state->msg_recv[0]) == buf.get8(0)) &&
-           (pgm_read_byte(&state->msg_recv[1]) == buf.get8(1)) ) {
-        recv_prefix_match = true;
-      }
-    }
-    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeProcessInput: recv_prefix_match = %d, recv_filter_match = %d"), recv_prefix_match, recv_filter_match);
-
-    // if there is a recv_callback, call it now
-    int32_t res = 0;          // default to ok
-                              // res  =  0   - proceed to next state
-                              // res  >  0   - proceed to the specified state
-                              // res  = -1  - silently ignore the message
-                              // res <= -2 - move to error state
-    if (recv_prefix_match) {
-      if (state->recv_func) {
-        res = (*state->recv_func)(zigbee.state_cur, buf);
-      } else if (!recv_filter_match) {
-        res = -2;
-      }   // if no full match, then error
-    } else {
-      // if filter does not match, call default handler
-      Z_Recv_Default(zigbee.state_cur, buf);
-    }
-    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeProcessInput: res = %d"), res);
-
-    // change state accordingly
-    if (0 == res) {
-      // if ok, move to next ok state
-      ZigbeeNextState(state->state_next);
-    } else if (res > 0) {
-      // move to arbitrary state
-      ZigbeeNextState(res);
-    } else if (-1 == res) {
-      // -1 means ignore message
-    } else {
-      // any other negative value means error
-      ZigbeeNextState(state->state_err);
-    }
-  }
-}
+// void ZigbeeProcessInput(class SBuffer &buf) {
+//   if (zigbee.state_machine) {
+//     // state is known not to be null, otherwise the error would have been catched in ZigbeeStateMachine()
+//     const ZigbeeState * state = ZigbeeStateInfo(zigbee.state_cur);
+//
+//     // apply the receive filter, acts as 'startsWith()'
+//     bool recv_filter_match = true;
+//     if ((state->msg_recv) && (state->msg_recv_len)) {
+//       for (uint32_t i = 0; i < state->msg_recv_len; i++) {
+//         if (pgm_read_byte(&state->msg_recv[i]) != buf.get8(i)) {
+//           recv_filter_match = false;
+//           break;
+//         }
+//       }
+//     }
+//     bool recv_prefix_match = true;      // do the first 2 bytes match the response
+//     if (state->msg_recv_len >= 2) {
+//       recv_prefix_match = false;
+//       if ( (pgm_read_byte(&state->msg_recv[0]) == buf.get8(0)) &&
+//            (pgm_read_byte(&state->msg_recv[1]) == buf.get8(1)) ) {
+//         recv_prefix_match = true;
+//       }
+//     }
+//     AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeProcessInput: recv_prefix_match = %d, recv_filter_match = %d"), recv_prefix_match, recv_filter_match);
+//
+//     // if there is a recv_callback, call it now
+//     int32_t res = 0;          // default to ok
+//                               // res  =  0   - proceed to next state
+//                               // res  >  0   - proceed to the specified state
+//                               // res  = -1  - silently ignore the message
+//                               // res <= -2 - move to error state
+//     if (recv_prefix_match) {
+//       if (state->recv_func) {
+//         res = (*state->recv_func)(zigbee.state_cur, buf);
+//       } else if (!recv_filter_match) {
+//         res = -2;
+//       }   // if no full match, then error
+//     } else {
+//       // if filter does not match, call default handler
+//       Z_Recv_Default(zigbee.state_cur, buf);
+//     }
+//     AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeProcessInput: res = %d"), res);
+//
+//     // change state accordingly
+//     if (0 == res) {
+//       // if ok, move to next ok state
+//       ZigbeeNextState(state->state_next);
+//     } else if (res > 0) {
+//       // move to arbitrary state
+//       ZigbeeNextState(res);
+//     } else if (-1 == res) {
+//       // -1 means ignore message
+//     } else {
+//       // any other negative value means error
+//       ZigbeeNextState(state->state_err);
+//     }
+//   }
+// }
 
 void ZigbeeInput(void)
 {
@@ -908,7 +752,6 @@ void CmndZigbeeZNPRecv(void)
 bool Xdrv23(uint8_t function)
 {
   bool result = false;
-  return false;
 
   if (zigbee.active) {
     switch (function) {
