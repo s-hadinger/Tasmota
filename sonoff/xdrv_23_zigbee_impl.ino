@@ -344,6 +344,16 @@ int32_t recv_Err(uint32_t state, class SBuffer &buf) {
 	return -2;	// error
 }
 
+uint32_t ZigbeeGetInstructionSize(uint8_t instr) {
+  if (instr >= ZGB_INSTR_10_BYTES) {
+    return 10;
+  } else if (instr >= ZGB_INSTR_6_BYTES) {
+    return 6;
+  } else {
+    return 2;
+  }
+}
+
 void ZigbeeGotoLabel(uint8_t label) {
   // look for the label scanning entire code
   uint16_t goto_pc = 0xFFFF;    // 0xFFFF means not found
@@ -367,13 +377,7 @@ void ZigbeeGotoLabel(uint8_t label) {
     }
 
     // get instruction length
-    if (cur_instr >= ZGB_INSTR_10_BYTES) {
-      cur_instr_len = 10;
-    } else if (cur_instr >= ZGB_INSTR_6_BYTES) {
-      cur_instr_len = 6;
-    } else {
-      cur_instr_len = 2;
-    }
+    cur_instr_len = ZigbeeGetInstructionSize(cur_instr);
   }
 
   // no label found, abort
@@ -752,7 +756,7 @@ void ZigbeeInput(void)
 	    XdrvRulesProcess();
 
 			// now process the message
-      ZigbeeProcessInput(znp_buffer);
+      //ZigbeeProcessInput(znp_buffer);
 		}
 		zigbee_buffer->setLen(0);		// empty buffer
   }
@@ -774,7 +778,7 @@ void ZigbeeInit(void)
 				zigbee_buffer = new SBuffer(ZIGBEE_BUFFER_SIZE);
 			}
       zigbee.active = true;
-      ZigbeeNextState(S_START);             // start state machine in S_START state
+      //ZigbeeNextState(S_START);             // start state machine in S_START state
 			zigbee.init_phase = true;			// start the state machine
       ZigbeeSerial->flush();
     }
@@ -872,13 +876,15 @@ void CmndZigbeeZNPRecv(void)
 bool Xdrv23(uint8_t function)
 {
   bool result = false;
+  return false;
 
   if (zigbee.active) {
     switch (function) {
       case FUNC_LOOP:
         if (ZigbeeSerial) { ZigbeeInput(); }
 				if (zigbee.state_machine) {
-					ZigbeeStateMachine();
+					//ZigbeeStateMachine();
+          ZigbeeStateMachine_Run();
 				}
         break;
       case FUNC_PRE_INIT:
