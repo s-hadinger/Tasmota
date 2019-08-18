@@ -445,11 +445,10 @@ void ZigbeeStateMachine_Run(void) {
     if (cur_instr < ZGB_INSTR_6_BYTES) {
       switch (cur_instr) {
         case ZGB_INSTR_NOOP:
-        case ZGB_INSTR_LABEL:
-          // do nothing
+        case ZGB_INSTR_LABEL:   // do nothing
           break;
         case ZGB_INSTR_GOTO:
-          ZigbeeGotoLabel(zigbee.cur_data);
+          ZigbeeGotoLabel(cur_data);
           break;
         case ZGB_INSTR_ON_ERROR_GOTO:
           zigbee.on_error_goto = cur_data;
