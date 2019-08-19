@@ -74,6 +74,7 @@ enum Zigbee_StateMachine_Instruction_Set {
   ZGB_INSTR_CALL = 0x80,                // call a function
   ZGB_INSTR_LOG,                        // log a message, if more detailed logging required, call a function
   ZGB_INSTR_SEND,                       // send a ZNP message
+  ZGB_INSTR_WAIT_UNTIL,                 // wait until the specified message is received, ignore all others
   ZGB_INSTR_WAIT_RECV,                  // wait for a message according to the filter
   ZGB_ON_RECV_UNEXPECTED,               // function to handle unexpected messages, or nullptr
 
@@ -95,6 +96,8 @@ enum Zigbee_StateMachine_Instruction_Set {
 #define ZI_ON_RECV_UNEXPECTED(f) { .i = { ZGB_ON_RECV_UNEXPECTED, 0x00, 0x0000} }, { .p = (const void*)(f) },
 #define ZI_SEND(m)          { .i = { ZGB_INSTR_SEND, sizeof(m), 0x0000} }, { .p = (const void*)(m) },
 #define ZI_WAIT_RECV(x, m)  { .i = { ZGB_INSTR_WAIT_RECV, sizeof(m), (x)} }, { .p = (const void*)(m) },
+#define ZI_WAIT_UNTIL(x, m) { .i = { ZGB_INSTR_WAIT_UNTIL, sizeof(m), (x)} }, { .p = (const void*)(m) },
+#define ZI_WAIT_RECV_FUNC(x, m, f) { .i = { ZGB_INSTR_WAIT_RECV_CALL, sizeof(m), (x)} }, { .p = (const void*)(m) }, { .p = (const void*)(f) },
 
 struct ZigbeeStatus {
   bool active = true;                 // is Zigbee active for this device, i.e. GPIOs configured
@@ -107,6 +110,7 @@ struct ZigbeeStatus {
   uint32_t next_timeout = 0;          // millis for the next timeout
 
   uint8_t        *recv_filter = nullptr;        // receive filter message
+  bool            recv_until = false;           // ignore all messages until the received frame fully matches
   size_t          recv_filter_len = 0;
   ZB_RecvMsgFunc recv_func = nullptr;          // function to call when message is expected
   ZB_RecvMsgFunc recv_unexpected = nullptr;    // function called when unexpected message is received
@@ -191,7 +195,10 @@ ZBM(ZBR_WNV_INIT_OK, SRSP | SYS, SYS_OSAL_NV_WRITE, Z_Created )				// 610709 - N
 // Write ZNP Has Configured
 ZBM(ZBS_WNV_ZNPHC, SREQ | SYS, SYS_OSAL_NV_WRITE, ZNP_HAS_CONFIGURED & 0xFF, ZNP_HAS_CONFIGURED >> 8,
                    0x00 /* offset */, 0x01 /* len */, 0x55 )				// 2109000F000155 - 610900
-
+// ZDO:startupFromApp
+ZBM(ZBS_STARTUPFROMAPP, SREQ | ZDO, STARTUP_FROM_APP, 100, 0 /* delay */)   // 25406400
+ZBM(ZBR_STARTUPFROMAPP, SRSP | ZDO, STARTUP_FROM_APP )   // 6540 + 01 for new network, 00 for exisitng network, 02 for error
+ZBM(AREQ_STARTUPFROMAPP, AREQ | ZDO, STATE_CHANGE_IND, DEV_ZB_COORD )    // 45C009 + 08 = starting, 09 = started
 
 static const Zigbee_Instruction zb_prog[] PROGMEM = {
   ZI_LABEL(0)
@@ -223,6 +230,13 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
   ZI_LABEL(10)                                // START ZNP App
     ZI_CALL(&Z_State_Ready, 1)
     ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_ABORT)
+    // ZDO:startupFromApp
+    ZI_SEND(ZBS_STARTUPFROMAPP)               // start coordinator
+ZI_LOG(LOG_LEVEL_INFO, "ZGB: >>>> 1")
+    ZI_WAIT_RECV(500, ZBR_STARTUPFROMAPP)     // wait for sync ack of command
+ZI_LOG(LOG_LEVEL_INFO, "ZGB: >>>> 2")
+    ZI_WAIT_UNTIL(5000, AREQ_STARTUPFROMAPP)  // wait for async message that coordinator started
+ZI_LOG(LOG_LEVEL_INFO, "ZGB: >>>> 3")
     // TODO
     ZI_STOP(0)
 
@@ -369,6 +383,7 @@ void ZigbeeStateMachine_Run(void) {
     // reinit receive filters and functions (they only work for a single instruction)
     zigbee.recv_filter = nullptr;
     zigbee.recv_func   = nullptr;
+    zigbee.recv_until  = false;
 
     if (zigbee.pc > (sizeof(zb_prog)/sizeof(zb_prog[0]))) {
       AddLog_P2(LOG_LEVEL_ERROR, PSTR("ZGB: Invalid pc: %d, aborting"), zigbee.pc);
@@ -447,6 +462,8 @@ void ZigbeeStateMachine_Run(void) {
       case ZGB_INSTR_SEND:
         ZigbeeZNPSend((uint8_t*) cur_ptr1, cur_d8 /* len */);
         break;
+      case ZGB_INSTR_WAIT_UNTIL:
+        zigbee.recv_until = true;   // and reuse ZGB_INSTR_WAIT_RECV
       case ZGB_INSTR_WAIT_RECV:
         zigbee.recv_filter = (uint8_t *) cur_ptr1;
         zigbee.recv_filter_len = cur_d8; // len
@@ -501,10 +518,16 @@ int32_t ZigbeeProcessInput(class SBuffer &buf) {
   // pre-compute the suggested value
   if (!recv_prefix_match) {
     res = -1;    // ignore
-  } else if (recv_filter_match) {
-    res = 0;     // ok
-  } else {
-    res = -2;    // error, because message is expected but wrong value
+  } else {  // recv_prefix_match
+    if (recv_filter_match) {
+      res = 0;     // ok
+    } else {
+      if (zigbee.recv_until) {
+        res = -1;  // ignore until full match
+      } else {
+        res = -2;  // error, because message is expected but wrong value
+      }
+    }
   }
 
   if (recv_prefix_match) {
