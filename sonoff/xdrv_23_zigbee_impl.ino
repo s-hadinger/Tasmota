@@ -219,7 +219,6 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
 
   ZI_LABEL(10)                                // START ZNP App
     ZI_CALL(&Z_State_Ready, 1)
-    ZI_CALL(&Z_State_Ready, 2)
     ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_ABORT)
     // TODO
     ZI_STOP(0)
@@ -293,7 +292,6 @@ int32_t Z_Recv_Default(int32_t res, class SBuffer &buf) {
 
 int32_t Z_State_Ready(uint8_t value) {
 	AddLog_P2(LOG_LEVEL_INFO, PSTR("ZGB: Initialization complete %d"), value);
-	zigbee.state_machine = false;          // stop state machine for now
   zigbee.init_phase = false;             // initialization phase complete
   return 0;                              // continue
 }
@@ -418,7 +416,9 @@ void ZigbeeStateMachine_Run(void) {
         break;
       case ZGB_INSTR_STOP:
         zigbee.state_machine = false;
-        AddLog_P2(LOG_LEVEL_ERROR, PSTR("ZGB: Stopping (%d)"), cur_d8);
+        if (cur_d8) {
+          AddLog_P2(LOG_LEVEL_ERROR, PSTR("ZGB: Stopping (%d)"), cur_d8);
+        }
         break;
       case ZGB_INSTR_CALL:
         if (cur_ptr1) {
