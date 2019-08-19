@@ -34,8 +34,8 @@ const char kZigbeeCommands[] PROGMEM = "|" D_CMND_ZIGBEEZNPSEND "|" D_CMND_ZIGBE
 void (* const ZigbeeCommand[])(void) PROGMEM = { &CmndZigbeeZNPSend, &CmndZigbeeZNPRecv };
 
 // return value: 0=Ok proceed to next step, <0 Error, >0 go to a specific state
-typedef int32_t (*State_EnterFunc)(uint8_t state);
-typedef int32_t (*State_ReceivedFrameFunc)(uint8_t state, class SBuffer &buf);
+typedef int32_t (*ZB_Func)(uint8_t state);
+typedef int32_t (*ZB_RecvMsgFunc)(uint8_t state, class SBuffer &buf);
 
 
 typedef int32_t (*ZGB_ReceivedFrameFunc)(uint8_t state, class SBuffer &buf);
@@ -46,7 +46,10 @@ typedef union Zigbee_Instruction {
     uint8_t  d8;     // 8 bits data
     uint16_t d16;    // 16 bits data
   } i;
-  const void *p;           // pointer
+  const void *p;              // pointer
+  const void *m;           // for type checking only, message
+  const ZB_Func f;
+  const ZB_RecvMsgFunc fr;
 } Zigbee_Instruction;
 //
 // Zigbee_Instruction z1 = { .i = {1,2,3}};
@@ -82,11 +85,6 @@ enum Zigbee_StateMachine_Instruction_Set {
   ZGB_INSTR_WAIT_RECV_CALL,             // wait for a filtered message and call function upon receive
 };
 
-// #define ZI_B0(a)            (uint8_t)( (((intptr_t)(a))      ) & 0xFF )
-// #define ZI_B1(a)            (uint8_t)( (((intptr_t)(a)) >>  8) & 0xFF )
-// #define ZI_B2(a)            (uint8_t)( (((intptr_t)(a)) >> 16) & 0xFF )
-// #define ZI_B3(a)            (uint8_t)( (((intptr_t)(a)) >> 24) & 0xFF )
-
 #define ZI_NOOP()           { .i = { ZGB_INSTR_NOOP,   0x00, 0x0000} },
 #define ZI_LABEL(x)         { .i = { ZGB_INSTR_LABEL,  (x),  0x0000} },
 #define ZI_GOTO(x)          { .i = { ZGB_INSTR_GOTO,   (x),  0x0000} },
@@ -97,9 +95,8 @@ enum Zigbee_StateMachine_Instruction_Set {
 
 #define ZI_LOG(x, m)        { .i = { ZGB_INSTR_LOG,    (x), 0x0000 } }, { .p = ((const void*)(m)) },
 #define ZI_ON_RECV_UNEXPECTED(f) { .i = { ZGB_ON_RECV_UNEXPECTED, 0x00, 0x0000} }, { .p = (const void*)(f) },
-#define ZI_SEND(m)          { .i = { ZGB_INSTR_SEND, sizeof(m), 0x0000} }, { .p = ((const void*)(m)) },
-// #define ZI_LOG(x, m)        { ZGB_INSTR_LOG,      (x) }, { ZI_B0(m), ZI_B1(m) }, { ZI_B2(m), ZI_B3(m) },
-// #define ZI_ON_RECV_UNEXPECTED(f) { ZGB_ON_RECV_UNEXPECTED, 0x00}, { ZI_B0(f), ZI_B1(f) }, { ZI_B2(f), ZI_B3(f) },
+#define ZI_SEND(m)          { .i = { ZGB_INSTR_SEND, sizeof(m), 0x0000} }, { .p = (const void*)(m) },
+#define ZI_WAIT_RECV(x, m)  { .i = { ZGB_INSTR_WAIT_RECV, sizeof(m), (x)} }, { .p = (const void*)(m) },
 
 TasmotaSerial *ZigbeeSerial = nullptr;
 
@@ -126,7 +123,7 @@ SBuffer *zigbee_buffer = nullptr;
 const uint8_t ZBS_RESET[] PROGMEM = { AREQ | SYS, SYS_RESET, 0x01 };	  // 410001 SYS_RESET_REQ Software reset
 const uint8_t ZBR_RESET[] PROGMEM = { AREQ | SYS, SYS_RESET_IND };			// 4180 SYS_RESET_REQ Software reset response
 
-const uint8_t ZBS_VERS[]  PROGMEM = { SREQ | SYS, SYS_VERSION };				// 2102 SYS:version
+static const uint8_t ZBS_VERS[]  PROGMEM = { SREQ | SYS, SYS_VERSION };				// 2102 SYS:version
 const uint8_t ZBR_VERS[]  PROGMEM = { SRSP | SYS, SYS_VERSION };				// 6102 SYS:version
 // Check if ZNP_HAS_CONFIGURED is set
 const uint8_t ZBS_ZNPHC[]   PROGMEM = { SREQ | SYS, SYS_OSAL_NV_READ, ZNP_HAS_CONFIGURED & 0xFF, ZNP_HAS_CONFIGURED >> 8, 0x00 /* offset */ };				// 2108000F00 - 6108000155
@@ -198,11 +195,40 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     ZI_ON_TIMEOUT_GOTO(ZIGBEE_LABEL_ABORT)
     ZI_ON_RECV_UNEXPECTED(&Z_Recv_Default)
     ZI_WAIT(2000)
-    ZI_LOG(LOG_LEVEL_INFO, ">>>>>> Log")
-    ZI_GOTO(ZIGBEE_LABEL_ABORT)
+    //ZI_LOG(LOG_LEVEL_INFO, ">>>>>> Log")
+    ZI_ON_ERROR_GOTO(50)
     ZI_STOP(0)
 
-  ZI_LABEL(ZIGBEE_LABEL_ABORT)                                  // Label 99: abort
+  ZI_LABEL(50)                                  // reformat device
+    ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_ABORT)
+    ZI_SEND(ZBS_FACTRES)                        // factory reset
+    ZI_WAIT_RECV(500, ZBR_W_OK)
+    ZI_SEND(ZBS_RESET)                          // reset device
+    ZI_WAIT_RECV(5000, ZBR_RESET)
+    ZI_SEND(ZBS_W_PAN)                          // write PAN ID
+    ZI_WAIT_RECV(500, ZBR_W_OK)
+    ZI_SEND(ZBS_W_EXTPAN)                       // write EXT PAN ID
+    ZI_WAIT_RECV(500, ZBR_W_OK)
+
+//   { S_FORM_4, S_FORM_5, S_ABORT, S_ABORT, ZBS_W_EXTPAN, ZBR_W_OK, sizeof(ZBS_W_EXTPAN), sizeof(ZBR_W_OK), 500, nullptr, nullptr },
+//   // S_FORM_5 - write CHANNEL LIST
+//   { S_FORM_5, S_FORM_6, S_ABORT, S_ABORT, ZBS_W_CHANN, ZBR_W_OK, sizeof(ZBS_W_CHANN), sizeof(ZBR_W_OK), 500, nullptr, nullptr },
+//   // S_FORM_6 - Logical type to coordinator
+//   { S_FORM_6, S_FORM_7, S_ABORT, S_ABORT, ZBS_W_LOGTYP, ZBR_W_OK, sizeof(ZBS_W_LOGTYP), sizeof(ZBR_W_OK), 500, nullptr, nullptr },
+//   // S_FORM_7 - write PRECFGKEY
+//   { S_FORM_7, S_FORM_8, S_ABORT, S_ABORT, ZBS_W_PFGK, ZBR_W_OK, sizeof(ZBS_W_PFGK), sizeof(ZBR_W_OK), 500, nullptr, nullptr },
+//   // S_FORM_8 - write PRECFGKEY Enable
+//   { S_FORM_8, S_FORM_9, S_ABORT, S_ABORT, ZBS_W_PFGKEN, ZBR_W_OK, sizeof(ZBS_W_PFGKEN), sizeof(ZBR_W_OK), 500, nullptr, nullptr },
+//   // S_FORM_9 - write Security Mode
+//   { S_FORM_9, S_FORM_10, S_ABORT, S_ABORT, ZBS_WNV_SECMODE, ZBR_WNV_OK, sizeof(ZBS_WNV_SECMODE), sizeof(ZBR_WNV_OK), 500, nullptr, nullptr },
+//   // S_FORM_10 - write ZDO Direct CB
+//   { S_FORM_10, S_FORM_11, S_ABORT, S_ABORT, ZBS_W_ZDODCB, ZBR_W_OK, sizeof(ZBS_W_ZDODCB), sizeof(ZBR_W_OK), 500, nullptr, nullptr },
+//   // S_FORM_11 - Init NV ZNP Has Configured
+//   { S_FORM_11, S_FORM_12, S_ABORT, S_ABORT, ZBS_WNV_INITZNPHC, ZBR_WNV_INIT_OK, sizeof(ZBS_WNV_INITZNPHC), sizeof(ZBR_WNV_INIT_OK), 500, nullptr, nullptr },
+//   // S_FORM_12 - Init Write NV ZNP Has Configured
+//   { S_FORM_12, S_READY, S_ABORT, S_ABORT,
+
+  ZI_LABEL(ZIGBEE_LABEL_ABORT)                  // Label 99: abort
     ZI_LOG(LOG_LEVEL_ERROR, "ZGB: Abort")
     ZI_SEND(ZBS_VERS)
     ZI_STOP(ZIGBEE_LABEL_ABORT)
