@@ -117,6 +117,7 @@ struct ZigbeeStatus zigbee;
 
 SBuffer *zigbee_buffer = nullptr;
 
+// Macro to define message to send and receive
 #define ZBM(n, x...) const uint8_t n[] PROGMEM = { x };
 
 // ZBS_* Zigbee Send
@@ -128,67 +129,69 @@ ZBM(ZBS_VERSION, SREQ | SYS, SYS_VERSION )              // 2102 SYS:version
 ZBM(ZBR_VERSION, SRSP | SYS, SYS_VERSION )              // 6102 SYS:version
 
 // Check if ZNP_HAS_CONFIGURED is set
-const uint8_t ZBS_ZNPHC[]   PROGMEM = { SREQ | SYS, SYS_OSAL_NV_READ, ZNP_HAS_CONFIGURED & 0xFF, ZNP_HAS_CONFIGURED >> 8, 0x00 /* offset */ };				// 2108000F00 - 6108000155
-const uint8_t ZBR_ZNPHC[]   PROGMEM = { SRSP | SYS, SYS_OSAL_NV_READ, Z_Success, 0x01 /* len */, 0x55 };				// 6108000155
+ZBM(ZBS_ZNPHC, SREQ | SYS, SYS_OSAL_NV_READ, ZNP_HAS_CONFIGURED & 0xFF, ZNP_HAS_CONFIGURED >> 8, 0x00 /* offset */ )  // 2108000F00 - 6108000155
+ZBM(ZBR_ZNPHC, SRSP | SYS, SYS_OSAL_NV_READ, Z_Success, 0x01 /* len */, 0x55)   // 6108000155
 // If not set, the response is 61-08-02-00 = SRSP | SYS, SYS_OSAL_NV_READ, Z_InvalidParameter, 0x00 /* len */
 
-const uint8_t ZBS_PAN[]   PROGMEM = { SREQ | SAPI, READ_CONFIGURATION, PANID };				// 260483
-const uint8_t ZBR_PAN[]   PROGMEM = { SRSP | SAPI, READ_CONFIGURATION, Z_Success, PANID, 0x02 /* len */, 0xFF, 0xFF };				// 6604008302FFFF
+ZBM(ZBS_PAN, SREQ | SAPI, READ_CONFIGURATION, PANID )				// 260483
+ZBM(ZBR_PAN, SRSP | SAPI, READ_CONFIGURATION, Z_Success, PANID, 0x02 /* len */, 0xFF, 0xFF )				// 6604008302FFFF
 
-const uint8_t ZBS_EXTPAN[]   PROGMEM = { SREQ | SAPI, READ_CONFIGURATION, EXTENDED_PAN_ID };				// 26042D
-const uint8_t ZBR_EXTPAN[]   PROGMEM = { SRSP | SAPI, READ_CONFIGURATION, Z_Success, EXTENDED_PAN_ID,
-                                        0x08 /* len */, 0x62, 0x63, 0x15, 0x1D, 0x00, 0x4B, 0x12, 0x00 };				// 6604002D086263151D004B1200
+ZBM(ZBS_EXTPAN, SREQ | SAPI, READ_CONFIGURATION, EXTENDED_PAN_ID )				// 26042D
+ZBM(ZBR_EXTPAN, SRSP | SAPI, READ_CONFIGURATION, Z_Success, EXTENDED_PAN_ID,
+                0x08 /* len */, 0x62, 0x63, 0x15, 0x1D, 0x00, 0x4B, 0x12, 0x00 )				// 6604002D086263151D004B1200
 
-const uint8_t ZBS_CHANN[]   PROGMEM = { SREQ | SAPI, READ_CONFIGURATION, CHANLIST };				// 260484
-const uint8_t ZBR_CHANN[]   PROGMEM = { SRSP | SAPI, READ_CONFIGURATION, Z_Success, CHANLIST,
-                                        0x04 /* len */, 0x00, 0x08, 0x00, 0x00 };				// 660400840400080000
+ZBM(ZBS_CHANN, SREQ | SAPI, READ_CONFIGURATION, CHANLIST )				// 260484
+ZBM(ZBR_CHANN, SRSP | SAPI, READ_CONFIGURATION, Z_Success, CHANLIST,
+               0x04 /* len */, 0x00, 0x08, 0x00, 0x00 )				// 660400840400080000
 
-const uint8_t ZBS_PFGK[]   PROGMEM = { SREQ | SAPI, READ_CONFIGURATION, PRECFGKEY };				// 260462
-const uint8_t ZBR_PFGK[]   PROGMEM = { SRSP | SAPI, READ_CONFIGURATION, Z_Success, PRECFGKEY,
-                                        0x10 /* len */, 0x01, 0x03, 0x05, 0x07, 0x09, 0x0B, 0x0D, 0x0F,
-                                                        0x00, 0x02, 0x04, 0x06, 0x08, 0x0A, 0x0C, 0x0D };				// 660400621001030507090B0D0F00020406080A0C0D
+ZBM(ZBS_PFGK, SREQ | SAPI, READ_CONFIGURATION, PRECFGKEY )				// 260462
+ZBM(ZBR_PFGK, SRSP | SAPI, READ_CONFIGURATION, Z_Success, PRECFGKEY,
+              0x10 /* len */, 0x01, 0x03, 0x05, 0x07, 0x09, 0x0B, 0x0D, 0x0F,
+                              0x00, 0x02, 0x04, 0x06, 0x08, 0x0A, 0x0C, 0x0D )				// 660400621001030507090B0D0F00020406080A0C0D
 
-const uint8_t ZBS_PFGKEN[]   PROGMEM = { SREQ | SAPI, READ_CONFIGURATION, PRECFGKEYS_ENABLE };				// 260463
-const uint8_t ZBR_PFGKEN[]   PROGMEM = { SRSP | SAPI, READ_CONFIGURATION, Z_Success, PRECFGKEYS_ENABLE,
-                                        0x01 /* len */, 0x00 };				// 660400630100
+ZBM(ZBS_PFGKEN, SREQ | SAPI, READ_CONFIGURATION, PRECFGKEYS_ENABLE )				// 260463
+ZBM(ZBR_PFGKEN, SRSP | SAPI, READ_CONFIGURATION, Z_Success, PRECFGKEYS_ENABLE,
+                0x01 /* len */, 0x00 )				// 660400630100
 
 // commands to "format" the device
 // Write configuration - write success
-const uint8_t ZBR_W_OK[]   PROGMEM = { SRSP | SAPI, WRITE_CONFIGURATION, Z_Success };				// 660500 - Write Configuration
-const uint8_t ZBR_WNV_OK[]   PROGMEM = { SRSP | SYS, SYS_OSAL_NV_WRITE, Z_Success };				// 610900 - NV Write
+ZBM(ZBR_W_OK, SRSP | SAPI, WRITE_CONFIGURATION, Z_Success )				// 660500 - Write Configuration
+ZBM(ZBR_WNV_OK, SRSP | SYS, SYS_OSAL_NV_WRITE, Z_Success )				// 610900 - NV Write
+
 // Factory reset
-const uint8_t ZBS_FACTRES[]   PROGMEM = { SREQ | SAPI, WRITE_CONFIGURATION, STARTUP_OPTION, 0x01 /* len */, 0x02 };				// 2605030102
+ZBM(ZBS_FACTRES, SREQ | SAPI, WRITE_CONFIGURATION, STARTUP_OPTION, 0x01 /* len */, 0x02 )				// 2605030102
 // Write PAN ID
-const uint8_t ZBS_W_PAN[]   PROGMEM = { SREQ | SAPI, WRITE_CONFIGURATION, PANID, 0x02 /* len */, 0xFF, 0xFF  };				// 26058302FFFF
+ZBM(ZBS_W_PAN, SREQ | SAPI, WRITE_CONFIGURATION, PANID, 0x02 /* len */, 0xFF, 0xFF  )				// 26058302FFFF
 // Write EXT PAN ID
-const uint8_t ZBS_W_EXTPAN[]   PROGMEM = { SREQ | SAPI, WRITE_CONFIGURATION, EXTENDED_PAN_ID, 0x08 /* len */, 0x62, 0x63, 0x15, 0x1D, 0x00, 0x4B, 0x12, 0x00  };				// 26052D086263151D004B1200
+ZBM(ZBS_W_EXTPAN, SREQ | SAPI, WRITE_CONFIGURATION, EXTENDED_PAN_ID, 0x08 /* len */, 0x62, 0x63, 0x15, 0x1D, 0x00, 0x4B, 0x12, 0x00 ) // 26052D086263151D004B1200
 // Write Channel ID
-const uint8_t ZBS_W_CHANN[]   PROGMEM = { SREQ | SAPI, WRITE_CONFIGURATION, CHANLIST, 0x04 /* len */, 0x00, 0x08, 0x00, 0x00  };				// 2605840400080000
+ZBM(ZBS_W_CHANN, SREQ | SAPI, WRITE_CONFIGURATION, CHANLIST, 0x04 /* len */, 0x00, 0x08, 0x00, 0x00 )				// 2605840400080000
 // Write Logical Type = 00 = coordinator
-const uint8_t ZBS_W_LOGTYP[]   PROGMEM = { SREQ | SAPI, WRITE_CONFIGURATION, LOGICAL_TYPE, 0x01 /* len */, 0x00  };				// 2605870100
+ZBM(ZBS_W_LOGTYP, SREQ | SAPI, WRITE_CONFIGURATION, LOGICAL_TYPE, 0x01 /* len */, 0x00 )				// 2605870100
 // Write precfgkey
-const uint8_t ZBS_W_PFGK[]   PROGMEM = { SREQ | SAPI, WRITE_CONFIGURATION, PRECFGKEY,
-                                         0x10 /* len */, 0x01, 0x03, 0x05, 0x07, 0x09, 0x0B, 0x0D, 0x0F,
-                                         0x00, 0x02, 0x04, 0x06, 0x08, 0x0A, 0x0C, 0x0D };				// 2605621001030507090B0D0F00020406080A0C0D
+ZBM(ZBS_W_PFGK, SREQ | SAPI, WRITE_CONFIGURATION, PRECFGKEY,
+                0x10 /* len */, 0x01, 0x03, 0x05, 0x07, 0x09, 0x0B, 0x0D, 0x0F,
+                0x00, 0x02, 0x04, 0x06, 0x08, 0x0A, 0x0C, 0x0D )				// 2605621001030507090B0D0F00020406080A0C0D
 // Write precfgkey enable
-const uint8_t ZBS_W_PFGKEN[]   PROGMEM = { SREQ | SAPI, WRITE_CONFIGURATION, PRECFGKEYS_ENABLE, 0x01 /* len */, 0x00  };				// 2605630100
+ZBM(ZBS_W_PFGKEN, SREQ | SAPI, WRITE_CONFIGURATION, PRECFGKEYS_ENABLE, 0x01 /* len */, 0x00 )				// 2605630100
 // Write Security Mode
-const uint8_t ZBS_WNV_SECMODE[]   PROGMEM = { SREQ | SYS, SYS_OSAL_NV_WRITE, TCLK_TABLE_START & 0xFF, TCLK_TABLE_START >> 8,
-                                            0x00 /* offset */, 0x20 /* len */,
-                                            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-                                            0x5a, 0x69, 0x67, 0x42, 0x65, 0x65, 0x41, 0x6c,
-                                            0x6c, 0x69, 0x61, 0x6e, 0x63, 0x65, 0x30, 0x39,
-                                            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};				// 2109010100200FFFFFFFFFFFFFFFF5A6967426565416C6C69616E636530390000000000000000
+ZBM(ZBS_WNV_SECMODE, SREQ | SYS, SYS_OSAL_NV_WRITE, TCLK_TABLE_START & 0xFF, TCLK_TABLE_START >> 8,
+                      0x00 /* offset */, 0x20 /* len */,
+                      0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                      0x5a, 0x69, 0x67, 0x42, 0x65, 0x65, 0x41, 0x6c,
+                      0x6c, 0x69, 0x61, 0x6e, 0x63, 0x65, 0x30, 0x39,
+                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)				// 2109010100200FFFFFFFFFFFFFFFF5A6967426565416C6C69616E636530390000000000000000
 // Write ZDO Direct CB
-const uint8_t ZBS_W_ZDODCB[]   PROGMEM = { SREQ | SAPI, WRITE_CONFIGURATION, ZDO_DIRECT_CB, 0x01 /* len */, 0x01  };				// 26058F0101
+ZBM(ZBS_W_ZDODCB, SREQ | SAPI, WRITE_CONFIGURATION, ZDO_DIRECT_CB, 0x01 /* len */, 0x01 )				// 26058F0101
 // NV Init ZNP Has Configured
-const uint8_t ZBS_WNV_INITZNPHC[]   PROGMEM = { SREQ | SYS, SYS_OSAL_NV_ITEM_INIT, ZNP_HAS_CONFIGURED & 0xFF, ZNP_HAS_CONFIGURED >> 8,
-                                                0x01, 0x00 /* InitLen 16 bits */, 0x01 /* len */, 0x00 };  // 2107000F01000100 - 610709
+ZBM(ZBS_WNV_INITZNPHC, SREQ | SYS, SYS_OSAL_NV_ITEM_INIT, ZNP_HAS_CONFIGURED & 0xFF, ZNP_HAS_CONFIGURED >> 8,
+                       0x01, 0x00 /* InitLen 16 bits */, 0x01 /* len */, 0x00 )  // 2107000F01000100 - 610709
 // Init succeeded
-const uint8_t ZBR_WNV_INIT_OK[]   PROGMEM = { SRSP | SYS, SYS_OSAL_NV_WRITE, Z_Created };				// 610709 - NV Write
+ZBM(ZBR_WNV_INIT_OK, SRSP | SYS, SYS_OSAL_NV_WRITE, Z_Created )				// 610709 - NV Write
 // Write ZNP Has Configured
-const uint8_t ZBS_WNV_ZNPHC[]   PROGMEM = { SREQ | SYS, SYS_OSAL_NV_WRITE, ZNP_HAS_CONFIGURED & 0xFF, ZNP_HAS_CONFIGURED >> 8,
-                                            0x00 /* offset */, 0x01 /* len */, 0x55 };				// 2109000F000155 - 610900
+ZBM(ZBS_WNV_ZNPHC, SREQ | SYS, SYS_OSAL_NV_WRITE, ZNP_HAS_CONFIGURED & 0xFF, ZNP_HAS_CONFIGURED >> 8,
+                   0x00 /* offset */, 0x01 /* len */, 0x55 )				// 2109000F000155 - 610900
+
 
 static const Zigbee_Instruction zb_prog[] PROGMEM = {
   ZI_LABEL(0)
