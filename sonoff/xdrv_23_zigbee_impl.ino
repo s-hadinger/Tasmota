@@ -199,6 +199,35 @@ ZBM(ZBS_WNV_ZNPHC, SREQ | SYS, SYS_OSAL_NV_WRITE, ZNP_HAS_CONFIGURED & 0xFF, ZNP
 ZBM(ZBS_STARTUPFROMAPP, SREQ | ZDO, STARTUP_FROM_APP, 100, 0 /* delay */)   // 25406400
 ZBM(ZBR_STARTUPFROMAPP, SRSP | ZDO, STARTUP_FROM_APP )   // 6540 + 01 for new network, 00 for exisitng network, 02 for error
 ZBM(AREQ_STARTUPFROMAPP, AREQ | ZDO, STATE_CHANGE_IND, DEV_ZB_COORD )    // 45C009 + 08 = starting, 09 = started
+// GetDeviceInfo
+ZBM(ZBS_GETDEVICEINFO, SREQ | UTIL, Z_UTIL_GET_DEVICE_INFO )     // 2700
+ZBM(ZBR_GETDEVICEINFO, SRSP | UTIL, Z_UTIL_GET_DEVICE_INFO, Z_Success )   // Ex= 6700.00.6263151D004B1200.0000.07.09.00
+    // IEEE Adr (8 bytes) = 6263151D004B1200
+    // Short Addr (2 bytes) = 0000
+    // Device Type (1 byte) = 07 (coord?)
+    // Device State (1 byte) = 09 (coordinator started)
+    // NumAssocDevices (1 byte) = 00
+
+// Read Pan ID
+//ZBM(ZBS_READ_NV_PANID, SREQ | SYS, SYS_OSAL_NV_READ, PANID & 0xFF, PANID >> 8, 0x00 /* offset */ )  // 2108830000
+
+// ZDO:nodeDescReq
+ZBM(ZBS_ZDO_NODEDESCREQ, SREQ | ZDO, NODE_DESC_REQ, 0x00, 0x00 /* dst addr */, 0x00, 0x00 /* NWKAddrOfInterest */)    // 250200000000
+ZBM(ZBR_ZDO_NODEDESCREQ, SRSP | ZDO, NODE_DESC_REQ, Z_Success )   // 650200
+// Async resp ex: 4582.0000.00.0000.00.40.8F.0000.50.A000.0100.A000.00
+ZBM(AREQ_ZDO_NODEDESCREQ, AREQ | ZDO, NODE_DESC_RSP)    // 4582
+// SrcAddr (2 bytes) 0000
+// Status (1 byte) 00 Success
+// NwkAddr (2 bytes) 0000
+// LogicalType (1 byte) - 00 Coordinator
+// APSFlags (1 byte) - 40 0=APSFlags 4=NodeFreqBands
+// MACCapabilityFlags (1 byte) - 8F ALL
+// ManufacturerCode (2 bytes) - 0000
+// MaxBufferSize (1 byte) - 50 NPDU
+// MaxTransferSize (2 bytes) - A000 = 160 
+// ServerMask (2 bytes) - 0100 - Primary Trust Center
+// MaxOutTransferSize (2 bytes) - A000 = 160
+// DescriptorCapabilities (1 byte) - 00
 
 static const Zigbee_Instruction zb_prog[] PROGMEM = {
   ZI_LABEL(0)
@@ -237,6 +266,12 @@ ZI_LOG(LOG_LEVEL_INFO, "ZGB: >>>> 1")
 ZI_LOG(LOG_LEVEL_INFO, "ZGB: >>>> 2")
     ZI_WAIT_UNTIL(5000, AREQ_STARTUPFROMAPP)  // wait for async message that coordinator started
 ZI_LOG(LOG_LEVEL_INFO, "ZGB: >>>> 3")
+    ZI_SEND(ZBS_GETDEVICEINFO)                // GetDeviceInfo
+    ZI_WAIT_RECV(500, ZBR_GETDEVICEINFO)      // TODO memorize info
+    ZI_SEND(ZBS_ZDO_NODEDESCREQ)              // ZDO:nodeDescReq
+    ZI_WAIT_RECV(500, ZBR_ZDO_NODEDESCREQ)
+    ZI_WAIT_UNTIL(5000, AREQ_ZDO_NODEDESCREQ)
+ZI_LOG(LOG_LEVEL_INFO, "ZGB: >>>> 4")
     // TODO
     ZI_STOP(0)
 
