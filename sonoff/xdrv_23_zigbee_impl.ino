@@ -117,13 +117,16 @@ struct ZigbeeStatus zigbee;
 
 SBuffer *zigbee_buffer = nullptr;
 
+#define ZBM(n, x...) const uint8_t n[] PROGMEM = { x };
+
 // ZBS_* Zigbee Send
 // ZBR_* Zigbee Recv
-const uint8_t ZBS_RESET[] PROGMEM = { AREQ | SYS, SYS_RESET, 0x01 };	  // 410001 SYS_RESET_REQ Software reset
-const uint8_t ZBR_RESET[] PROGMEM = { AREQ | SYS, SYS_RESET_IND };			// 4180 SYS_RESET_REQ Software reset response
+ZBM(ZBS_RESET, AREQ | SYS, SYS_RESET, 0x01 )        	  // 410001 SYS_RESET_REQ Software reset
+ZBM(ZBR_RESET, AREQ | SYS, SYS_RESET_IND )              // 4180 SYS_RESET_REQ Software reset response
 
-static const uint8_t ZBS_VERS[]  PROGMEM = { SREQ | SYS, SYS_VERSION };				// 2102 SYS:version
-const uint8_t ZBR_VERS[]  PROGMEM = { SRSP | SYS, SYS_VERSION };				// 6102 SYS:version
+ZBM(ZBS_VERSION, SREQ | SYS, SYS_VERSION )              // 2102 SYS:version
+ZBM(ZBR_VERSION, SRSP | SYS, SYS_VERSION )              // 6102 SYS:version
+
 // Check if ZNP_HAS_CONFIGURED is set
 const uint8_t ZBS_ZNPHC[]   PROGMEM = { SREQ | SYS, SYS_OSAL_NV_READ, ZNP_HAS_CONFIGURED & 0xFF, ZNP_HAS_CONFIGURED >> 8, 0x00 /* offset */ };				// 2108000F00 - 6108000155
 const uint8_t ZBR_ZNPHC[]   PROGMEM = { SRSP | SYS, SYS_OSAL_NV_READ, Z_Success, 0x01 /* len */, 0x55 };				// 6108000155
@@ -200,8 +203,8 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     ZI_WAIT_RECV(5000, ZBR_RESET)             // timeout 5s
     ZI_SEND(ZBS_ZNPHC)                        // check value of ZNP Has Configured
     ZI_WAIT_RECV(500, ZBR_ZNPHC)
-    ZI_SEND(ZBS_VERS)                         // check ZNP software version
-    ZI_WAIT_RECV(500, ZBR_VERS)
+    ZI_SEND(ZBS_VERSION)                         // check ZNP software version
+    ZI_WAIT_RECV(500, ZBR_VERSION)
     ZI_SEND(ZBS_PAN)                          // check PAN ID
     ZI_WAIT_RECV(500, ZBR_PAN)
     ZI_SEND(ZBS_EXTPAN)                       // check EXT PAN ID
@@ -216,6 +219,7 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
 
   ZI_LABEL(10)                                // START ZNP App
     ZI_CALL(&Z_State_Ready, 1)
+    ZI_CALL(&Z_State_Ready, 2)
     ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_ABORT)
     // TODO
     ZI_STOP(0)
