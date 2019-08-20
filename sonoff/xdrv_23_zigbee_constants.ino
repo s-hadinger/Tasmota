@@ -210,6 +210,15 @@ enum Z_Status {
   Z_Created = 0x09,
   Z_BufferFull = 0x11
 };
+
+enum Z_App_profiles {
+  Z_PROF_IPM = 0x0101,    // Industrial Plant Monitoring
+  Z_PROF_HA = 0x0104,     // Home Automation -- the only supported right now
+  Z_PROF_CBA = 0x0105,    // Commercial Building Automation
+  Z_PROF_TA = 0x0107,     // Telecom Applications
+  Z_PROF_PHHC = 0x0108,   // Personal Home & Hospital Care
+  Z_PROF_AMI = 0x0109,    // Advanced Metering Initiative
+};
 //
 //
 //
