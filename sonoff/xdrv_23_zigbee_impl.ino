@@ -121,6 +121,10 @@ struct ZigbeeStatus zigbee;
 
 SBuffer *zigbee_buffer = nullptr;
 
+#define Z_B0(a)            (uint8_t)( ((a)      ) & 0xFF )
+#define Z_B1(a)            (uint8_t)( ((a) >>  8) & 0xFF )
+#define Z_B2(a)            (uint8_t)( ((a) >> 16) & 0xFF )
+#define Z_B3(a)            (uint8_t)( ((a) >> 24) & 0xFF )
 // Macro to define message to send and receive
 #define ZBM(n, x...) const uint8_t n[] PROGMEM = { x };
 
@@ -193,7 +197,7 @@ ZBM(ZBS_WNV_INITZNPHC, SREQ | SYS, SYS_OSAL_NV_ITEM_INIT, ZNP_HAS_CONFIGURED & 0
 // Init succeeded
 ZBM(ZBR_WNV_INIT_OK, SRSP | SYS, SYS_OSAL_NV_WRITE, Z_Created )				// 610709 - NV Write
 // Write ZNP Has Configured
-ZBM(ZBS_WNV_ZNPHC, SREQ | SYS, SYS_OSAL_NV_WRITE, ZNP_HAS_CONFIGURED & 0xFF, ZNP_HAS_CONFIGURED >> 8,
+ZBM(ZBS_WNV_ZNPHC, SREQ | SYS, SYS_OSAL_NV_WRITE, Z_B0(ZNP_HAS_CONFIGURED), Z_B1(ZNP_HAS_CONFIGURED),
                    0x00 /* offset */, 0x01 /* len */, 0x55 )				// 2109000F000155 - 610900
 // ZDO:startupFromApp
 ZBM(ZBS_STARTUPFROMAPP, SREQ | ZDO, STARTUP_FROM_APP, 100, 0 /* delay */)   // 25406400
@@ -224,10 +228,29 @@ ZBM(AREQ_ZDO_NODEDESCREQ, AREQ | ZDO, NODE_DESC_RSP)    // 4582
 // MACCapabilityFlags (1 byte) - 8F ALL
 // ManufacturerCode (2 bytes) - 0000
 // MaxBufferSize (1 byte) - 50 NPDU
-// MaxTransferSize (2 bytes) - A000 = 160 
+// MaxTransferSize (2 bytes) - A000 = 160
 // ServerMask (2 bytes) - 0100 - Primary Trust Center
 // MaxOutTransferSize (2 bytes) - A000 = 160
 // DescriptorCapabilities (1 byte) - 00
+
+// ZDO:activeEpReq
+ZBM(ZBS_ZDO_ACTIVEEPREQ, SREQ | ZDO, ACTIVE_EP_REQ, 0x00, 0x00, 0x00, 0x00)  // 25050000
+ZBM(ZBR_ZDO_ACTIVEEPREQ, SRSP | ZDO, ACTIVE_EP_REQ, Z_Success)  // 25050000
+ZBM(ZBR_ZDO_ACTIVEEPRSP_NONE, AREQ | ZDO, ACTIVE_EP_RSP, 0x00, 0x00 /* srcAddr */, Z_Success,
+    0x00, 0x00 /* nwkaddr */, 0x00 /* activeepcount */)  // 25050000 - no Ep running
+ZBM(ZBR_ZDO_ACTIVEEPRSP_OK, AREQ | ZDO, ACTIVE_EP_RSP, 0x00, 0x00 /* srcAddr */, Z_Success,
+    0x00, 0x00 /* nwkaddr */, 0x02 /* activeepcount */, 0x0B, 0x01 /* the actual endpoints */)  // 25050000 - no Ep running
+
+// AF:register profile:104, ep:01
+ZBM(ZBS_AF_REGISTER01, SREQ | AF, AF_REGISTER, 0x01 /* endpoint */, Z_B0(Z_PROF_HA), Z_B1(Z_PROF_HA),    // 24000401050000000000
+                        0x05, 0x00 /* AppDeviceId */, 0x00 /* AppDevVer */, 0x00 /* LatencyReq */,
+                        0x00 /* AppNumInClusters */, 0x00 /* AppNumInClusters */)
+ZBM(ZBR_AF_REGISTER,   SRSP | AF, AF_REGISTER, Z_Success)   // 640000
+ZBM(ZBS_AF_REGISTER0B, SREQ | AF, AF_REGISTER, 0x0B /* endpoint */, Z_B0(Z_PROF_HA), Z_B1(Z_PROF_HA),    // 2400040B050000000000
+                        0x05, 0x00 /* AppDeviceId */, 0x00 /* AppDevVer */, 0x00 /* LatencyReq */,
+                        0x00 /* AppNumInClusters */, 0x00 /* AppNumInClusters */)
+// ZDO:activeEpReq - phase 2
+
 
 static const Zigbee_Instruction zb_prog[] PROGMEM = {
   ZI_LABEL(0)
@@ -238,8 +261,10 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     ZI_WAIT(2000)                             // wait for 2 seconds for cc2530 to boot
     ZI_ON_ERROR_GOTO(50)
 
+    ZI_LOG(LOG_LEVEL_INFO, "ZGB: rebooting zigbee device")
     ZI_SEND(ZBS_RESET)                        // reboot cc2530 just in case we rebooted ESP8266 but not cc2530
     ZI_WAIT_RECV(5000, ZBR_RESET)             // timeout 5s
+    ZI_LOG(LOG_LEVEL_INFO, "ZGB: checking zigbee configuration")
     ZI_SEND(ZBS_ZNPHC)                        // check value of ZNP Has Configured
     ZI_WAIT_RECV(500, ZBR_ZNPHC)
     ZI_SEND(ZBS_VERSION)                         // check ZNP software version
@@ -254,12 +279,14 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     ZI_WAIT_RECV(500, ZBR_PFGK)
     ZI_SEND(ZBS_PFGKEN)                       // check PFGKEN
     ZI_WAIT_RECV(500, ZBR_PFGKEN)
+    ZI_LOG(LOG_LEVEL_INFO, "ZGB: zigbee configuration ok")
     // all is good, we can start
 
   ZI_LABEL(10)                                // START ZNP App
     ZI_CALL(&Z_State_Ready, 1)
     ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_ABORT)
     // ZDO:startupFromApp
+    ZI_LOG(LOG_LEVEL_INFO, "ZGB: starting zigbee coordinator")
     ZI_SEND(ZBS_STARTUPFROMAPP)               // start coordinator
 ZI_LOG(LOG_LEVEL_INFO, "ZGB: >>>> 1")
     ZI_WAIT_RECV(500, ZBR_STARTUPFROMAPP)     // wait for sync ack of command
@@ -272,12 +299,26 @@ ZI_LOG(LOG_LEVEL_INFO, "ZGB: >>>> 3")
     ZI_WAIT_RECV(500, ZBR_ZDO_NODEDESCREQ)
     ZI_WAIT_UNTIL(5000, AREQ_ZDO_NODEDESCREQ)
 ZI_LOG(LOG_LEVEL_INFO, "ZGB: >>>> 4")
+    ZI_SEND(ZBS_ZDO_ACTIVEEPREQ)              // ZDO:activeEpReq
+    ZI_WAIT_RECV(500, ZBR_ZDO_ACTIVEEPREQ)
+    ZI_WAIT_UNTIL(500, ZBR_ZDO_ACTIVEEPRSP_NONE)
+    ZI_SEND(ZBS_AF_REGISTER01)                // AF register for endpoint 01, profile 0x0104 Home Automation
+    ZI_WAIT_RECV(500, ZBR_AF_REGISTER)
+    ZI_SEND(ZBS_AF_REGISTER0B)                // AF register for endpoint 0B, profile 0x0104 Home Automation
+    ZI_WAIT_RECV(500, ZBR_AF_REGISTER)
+    // ZDO:nodeDescReq ?? Is is useful to redo it?  TODO
+    // redo ZDO:activeEpReq to check that Ep are available
+    ZI_SEND(ZBS_ZDO_ACTIVEEPREQ)              // ZDO:activeEpReq
+    ZI_WAIT_RECV(500, ZBR_ZDO_ACTIVEEPREQ)
+    ZI_WAIT_UNTIL(500, ZBR_ZDO_ACTIVEEPRSP_OK)
+ZI_LOG(LOG_LEVEL_INFO, "ZGB: >>>> 5")
+
     // TODO
     ZI_STOP(0)
 
   ZI_LABEL(50)                                  // reformat device
+    ZI_LOG(LOG_LEVEL_INFO, "ZGB: zigbee configuration not ok, factory reset")
     ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_ABORT)
-    ZI_LOG(LOG_LEVEL_INFO, "ZGB: Reformatting CC2530 device")
     ZI_SEND(ZBS_FACTRES)                        // factory reset
     ZI_WAIT_RECV(500, ZBR_W_OK)
     ZI_SEND(ZBS_RESET)                          // reset device
@@ -304,7 +345,7 @@ ZI_LOG(LOG_LEVEL_INFO, "ZGB: >>>> 4")
     ZI_SEND(ZBS_WNV_ZNPHC)                      // Write NV ZNP Has Configured
     ZI_WAIT_RECV(500, ZBR_WNV_OK)
 
-    ZI_LOG(LOG_LEVEL_INFO, "ZGB: CC2530 configured")
+    ZI_LOG(LOG_LEVEL_INFO, "ZGB: zigbee device reconfigured")
     ZI_GOTO(10)
 
   ZI_LABEL(ZIGBEE_LABEL_ABORT)                  // Label 99: abort
