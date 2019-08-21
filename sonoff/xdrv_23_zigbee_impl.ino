@@ -249,8 +249,15 @@ ZBM(ZBR_AF_REGISTER,   SRSP | AF, AF_REGISTER, Z_Success)   // 640000
 ZBM(ZBS_AF_REGISTER0B, SREQ | AF, AF_REGISTER, 0x0B /* endpoint */, Z_B0(Z_PROF_HA), Z_B1(Z_PROF_HA),    // 2400040B050000000000
                         0x05, 0x00 /* AppDeviceId */, 0x00 /* AppDevVer */, 0x00 /* LatencyReq */,
                         0x00 /* AppNumInClusters */, 0x00 /* AppNumInClusters */)
-// ZDO:activeEpReq - phase 2
-
+// ZDO:mgmtPermitJoinReq
+ZBM(ZBS_PERMITJOINREQ_CLOSE, SREQ | ZDO, MGMT_PERMIT_JOIN_REQ, 0x02 /* AddrMode */,   // 25360200000000
+                              0x00, 0x00 /* DstAddr */, 0x00 /* Duration */, 0x00 /* TCSignificance */)
+ZBM(ZBS_PERMITJOINREQ_OPEN, SREQ | ZDO, MGMT_PERMIT_JOIN_REQ, 0x0F /* AddrMode */,   // 25360FFFFCFF00
+                              0xFC, 0xFF /* DstAddr */, 0xFF /* Duration */, 0x00 /* TCSignificance */)
+ZBM(ZBR_PERMITJOINREQ, SRSP | ZDO, MGMT_PERMIT_JOIN_REQ, Z_Success)    // 653600
+ZBM(ZBR_PERMITJOIN_AREQ_CLOSE, AREQ | ZDO, PERMIT_JOIN_IND, 0x00 /* Duration */)    // 45CB00
+ZBM(ZBR_PERMITJOIN_AREQ_OPEN, AREQ | ZDO, PERMIT_JOIN_IND, 0xFF /* Duration */)    // 45CBFF
+ZBM(ZBR_PERMITJOIN_AREQ_RSP,  AREQ | ZDO, MGMT_PERMIT_JOIN_RSP, 0x00, 0x00 /* srcAddr*/, Z_Success )   // 45B6000000
 
 static const Zigbee_Instruction zb_prog[] PROGMEM = {
   ZI_LABEL(0)
@@ -312,6 +319,16 @@ ZI_LOG(LOG_LEVEL_INFO, "ZGB: >>>> 4")
     ZI_WAIT_RECV(500, ZBR_ZDO_ACTIVEEPREQ)
     ZI_WAIT_UNTIL(500, ZBR_ZDO_ACTIVEEPRSP_OK)
 ZI_LOG(LOG_LEVEL_INFO, "ZGB: >>>> 5")
+    ZI_SEND(ZBS_PERMITJOINREQ_CLOSE)          // Closing the Permit Join
+    ZI_WAIT_RECV(500, ZBR_PERMITJOINREQ)
+    ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_RSP)   // not sure it's useful
+    ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_CLOSE)
+ZI_LOG(LOG_LEVEL_INFO, "ZGB: >>>> 6")
+    ZI_SEND(ZBS_PERMITJOINREQ_OPEN)           // Opening Permit Join, normally through command  TODO
+    ZI_WAIT_RECV(500, ZBR_PERMITJOINREQ)
+    ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_RSP)   // not sure it's useful
+    ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_OPEN)
+ZI_LOG(LOG_LEVEL_INFO, "ZGB: >>>> 6")
 
     // TODO
     ZI_STOP(0)
