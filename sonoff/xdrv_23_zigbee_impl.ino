@@ -879,23 +879,34 @@ typedef union ZCLHeaderFrameControl_t {
 class ZCLFrame {
 public:
 
-  ZCLFrame(uint8_t frame_control, uint8_t cmd_id, SBuffer *buf, uint16_t manuf_code = 0, uint8_t transact_seq =0 ):
+  ZCLFrame(uint8_t frame_control, uint16_t manuf_code, uint8_t transact_seq, uint8_t cmd_id,
+    const char *buf, size_t buf_len ):
     _cmd_id(cmd_id), _manuf_code(manuf_code), _transact_seq(transact_seq),
-    _payload(buf ? buf->len() - 3 : 250)      // allocate the data frame from source or preallocate big enough
+    _payload(buf_len ? buf_len : 250)      // allocate the data frame from source or preallocate big enough
     {
       _frame_control.d8 = frame_control;
-      _payload.addBuffer(*buf);
+      _payload.addBuffer(buf, buf_len);
     };
 
-  static ZCLFrame &parseRawFrame(SBuffer &buf) { // parse a raw frame and build the ZCL frame object
+
+
+  static ZCLFrame parseRawFrame(SBuffer &buf) { // parse a raw frame and build the ZCL frame object
     uint32_t i = 0;
     ZCLHeaderFrameControl_t frame_control;
     uint16_t manuf_code = 0;
+    uint8_t transact_seq;
+    uint8_t cmd_id;
+
     frame_control.d8 = buf.get8(i++);
     if (frame_control.b.manuf_specific) {
       manuf_code = buf.get16(i);
       i += 2;
     }
+    transact_seq = buf.get8(i++);
+    cmd_id = buf.get8(i++);
+    ZCLFrame zcl_frame(frame_control.d8, manuf_code, transact_seq, cmd_id,
+                       (const char *)(buf.buf() + i), buf.len() - i);
+    return zcl_frame;
   }
 
 private:
