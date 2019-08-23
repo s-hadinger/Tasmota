@@ -434,6 +434,8 @@
 #define D_CMND_ZIGBEEZNPRECEIVE "ZigbeeZNPReceive"
   #define D_JSON_ZIGBEEZNPRECEIVED "ZigbeeZNPReceived"
   #define D_JSON_ZIGBEEZNPSENT "ZigbeeZNPSent"
+  #define D_JSON_ZIGBEEZCLRECEIVED "ZigbeeZCLReceived"
+  #define D_JSON_ZIGBEEZCLSENT "ZigbeeZCLSent"
 /********************************************************************************************/
 
 #define D_ASTERISK_PWD "****"

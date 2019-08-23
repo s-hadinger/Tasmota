@@ -121,6 +121,78 @@ struct ZigbeeStatus zigbee;
 
 SBuffer *zigbee_buffer = nullptr;
 
+
+
+/*********************************************************************************************\
+ * ZCL
+\*********************************************************************************************/
+
+typedef union ZCLHeaderFrameControl_t {
+  struct {
+    uint8_t frame_type : 2;           // 00 = across entire profile, 01 = cluster specific
+    uint8_t manuf_specific : 1;       // Manufacturer Specific Sub-field
+    uint8_t direction : 1;            // 0 = tasmota to zigbee, 1 = zigbee to tasmota
+    uint8_t disable_def_resp : 1;     // don't send back default response
+    uint8_t reserved : 3;
+  } b;
+  uint8_t d8;                         // raw 8 bits field
+} ZCLHeaderFrameControl_t;
+
+class ZCLFrame {
+public:
+
+  ZCLFrame(uint8_t frame_control, uint16_t manuf_code, uint8_t transact_seq, uint8_t cmd_id,
+    const char *buf, size_t buf_len ):
+    _cmd_id(cmd_id), _manuf_code(manuf_code), _transact_seq(transact_seq),
+    _payload(buf_len ? buf_len : 250)      // allocate the data frame from source or preallocate big enough
+    {
+      _frame_control.d8 = frame_control;
+      _payload.addBuffer(buf, buf_len);
+    };
+
+  void publishMQTTReceived(void) {
+    char hex_char[_payload.len()*2+2];
+		ToHex_P((unsigned char*)_payload.getBuffer(), _payload.len(), hex_char, sizeof(hex_char));
+    Response_P(PSTR("{" D_JSON_ZIGBEEZCLRECEIVED ":{\"fc\"=%d,\"manuf\"=%d,\"transact\"=%d,"
+                    "\"cmdid\"=%d,\"payload\"=%s}}"),
+                    _frame_control, _manuf_code, _transact_seq, _cmd_id,
+                    hex_char);
+  	MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCLSENT));
+  	XdrvRulesProcess();
+  }
+
+  static ZCLFrame parseRawFrame(SBuffer &buf, uint8_t offset, uint8_t len) { // parse a raw frame and build the ZCL frame object
+    uint32_t i = offset;
+    ZCLHeaderFrameControl_t frame_control;
+    uint16_t manuf_code = 0;
+    uint8_t transact_seq;
+    uint8_t cmd_id;
+
+    frame_control.d8 = buf.get8(i++);
+    if (frame_control.b.manuf_specific) {
+      manuf_code = buf.get16(i);
+      i += 2;
+    }
+    transact_seq = buf.get8(i++);
+    cmd_id = buf.get8(i++);
+    ZCLFrame zcl_frame(frame_control.d8, manuf_code, transact_seq, cmd_id,
+                       (const char *)(buf.buf() + i), len + offset - i);
+    return zcl_frame;
+  }
+
+private:
+  ZCLHeaderFrameControl_t _frame_control = { .d8 = 0 };
+  uint16_t                _manuf_code = 0;      // optional
+  uint8_t                 _transact_seq = 0;    // transaction sequence number
+  uint8_t                 _cmd_id = 0;
+  SBuffer                 _payload;
+};
+
+
+/*********************************************************************************************\
+ * State Machine
+\*********************************************************************************************/
+
 #define Z_B0(a)            (uint8_t)( ((a)      ) & 0xFF )
 #define Z_B1(a)            (uint8_t)( ((a) >>  8) & 0xFF )
 #define Z_B2(a)            (uint8_t)( ((a) >> 16) & 0xFF )
@@ -284,6 +356,9 @@ ZBM(ZBR_PERMITJOIN_AREQ_CLOSE, Z_AREQ | Z_ZDO, ZDO_PERMIT_JOIN_IND, 0x00 /* Dura
 ZBM(ZBR_PERMITJOIN_AREQ_OPEN, Z_AREQ | Z_ZDO, ZDO_PERMIT_JOIN_IND, 0xFF /* Duration */)    // 45CBFF
 ZBM(ZBR_PERMITJOIN_AREQ_RSP,  Z_AREQ | Z_ZDO, ZDO_MGMT_PERMIT_JOIN_RSP, 0x00, 0x00 /* srcAddr*/, Z_Success )   // 45B6000000
 
+// Filters for ZCL frames
+ZBM(ZBR_AF_INCOMING_MESSAGE, Z_AREQ | Z_AF, AF_INCOMING_MSG)    // 4481
+
 static const Zigbee_Instruction zb_prog[] PROGMEM = {
   ZI_LABEL(0)
     ZI_NOOP()
@@ -419,6 +494,13 @@ int32_t Z_Recv_Default(int32_t res, class SBuffer &buf) {
     // if still during initialization phase, ignore any unexpected message
   	return -1;	// ignore message
   } else {
+    if ( (pgm_read_byte(&ZBR_AF_INCOMING_MESSAGE[0]) == buf.get8(0)) &&
+         (pgm_read_byte(&ZBR_AF_INCOMING_MESSAGE[1]) == buf.get8(1)) ) {
+      // AF_INCOMING_MSG, extract ZCL part TODO
+      // skip first 18 bytes
+      ZCLFrame zcl_received = ZCLFrame::parseRawFrame(buf, 18, buf.get8(17));
+      zcl_received.publishMQTTReceived();
+    }
     // for now ignore message
     // TODO
     return -1;
@@ -860,62 +942,6 @@ void CmndZigbeeZNPRecv(void)
   // }
   ResponseCmndDone();
 }
-
-/*********************************************************************************************\
- * ZCL
-\*********************************************************************************************/
-
-typedef union ZCLHeaderFrameControl_t {
-  struct {
-    uint8_t frame_type : 2;           // 00 = across entire profile, 01 = cluster specific
-    uint8_t manuf_specific : 1;       // Manufacturer Specific Sub-field
-    uint8_t direction : 1;            // 0 = tasmota to zigbee, 1 = zigbee to tasmota
-    uint8_t disable_def_resp : 1;     // don't send back default response
-    uint8_t reserved : 3;
-  } b;
-  uint8_t d8;                         // raw 8 bits field
-} ZCLHeaderFrameControl_t;
-
-class ZCLFrame {
-public:
-
-  ZCLFrame(uint8_t frame_control, uint16_t manuf_code, uint8_t transact_seq, uint8_t cmd_id,
-    const char *buf, size_t buf_len ):
-    _cmd_id(cmd_id), _manuf_code(manuf_code), _transact_seq(transact_seq),
-    _payload(buf_len ? buf_len : 250)      // allocate the data frame from source or preallocate big enough
-    {
-      _frame_control.d8 = frame_control;
-      _payload.addBuffer(buf, buf_len);
-    };
-
-
-
-  static ZCLFrame parseRawFrame(SBuffer &buf) { // parse a raw frame and build the ZCL frame object
-    uint32_t i = 0;
-    ZCLHeaderFrameControl_t frame_control;
-    uint16_t manuf_code = 0;
-    uint8_t transact_seq;
-    uint8_t cmd_id;
-
-    frame_control.d8 = buf.get8(i++);
-    if (frame_control.b.manuf_specific) {
-      manuf_code = buf.get16(i);
-      i += 2;
-    }
-    transact_seq = buf.get8(i++);
-    cmd_id = buf.get8(i++);
-    ZCLFrame zcl_frame(frame_control.d8, manuf_code, transact_seq, cmd_id,
-                       (const char *)(buf.buf() + i), buf.len() - i);
-    return zcl_frame;
-  }
-
-private:
-  ZCLHeaderFrameControl_t _frame_control = { .d8 = 0 };
-  uint16_t                _manuf_code = 0;      // optional
-  uint8_t                 _transact_seq = 0;    // transaction sequence number
-  uint8_t                 _cmd_id = 0;
-  SBuffer                 _payload;
-};
 
 /*********************************************************************************************\
  * Interface
