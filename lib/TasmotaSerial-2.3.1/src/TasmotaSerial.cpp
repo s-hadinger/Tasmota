@@ -76,8 +76,9 @@ static void (*ISRList[16])() = {
       tms_isr_15
 };
 
-TasmotaSerial::TasmotaSerial(int receive_pin, int transmit_pin, int hardware_fallback)
+TasmotaSerial::TasmotaSerial(int receive_pin, int transmit_pin, int hardware_fallback, int buffer_size)
 {
+  serial_buffer_size = buffer_size;
   m_valid = false;
   m_hardserial = 0;
   m_hardswap = 0;
@@ -97,7 +98,7 @@ TasmotaSerial::TasmotaSerial(int receive_pin, int transmit_pin, int hardware_fal
   }
   else {
     if (m_rx_pin > -1) {
-      m_buffer = (uint8_t*)malloc(TM_SERIAL_BUFFER_SIZE);
+      m_buffer = (uint8_t*)malloc(serial_buffer_size);
       if (m_buffer == NULL) return;
       // Use getCycleCount() loop to get as exact timing as possible
       m_bit_time = ESP.getCpuFreqMHz() * 1000000 / TM_SERIAL_BAUDRATE;
@@ -183,7 +184,7 @@ int TasmotaSerial::read()
   } else {
     if ((-1 == m_rx_pin) || (m_in_pos == m_out_pos)) return -1;
     uint8_t ch = m_buffer[m_out_pos];
-    m_out_pos = (m_out_pos +1) % TM_SERIAL_BUFFER_SIZE;
+    m_out_pos = (m_out_pos +1) % serial_buffer_size;
     return ch;
   }
 }
@@ -194,7 +195,7 @@ int TasmotaSerial::available()
     return Serial.available();
   } else {
     int avail = m_in_pos - m_out_pos;
-    if (avail < 0) avail += TM_SERIAL_BUFFER_SIZE;
+    if (avail < 0) avail += serial_buffer_size;
     return avail;
   }
 }
@@ -257,7 +258,7 @@ void TasmotaSerial::rxRead()
     TM_SERIAL_WAIT;
   }
   // Store the received value in the buffer unless we have an overflow
-  unsigned int next = (m_in_pos+1) % TM_SERIAL_BUFFER_SIZE;
+  unsigned int next = (m_in_pos+1) % serial_buffer_size;
   if (next != (int)m_out_pos) {
     m_buffer[m_in_pos] = rec;
     m_in_pos = next;

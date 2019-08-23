@@ -24,6 +24,7 @@
 const uint32_t ZIGBEE_BUFFER_SIZE = 256;  // Max ZNP frame is SOF+LEN+CMD1+CMD2+250+FCS = 255
 const uint8_t  ZIGBEE_SOF = 0xFE;
 const uint8_t  ZIGBEE_LABEL_ABORT = 99;   // goto label 99 in case of fatal error
+const uint8_t  ZIGBEE_LABEL_READY = 20;   // goto label 99 in case of fatal error
 
 
 #include <TasmotaSerial.h>
@@ -89,6 +90,7 @@ enum Zigbee_StateMachine_Instruction_Set {
 #define ZI_ON_ERROR_GOTO(x) { .i = { ZGB_INSTR_ON_ERROR_GOTO, (x), 0x0000} },
 #define ZI_ON_TIMEOUT_GOTO(x) { .i = { ZGB_INSTR_ON_TIMEOUT_GOTO, (x), 0x0000} },
 #define ZI_WAIT(x)          { .i = { ZGB_INSTR_WAIT,   0x00, (x)} },
+#define ZI_WAIT_FOREVER()   { .i = { ZGB_INSTR_WAIT_FOREVER, 0x00, 0x0000} },
 #define ZI_STOP(x)          { .i = { ZGB_INSTR_STOP,   (x), 0x0000} },
 
 #define ZI_CALL(f, x)       { .i = { ZGB_INSTR_CALL, (x), 0x0000} }, { .p = (const void*)(f) },
@@ -422,16 +424,18 @@ ZI_LOG(LOG_LEVEL_INFO, "ZGB: >>>> 5")
     ZI_SEND(ZBS_PERMITJOINREQ_CLOSE)          // Closing the Permit Join
     ZI_WAIT_RECV(500, ZBR_PERMITJOINREQ)
     ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_RSP)   // not sure it's useful
-    ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_CLOSE)
+    //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_CLOSE)
 ZI_LOG(LOG_LEVEL_INFO, "ZGB: >>>> 6")
     ZI_SEND(ZBS_PERMITJOINREQ_OPEN)           // Opening Permit Join, normally through command  TODO
     ZI_WAIT_RECV(500, ZBR_PERMITJOINREQ)
     ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_RSP)   // not sure it's useful
-    ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_OPEN)
+    //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_OPEN)
 ZI_LOG(LOG_LEVEL_INFO, "ZGB: >>>> 7")
 
-    // TODO
-    ZI_STOP(0)
+  ZI_LABEL(ZIGBEE_LABEL_READY)
+    ZI_CALL(&Z_State_Ready, 1)
+    ZI_WAIT_FOREVER()
+    ZI_GOTO(ZIGBEE_LABEL_READY)
 
   ZI_LABEL(50)                                  // reformat device
     ZI_LOG(LOG_LEVEL_INFO, "ZGB: zigbee configuration not ok, factory reset")
@@ -490,6 +494,7 @@ int32_t Z_Recv_Vers(int32_t res, class SBuffer &buf) {
 
 int32_t Z_Recv_Default(int32_t res, class SBuffer &buf) {
   // Default message handler for new messages
+  AddLog_P2(LOG_LEVEL_INFO, PSTR("ZGB: Z_Recv_Default"));
   if (zigbee.init_phase) {
     // if still during initialization phase, ignore any unexpected message
   	return -1;	// ignore message
@@ -498,11 +503,10 @@ int32_t Z_Recv_Default(int32_t res, class SBuffer &buf) {
          (pgm_read_byte(&ZBR_AF_INCOMING_MESSAGE[1]) == buf.get8(1)) ) {
       // AF_INCOMING_MSG, extract ZCL part TODO
       // skip first 18 bytes
+      AddLog_P2(LOG_LEVEL_INFO, PSTR("ZGB: Z_Recv_Default ZCL"));
       ZCLFrame zcl_received = ZCLFrame::parseRawFrame(buf, 18, buf.get8(17));
       zcl_received.publishMQTTReceived();
     }
-    // for now ignore message
-    // TODO
     return -1;
   }
 }
@@ -814,10 +818,10 @@ void ZigbeeInput(void)
 		// buffer received, now check integrity
 		if (zigbee_buffer->len() != zigbee_frame_len) {
 			// Len is not correct, log and reject frame
-      AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_JSON_ZIGBEEZNPRECEIVED ": received frame of wrong size %s"), hex_char);
+      AddLog_P2(LOG_LEVEL_INFO, PSTR(D_JSON_ZIGBEEZNPRECEIVED ": received frame of wrong size %s, len %d, expected %d"), hex_char, zigbee_buffer->len(), zigbee_frame_len);
 		} else if (0x00 != fcs) {
 			// FCS is wrong, packet is corrupt, log and reject frame
-      AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_JSON_ZIGBEEZNPRECEIVED ": received bad FCS frame %s, %d"), hex_char, fcs);
+      AddLog_P2(LOG_LEVEL_INFO, PSTR(D_JSON_ZIGBEEZNPRECEIVED ": received bad FCS frame %s, %d"), hex_char, fcs);
 		} else {
 			// frame is correct
 			AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_JSON_ZIGBEEZNPRECEIVED ": received correct frame %s"), hex_char);
@@ -843,7 +847,7 @@ void ZigbeeInit(void)
   zigbee.active = false;
   if ((pin[GPIO_ZIGBEE_RX] < 99) && (pin[GPIO_ZIGBEE_TX] < 99)) {
 		AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("Zigbee: GPIOs Rx:%d Tx:%d"), pin[GPIO_ZIGBEE_RX], pin[GPIO_ZIGBEE_TX]);
-    ZigbeeSerial = new TasmotaSerial(pin[GPIO_ZIGBEE_RX], pin[GPIO_ZIGBEE_TX]);
+    ZigbeeSerial = new TasmotaSerial(pin[GPIO_ZIGBEE_RX], pin[GPIO_ZIGBEE_TX], 0, 256);   // set a receive buffer of 256 bytes
     if (ZigbeeSerial->begin(115200)) {    // ZNP is 115200, RTS/CTS (ignored), 8N1
       if (ZigbeeSerial->hardwareSerial()) {
         ClaimSerial();
