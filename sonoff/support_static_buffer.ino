@@ -57,14 +57,6 @@ public:
     }
   }
 
-  uint8_t get8(size_t offset) const {
-    if (offset < _buf->len) {
-      return _buf->buf[offset];
-    } else {
-      return 0;
-    }
-  }
-
   size_t add8(const uint8_t data) {           // append 8 bits value
     if (_buf->len < _buf->size) {       // do we have room for 1 byte
       _buf->buf[_buf->len++] = data;
@@ -88,7 +80,7 @@ public:
     return _buf->len;
   }
 
-  size_t addBuffer(const SBuffer buf2) {
+  size_t addBuffer(const SBuffer &buf2) {
     if (len() + buf2.len() <= size()) {
       for (uint32_t i = 0; i < buf2.len(); i++) {
         _buf->buf[_buf->len++] = buf2.buf()[i];
@@ -97,19 +89,35 @@ public:
     return _buf->len;
   }
 
+  size_t addBuffer(const char *buf2, size_t len2) {
+    if (len() + len2 <= size()) {
+      for (uint32_t i = 0; i < len2; i++) {
+        _buf->buf[_buf->len++] = pgm_read_byte(&buf2[i]);
+      }
+    }
+    return _buf->len;
+  }
+
+  uint8_t get8(size_t offset) const {
+    if (offset < _buf->len) {
+      return _buf->buf[offset];
+    } else {
+      return 0;
+    }
+  }
   uint8_t read8(const size_t offset) const {
     if (offset < len()) {
       return _buf->buf[offset];
     }
     return 0;
   }
-  uint16_t read16(const size_t offset) const {
+  uint16_t get16(const size_t offset) const {
     if (offset < len() - 1) {
       return _buf->buf[offset] | (_buf->buf[offset+1] << 8);
     }
     return 0;
   }
-  uint32_t read32(const size_t offset) const {
+  uint32_t get32(const size_t offset) const {
     if (offset < len() - 3) {
       return _buf->buf[offset] | (_buf->buf[offset+1] << 8) |
             (_buf->buf[offset+2] << 16) | (_buf->buf[offset+3] << 24);
