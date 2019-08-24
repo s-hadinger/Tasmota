@@ -370,10 +370,10 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     ZI_WAIT(2000)                             // wait for 2 seconds for cc2530 to boot
     ZI_ON_ERROR_GOTO(50)
 
-    ZI_LOG(LOG_LEVEL_INFO, "ZGB: rebooting zigbee device")
+    ZI_LOG(LOG_LEVEL_INFO, "ZIG: rebooting zigbee device")
     ZI_SEND(ZBS_RESET)                        // reboot cc2530 just in case we rebooted ESP8266 but not cc2530
     ZI_WAIT_RECV(5000, ZBR_RESET)             // timeout 5s
-    ZI_LOG(LOG_LEVEL_INFO, "ZGB: checking zigbee configuration")
+    ZI_LOG(LOG_LEVEL_INFO, "ZIG: checking zigbee configuration")
     ZI_SEND(ZBS_ZNPHC)                        // check value of ZNP Has Configured
     ZI_WAIT_RECV(500, ZBR_ZNPHC)
     ZI_SEND(ZBS_VERSION)                         // check ZNP software version
@@ -388,26 +388,26 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     ZI_WAIT_RECV(500, ZBR_PFGK)
     ZI_SEND(ZBS_PFGKEN)                       // check PFGKEN
     ZI_WAIT_RECV(500, ZBR_PFGKEN)
-    ZI_LOG(LOG_LEVEL_INFO, "ZGB: zigbee configuration ok")
+    ZI_LOG(LOG_LEVEL_INFO, "ZIG: zigbee configuration ok")
     // all is good, we can start
 
   ZI_LABEL(10)                                // START ZNP App
     ZI_CALL(&Z_State_Ready, 1)
     ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_ABORT)
     // Z_ZDO:startupFromApp
-    ZI_LOG(LOG_LEVEL_INFO, "ZGB: starting zigbee coordinator")
+    ZI_LOG(LOG_LEVEL_INFO, "ZIG: starting zigbee coordinator")
     ZI_SEND(ZBS_STARTUPFROMAPP)               // start coordinator
-ZI_LOG(LOG_LEVEL_INFO, "ZGB: >>>> 1")
+ZI_LOG(LOG_LEVEL_INFO, "ZIG: >>>> 1")
     ZI_WAIT_RECV(500, ZBR_STARTUPFROMAPP)     // wait for sync ack of command
-ZI_LOG(LOG_LEVEL_INFO, "ZGB: >>>> 2")
+ZI_LOG(LOG_LEVEL_INFO, "ZIG: >>>> 2")
     ZI_WAIT_UNTIL(5000, AREQ_STARTUPFROMAPP)  // wait for async message that coordinator started
-ZI_LOG(LOG_LEVEL_INFO, "ZGB: >>>> 3")
+ZI_LOG(LOG_LEVEL_INFO, "ZIG: >>>> 3")
     ZI_SEND(ZBS_GETDEVICEINFO)                // GetDeviceInfo
     ZI_WAIT_RECV(500, ZBR_GETDEVICEINFO)      // TODO memorize info
     ZI_SEND(ZBS_ZDO_NODEDESCREQ)              // Z_ZDO:nodeDescReq
     ZI_WAIT_RECV(500, ZBR_ZDO_NODEDESCREQ)
     ZI_WAIT_UNTIL(5000, AREQ_ZDO_NODEDESCREQ)
-ZI_LOG(LOG_LEVEL_INFO, "ZGB: >>>> 4")
+ZI_LOG(LOG_LEVEL_INFO, "ZIG: >>>> 4")
     ZI_SEND(ZBS_ZDO_ACTIVEEPREQ)              // Z_ZDO:activeEpReq
     ZI_WAIT_RECV(500, ZBR_ZDO_ACTIVEEPREQ)
     ZI_WAIT_UNTIL(500, ZBR_ZDO_ACTIVEEPRSP_NONE)
@@ -420,17 +420,17 @@ ZI_LOG(LOG_LEVEL_INFO, "ZGB: >>>> 4")
     ZI_SEND(ZBS_ZDO_ACTIVEEPREQ)              // Z_ZDO:activeEpReq
     ZI_WAIT_RECV(500, ZBR_ZDO_ACTIVEEPREQ)
     ZI_WAIT_UNTIL(500, ZBR_ZDO_ACTIVEEPRSP_OK)
-ZI_LOG(LOG_LEVEL_INFO, "ZGB: >>>> 5")
+ZI_LOG(LOG_LEVEL_INFO, "ZIG: >>>> 5")
     ZI_SEND(ZBS_PERMITJOINREQ_CLOSE)          // Closing the Permit Join
     ZI_WAIT_RECV(500, ZBR_PERMITJOINREQ)
     ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_RSP)   // not sure it's useful
     //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_CLOSE)
-ZI_LOG(LOG_LEVEL_INFO, "ZGB: >>>> 6")
+ZI_LOG(LOG_LEVEL_INFO, "ZIG: >>>> 6")
     ZI_SEND(ZBS_PERMITJOINREQ_OPEN)           // Opening Permit Join, normally through command  TODO
     ZI_WAIT_RECV(500, ZBR_PERMITJOINREQ)
     ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_RSP)   // not sure it's useful
     //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_OPEN)
-ZI_LOG(LOG_LEVEL_INFO, "ZGB: >>>> 7")
+ZI_LOG(LOG_LEVEL_INFO, "ZIG: >>>> 7")
 
   ZI_LABEL(ZIGBEE_LABEL_READY)
     ZI_CALL(&Z_State_Ready, 1)
@@ -438,7 +438,7 @@ ZI_LOG(LOG_LEVEL_INFO, "ZGB: >>>> 7")
     ZI_GOTO(ZIGBEE_LABEL_READY)
 
   ZI_LABEL(50)                                  // reformat device
-    ZI_LOG(LOG_LEVEL_INFO, "ZGB: zigbee configuration not ok, factory reset")
+    ZI_LOG(LOG_LEVEL_INFO, "ZIG: zigbee configuration not ok, factory reset")
     ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_ABORT)
     ZI_SEND(ZBS_FACTRES)                        // factory reset
     ZI_WAIT_RECV(500, ZBR_W_OK)
@@ -466,11 +466,11 @@ ZI_LOG(LOG_LEVEL_INFO, "ZGB: >>>> 7")
     ZI_SEND(ZBS_WNV_ZNPHC)                      // Write NV ZNP Has Configured
     ZI_WAIT_RECV(500, ZBR_WNV_OK)
 
-    ZI_LOG(LOG_LEVEL_INFO, "ZGB: zigbee device reconfigured")
+    ZI_LOG(LOG_LEVEL_INFO, "ZIG: zigbee device reconfigured")
     ZI_GOTO(10)
 
   ZI_LABEL(ZIGBEE_LABEL_ABORT)                  // Label 99: abort
-    ZI_LOG(LOG_LEVEL_ERROR, "ZGB: Abort")
+    ZI_LOG(LOG_LEVEL_ERROR, "ZIG: Abort")
     ZI_STOP(ZIGBEE_LABEL_ABORT)
 };
 
@@ -494,7 +494,7 @@ int32_t Z_Recv_Vers(int32_t res, class SBuffer &buf) {
 
 int32_t Z_Recv_Default(int32_t res, class SBuffer &buf) {
   // Default message handler for new messages
-  AddLog_P2(LOG_LEVEL_INFO, PSTR("ZGB: Z_Recv_Default"));
+  AddLog_P2(LOG_LEVEL_INFO, PSTR("ZIG: Z_Recv_Default"));
   if (zigbee.init_phase) {
     // if still during initialization phase, ignore any unexpected message
   	return -1;	// ignore message
@@ -503,7 +503,7 @@ int32_t Z_Recv_Default(int32_t res, class SBuffer &buf) {
          (pgm_read_byte(&ZBR_AF_INCOMING_MESSAGE[1]) == buf.get8(1)) ) {
       // AF_INCOMING_MSG, extract ZCL part TODO
       // skip first 18 bytes
-      AddLog_P2(LOG_LEVEL_INFO, PSTR("ZGB: Z_Recv_Default ZCL"));
+      AddLog_P2(LOG_LEVEL_INFO, PSTR("ZIG: Z_Recv_Default ZCL"));
       ZCLFrame zcl_received = ZCLFrame::parseRawFrame(buf, 18, buf.get8(17));
       zcl_received.publishMQTTReceived();
     }
@@ -512,7 +512,7 @@ int32_t Z_Recv_Default(int32_t res, class SBuffer &buf) {
 }
 
 int32_t Z_State_Ready(uint8_t value) {
-	AddLog_P2(LOG_LEVEL_INFO, PSTR("ZGB: Initialization complete %d"), value);
+	AddLog_P2(LOG_LEVEL_INFO, PSTR("ZIG: Initialization complete %d"), value);
   zigbee.init_phase = false;             // initialization phase complete
   return 0;                              // continue
 }
@@ -541,7 +541,7 @@ void ZigbeeGotoLabel(uint8_t label) {
     //AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZGB GOTO: pc %d instr %d"), i, cur_instr);
 
     if (ZGB_INSTR_LABEL == cur_instr) {
-      //AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZGB: found label %d at pc %d"), cur_d8, i);
+      //AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZIG: found label %d at pc %d"), cur_d8, i);
       if (label == cur_d8) {
         // label found, goto to this pc
         zigbee.pc = i;
@@ -555,12 +555,12 @@ void ZigbeeGotoLabel(uint8_t label) {
   }
 
   // no label found, abort
-  AddLog_P2(LOG_LEVEL_ERROR, PSTR("ZGB: Goto label not found, label=%d pc=%d"), label, zigbee.pc);
+  AddLog_P2(LOG_LEVEL_ERROR, PSTR("ZIG: Goto label not found, label=%d pc=%d"), label, zigbee.pc);
   if (ZIGBEE_LABEL_ABORT != label) {
     // if not already looking for ZIGBEE_LABEL_ABORT, goto ZIGBEE_LABEL_ABORT
     ZigbeeGotoLabel(ZIGBEE_LABEL_ABORT);
   } else {
-    AddLog_P2(LOG_LEVEL_ERROR, PSTR("ZGB: Label Abort (%d) not present, aborting Zigbee"), ZIGBEE_LABEL_ABORT);
+    AddLog_P2(LOG_LEVEL_ERROR, PSTR("ZIG: Label Abort (%d) not present, aborting Zigbee"), ZIGBEE_LABEL_ABORT);
     zigbee.state_machine = false;
     zigbee.active = false;
   }
@@ -577,7 +577,7 @@ void ZigbeeStateMachine_Run(void) {
   if (zigbee.state_waiting) {     // state machine is waiting for external event or timeout
     // checking if timeout expired
     if ((zigbee.next_timeout) && (now > zigbee.next_timeout)) {    // if next_timeout == 0 then wait forever
-      AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZGB: timeout occured pc=%d"), zigbee.pc);
+      AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZIG: timeout occured pc=%d"), zigbee.pc);
       zigbee.state_waiting = false;
       // TODO GOTO LABEL
     }
@@ -590,7 +590,7 @@ void ZigbeeStateMachine_Run(void) {
     zigbee.recv_until  = false;
 
     if (zigbee.pc > (sizeof(zb_prog)/sizeof(zb_prog[0]))) {
-      AddLog_P2(LOG_LEVEL_ERROR, PSTR("ZGB: Invalid pc: %d, aborting"), zigbee.pc);
+      AddLog_P2(LOG_LEVEL_ERROR, PSTR("ZIG: Invalid pc: %d, aborting"), zigbee.pc);
       zigbee.pc = -1;
     }
     if (zigbee.pc < 0) {
@@ -599,7 +599,7 @@ void ZigbeeStateMachine_Run(void) {
     }
 
     // load current instruction details
-    AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZGB: Executing instruction pc=%d"), zigbee.pc);
+    AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZIG: Executing instruction pc=%d"), zigbee.pc);
     const Zigbee_Instruction *cur_instr_line = &zb_prog[zigbee.pc];
     cur_instr = pgm_read_byte(&cur_instr_line->i.i);
     cur_d8    = pgm_read_byte(&cur_instr_line->i.d8);
@@ -639,7 +639,7 @@ void ZigbeeStateMachine_Run(void) {
       case ZGB_INSTR_STOP:
         zigbee.state_machine = false;
         if (cur_d8) {
-          AddLog_P2(LOG_LEVEL_ERROR, PSTR("ZGB: Stopping (%d)"), cur_d8);
+          AddLog_P2(LOG_LEVEL_ERROR, PSTR("ZIG: Stopping (%d)"), cur_d8);
         }
         break;
       case ZGB_INSTR_CALL:
@@ -710,11 +710,11 @@ int32_t ZigbeeProcessInput(class SBuffer &buf) {
       }
     }
 
-    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZGB: ZigbeeProcessInput: recv_prefix_match = %d, recv_filter_match = %d"), recv_prefix_match, recv_filter_match);
+    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZIG: ZigbeeProcessInput: recv_prefix_match = %d, recv_filter_match = %d"), recv_prefix_match, recv_filter_match);
   }
 
   // if there is a recv_callback, call it now
-  int32_t res = 0;          // default to ok
+  int32_t res = -1;         // default to ok
                             // res  =  0   - proceed to next state
                             // res  >  0   - proceed to the specified state
                             // res  = -1  - silently ignore the message
@@ -738,13 +738,14 @@ int32_t ZigbeeProcessInput(class SBuffer &buf) {
     if (zigbee.recv_func) {
       res = (*zigbee.recv_func)(res, buf);
     }
-  } else {
-    // if filter does not match, call default handler
+  }
+  if (-1 == res) {
+    // if frame was ignored up to now
     if (zigbee.recv_unexpected) {
       res = (*zigbee.recv_unexpected)(res, buf);
     }
   }
-  AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZGB: ZigbeeProcessInput: res = %d"), res);
+  AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZIG: ZigbeeProcessInput: res = %d"), res);
 
   // change state accordingly
   if (0 == res) {
