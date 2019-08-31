@@ -399,7 +399,7 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     ZI_LOG(LOG_LEVEL_INFO, "ZIG: starting zigbee coordinator")
     ZI_SEND(ZBS_STARTUPFROMAPP)               // start coordinator
 ZI_LOG(LOG_LEVEL_INFO, "ZIG: >>>> 1")
-    ZI_WAIT_RECV(500, ZBR_STARTUPFROMAPP)     // wait for sync ack of command
+    ZI_WAIT_RECV(2000, ZBR_STARTUPFROMAPP)     // wait for sync ack of command
 ZI_LOG(LOG_LEVEL_INFO, "ZIG: >>>> 2")
     ZI_WAIT_UNTIL(5000, AREQ_STARTUPFROMAPP)  // wait for async message that coordinator started
 ZI_LOG(LOG_LEVEL_INFO, "ZIG: >>>> 3")
@@ -578,8 +578,9 @@ void ZigbeeStateMachine_Run(void) {
   if (zigbee.state_waiting) {     // state machine is waiting for external event or timeout
     // checking if timeout expired
     if ((zigbee.next_timeout) && (now > zigbee.next_timeout)) {    // if next_timeout == 0 then wait forever
-      AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZIG: timeout occured pc=%d"), zigbee.pc);
+      //AddLog_P2(LOG_LEVEL_INFO, PSTR("ZIG: timeout occured pc=%d"), zigbee.pc);
       if (!zigbee.state_no_timeout) {
+        AddLog_P2(LOG_LEVEL_INFO, PSTR("ZIG: timeout, goto label %d"), zigbee.on_timeout_goto);
         ZigbeeGotoLabel(zigbee.on_timeout_goto);
       } else {
         zigbee.state_waiting = false;     // simply stop waiting
@@ -592,7 +593,7 @@ void ZigbeeStateMachine_Run(void) {
     zigbee.recv_filter = nullptr;
     zigbee.recv_func   = nullptr;
     zigbee.recv_until  = false;
-    zigbee.on_timeout_goto = false;   // reset the no_timeout for next instruction
+    zigbee.state_no_timeout = false;   // reset the no_timeout for next instruction
 
     if (zigbee.pc > (sizeof(zb_prog)/sizeof(zb_prog[0]))) {
       AddLog_P2(LOG_LEVEL_ERROR, PSTR("ZIG: Invalid pc: %d, aborting"), zigbee.pc);
