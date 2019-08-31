@@ -31,9 +31,9 @@ const uint8_t  ZIGBEE_LABEL_READY = 20;   // goto label 99 in case of fatal erro
 
 TasmotaSerial *ZigbeeSerial = nullptr;
 
-const char kZigbeeCommands[] PROGMEM = "|" D_CMND_ZIGBEEZNPSEND "|" D_CMND_ZIGBEEZNPRECEIVE;
+const char kZigbeeCommands[] PROGMEM = "|" D_CMND_ZIGBEEZNPSEND;
 
-void (* const ZigbeeCommand[])(void) PROGMEM = { &CmndZigbeeZNPSend, &CmndZigbeeZNPRecv };
+void (* const ZigbeeCommand[])(void) PROGMEM = { &CmndZigbeeZNPSend };
 
 typedef int32_t (*ZB_Func)(uint8_t value);
 typedef int32_t (*ZB_RecvMsgFunc)(int32_t res, class SBuffer &buf);
@@ -156,8 +156,8 @@ public:
   void publishMQTTReceived(void) {
     char hex_char[_payload.len()*2+2];
 		ToHex_P((unsigned char*)_payload.getBuffer(), _payload.len(), hex_char, sizeof(hex_char));
-    Response_P(PSTR("{" D_JSON_ZIGBEEZCLRECEIVED ":{\"fc\"=%d,\"manuf\"=%d,\"transact\"=%d,"
-                    "\"cmdid\"=%d,\"payload\"=%s}}"),
+    Response_P(PSTR("{\"" D_JSON_ZIGBEEZCLRECEIVED "\":{\"fc\":\"0x%02X\",\"manuf\":\"0x%04X\",\"transact\":%d,"
+                    "\"cmdid\":\"0x%02X\",\"payload\":\"%s\"}}"),
                     _frame_control, _manuf_code, _transact_seq, _cmd_id,
                     hex_char);
   	MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCLSENT));
@@ -368,16 +368,16 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_ABORT)
     ZI_ON_TIMEOUT_GOTO(ZIGBEE_LABEL_ABORT)
     ZI_ON_RECV_UNEXPECTED(&Z_Recv_Default)
-    ZI_WAIT(2000)                             // wait for 2 seconds for cc2530 to boot
+    ZI_WAIT(15000)                             // wait for 15 seconds for Tasmota to stabilize
     ZI_ON_ERROR_GOTO(50)
 
-    ZI_LOG(LOG_LEVEL_INFO, "ZIG: rebooting zigbee device")
+    ZI_LOG(LOG_LEVEL_INFO, "ZIG: rebooting device")
     ZI_SEND(ZBS_RESET)                        // reboot cc2530 just in case we rebooted ESP8266 but not cc2530
     ZI_WAIT_RECV(5000, ZBR_RESET)             // timeout 5s
-    ZI_LOG(LOG_LEVEL_INFO, "ZIG: checking zigbee configuration")
+    ZI_LOG(LOG_LEVEL_INFO, "ZIG: checking device configuration")
     ZI_SEND(ZBS_ZNPHC)                        // check value of ZNP Has Configured
-    ZI_WAIT_RECV(500, ZBR_ZNPHC)
-    ZI_SEND(ZBS_VERSION)                         // check ZNP software version
+    ZI_WAIT_RECV(2000, ZBR_ZNPHC)
+    ZI_SEND(ZBS_VERSION)                      // check ZNP software version
     ZI_WAIT_RECV(500, ZBR_VERSION)
     ZI_SEND(ZBS_PAN)                          // check PAN ID
     ZI_WAIT_RECV(500, ZBR_PAN)
@@ -398,17 +398,13 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     // Z_ZDO:startupFromApp
     ZI_LOG(LOG_LEVEL_INFO, "ZIG: starting zigbee coordinator")
     ZI_SEND(ZBS_STARTUPFROMAPP)               // start coordinator
-ZI_LOG(LOG_LEVEL_INFO, "ZIG: >>>> 1")
     ZI_WAIT_RECV(2000, ZBR_STARTUPFROMAPP)     // wait for sync ack of command
-ZI_LOG(LOG_LEVEL_INFO, "ZIG: >>>> 2")
     ZI_WAIT_UNTIL(5000, AREQ_STARTUPFROMAPP)  // wait for async message that coordinator started
-ZI_LOG(LOG_LEVEL_INFO, "ZIG: >>>> 3")
     ZI_SEND(ZBS_GETDEVICEINFO)                // GetDeviceInfo
     ZI_WAIT_RECV(500, ZBR_GETDEVICEINFO)      // TODO memorize info
     ZI_SEND(ZBS_ZDO_NODEDESCREQ)              // Z_ZDO:nodeDescReq
     ZI_WAIT_RECV(500, ZBR_ZDO_NODEDESCREQ)
     ZI_WAIT_UNTIL(5000, AREQ_ZDO_NODEDESCREQ)
-ZI_LOG(LOG_LEVEL_INFO, "ZIG: >>>> 4")
     ZI_SEND(ZBS_ZDO_ACTIVEEPREQ)              // Z_ZDO:activeEpReq
     ZI_WAIT_RECV(500, ZBR_ZDO_ACTIVEEPREQ)
     ZI_WAIT_UNTIL(500, ZBR_ZDO_ACTIVEEPRSP_NONE)
@@ -421,25 +417,23 @@ ZI_LOG(LOG_LEVEL_INFO, "ZIG: >>>> 4")
     ZI_SEND(ZBS_ZDO_ACTIVEEPREQ)              // Z_ZDO:activeEpReq
     ZI_WAIT_RECV(500, ZBR_ZDO_ACTIVEEPREQ)
     ZI_WAIT_UNTIL(500, ZBR_ZDO_ACTIVEEPRSP_OK)
-ZI_LOG(LOG_LEVEL_INFO, "ZIG: >>>> 5")
     ZI_SEND(ZBS_PERMITJOINREQ_CLOSE)          // Closing the Permit Join
     ZI_WAIT_RECV(500, ZBR_PERMITJOINREQ)
     ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_RSP)   // not sure it's useful
     //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_CLOSE)
-ZI_LOG(LOG_LEVEL_INFO, "ZIG: >>>> 6")
     ZI_SEND(ZBS_PERMITJOINREQ_OPEN)           // Opening Permit Join, normally through command  TODO
     ZI_WAIT_RECV(500, ZBR_PERMITJOINREQ)
     ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_RSP)   // not sure it's useful
     //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_OPEN)
-ZI_LOG(LOG_LEVEL_INFO, "ZIG: >>>> 7")
 
   ZI_LABEL(ZIGBEE_LABEL_READY)
+    ZI_LOG(LOG_LEVEL_INFO, "ZIG: zigbee device ready, listening...")
     ZI_CALL(&Z_State_Ready, 1)
     ZI_WAIT_FOREVER()
     ZI_GOTO(ZIGBEE_LABEL_READY)
 
   ZI_LABEL(50)                                  // reformat device
-    ZI_LOG(LOG_LEVEL_INFO, "ZIG: zigbee configuration not ok, factory reset")
+    ZI_LOG(LOG_LEVEL_INFO, "ZIG: zigbee bad configuration of device, doing a factory reset")
     ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_ABORT)
     ZI_SEND(ZBS_FACTRES)                        // factory reset
     ZI_WAIT_RECV(500, ZBR_W_OK)
@@ -495,7 +489,7 @@ int32_t Z_Recv_Vers(int32_t res, class SBuffer &buf) {
 
 int32_t Z_Recv_Default(int32_t res, class SBuffer &buf) {
   // Default message handler for new messages
-  AddLog_P2(LOG_LEVEL_INFO, PSTR("ZIG: Z_Recv_Default"));
+  AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZIG: Z_Recv_Default"));
   if (zigbee.init_phase) {
     // if still during initialization phase, ignore any unexpected message
   	return -1;	// ignore message
@@ -503,9 +497,8 @@ int32_t Z_Recv_Default(int32_t res, class SBuffer &buf) {
     if ( (pgm_read_byte(&ZBR_AF_INCOMING_MESSAGE[0]) == buf.get8(0)) &&
          (pgm_read_byte(&ZBR_AF_INCOMING_MESSAGE[1]) == buf.get8(1)) ) {
       // AF_INCOMING_MSG, extract ZCL part TODO
-      // skip first 18 bytes
-      AddLog_P2(LOG_LEVEL_INFO, PSTR("ZIG: Z_Recv_Default ZCL"));
-      ZCLFrame zcl_received = ZCLFrame::parseRawFrame(buf, 18, buf.get8(17));
+      // skip first 19 bytes
+      ZCLFrame zcl_received = ZCLFrame::parseRawFrame(buf, 19, buf.get8(18));
       zcl_received.publishMQTTReceived();
     }
     return -1;
@@ -513,7 +506,6 @@ int32_t Z_Recv_Default(int32_t res, class SBuffer &buf) {
 }
 
 int32_t Z_State_Ready(uint8_t value) {
-	AddLog_P2(LOG_LEVEL_INFO, PSTR("ZIG: Initialization complete %d"), value);
   zigbee.init_phase = false;             // initialization phase complete
   return 0;                              // continue
 }
@@ -701,7 +693,7 @@ int32_t ZigbeeProcessInput(class SBuffer &buf) {
 
   // apply the receive filter, acts as 'startsWith()'
   bool recv_filter_match = true;
-  bool recv_prefix_match = true;      // do the first 2 bytes match the response
+  bool recv_prefix_match = false;      // do the first 2 bytes match the response
   if ((zigbee.recv_filter) && (zigbee.recv_filter_len > 0)) {
     if (zigbee.recv_filter_len >= 2) {
       recv_prefix_match = false;
@@ -728,18 +720,22 @@ int32_t ZigbeeProcessInput(class SBuffer &buf) {
                             // res  = -1  - silently ignore the message
                             // res <= -2 - move to error state
   // pre-compute the suggested value
-  if (!recv_prefix_match) {
-    res = -1;    // ignore
-  } else {  // recv_prefix_match
-    if (recv_filter_match) {
-      res = 0;     // ok
-    } else {
-      if (zigbee.recv_until) {
-        res = -1;  // ignore until full match
+  if ((zigbee.recv_filter) && (zigbee.recv_filter_len > 0)) {
+    if (!recv_prefix_match) {
+      res = -1;    // ignore
+    } else {  // recv_prefix_match
+      if (recv_filter_match) {
+        res = 0;     // ok
       } else {
-        res = -2;  // error, because message is expected but wrong value
+        if (zigbee.recv_until) {
+          res = -1;  // ignore until full match
+        } else {
+          res = -2;  // error, because message is expected but wrong value
+        }
       }
     }
+  } else {    // we don't have any filter, ignore message by default
+    res = -1;
   }
 
   if (recv_prefix_match) {
@@ -930,30 +926,6 @@ void ZigbeeZNPSend(const uint8_t *msg, size_t len) {
 			ToHex_P(msg, len, hex_char, sizeof(hex_char)));
 	MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZNPSENT));
 	XdrvRulesProcess();
-}
-
-void CmndZigbeeZNPRecv(void)
-{
-  AddLog_P2(LOG_LEVEL_INFO, PSTR("CmndZigbeeZNPRecv: entering, data_len = %d"), XdrvMailbox.data_len); // TODO
-  // if (ZigbeeSerial && (XdrvMailbox.data_len > 0)) {
-  //   uint8_t code;
-  //
-  //   char *codes = RemoveSpace(XdrvMailbox.data);
-  //   int32_t size = strlen(XdrvMailbox.data);
-  //
-	// 	SBuffer buf((size+1)/2);
-  //
-  //   while (size > 0) {
-  //     char stemp[3];
-  //     strlcpy(stemp, codes, sizeof(stemp));
-  //     code = strtol(stemp, nullptr, 16);
-	// 		buf.add8(code);
-  //     size -= 2;
-  //     codes += 2;
-  //   }
-	// 	ZigbeeZNPSend(buf.getBuffer(), buf.len());
-  // }
-  ResponseCmndDone();
 }
 
 /*********************************************************************************************\

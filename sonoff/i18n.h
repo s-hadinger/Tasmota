@@ -446,7 +446,6 @@
 
 // Commands xdrv_23_zigbee.ino
 #define D_CMND_ZIGBEEZNPSEND "ZigbeeZNPSend"
-#define D_CMND_ZIGBEEZNPRECEIVE "ZigbeeZNPReceive"
   #define D_JSON_ZIGBEEZNPRECEIVED "ZigbeeZNPReceived"
   #define D_JSON_ZIGBEEZNPSENT "ZigbeeZNPSent"
   #define D_JSON_ZIGBEEZCLRECEIVED "ZigbeeZCLReceived"
