@@ -280,6 +280,7 @@
   #define WEB_PORT             80                // Web server Port for User and Admin mode
   #define WEB_USERNAME         "admin"           // Web server Admin mode user name
 //  #define USE_JAVASCRIPT_ES6                     // Enable ECMAScript6 syntax using less JavaScript code bytes (fails on IE11)
+//  #define USE_WEBSEND_RESPONSE                   // Enable command WebSend response message (+1k code)
   #define USE_EMULATION_HUE                      // Enable Hue Bridge emulation for Alexa (+14k code, +2k mem common)
   #define USE_EMULATION_WEMO                     // Enable Belkin WeMo emulation for Alexa (+6k code, +2k mem common)
 
@@ -298,7 +299,7 @@
 // Select none or only one of the below defines
 #define USE_RULES                                // Add support for rules (+8k code)
 //#define USE_SCRIPT                               // Add support for script (+17k code)
-  #define USE_SCRIPT_FATFS 4                     // Script: Add FAT FileSystem Support
+  //#define USE_SCRIPT_FATFS 4                     // Script: Add FAT FileSystem Support
 
 //  #define USE_EXPRESSION                         // Add support for expression evaluation in rules (+3k2 code, +64 bytes mem)
 //  #define SUPPORT_MQTT_EVENT                     // Support trigger event with MQTT subscriptions (+3k5 code)
@@ -384,6 +385,7 @@
       #define MTX_ADDRESS6     0x76              // [DisplayAddress6] I2C address of sixth 8x8 matrix module
       #define MTX_ADDRESS7     0x00              // [DisplayAddress7] I2C address of seventh 8x8 matrix module
       #define MTX_ADDRESS8     0x00              // [DisplayAddress8] I2C address of eigth 8x8 matrix module
+//    #define USE_DISPLAY_SH1106                   // [DisplayModel 7] Enable SH1106 Oled 128x64 display (I2C addresses 0x3C and 0x3D)
 #endif  // USE_I2C
 
 // -- SPI sensors ---------------------------------
@@ -394,7 +396,11 @@
   #define USE_DISPLAY                            // Add SPI Display support for 320x240 and 480x320 TFT
   #endif
     #define USE_DISPLAY_ILI9341                  // [DisplayModel 4] Enable ILI9341 Tft 480x320 display (+19k code)
-//    #define USE_DISPLAY_EPAPER_29                 // [DisplayModel 5] Enable e-paper 2.9 inch display (+19k code)
+//    #define USE_DISPLAY_EPAPER_29                // [DisplayModel 5] Enable e-paper 2.9 inch display (+19k code)
+//    #define USE_DISPLAY_EPAPER_42                // [DisplayModel 6] Enable e-paper 4.2 inch display
+//    #define USE_DISPLAY_ILI9488                  // [DisplayModel 8]
+//    #define USE_DISPLAY_SSD1351                  // [DisplayModel 9]
+//    #define USE_DISPLAY_RA8876                   // [DisplayModel 10]
 #endif  // USE_SPI
 
 // -- Serial sensors ------------------------------
@@ -413,6 +419,8 @@
 //  #define USE_PN532_CAUSE_EVENTS                 // Cause event execution for PN532_UID= and PN532_DATA=[if defined] (+ 30 bytes code)
 //  #define USE_PN532_DATA_FUNCTION                // Add sensor40 command support for erase, setting data block content (+1k7 code, 388 bytes mem)
 //  #define USE_PN532_DATA_RAW                     // Allow DATA block to be used by non-alpha-numberic data (+ 80 bytes code, 48 bytes ram)
+//#define USE_RDM6300                              // Add support for RDM6300 125kHz RFID Reader (+0k8)
+//#define USE_IBEACON                              // Add support for bluetooth LE passive scan of ibeacon devices (uses HM17 module)
 
 // Power monitoring sensors -----------------------
 #define USE_ENERGY_MARGIN_DETECTION              // Add support for Energy Margin detection (+1k6 code)
@@ -441,7 +449,17 @@
   #define MAX31865_REF_RES    430               // Reference resistor (Usually 430Ω for a PT100, 4300Ω for a PT1000)
   #define MAX31865_PTD_BIAS   0                 // To calibrate your not-so-good PTD
 
-// -- IR Remote features --------------------------
+// -- IR Remote features - all protocols from IRremoteESP8266 --------------------------
+// IR Full Protocols mode is activated through platform.io only.
+// Either use 'default_envs = sonoff-ircustom' and disable some features here to keep code not too big
+// or use 'default_envs = sonoff-ir' for a pre-packaged IR-dedicated firmware
+// When using 'sonoff-ircustom' or 'sonoff-ir', parameters below
+// (USE_IR_REMOTE, USE_IR_RECEIVE, USE_IR_HVAC...) are IGNORED.
+//
+// Code impact of IR full protocols is +81k code, 3k mem
+// You can reduce this size by disabling some protocols in "lib/IRremoteESP8266.x.x.x/src/IRremoteESP8266.h"
+
+// -- IR Remote features - subset of IR protocols --------------------------
 #define USE_IR_REMOTE                            // Send IR remote commands using library IRremoteESP8266 and ArduinoJson (+4k3 code, 0k3 mem, 48 iram)
 //  #define USE_IR_SEND_AIWA                       // Support IRsend Aiwa protocol
   #define USE_IR_SEND_DISH                       // Support IRsend Dish protocol
@@ -482,9 +500,10 @@
 
 // ------------------------------------------------
 
-//#define USE_WS2812                               // WS2812 Led string using library NeoPixelBus (+5k code, +1k mem, 232 iram) - Disable by //
-  #define USE_WS2812_CTYPE     NEO_GRB           // WS2812 Color type (NEO_RGB, NEO_GRB, NEO_BRG, NEO_RBG, NEO_RGBW, NEO_GRBW)
+#define USE_WS2812                               // WS2812 Led string using library NeoPixelBus (+5k code, +1k mem, 232 iram) - Disable by //
 //  #define USE_WS2812_DMA                         // DMA supports only GPIO03 (= Serial RXD) (+1k mem). When USE_WS2812_DMA is enabled expect Exceptions on Pow
+  #define USE_WS2812_HARDWARE  NEO_HW_WS2812     // Hardware type (NEO_HW_WS2812, NEO_HW_WS2812X, NEO_HW_WS2813, NEO_HW_SK6812, NEO_HW_LC8812, NEO_HW_APA106)
+  #define USE_WS2812_CTYPE     NEO_GRB           // Color type (NEO_RGB, NEO_GRB, NEO_BRG, NEO_RBG, NEO_RGBW, NEO_GRBW)
 
 //#define USE_ARILUX_RF                            // Add support for Arilux RF remote controller (+0k8 code, 252 iram (non 2.3.0))
 
@@ -528,6 +547,8 @@
 //#define FIRMWARE_SENSORS                         // Create sonoff-sensors with useful sensors enabled
 //#define FIRMWARE_KNX_NO_EMULATION                // Create sonoff-knx with KNX but without Emulation
 //#define FIRMWARE_DISPLAYS                        // Create sonoff-display with display drivers enabled
+//#define FIRMWARE_IR                              // Create sonoff-ir with IR full protocols activated, and many sensors disabled
+//#define FIRMWARE_IR_CUSTOM                       // Create sonoff customizable with special marker to add all IR protocols
 //#define FIRMWARE_MINIMAL                         // Create sonoff-minimal as intermediate firmware for OTA-MAGIC
 
 /*********************************************************************************************\

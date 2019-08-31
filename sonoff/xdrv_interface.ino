@@ -859,7 +859,7 @@ bool XdrvMqttData(char *topicBuf, uint16_t stopicBuf, char *dataBuf, uint16_t sd
 
 bool XdrvRulesProcess(void)
 {
-  return XdrvCall(FUNC_RULES_PROCESS);
+  return XdrvCallDriver(10, FUNC_RULES_PROCESS);
 }
 
 #ifdef USE_DEBUG_DRIVER
@@ -873,6 +873,25 @@ void ShowFreeMem(const char *where)
 #endif
 
 /*********************************************************************************************\
+ * Function call to single xdrv
+\*********************************************************************************************/
+
+bool XdrvCallDriver(uint32_t driver, uint8_t Function)
+{
+  for (uint32_t x = 0; x < xdrv_present; x++) {
+#ifdef XFUNC_PTR_IN_ROM
+    uint32_t listed = pgm_read_byte(kXdrvList + x);
+#else
+    uint32_t listed = kXdrvList[x];
+#endif
+    if (driver == listed) {
+      return xdrv_func_ptr[x](Function);
+    }
+  }
+  return false;
+}
+
+/*********************************************************************************************\
  * Function call to all xdrv
 \*********************************************************************************************/
 
@@ -881,7 +900,6 @@ bool XdrvCall(uint8_t Function)
   bool result = false;
 
   for (uint32_t x = 0; x < xdrv_present; x++) {
-//    WifiAddDelayWhenDisconnected();
     result = xdrv_func_ptr[x](Function);
 
     if (result && ((FUNC_COMMAND == Function) ||

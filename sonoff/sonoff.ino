@@ -682,6 +682,11 @@ bool MqttShowSensor(void)
     }
   }
   XsnsCall(FUNC_JSON_APPEND);
+
+#ifdef USE_SCRIPT_JSON_EXPORT
+  XdrvCall(FUNC_JSON_APPEND);
+#endif
+
   bool json_data_available = (strlen(mqtt_data) - json_data_start);
   if (strstr_P(mqtt_data, PSTR(D_JSON_PRESSURE)) != nullptr) {
     ResponseAppend_P(PSTR(",\"" D_JSON_PRESSURE_UNIT "\":\"%s\""), PressureUnit().c_str());
@@ -854,7 +859,7 @@ void Every250mSeconds(void)
       if (200 == blinks) blinks = 0;                      // Disable blink
     }
   }
-  if (Settings.ledstate &1 && (pin[GPIO_LEDLNK] < 99 || !(blinkstate || blinks <= 200)) ) {
+  if (Settings.ledstate &1 && (pin[GPIO_LEDLNK] < 99 || !(blinks || restart_flag || ota_state_flag)) ) {
     bool tstate = power & Settings.ledmask;
     if ((SONOFF_TOUCH == my_module_type) || (SONOFF_T11 == my_module_type) || (SONOFF_T12 == my_module_type) || (SONOFF_T13 == my_module_type)) {
       tstate = (!power) ? 1 : 0;                          // As requested invert signal for Touch devices to find them in the dark
@@ -1476,7 +1481,7 @@ void setup(void)
     XdrvCall(FUNC_SETTINGS_OVERRIDE);
   }
 
-  baudrate = Settings.baudrate * 1200;
+  baudrate = Settings.baudrate * 300;
 //  mdns_delayed_start = Settings.param[P_MDNS_DELAYED_START];
   seriallog_level = Settings.seriallog_level;
   seriallog_timer = SERIALLOG_TIMER;

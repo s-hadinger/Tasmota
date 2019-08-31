@@ -48,7 +48,7 @@ enum UploadTypes { UPL_TASMOTA, UPL_SETTINGS, UPL_EFM8BB1 };
 
 static const char * HEADER_KEYS[] = { "User-Agent", };
 
-const char HTTP_HEAD[] PROGMEM =
+const char HTTP_HEADER[] PROGMEM =
   "<!DOCTYPE html><html lang=\"" D_HTML_LANGUAGE "\" class=\"\">"
   "<head>"
   "<meta charset='utf-8'>"
@@ -753,7 +753,7 @@ void WSContentStart_P(const char* title, bool auth)
   if (title != nullptr) {
     char ctitle[strlen_P(title) +1];
     strcpy_P(ctitle, title);                       // Get title from flash to RAM
-    WSContentSend_P(HTTP_HEAD, Settings.friendlyname[0], ctitle);
+    WSContentSend_P(HTTP_HEADER, Settings.friendlyname[0], ctitle);
   }
 }
 
@@ -942,9 +942,7 @@ void HandleRoot(void)
       if ((LST_COLDWARM == (light_type &7)) || (LST_RGBWC == (light_type &7))) {
         WSContentSend_P(HTTP_MSG_SLIDER1, LightGetColorTemp());
       }
-      if (!Settings.flag3.tuya_show_dimmer) {
-        WSContentSend_P(HTTP_MSG_SLIDER2, Settings.light_dimmer);
-      }
+      WSContentSend_P(HTTP_MSG_SLIDER2, Settings.light_dimmer);
     }
 #endif
     WSContentSend_P(HTTP_TABLE100);
@@ -1052,6 +1050,9 @@ bool HandleRootStatusRefresh(void)
   WSContentBegin(200, CT_HTML);
   WSContentSend_P(PSTR("{t}"));
   XsnsCall(FUNC_WEB_SENSOR);
+#ifdef USE_SCRIPT_WEB_DISPLAY
+  XdrvCall(FUNC_WEB_SENSOR);
+#endif
   WSContentSend_P(PSTR("</table>"));
 
   if (devices_present) {
@@ -2399,12 +2400,13 @@ int WebSend(char *buffer)
       int http_code = http.GET();             // Start connection and send HTTP header
       if (http_code > 0) {                    // http_code will be negative on error
         if (http_code == HTTP_CODE_OK || http_code == HTTP_CODE_MOVED_PERMANENTLY) {
-/*
+#ifdef USE_WEBSEND_RESPONSE
           // Return received data to the user - Adds 900+ bytes to the code
-          String result = http.getString();   // File found at server - may need lot of ram or trigger out of memory!
+          const char* read = http.getString().c_str();  // File found at server - may need lot of ram or trigger out of memory!
           uint32_t j = 0;
-          for (uint32_t i = 0; i < result.length(); i++) {
-            char text = result.charAt(i);
+          char text = '.';
+          while (text != '\0') {
+            text = *read++;
             if (text > 31) {                  // Remove control characters like linefeed
               mqtt_data[j++] = text;
               if (j == sizeof(mqtt_data) -2) { break; }
@@ -2412,7 +2414,13 @@ int WebSend(char *buffer)
           }
           mqtt_data[j] = '\0';
           MqttPublishPrefixTopic_P(RESULT_OR_STAT, PSTR(D_CMND_WEBSEND));
-*/
+#ifdef USE_SCRIPT
+extern uint8_t tasm_cmd_activ;
+          // recursive call must be possible in this case
+          tasm_cmd_activ=0;
+          XdrvRulesProcess();
+#endif  // USE_SCRIPT
+#endif  // USE_WEBSEND_RESPONSE
         }
         status = 0;                           // No error - Done
       } else {
