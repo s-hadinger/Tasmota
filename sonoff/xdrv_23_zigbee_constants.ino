@@ -1,5 +1,5 @@
 /*
-  xdrv_23_zigbee_constants.ino - zigbee serial support for Sonoff-Tasmota
+  xdrv_23_zigbee_constants.ino - zigbee support for Sonoff-Tasmota
 
   Copyright (C) 2019  Theo Arends and Stephan Hadinger
 
@@ -18,6 +18,9 @@
 */
 
 #ifdef USE_ZIGBEE
+
+typedef uint64_t Z_IEEEAddress;
+typedef uint16_t Z_ShortAddress;
 
 enum ZnpCommandType {
   Z_POLL = 0x00,
@@ -256,13 +259,6 @@ enum Z_Device_Ids {
   // 0x0403	IAS Warning Device
 };
 
-//
-//
-//
-//
-// typedef uint64_t IEEEAddress;
-// typedef uint16_t ShortAddress;
-//
 // enum class AddrMode : uint8_t {
 //   NotPresent = 0,
 //   Group = 1,
@@ -407,19 +403,5 @@ enum Z_Util {
   Z_UTIL_UTIL_SYNC_REQ = 0xE0,
   Z_UTIL_ZCL_KEY_ESTABLISH_IND = 0xE1
 };
-//
-// enum class Capability : uint16_t {
-//   SYS = 0x0001,
-//   MAC = 0x0002,
-//   NWK = 0x0004,
-//   AF = 0x0008,
-//   ZDO = 0x0010,
-//   SAPI = 0x0020,
-//   UTIL = 0x0040,
-//   DEBUG = 0x0080,
-//   APP = 0x0100,
-//   ZOAD = 0x1000
-// };
-
 
 #endif // USE_ZIGBEE
