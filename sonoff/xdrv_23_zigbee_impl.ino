@@ -105,6 +105,7 @@ struct ZigbeeStatus {
   bool active = true;                 // is Zigbee active for this device, i.e. GPIOs configured
   bool state_machine = false;		      // the state machine is running
   bool state_waiting = false;         // the state machine is waiting for external event or timeout
+  bool state_no_timeout = false;      // the current wait loop does not generate a timeout but only continues running
   bool ready = false;								  // cc2530 initialization is complet, ready to operate
   uint8_t on_error_goto = ZIGBEE_LABEL_ABORT;         // on error goto label, 99 default to abort
   uint8_t on_timeout_goto = ZIGBEE_LABEL_ABORT;       // on timeout goto label, 99 default to abort
@@ -333,10 +334,10 @@ ZBM(AREQ_ZDO_NODEDESCREQ, Z_AREQ | Z_ZDO, ZDO_NODE_DESC_RSP)    // 4582
 // DescriptorCapabilities (1 byte) - 00
 
 // Z_ZDO:activeEpReq
-ZBM(ZBS_ZDO_ACTIVEEPREQ, Z_SREQ | Z_ZDO, ZDO_ACTIVE_EP_REQ, 0x00, 0x00, 0x00, 0x00)  // 25050000
-ZBM(ZBR_ZDO_ACTIVEEPREQ, Z_SRSP | Z_ZDO, ZDO_ACTIVE_EP_REQ, Z_Success)  // 25050000
+ZBM(ZBS_ZDO_ACTIVEEPREQ, Z_SREQ | Z_ZDO, ZDO_ACTIVE_EP_REQ, 0x00, 0x00, 0x00, 0x00)  // 250500000000
+ZBM(ZBR_ZDO_ACTIVEEPREQ, Z_SRSP | Z_ZDO, ZDO_ACTIVE_EP_REQ, Z_Success)  // 65050000
 ZBM(ZBR_ZDO_ACTIVEEPRSP_NONE, Z_AREQ | Z_ZDO, ZDO_ACTIVE_EP_RSP, 0x00, 0x00 /* srcAddr */, Z_Success,
-    0x00, 0x00 /* nwkaddr */, 0x00 /* activeepcount */)  // 25050000 - no Ep running
+    0x00, 0x00 /* nwkaddr */, 0x00 /* activeepcount */)  // 45050000 - no Ep running
 ZBM(ZBR_ZDO_ACTIVEEPRSP_OK, Z_AREQ | Z_ZDO, ZDO_ACTIVE_EP_RSP, 0x00, 0x00 /* srcAddr */, Z_Success,
     0x00, 0x00 /* nwkaddr */, 0x02 /* activeepcount */, 0x0B, 0x01 /* the actual endpoints */)  // 25050000 - no Ep running
 
@@ -578,8 +579,11 @@ void ZigbeeStateMachine_Run(void) {
     // checking if timeout expired
     if ((zigbee.next_timeout) && (now > zigbee.next_timeout)) {    // if next_timeout == 0 then wait forever
       AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZIG: timeout occured pc=%d"), zigbee.pc);
-      zigbee.state_waiting = false;
-      // TODO GOTO LABEL
+      if (!zigbee.state_no_timeout) {
+        ZigbeeGotoLabel(zigbee.on_timeout_goto);
+      } else {
+        zigbee.state_waiting = false;     // simply stop waiting
+      }
     }
   }
 
@@ -588,6 +592,7 @@ void ZigbeeStateMachine_Run(void) {
     zigbee.recv_filter = nullptr;
     zigbee.recv_func   = nullptr;
     zigbee.recv_until  = false;
+    zigbee.on_timeout_goto = false;   // reset the no_timeout for next instruction
 
     if (zigbee.pc > (sizeof(zb_prog)/sizeof(zb_prog[0]))) {
       AddLog_P2(LOG_LEVEL_ERROR, PSTR("ZIG: Invalid pc: %d, aborting"), zigbee.pc);
@@ -631,10 +636,12 @@ void ZigbeeStateMachine_Run(void) {
       case ZGB_INSTR_WAIT:
         zigbee.next_timeout = now + cur_d16;
         zigbee.state_waiting = true;
+        zigbee.state_no_timeout = true;    // do not generate a timeout error when waiting is done
         break;
       case ZGB_INSTR_WAIT_FOREVER:
         zigbee.next_timeout = 0;
         zigbee.state_waiting = true;
+        //zigbee.state_no_timeout = true;    // do not generate a timeout error when waiting is done
         break;
       case ZGB_INSTR_STOP:
         zigbee.state_machine = false;
@@ -848,7 +855,7 @@ void ZigbeeInit(void)
   zigbee.active = false;
   if ((pin[GPIO_ZIGBEE_RX] < 99) && (pin[GPIO_ZIGBEE_TX] < 99)) {
 		AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("Zigbee: GPIOs Rx:%d Tx:%d"), pin[GPIO_ZIGBEE_RX], pin[GPIO_ZIGBEE_TX]);
-    ZigbeeSerial = new TasmotaSerial(pin[GPIO_ZIGBEE_RX], pin[GPIO_ZIGBEE_TX], 0, 256);   // set a receive buffer of 256 bytes
+    ZigbeeSerial = new TasmotaSerial(pin[GPIO_ZIGBEE_RX], pin[GPIO_ZIGBEE_TX], 0, 0, 256);   // set a receive buffer of 256 bytes
     if (ZigbeeSerial->begin(115200)) {    // ZNP is 115200, RTS/CTS (ignored), 8N1
       if (ZigbeeSerial->hardwareSerial()) {
         ClaimSerial();
