@@ -138,7 +138,7 @@ typedef union ZCLHeaderFrameControl_t {
     uint8_t disable_def_resp : 1;     // don't send back default response
     uint8_t reserved : 3;
   } b;
-  uint8_t d8;                         // raw 8 bits field
+  uint32_t d8;                         // raw 8 bits field
 } ZCLHeaderFrameControl_t;
 
 class ZCLFrame {
@@ -153,11 +153,24 @@ public:
       _payload.addBuffer(buf, buf_len);
     };
 
-  void publishMQTTReceived(void) {
+
+  void publishMQTTReceived(uint16_t groupid, uint16_t clusterid, Z_ShortAddress srcaddr,
+                           uint8_t srcendpoint, uint8_t dstendpoint, uint8_t wasbroadcast,
+                           uint8_t linkquality, uint8_t securityuse, uint8_t seqnumber,
+                           uint32_t timestamp) {
     char hex_char[_payload.len()*2+2];
 		ToHex_P((unsigned char*)_payload.getBuffer(), _payload.len(), hex_char, sizeof(hex_char));
-    Response_P(PSTR("{\"" D_JSON_ZIGBEEZCLRECEIVED "\":{\"fc\":\"0x%02X\",\"manuf\":\"0x%04X\",\"transact\":%d,"
+    Response_P(PSTR("{\"" D_JSON_ZIGBEEZCLRECEIVED "\":{"
+                    "\"groupid\":%d," "\"clusterid\":%d," "\"srcaddr\":\"0x%04X\","
+                    "\"srcendpoint\":%d," "\"dstendpoint\":%d," "\"wasbroadcast\":%d,"
+                    "\"linkquality\":%d," "\"securityuse\":%d," "\"seqnumber\":%d,"
+                    "\"timestamp\":%d,"
+                    "\"fc\":\"0x%02X\",\"manuf\":\"0x%04X\",\"transact\":%d,"
                     "\"cmdid\":\"0x%02X\",\"payload\":\"%s\"}}"),
+                    groupid, clusterid, srcaddr,
+                    srcendpoint, dstendpoint, wasbroadcast,
+                    linkquality, securityuse, seqnumber,
+                    timestamp,
                     _frame_control, _manuf_code, _transact_seq, _cmd_id,
                     hex_char);
   	MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCLSENT));
@@ -378,17 +391,17 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     ZI_SEND(ZBS_ZNPHC)                        // check value of ZNP Has Configured
     ZI_WAIT_RECV(2000, ZBR_ZNPHC)
     ZI_SEND(ZBS_VERSION)                      // check ZNP software version
-    ZI_WAIT_RECV(500, ZBR_VERSION)
+    ZI_WAIT_RECV(1000, ZBR_VERSION)
     ZI_SEND(ZBS_PAN)                          // check PAN ID
-    ZI_WAIT_RECV(500, ZBR_PAN)
+    ZI_WAIT_RECV(1000, ZBR_PAN)
     ZI_SEND(ZBS_EXTPAN)                       // check EXT PAN ID
-    ZI_WAIT_RECV(500, ZBR_EXTPAN)
+    ZI_WAIT_RECV(1000, ZBR_EXTPAN)
     ZI_SEND(ZBS_CHANN)                        // check CHANNEL
-    ZI_WAIT_RECV(500, ZBR_CHANN)
+    ZI_WAIT_RECV(1000, ZBR_CHANN)
     ZI_SEND(ZBS_PFGK)                         // check PFGK
-    ZI_WAIT_RECV(500, ZBR_PFGK)
+    ZI_WAIT_RECV(1000, ZBR_PFGK)
     ZI_SEND(ZBS_PFGKEN)                       // check PFGKEN
-    ZI_WAIT_RECV(500, ZBR_PFGKEN)
+    ZI_WAIT_RECV(1000, ZBR_PFGKEN)
     ZI_LOG(LOG_LEVEL_INFO, "ZIG: zigbee configuration ok")
     // all is good, we can start
 
@@ -401,29 +414,29 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     ZI_WAIT_RECV(2000, ZBR_STARTUPFROMAPP)     // wait for sync ack of command
     ZI_WAIT_UNTIL(5000, AREQ_STARTUPFROMAPP)  // wait for async message that coordinator started
     ZI_SEND(ZBS_GETDEVICEINFO)                // GetDeviceInfo
-    ZI_WAIT_RECV(500, ZBR_GETDEVICEINFO)      // TODO memorize info
+    ZI_WAIT_RECV(1000, ZBR_GETDEVICEINFO)      // TODO memorize info
     ZI_SEND(ZBS_ZDO_NODEDESCREQ)              // Z_ZDO:nodeDescReq
-    ZI_WAIT_RECV(500, ZBR_ZDO_NODEDESCREQ)
+    ZI_WAIT_RECV(1000, ZBR_ZDO_NODEDESCREQ)
     ZI_WAIT_UNTIL(5000, AREQ_ZDO_NODEDESCREQ)
     ZI_SEND(ZBS_ZDO_ACTIVEEPREQ)              // Z_ZDO:activeEpReq
-    ZI_WAIT_RECV(500, ZBR_ZDO_ACTIVEEPREQ)
-    ZI_WAIT_UNTIL(500, ZBR_ZDO_ACTIVEEPRSP_NONE)
+    ZI_WAIT_RECV(1000, ZBR_ZDO_ACTIVEEPREQ)
+    ZI_WAIT_UNTIL(1000, ZBR_ZDO_ACTIVEEPRSP_NONE)
     ZI_SEND(ZBS_AF_REGISTER01)                // Z_AF register for endpoint 01, profile 0x0104 Home Automation
-    ZI_WAIT_RECV(500, ZBR_AF_REGISTER)
+    ZI_WAIT_RECV(1000, ZBR_AF_REGISTER)
     ZI_SEND(ZBS_AF_REGISTER0B)                // Z_AF register for endpoint 0B, profile 0x0104 Home Automation
-    ZI_WAIT_RECV(500, ZBR_AF_REGISTER)
+    ZI_WAIT_RECV(1000, ZBR_AF_REGISTER)
     // Z_ZDO:nodeDescReq ?? Is is useful to redo it?  TODO
     // redo Z_ZDO:activeEpReq to check that Ep are available
     ZI_SEND(ZBS_ZDO_ACTIVEEPREQ)              // Z_ZDO:activeEpReq
-    ZI_WAIT_RECV(500, ZBR_ZDO_ACTIVEEPREQ)
-    ZI_WAIT_UNTIL(500, ZBR_ZDO_ACTIVEEPRSP_OK)
+    ZI_WAIT_RECV(1000, ZBR_ZDO_ACTIVEEPREQ)
+    ZI_WAIT_UNTIL(1000, ZBR_ZDO_ACTIVEEPRSP_OK)
     ZI_SEND(ZBS_PERMITJOINREQ_CLOSE)          // Closing the Permit Join
-    ZI_WAIT_RECV(500, ZBR_PERMITJOINREQ)
-    ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_RSP)   // not sure it's useful
+    ZI_WAIT_RECV(1000, ZBR_PERMITJOINREQ)
+    ZI_WAIT_UNTIL(1000, ZBR_PERMITJOIN_AREQ_RSP)   // not sure it's useful
     //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_CLOSE)
     ZI_SEND(ZBS_PERMITJOINREQ_OPEN)           // Opening Permit Join, normally through command  TODO
-    ZI_WAIT_RECV(500, ZBR_PERMITJOINREQ)
-    ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_RSP)   // not sure it's useful
+    ZI_WAIT_RECV(1000, ZBR_PERMITJOINREQ)
+    ZI_WAIT_UNTIL(1000, ZBR_PERMITJOIN_AREQ_RSP)   // not sure it's useful
     //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_OPEN)
 
   ZI_LABEL(ZIGBEE_LABEL_READY)
@@ -436,30 +449,30 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     ZI_LOG(LOG_LEVEL_INFO, "ZIG: zigbee bad configuration of device, doing a factory reset")
     ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_ABORT)
     ZI_SEND(ZBS_FACTRES)                        // factory reset
-    ZI_WAIT_RECV(500, ZBR_W_OK)
+    ZI_WAIT_RECV(1000, ZBR_W_OK)
     ZI_SEND(ZBS_RESET)                          // reset device
     ZI_WAIT_RECV(5000, ZBR_RESET)
     ZI_SEND(ZBS_W_PAN)                          // write PAN ID
-    ZI_WAIT_RECV(500, ZBR_W_OK)
+    ZI_WAIT_RECV(1000, ZBR_W_OK)
     ZI_SEND(ZBS_W_EXTPAN)                       // write EXT PAN ID
-    ZI_WAIT_RECV(500, ZBR_W_OK)
+    ZI_WAIT_RECV(1000, ZBR_W_OK)
     ZI_SEND(ZBS_W_CHANN)                        // write CHANNEL
-    ZI_WAIT_RECV(500, ZBR_W_OK)
+    ZI_WAIT_RECV(1000, ZBR_W_OK)
     ZI_SEND(ZBS_W_LOGTYP)                       // write Logical Type = coordinator
-    ZI_WAIT_RECV(500, ZBR_W_OK)
+    ZI_WAIT_RECV(1000, ZBR_W_OK)
     ZI_SEND(ZBS_W_PFGK)                         // write PRECFGKEY
-    ZI_WAIT_RECV(500, ZBR_W_OK)
+    ZI_WAIT_RECV(1000, ZBR_W_OK)
     ZI_SEND(ZBS_W_PFGKEN)                       // write PRECFGKEY Enable
-    ZI_WAIT_RECV(500, ZBR_W_OK)
+    ZI_WAIT_RECV(1000, ZBR_W_OK)
     ZI_SEND(ZBS_WNV_SECMODE)                    // write Security Mode
-    ZI_WAIT_RECV(500, ZBR_WNV_OK)
+    ZI_WAIT_RECV(1000, ZBR_WNV_OK)
     ZI_SEND(ZBS_W_ZDODCB)                       // write Z_ZDO Direct CB
-    ZI_WAIT_RECV(500, ZBR_W_OK)
+    ZI_WAIT_RECV(1000, ZBR_W_OK)
     // Now mark the device as ready, writing 0x55 in memory slot 0x0F00
     ZI_SEND(ZBS_WNV_INITZNPHC)                  // Init NV ZNP Has Configured
-    ZI_WAIT_RECV(500, ZBR_WNV_INIT_OK)
+    ZI_WAIT_RECV(1000, ZBR_WNV_INIT_OK)
     ZI_SEND(ZBS_WNV_ZNPHC)                      // Write NV ZNP Has Configured
-    ZI_WAIT_RECV(500, ZBR_WNV_OK)
+    ZI_WAIT_RECV(1000, ZBR_WNV_OK)
 
     ZI_LOG(LOG_LEVEL_INFO, "ZIG: zigbee device reconfigured")
     ZI_GOTO(10)
@@ -496,10 +509,22 @@ int32_t Z_Recv_Default(int32_t res, class SBuffer &buf) {
   } else {
     if ( (pgm_read_byte(&ZBR_AF_INCOMING_MESSAGE[0]) == buf.get8(0)) &&
          (pgm_read_byte(&ZBR_AF_INCOMING_MESSAGE[1]) == buf.get8(1)) ) {
-      // AF_INCOMING_MSG, extract ZCL part TODO
-      // skip first 19 bytes
+      uint16_t        groupid = buf.get16(2);
+      uint16_t        clusterid = buf.get16(4);
+      Z_ShortAddress  srcaddr = buf.get16(6);
+      uint8_t         srcendpoint = buf.get8(8);
+      uint8_t         dstendpoint = buf.get8(9);
+      uint8_t         wasbroadcast = buf.get8(10);
+      uint8_t         linkquality = buf.get8(11);
+      uint8_t         securityuse = buf.get8(12);
+      uint32_t        timestamp = buf.get32(13);
+      uint8_t         seqnumber = buf.get8(17);
+
       ZCLFrame zcl_received = ZCLFrame::parseRawFrame(buf, 19, buf.get8(18));
-      zcl_received.publishMQTTReceived();
+      zcl_received.publishMQTTReceived(groupid, clusterid, srcaddr,
+                                       srcendpoint, dstendpoint, wasbroadcast,
+                                       linkquality, securityuse, seqnumber,
+                                       timestamp);
     }
     return -1;
   }
