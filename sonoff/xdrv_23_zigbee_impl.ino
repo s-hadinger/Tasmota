@@ -166,13 +166,16 @@ public:
                     "\"linkquality\":%d," "\"securityuse\":%d," "\"seqnumber\":%d,"
                     "\"timestamp\":%d,"
                     "\"fc\":\"0x%02X\",\"manuf\":\"0x%04X\",\"transact\":%d,"
-                    "\"cmdid\":\"0x%02X\",\"payload\":\"%s\"}}"),
+                    "\"cmdid\":\"0x%02X\",\"payload\":\"%s\""),
                     groupid, clusterid, srcaddr,
                     srcendpoint, dstendpoint, wasbroadcast,
                     linkquality, securityuse, seqnumber,
                     timestamp,
                     _frame_control, _manuf_code, _transact_seq, _cmd_id,
                     hex_char);
+
+    ResponseJsonEnd();      // append '}'
+    ResponseJsonEnd();      // append '}'
   	MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCLSENT));
   	XdrvRulesProcess();
   }
