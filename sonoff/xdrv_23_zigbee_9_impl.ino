@@ -126,87 +126,6 @@ SBuffer *zigbee_buffer = nullptr;
 
 
 
-/*********************************************************************************************\
- * ZCL
-\*********************************************************************************************/
-
-typedef union ZCLHeaderFrameControl_t {
-  struct {
-    uint8_t frame_type : 2;           // 00 = across entire profile, 01 = cluster specific
-    uint8_t manuf_specific : 1;       // Manufacturer Specific Sub-field
-    uint8_t direction : 1;            // 0 = tasmota to zigbee, 1 = zigbee to tasmota
-    uint8_t disable_def_resp : 1;     // don't send back default response
-    uint8_t reserved : 3;
-  } b;
-  uint32_t d8;                         // raw 8 bits field
-} ZCLHeaderFrameControl_t;
-
-class ZCLFrame {
-public:
-
-  ZCLFrame(uint8_t frame_control, uint16_t manuf_code, uint8_t transact_seq, uint8_t cmd_id,
-    const char *buf, size_t buf_len ):
-    _cmd_id(cmd_id), _manuf_code(manuf_code), _transact_seq(transact_seq),
-    _payload(buf_len ? buf_len : 250)      // allocate the data frame from source or preallocate big enough
-    {
-      _frame_control.d8 = frame_control;
-      _payload.addBuffer(buf, buf_len);
-    };
-
-
-  void publishMQTTReceived(uint16_t groupid, uint16_t clusterid, Z_ShortAddress srcaddr,
-                           uint8_t srcendpoint, uint8_t dstendpoint, uint8_t wasbroadcast,
-                           uint8_t linkquality, uint8_t securityuse, uint8_t seqnumber,
-                           uint32_t timestamp) {
-    char hex_char[_payload.len()*2+2];
-		ToHex_P((unsigned char*)_payload.getBuffer(), _payload.len(), hex_char, sizeof(hex_char));
-    Response_P(PSTR("{\"" D_JSON_ZIGBEEZCLRECEIVED "\":{"
-                    "\"groupid\":%d," "\"clusterid\":%d," "\"srcaddr\":\"0x%04X\","
-                    "\"srcendpoint\":%d," "\"dstendpoint\":%d," "\"wasbroadcast\":%d,"
-                    "\"linkquality\":%d," "\"securityuse\":%d," "\"seqnumber\":%d,"
-                    "\"timestamp\":%d,"
-                    "\"fc\":\"0x%02X\",\"manuf\":\"0x%04X\",\"transact\":%d,"
-                    "\"cmdid\":\"0x%02X\",\"payload\":\"%s\""),
-                    groupid, clusterid, srcaddr,
-                    srcendpoint, dstendpoint, wasbroadcast,
-                    linkquality, securityuse, seqnumber,
-                    timestamp,
-                    _frame_control, _manuf_code, _transact_seq, _cmd_id,
-                    hex_char);
-
-    ResponseJsonEnd();      // append '}'
-    ResponseJsonEnd();      // append '}'
-  	MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCLSENT));
-  	XdrvRulesProcess();
-  }
-
-  static ZCLFrame parseRawFrame(SBuffer &buf, uint8_t offset, uint8_t len) { // parse a raw frame and build the ZCL frame object
-    uint32_t i = offset;
-    ZCLHeaderFrameControl_t frame_control;
-    uint16_t manuf_code = 0;
-    uint8_t transact_seq;
-    uint8_t cmd_id;
-
-    frame_control.d8 = buf.get8(i++);
-    if (frame_control.b.manuf_specific) {
-      manuf_code = buf.get16(i);
-      i += 2;
-    }
-    transact_seq = buf.get8(i++);
-    cmd_id = buf.get8(i++);
-    ZCLFrame zcl_frame(frame_control.d8, manuf_code, transact_seq, cmd_id,
-                       (const char *)(buf.buf() + i), len + offset - i);
-    return zcl_frame;
-  }
-
-private:
-  ZCLHeaderFrameControl_t _frame_control = { .d8 = 0 };
-  uint16_t                _manuf_code = 0;      // optional
-  uint8_t                 _transact_seq = 0;    // transaction sequence number
-  uint8_t                 _cmd_id = 0;
-  SBuffer                 _payload;
-};
-
 
 /*********************************************************************************************\
  * State Machine
@@ -523,11 +442,15 @@ int32_t Z_Recv_Default(int32_t res, class SBuffer &buf) {
       uint32_t        timestamp = buf.get32(13);
       uint8_t         seqnumber = buf.get8(17);
 
-      ZCLFrame zcl_received = ZCLFrame::parseRawFrame(buf, 19, buf.get8(18));
+      ZCLFrame zcl_received = ZCLFrame::parseRawFrame(buf, 19, buf.get8(18), clusterid, groupid);
       zcl_received.publishMQTTReceived(groupid, clusterid, srcaddr,
                                        srcendpoint, dstendpoint, wasbroadcast,
                                        linkquality, securityuse, seqnumber,
                                        timestamp);
+      // parse individual attributes
+      DynamicJsonBuffer jsonBuffer;
+      JsonObject& json = jsonBuffer.createObject();
+
     }
     return -1;
   }
