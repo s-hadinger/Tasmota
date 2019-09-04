@@ -95,6 +95,9 @@ public:
     return zcl_frame;
   }
 
+  uint8_t parseRawAttributes(JsonObject& json, uint16_t clusterid,
+                             uint8_t offset = 0);
+
   inline void setGroupId(uint16_t groupid) {
     _group_id = groupid;
   }
@@ -164,17 +167,17 @@ uint8_t toPercentageCR2032(uint32_t voltage) {
 
 // First pass, parse all attributes in their native format
 // The key is 32 bits, high 16 bits is cluserid, low 16 bits is attribute id
-uint8_t parseAttributes(JsonObject& json, uint16_t clusterid,
-                        class SBuffer &buf, uint8_t offset, uint8_t len) {
+uint8_t ZCLFrame::parseRawAttributes(JsonObject& json, uint16_t clusterid, uint8_t offset) {
   uint32_t i = offset;
+  uint32_t len = _payload.len();
   uint32_t attrid = clusterid << 16;      // set high 16 bits with cluster if
   uint32_t attrtype;    // attribute type
   uint32_t attrlen;
 
   while (len + offset - i >= 3) {
-    attrid = (attrid & 0xFFFF0000) | buf.get16(i);    // get lower 16 bits
+    attrid = (attrid & 0xFFFF0000) | _payload.get16(i);    // get lower 16 bits
     i += 2;
-    attrtype = buf.get8(i);
+    attrtype = _payload.get8(i);
     i++;
     attrlen = 0;
 
@@ -193,7 +196,7 @@ uint8_t parseAttributes(JsonObject& json, uint16_t clusterid,
         break;
       case 0x10:      // bool
         {
-          uint8_t val_bool = buf.get8(i++);
+          uint8_t val_bool = _payload.get8(i++);
           if (0xFF != val_bool) {
             json[attrid_str] = (bool) (val_bool ? true : false);
           }
@@ -201,7 +204,7 @@ uint8_t parseAttributes(JsonObject& json, uint16_t clusterid,
         break;
       case 0x20:      // uint8
         {
-          uint8_t uint8_val = buf.get8(i);
+          uint8_t uint8_val = _payload.get8(i);
           i += 1;
           if (0xFF != uint8_val) {
             json[attrid_str] = uint8_val;
@@ -210,7 +213,7 @@ uint8_t parseAttributes(JsonObject& json, uint16_t clusterid,
         break;
       case 0x21:      // uint16
         {
-          uint16_t uint16_val = buf.get16(i);
+          uint16_t uint16_val = _payload.get16(i);
           i += 2;
           if (0xFFFF != uint16_val) {
             json[attrid_str] = uint16_val;
@@ -219,7 +222,7 @@ uint8_t parseAttributes(JsonObject& json, uint16_t clusterid,
         break;
       case 0x23:      // uint16
         {
-          uint32_t uint32_val = buf.get32(i);
+          uint32_t uint32_val = _payload.get32(i);
           i += 4;
           if (0xFFFFFFFF != uint32_val) {
             json[attrid_str] = uint32_val;
@@ -235,7 +238,7 @@ uint8_t parseAttributes(JsonObject& json, uint16_t clusterid,
         break;
       case 0x28:      // uint8
         {
-          int8_t int8_val = buf.get8(i);
+          int8_t int8_val = _payload.get8(i);
           i += 1;
           if (0x80 != int8_val) {
             json[attrid_str] = int8_val;
@@ -244,7 +247,7 @@ uint8_t parseAttributes(JsonObject& json, uint16_t clusterid,
         break;
       case 0x29:      // uint16
         {
-          int16_t int16_val = buf.get16(i);
+          int16_t int16_val = _payload.get16(i);
           i += 2;
           if (0x8000 != int16_val) {
             json[attrid_str] = int16_val;
@@ -253,7 +256,7 @@ uint8_t parseAttributes(JsonObject& json, uint16_t clusterid,
         break;
       case 0x2B:      // uint16
         {
-          int32_t int32_val = buf.get32(i);
+          int32_t int32_val = _payload.get32(i);
           i += 4;
           if (0x80000000 != int32_val) {
             json[attrid_str] = int32_val;
