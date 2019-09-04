@@ -180,7 +180,9 @@ uint8_t ZCLFrame::parseRawAttributes(JsonObject& json, uint8_t offset) {
     i++;
     attrlen = 0;
 
-    String attrid_str(attrid);
+    char shortaddr[12];
+    snprintf_P(shortaddr, sizeof(shortaddr), PSTR("0x%08X"), attrid);
+    String attrid_str(shortaddr);
 
     // fallback - enter a null value
     json[attrid_str] = (char*) nullptr;
@@ -273,7 +275,11 @@ uint8_t ZCLFrame::parseRawAttributes(JsonObject& json, uint8_t offset) {
       case 0x43:      // octet string, 2 bytes len
         break;
       case 0x42:      // string, 1 byte len
+        i += _payload.get8(i) + 1;
+        // TODO
+        break;
       case 0x44:      // string, 2 bytes len
+        // TODO
         break;
 
       // TODO
@@ -350,7 +356,7 @@ uint8_t ZCLFrame::parseRawAttributes(JsonObject& json, uint8_t offset) {
     String pp;    // pretty print
     json[attrid_str].prettyPrintTo(pp);
     // now store the attribute
-    AddLog_P2(LOG_LEVEL_INFO, PSTR("ZIG: ZCL attribute decoded, id %08X, type %02X, val=%s"),
+    AddLog_P2(LOG_LEVEL_INFO, PSTR("ZIG: ZCL attribute decoded, id 0x%08X, type 0x%02X, val=%s"),
                                    attrid, attrtype, pp.c_str());
   }
 
