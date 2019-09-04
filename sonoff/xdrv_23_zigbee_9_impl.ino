@@ -443,14 +443,27 @@ int32_t Z_Recv_Default(int32_t res, class SBuffer &buf) {
       uint8_t         seqnumber = buf.get8(17);
 
       ZCLFrame zcl_received = ZCLFrame::parseRawFrame(buf, 19, buf.get8(18), clusterid, groupid);
+
       zcl_received.publishMQTTReceived(groupid, clusterid, srcaddr,
                                        srcendpoint, dstendpoint, wasbroadcast,
                                        linkquality, securityuse, seqnumber,
                                        timestamp);
-      // parse individual attributes
-      DynamicJsonBuffer jsonBuffer;
-      JsonObject& json = jsonBuffer.createObject();
 
+      char shortaddr[8];
+      snprintf_P(shortaddr, sizeof(shortaddr), PSTR("0x%04X"), srcaddr);
+
+      DynamicJsonBuffer jsonBuffer;
+      JsonObject& json_root = jsonBuffer.createObject();
+      JsonObject& json = json_root.createNestedObject(shortaddr);
+      zcl_received.parseRawAttributes(json);
+
+      String msg("");
+      msg.reserve(100);
+      json_root.printTo(msg);
+
+      Response_P(PSTR("%s"), msg.c_str());
+    	MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCLRECEIVED));
+    	XdrvRulesProcess();
     }
     return -1;
   }
