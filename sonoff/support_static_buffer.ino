@@ -23,6 +23,8 @@ typedef struct SBuffer_impl {
   uint8_t buf[];                     // the actual data
 } SBuffer_impl;
 
+
+
 typedef class SBuffer {
 
 protected:
@@ -43,7 +45,8 @@ public:
   inline size_t getLen(void) const { return _buf->len; }
   inline size_t len(void) const { return _buf->len; }
   inline uint8_t *getBuffer(void) const { return _buf->buf; }
-  inline uint8_t *buf(void) const { return _buf->buf; }
+  inline uint8_t *buf(size_t i = 0) const { return &_buf->buf[i]; }
+  inline char    *charptr(size_t i = 0) const { return (char*) &_buf->buf[i]; }
 
   virtual ~SBuffer(void) {
     delete[] _buf;
@@ -136,6 +139,32 @@ public:
     memcpy(buf2.buf(), buf()+start, len);
     buf2._buf->len = len;
     return buf2;
+  }
+
+  static SBuffer SBufferFromHex(const char *hex, size_t len) {
+    size_t buf_len = (len + 3) / 2;
+    SBuffer buf2(buf_len);
+    uint8_t val;
+
+    for (; len > 1; len -= 2) {
+      val = asc2byte(*hex++) << 4;
+      val |= asc2byte(*hex++);
+      buf2.add8(val);
+    }
+    return buf2;
+  }
+
+protected:
+
+  static uint8_t asc2byte(char chr) {
+    uint8_t rVal = 0;
+    if (isdigit(chr)) { rVal = chr - '0'; }
+    else if (chr >= 'A' && chr <= 'F') { rVal = chr + 10 - 'A'; }
+    else if (chr >= 'a' && chr <= 'f') { rVal = chr + 10 - 'a'; }
+    return rVal;
+  }
+
+  static void unHex(const char* in, uint8_t *out, size_t len) {
   }
 
 protected:

@@ -165,6 +165,212 @@ uint8_t toPercentageCR2032(uint32_t voltage) {
 }
 
 
+uint32_t parseSingleAttribute(JsonObject& json, char *attrid_str, class SBuffer &buf,
+                              uint32_t offset, uint32_t len) {
+
+  uint32_t i = offset;
+  uint32_t attrtype = buf.get8(i++);
+
+  // fallback - enter a null value
+  json[attrid_str] = (char*) nullptr;
+
+  // now parse accordingly to attr type
+  switch (attrtype) {
+    case 0x00:      // nodata
+    case 0xFF:      // unk
+      break;
+    case 0x10:      // bool
+      {
+        uint8_t val_bool = buf.get8(i++);
+        if (0xFF != val_bool) {
+          json[attrid_str] = (bool) (val_bool ? true : false);
+        }
+      }
+      break;
+    case 0x20:      // uint8
+      {
+        uint8_t uint8_val = buf.get8(i);
+        i += 1;
+        if (0xFF != uint8_val) {
+          json[attrid_str] = uint8_val;
+        }
+      }
+      break;
+    case 0x21:      // uint16
+      {
+        uint16_t uint16_val = buf.get16(i);
+        i += 2;
+        if (0xFFFF != uint16_val) {
+          json[attrid_str] = uint16_val;
+        }
+      }
+      break;
+    case 0x23:      // uint16
+      {
+        uint32_t uint32_val = buf.get32(i);
+        i += 4;
+        if (0xFFFFFFFF != uint32_val) {
+          json[attrid_str] = uint32_val;
+        }
+      }
+      break;
+    // Note: uint40, uint48, uint56, uint64 are not used in ZCL, so they are not implemented (yet)
+    case 0x24:    // int40
+    case 0x25:    // int48
+    case 0x26:    // int56
+    case 0x27:    // int64
+      i += attrtype - 0x1F;   // 5 - 8;
+      break;
+    case 0x28:      // uint8
+      {
+        int8_t int8_val = buf.get8(i);
+        i += 1;
+        if (0x80 != int8_val) {
+          json[attrid_str] = int8_val;
+        }
+      }
+      break;
+    case 0x29:      // uint16
+      {
+        int16_t int16_val = buf.get16(i);
+        i += 2;
+        if (0x8000 != int16_val) {
+          json[attrid_str] = int16_val;
+        }
+      }
+      break;
+    case 0x2B:      // uint16
+      {
+        int32_t int32_val = buf.get32(i);
+        i += 4;
+        if (0x80000000 != int32_val) {
+          json[attrid_str] = int32_val;
+        }
+      }
+      break;
+    // Note: int40, int48, int56, int64 are not used in ZCL, so they are not implemented (yet)
+    case 0x2C:    // int40
+    case 0x2D:    // int48
+    case 0x2E:    // int56
+    case 0x2F:    // int64
+      i += attrtype - 0x27;   // 5 - 8;
+      break;
+
+    case 0x41:      // octet string, 1 byte len
+    case 0x42:      // char string, 1 byte len
+    case 0x43:      // octet string, 2 bytes len
+    case 0x44:      // char string, 2 bytes len
+      // For strings, default is to try to do a real string, but reverts to octet stream if null char is present or on some exceptions
+      {
+        bool parse_as_string = true;
+        uint32_t len = (attrtype <= 0x42) ? buf.get8(i) : buf.get16(i);    // len is 8 or 16 bits
+        i += (attrtype <= 0x42) ? 1 : 2;                                            // increment pointer
+
+        // check if we can safely use a string
+        if ((0x41 == attrtype) || (0x43 == attrtype)) { parse_as_string = false; }
+//        else if (0x0000FF01 == attrid) { parse_as_string = false; }    // special case for Xiamoi lumi.weather
+        else {
+          for (uint32_t j = 0; j < len; j++) {
+            if (0x00 == buf.get8(i+j)) {
+              parse_as_string = false;
+              break;
+            }
+          }
+        }
+
+        if (parse_as_string) {
+          char str[len+1];
+          strncpy(str, buf.charptr(i), len);
+          str[len] = 0x00;
+          json[attrid_str] = str;
+        } else {
+          // print as HEX
+          char hex[2*len+1];
+          ToHex_P(buf.buf(i), len, hex, sizeof(hex));
+          json[attrid_str] = hex;
+        }
+
+        i += len;
+        break;
+      }
+      i += buf.get8(i) + 1;
+      break;
+
+
+    // TODO
+    case 0x08:      // data8
+      i++;
+      break;
+    case 0x18:      // map8
+      i++;
+      break;
+    case 0x19:      // map16
+      i += 2;
+      break;
+    case 0x1B:      // map32
+      i += 4;
+      break;
+    // enum
+    case 0x30:      // enum8
+    case 0x31:      // enum16
+      i += attrtype - 0x2F;
+      break;
+
+    case 0x39:      // float
+      i += 4;
+      break;
+
+    case 0xE0:      // ToD
+    case 0xE1:      // date
+    case 0xE2:      // UTC
+      i += 4;
+      break;
+
+    case 0xE8:      // clusterId
+    case 0xE9:      // attribId
+      i += 2;
+      break;
+    case 0xEA:      // bacOID
+      i += 4;
+      break;
+
+    case 0xF0:      // EUI64
+      i += 8;
+      break;
+    case 0xF1:      // key128
+      i += 16;
+      break;
+
+    // Other un-implemented data types
+    case 0x09:      // data16
+    case 0x0A:      // data24
+    case 0x0B:      // data32
+    case 0x0C:      // data40
+    case 0x0D:      // data48
+    case 0x0E:      // data56
+    case 0x0F:      // data64
+      i += attrtype - 0x07;   // 2-8
+      break;
+    // map<x>
+    case 0x1A:      // map24
+    case 0x1C:      // map40
+    case 0x1D:      // map48
+    case 0x1E:      // map56
+    case 0x1F:      // map64
+      i += attrtype - 0x17;
+      break;
+    // semi
+    case 0x38:      // semi (float on 2 bytes)
+      i += 2;
+      break;
+    case 0x3A:      // double precision
+      i += 8;
+      break;
+  }
+
+}
+
+
 // First pass, parse all attributes in their native format
 // The key is 32 bits, high 16 bits is cluserid, low 16 bits is attribute id
 void ZCLFrame::parseRawAttributes(JsonObject& json, uint8_t offset) {
@@ -172,14 +378,12 @@ void ZCLFrame::parseRawAttributes(JsonObject& json, uint8_t offset) {
   uint32_t len = _payload.len();
   uint32_t attrid = _cluster_id << 16;      // set high 16 bits with cluster if
   uint32_t attrtype;    // attribute type
-  uint32_t attrlen;
 
   while (len + offset - i >= 3) {
     attrid = (attrid & 0xFFFF0000) | _payload.get16(i);    // get lower 16 bits
     i += 2;
     attrtype = _payload.get8(i);
     i++;
-    attrlen = 0;
 
     char shortaddr[12];
     snprintf_P(shortaddr, sizeof(shortaddr), PSTR("0x%08X"), attrid);
@@ -272,16 +476,47 @@ void ZCLFrame::parseRawAttributes(JsonObject& json, uint8_t offset) {
       case 0x2F:    // int64
         i += attrtype - 0x27;   // 5 - 8;
         break;
+
       case 0x41:      // octet string, 1 byte len
+      case 0x42:      // char string, 1 byte len
       case 0x43:      // octet string, 2 bytes len
-        break;
-      case 0x42:      // string, 1 byte len
+      case 0x44:      // char string, 2 bytes len
+        // For strings, default is to try to do a real string, but reverts to octet stream if null char is present or on some exceptions
+        {
+          bool parse_as_string = true;
+          uint32_t len = (attrtype <= 0x42) ? _payload.get8(i) : _payload.get16(i);    // len is 8 or 16 bits
+          i += (attrtype <= 0x42) ? 1 : 2;                                            // increment pointer
+
+          // check if we can safely use a string
+          if ((0x41 == attrtype) || (0x43 == attrtype)) { parse_as_string = false; }
+          else if (0x0000FF01 == attrid) { parse_as_string = false; }    // special case for Xiamoi lumi.weather
+          else {
+            for (uint32_t j = 0; j < len; j++) {
+              if (0x00 == _payload.get8(i+j)) {
+                parse_as_string = false;
+                break;
+              }
+            }
+          }
+
+          if (parse_as_string) {
+            char str[len+1];
+            strncpy(str, _payload.charptr(i), len);
+            str[len] = 0x00;
+            json[attrid_str] = str;
+          } else {
+            // print as HEX
+            char hex[2*len+1];
+            ToHex_P(_payload.buf(i), len, hex, sizeof(hex));
+            json[attrid_str] = hex;
+          }
+
+          i += len;
+          break;
+        }
         i += _payload.get8(i) + 1;
-        // TODO
         break;
-      case 0x44:      // string, 2 bytes len
-        // TODO
-        break;
+
 
       // TODO
       case 0x08:      // data8
@@ -365,13 +600,25 @@ void ZCLFrame::parseRawAttributes(JsonObject& json, uint8_t offset) {
 }
 
 //static const char ZCL_TEMPERATURE[] PROGMEM = "0x04020000";
+#define ZCL_MODELID       "0x00000005"
 #define ZCL_TEMPERATURE   "0x04020000"
+#define ZCL_PRESSURE      "0x04030000"
+#define ZCL_PRESSURE_SCALED       "0x04030010"
+#define ZCL_PRESSURE_SCALE        "0x04030014"
 #define ZCL_HUMIDITY      "0x04050000"
+#define ZCL_LUMI_WEATHER  "0x0000FF01"
 
 void ZCLFrame::postProcessAttributes(JsonObject& json) {
-  // check for Temperature
   const __FlashStringHelper *key;
 
+  // ModelID ZCL 3.2
+  key = F(ZCL_MODELID);
+  if (json.containsKey(key)) {
+    json[F(D_JSON_MODEL D_JSON_ID)] = json[key];
+    json.remove(key);
+  }
+
+  // Temperature ZCL 4.4
   key = F(ZCL_TEMPERATURE);
   if (json.containsKey(key)) {
     // parse temperature
@@ -380,6 +627,18 @@ void ZCLFrame::postProcessAttributes(JsonObject& json) {
     json[F(D_JSON_TEMPERATURE)] = temperature / 100.0f;
   }
 
+  // Pressure ZCL 4.5
+  key = F(ZCL_PRESSURE);
+  if (json.containsKey(key)) {
+    // parse temperature
+    int32_t temperature = json[key];
+    json.remove(key);
+    json[F(D_JSON_PRESSURE)] = temperature / 10.0f;
+  }
+  json.remove(F(ZCL_PRESSURE_SCALE));
+  json.remove(F(ZCL_PRESSURE_SCALED));
+
+  // Humidity ZCL 4.7
   key = F(ZCL_HUMIDITY);
   if (json.containsKey(key)) {
     // parse temperature
@@ -387,6 +646,17 @@ void ZCLFrame::postProcessAttributes(JsonObject& json) {
     json.remove(key);
     json[F(D_JSON_HUMIDITY)] = humidity / 100.0f;
   }
+
+  // Lumi.weather proprietary field
+  key = F(ZCL_LUMI_WEATHER);
+  if (json.containsKey(key)) {
+    String hex = json[key];
+    SBuffer buf2 = SBuffer::SBufferFromHex(hex.c_str(), hex.length());
+
+    json.remove(key);
+    json[F("TOTO")] = buf2.charptr();
+  }
+
 }
 
 #endif // USE_ZIGBEE
