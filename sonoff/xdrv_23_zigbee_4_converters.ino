@@ -95,7 +95,8 @@ public:
     return zcl_frame;
   }
 
-  uint8_t parseRawAttributes(JsonObject& json, uint8_t offset = 0);
+  void parseRawAttributes(JsonObject& json, uint8_t offset = 0);
+  void postProcessAttributes(JsonObject& json);
 
   inline void setGroupId(uint16_t groupid) {
     _group_id = groupid;
@@ -166,7 +167,7 @@ uint8_t toPercentageCR2032(uint32_t voltage) {
 
 // First pass, parse all attributes in their native format
 // The key is 32 bits, high 16 bits is cluserid, low 16 bits is attribute id
-uint8_t ZCLFrame::parseRawAttributes(JsonObject& json, uint8_t offset) {
+void ZCLFrame::parseRawAttributes(JsonObject& json, uint8_t offset) {
   uint32_t i = offset;
   uint32_t len = _payload.len();
   uint32_t attrid = _cluster_id << 16;      // set high 16 bits with cluster if
@@ -361,6 +362,31 @@ uint8_t ZCLFrame::parseRawAttributes(JsonObject& json, uint8_t offset) {
   }
 
   // MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCLSENT));
+}
+
+//static const char ZCL_TEMPERATURE[] PROGMEM = "0x04020000";
+#define ZCL_TEMPERATURE   "0x04020000"
+#define ZCL_HUMIDITY      "0x04050000"
+
+void ZCLFrame::postProcessAttributes(JsonObject& json) {
+  // check for Temperature
+  const __FlashStringHelper *key;
+
+  key = F(ZCL_TEMPERATURE);
+  if (json.containsKey(key)) {
+    // parse temperature
+    int32_t temperature = json[key];
+    json.remove(key);
+    json[F(D_JSON_TEMPERATURE)] = temperature / 100.0f;
+  }
+
+  key = F(ZCL_HUMIDITY);
+  if (json.containsKey(key)) {
+    // parse temperature
+    uint32_t humidity = json[key];
+    json.remove(key);
+    json[F(D_JSON_HUMIDITY)] = humidity / 100.0f;
+  }
 }
 
 #endif // USE_ZIGBEE
