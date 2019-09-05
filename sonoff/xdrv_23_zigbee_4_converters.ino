@@ -95,6 +95,10 @@ public:
     return zcl_frame;
   }
 
+  bool isClusterSpecificCommand(void) {
+    return _frame_control.b.frame_type & 1;
+  }
+
   void parseRawAttributes(JsonObject& json, uint8_t offset = 0);
   void postProcessAttributes(JsonObject& json);
 
@@ -104,6 +108,14 @@ public:
 
   inline void setClusterId(uint16_t clusterid) {
     _cluster_id = clusterid;
+  }
+
+  inline uint8_t getCmdId(void) const {
+    return _cmd_id;
+  }
+
+  inline uint16_t getClusterId(void) const {
+    return _cluster_id;
   }
 
   const SBuffer &getPayload(void) const {
@@ -367,11 +379,11 @@ uint32_t parseSingleAttribute(JsonObject& json, char *attrid_str, class SBuffer 
       break;
   }
 
-  String pp;    // pretty print
-  json[attrid_str].prettyPrintTo(pp);
-  // now store the attribute
-  AddLog_P2(LOG_LEVEL_INFO, PSTR("ZIG: ZCL attribute decoded, id %s, type 0x%02X, val=%s"),
-                                 attrid_str, attrtype, pp.c_str());
+  // String pp;    // pretty print
+  // json[attrid_str].prettyPrintTo(pp);
+  // // now store the attribute
+  // AddLog_P2(LOG_LEVEL_INFO, PSTR("ZIG: ZCL attribute decoded, id %s, type 0x%02X, val=%s"),
+  //                                attrid_str, attrtype, pp.c_str());
   return i - offset;    // how much have we increased the index
 }
 
@@ -485,7 +497,7 @@ void ZCLFrame::postProcessAttributes(JsonObject& json) {
     }
     if (json_lumi.containsKey("0x66")) {    // Pressure
       int32_t pressure = json_lumi["0x66"];
-      json[F(D_JSON_PRESSURE)] = pressure / 100.0f;
+      json[F(D_JSON_PRESSURE)] = pressure / 1000.0f;
     }
 
     json.remove(key);

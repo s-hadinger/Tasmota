@@ -461,8 +461,10 @@ int32_t Z_Recv_Default(int32_t res, class SBuffer &buf) {
       DynamicJsonBuffer jsonBuffer;
       JsonObject& json_root = jsonBuffer.createObject();
       JsonObject& json = json_root.createNestedObject(shortaddr);
-      zcl_received.parseRawAttributes(json);
-      zcl_received.postProcessAttributes(json);
+      if ( (!zcl_received.isClusterSpecificCommand()) && (ZCL_REPORT_ATTRIBUTES == zcl_received.getCmdId())) {
+        zcl_received.parseRawAttributes(json);
+        zcl_received.postProcessAttributes(json);
+      }
 
       String msg("");
       msg.reserve(100);
@@ -823,16 +825,21 @@ void ZigbeeInit(void)
   zigbee.active = false;
   if ((pin[GPIO_ZIGBEE_RX] < 99) && (pin[GPIO_ZIGBEE_TX] < 99)) {
 		AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("Zigbee: GPIOs Rx:%d Tx:%d"), pin[GPIO_ZIGBEE_RX], pin[GPIO_ZIGBEE_TX]);
+#ifdef Z_USE_SOFTWARE_SERIAL
     ZigbeeSerial = new SoftwareSerial();
-    //ZigbeeSerial = new TasmotaSerial(pin[GPIO_ZIGBEE_RX], pin[GPIO_ZIGBEE_TX], 0, 0, 256);   // set a receive buffer of 256 bytes
     ZigbeeSerial->begin(115200, pin[GPIO_ZIGBEE_RX], pin[GPIO_ZIGBEE_TX], SWSERIAL_8N1, false, 256);    // ZNP is 115200, RTS/CTS (ignored), 8N1
-    //if (ZigbeeSerial->hardwareSerial()) {
-    if (0) {
+    ZigbeeSerial->enableIntTx(false);
+    zigbee_buffer = new SBuffer(ZIGBEE_BUFFER_SIZE);
+#else
+    ZigbeeSerial = new TasmotaSerial(pin[GPIO_ZIGBEE_RX], pin[GPIO_ZIGBEE_TX], 0, 0, 256);   // set a receive buffer of 256 bytes
+    ZigbeeSerial->begin(115200);
+    if (ZigbeeSerial->hardwareSerial()) {
       ClaimSerial();
 			zigbee_buffer = new PreAllocatedSBuffer(sizeof(serial_in_buffer), serial_in_buffer);
 		} else {
 			zigbee_buffer = new SBuffer(ZIGBEE_BUFFER_SIZE);
 		}
+#endif
     zigbee.active = true;
 		zigbee.init_phase = true;			// start the state machine
     zigbee.state_machine = true;      // start the state machine
