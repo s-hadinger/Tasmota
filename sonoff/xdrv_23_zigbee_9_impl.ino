@@ -26,10 +26,16 @@ const uint8_t  ZIGBEE_SOF = 0xFE;
 const uint8_t  ZIGBEE_LABEL_ABORT = 99;   // goto label 99 in case of fatal error
 const uint8_t  ZIGBEE_LABEL_READY = 20;   // goto label 99 in case of fatal error
 
+#define Z_USE_SOFTWARE_SERIAL
 
+#ifdef Z_USE_SOFTWARE_SERIAL
+#include <SoftwareSerial.h>
+SoftwareSerial *ZigbeeSerial = nullptr;
+#else
 #include <TasmotaSerial.h>
-
 TasmotaSerial *ZigbeeSerial = nullptr;
+#endif
+
 
 const char kZigbeeCommands[] PROGMEM = "|" D_CMND_ZIGBEEZNPSEND;
 
@@ -817,19 +823,20 @@ void ZigbeeInit(void)
   zigbee.active = false;
   if ((pin[GPIO_ZIGBEE_RX] < 99) && (pin[GPIO_ZIGBEE_TX] < 99)) {
 		AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("Zigbee: GPIOs Rx:%d Tx:%d"), pin[GPIO_ZIGBEE_RX], pin[GPIO_ZIGBEE_TX]);
-    ZigbeeSerial = new TasmotaSerial(pin[GPIO_ZIGBEE_RX], pin[GPIO_ZIGBEE_TX], 0, 0, 256);   // set a receive buffer of 256 bytes
-    if (ZigbeeSerial->begin(115200)) {    // ZNP is 115200, RTS/CTS (ignored), 8N1
-      if (ZigbeeSerial->hardwareSerial()) {
-        ClaimSerial();
-				zigbee_buffer = new PreAllocatedSBuffer(sizeof(serial_in_buffer), serial_in_buffer);
-			} else {
-				zigbee_buffer = new SBuffer(ZIGBEE_BUFFER_SIZE);
-			}
-      zigbee.active = true;
-			zigbee.init_phase = true;			// start the state machine
-      zigbee.state_machine = true;      // start the state machine
-      ZigbeeSerial->flush();
-    }
+    ZigbeeSerial = new SoftwareSerial();
+    //ZigbeeSerial = new TasmotaSerial(pin[GPIO_ZIGBEE_RX], pin[GPIO_ZIGBEE_TX], 0, 0, 256);   // set a receive buffer of 256 bytes
+    ZigbeeSerial->begin(115200, pin[GPIO_ZIGBEE_RX], pin[GPIO_ZIGBEE_TX], SWSERIAL_8N1, false, 256);    // ZNP is 115200, RTS/CTS (ignored), 8N1
+    //if (ZigbeeSerial->hardwareSerial()) {
+    if (0) {
+      ClaimSerial();
+			zigbee_buffer = new PreAllocatedSBuffer(sizeof(serial_in_buffer), serial_in_buffer);
+		} else {
+			zigbee_buffer = new SBuffer(ZIGBEE_BUFFER_SIZE);
+		}
+    zigbee.active = true;
+		zigbee.init_phase = true;			// start the state machine
+    zigbee.state_machine = true;      // start the state machine
+    ZigbeeSerial->flush();
   }
 }
 
