@@ -144,8 +144,8 @@ SBuffer *zigbee_buffer = nullptr;
 
 // ZBS_* Zigbee Send
 // ZBR_* Zigbee Recv
-ZBM(ZBS_RESET, Z_AREQ | Z_SYS, SYS_RESET, 0x01 )        	  // 410001 SYS_RESET_REQ Software reset
-ZBM(ZBR_RESET, Z_AREQ | Z_SYS, SYS_RESET_IND )              // 4180 SYS_RESET_REQ Software reset response
+ZBM(ZBS_RESET, Z_AREQ | Z_SYS, SYS_RESET, 0x00 )        	  // 410001 SYS_RESET_REQ Hardware reset
+ZBM(ZBR_RESET, Z_AREQ | Z_SYS, SYS_RESET_IND )              // 4180 SYS_RESET_REQ Hardware reset response
 
 ZBM(ZBS_VERSION, Z_SREQ | Z_SYS, SYS_VERSION )              // 2102 Z_SYS:version
 ZBM(ZBR_VERSION, Z_SRSP | Z_SYS, SYS_VERSION )              // 6102 Z_SYS:version
@@ -336,7 +336,7 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     ZI_WAIT_RECV(2000, ZBR_STARTUPFROMAPP)     // wait for sync ack of command
     ZI_WAIT_UNTIL(5000, AREQ_STARTUPFROMAPP)  // wait for async message that coordinator started
     ZI_SEND(ZBS_GETDEVICEINFO)                // GetDeviceInfo
-    ZI_WAIT_RECV(1000, ZBR_GETDEVICEINFO)      // TODO memorize info
+    ZI_WAIT_RECV(2000, ZBR_GETDEVICEINFO)      // TODO memorize info
     ZI_SEND(ZBS_ZDO_NODEDESCREQ)              // Z_ZDO:nodeDescReq
     ZI_WAIT_RECV(1000, ZBR_ZDO_NODEDESCREQ)
     ZI_WAIT_UNTIL(5000, AREQ_ZDO_NODEDESCREQ)
