@@ -133,33 +133,13 @@ private:
 };
 
 
-
 // Zigbee ZCL converters
 
 // from https://github.com/Koenkk/zigbee-shepherd-converters/blob/638d29f0cace6343052b9a4e7fd60980fa785479/converters/fromZigbee.js#L55
-// float toPercentageCR2032(uint32_t voltage) {
-//   // input voltage is in mV, i.e. 3000 = 3.000V
-//   float percentage;
-//   if (voltage < 2100) {
-//       percentage = 0.0f;
-//   } else if (voltage < 2440) {
-//       percentage = 6.0f - ((2440 - voltage) * 6) / 340.0f;
-//   } else if (voltage < 2740) {
-//       percentage = 18.0f - ((2740 - voltage) * 12) / 300.0f;
-//   } else if (voltage < 2900) {
-//       percentage = 42.0f - ((2900 - voltage) * 24) / 160.0f;
-//   } else if (voltage < 3000) {
-//       percentage = 100.0f - ((3000 - voltage) * 58) / 100.0f;
-//   } else if (voltage >= 3000) {
-//       percentage = 100.0f;
-//   }
-//   return percentage;
-// }
-
 // Input voltage in mV, i.e. 3000 = 3.000V
 // Output percentage from 0 to 100 as int
 uint8_t toPercentageCR2032(uint32_t voltage) {
-  float percentage;
+  uint32_t percentage;
   if (voltage < 2100) {
       percentage = 0;
   } else if (voltage < 2440) {
@@ -451,10 +431,9 @@ void ZCLFrame::postProcessAttributes(JsonObject& json) {
   // Pressure ZCL 4.5
   key = F(ZCL_PRESSURE);
   if (json.containsKey(key)) {
-    // parse temperature
-    int32_t pressure = json[key];
+    json[F(D_JSON_PRESSURE)] = json[key];
+    json[F(D_JSON_PRESSURE_UNIT)] = F(D_UNIT_PRESSURE);   // hPa
     json.remove(key);
-    json[F(D_JSON_PRESSURE)] = pressure / 10.0f;
   }
   json.remove(F(ZCL_PRESSURE_SCALE));
   json.remove(F(ZCL_PRESSURE_SCALED));
@@ -497,7 +476,13 @@ void ZCLFrame::postProcessAttributes(JsonObject& json) {
     }
     if (json_lumi.containsKey("0x66")) {    // Pressure
       int32_t pressure = json_lumi["0x66"];
-      json[F(D_JSON_PRESSURE)] = pressure / 1000.0f;
+      json[F(D_JSON_PRESSURE)] = pressure / 100.0f;
+      json[F(D_JSON_PRESSURE_UNIT)] = F(D_UNIT_PRESSURE);   // hPa
+    }
+    if (json_lumi.containsKey("0x01")) {    // Battery Voltage
+      uint32_t voltage = json_lumi["0x01"];
+      json[F(D_JSON_VOLTAGE)] = voltage / 1000.0f;
+      json[F("Battery")] = toPercentageCR2032(voltage);
     }
 
     json.remove(key);
