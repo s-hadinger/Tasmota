@@ -226,7 +226,7 @@ size_t TasmotaSerial::write(uint8_t b)
     if (-1 == m_tx_pin) return 0;
     if (m_high_speed) cli();  // Disable interrupts in order to get a clean transmit
     uint32_t wait = m_bit_time;
-    //digitalWrite(m_tx_pin, HIGH);     // not sure why this is useful
+    //digitalWrite(m_tx_pin, HIGH);     // this shouldn't be useful
     uint32_t start = ESP.getCycleCount();
     // Start bit;
     digitalWrite(m_tx_pin, LOW);
@@ -260,7 +260,7 @@ void TasmotaSerial::rxRead()
       if (m_high_speed) { savedPS = xt_rsil(15); }
       // Advance the starting point for the samples but compensate for the
       // initial delay which occurs before the interrupt is delivered
-      uint32_t wait = m_bit_time + m_bit_time/3 - 800;
+      uint32_t wait = m_bit_time + m_bit_time/3 - 900;
       uint32_t start = ESP.getCycleCount();
       uint32_t rec = 0;
       for (uint32_t i = 0; i < 8; i++) {
@@ -269,18 +269,18 @@ void TasmotaSerial::rxRead()
         if (digitalRead(m_rx_pin)) rec |= 0x80;
       }
       // Stop bit(s)
-      TM_SERIAL_WAIT_RCV;
-      if (2 == m_stop_bits) {
-        digitalRead(m_rx_pin);
-        TM_SERIAL_WAIT_RCV;
-      }
+      // TM_SERIAL_WAIT_RCV;
+      // if (2 == m_stop_bits) {
+      //   digitalRead(m_rx_pin);
+      //   TM_SERIAL_WAIT_RCV;
+      // }
+      if (m_high_speed) { xt_wsr_ps(savedPS); }
       // Store the received value in the buffer unless we have an overflow
       uint32_t next = (m_in_pos+1) % serial_buffer_size;
       if (next != (int)m_out_pos) {
         m_buffer[m_in_pos] = rec;
         m_in_pos = next;
       }
-      if (m_high_speed) { xt_wsr_ps(savedPS); }
     } else {
       uint32_t diff;
       uint32_t level;
