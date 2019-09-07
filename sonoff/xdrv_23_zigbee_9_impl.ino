@@ -26,7 +26,7 @@ const uint8_t  ZIGBEE_SOF = 0xFE;
 const uint8_t  ZIGBEE_LABEL_ABORT = 99;   // goto label 99 in case of fatal error
 const uint8_t  ZIGBEE_LABEL_READY = 20;   // goto label 99 in case of fatal error
 
-#define Z_USE_SOFTWARE_SERIAL
+//#define Z_USE_SOFTWARE_SERIAL
 
 #ifdef Z_USE_SOFTWARE_SERIAL
 #include <SoftwareSerial.h>
