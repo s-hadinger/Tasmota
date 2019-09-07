@@ -793,6 +793,9 @@ void ZigbeeInput(void)
     char hex_char[(zigbee_buffer->len() * 2) + 2];
 		ToHex_P((unsigned char*)zigbee_buffer->getBuffer(), zigbee_buffer->len(), hex_char, sizeof(hex_char));
 
+#ifndef Z_USE_SOFTWARE_SERIAL
+    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZIG: Bytes follor_read_metric = %0d"), ZigbeeSerial->getLoopReadMetric());
+#endif
 		// buffer received, now check integrity
 		if (zigbee_buffer->len() != zigbee_frame_len) {
 			// Len is not correct, log and reject frame
