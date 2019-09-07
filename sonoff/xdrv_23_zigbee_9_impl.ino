@@ -764,7 +764,7 @@ void ZigbeeInput(void)
 
     if ((0 == zigbee_buffer->len()) && (ZIGBEE_SOF != zigbee_in_byte)) {
       // waiting for SOF (Start Of Frame) byte, discard anything else
-      AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZigbeeInput discarding byte %02X"), zigbee_in_byte);
+      AddLog_P2(LOG_LEVEL_INFO, PSTR("ZigbeeInput discarding byte %02X"), zigbee_in_byte);
       continue;     // discard
     }
 

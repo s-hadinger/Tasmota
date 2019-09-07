@@ -67,6 +67,7 @@ class TasmotaSerial : public Stream {
     uint32_t ss_bstart;
     uint32_t ss_index;
     uint32_t m_bit_time;
+    uint32_t m_bit_start_time;
     uint32_t m_in_pos;
     uint32_t m_out_pos;
     uint32_t serial_buffer_size;
