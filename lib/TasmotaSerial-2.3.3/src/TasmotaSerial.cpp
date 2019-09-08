@@ -257,7 +257,7 @@ void TasmotaSerial::rxRead()
 {
 #endif
   if (!m_nwmode) {
-    int32_t loop_read = serial_buffer_size;
+    int32_t loop_read = m_very_high_speed ? serial_buffer_size : 1;
     // Advance the starting point for the samples but compensate for the
     // initial delay which occurs before the interrupt is delivered
     uint32_t wait = m_bit_start_time;
@@ -276,10 +276,10 @@ void TasmotaSerial::rxRead()
         m_in_pos = next;
       }
 
-      // Stop bit(s) -- actually we don't need to wait for stop bits
-      // so we free some time for other interrupt handlers to do their work
+      if (loop <= 0) { break; }   // exit now if not very high speed or buffer full
+
       bool start_of_next_byte = false;
-      for (uint32_t i = 0; i < 14; i++) {
+      for (uint32_t i = 0; i < 12; i++) {
         TM_SERIAL_WAIT_RCV_LOOP;    // wait for 1/4 bits
         wait += m_bit_time / 4;
         if (!digitalRead(m_rx_pin)) {
@@ -292,14 +292,8 @@ void TasmotaSerial::rxRead()
       }
 
       if (!start_of_next_byte) {
-        loop_read = 0;   // exit loop
+        break;   // exit now if no sign of next byte
       }
-
-      // TM_SERIAL_WAIT_RCV;
-      // if (2 == m_stop_bits) {
-      //   digitalRead(m_rx_pin);
-      //   TM_SERIAL_WAIT_RCV;
-      // }
     }
     // Must clear this bit in the interrupt register,
     // it gets set even when interrupts are disabled
