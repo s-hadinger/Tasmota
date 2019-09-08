@@ -258,9 +258,6 @@ void TasmotaSerial::rxRead()
 #endif
   if (!m_nwmode) {
     int32_t loop_read = serial_buffer_size;
-    uint32_t savedPS;
-    // block interrupts
-    if (m_high_speed) { savedPS = xt_rsil(15); }
     // Advance the starting point for the samples but compensate for the
     // initial delay which occurs before the interrupt is delivered
     uint32_t wait = m_bit_start_time;
@@ -307,8 +304,6 @@ void TasmotaSerial::rxRead()
     // Must clear this bit in the interrupt register,
     // it gets set even when interrupts are disabled
     GPIO_REG_WRITE(GPIO_STATUS_W1TC_ADDRESS, 1 << m_rx_pin);
-    // restore interrupts
-    if (m_high_speed) { xt_wsr_ps(savedPS); }
   } else {
     uint32_t diff;
     uint32_t level;
