@@ -85,7 +85,7 @@ char* ToHex_P(const unsigned char * in, size_t insz, char * out, size_t outsz, c
 
 // -- Optional modules -------------------------
 #define USE_SONOFF_IFAN                       // Add support for Sonoff iFan02 and iFan03 (+2k code)
-#define USE_TUYA_DIMMER                       // Add support for Tuya Serial Dimmer
+#define USE_TUYA_MCU                          // Add support for Tuya Serial MCU
 #ifndef TUYA_DIMMER_ID
   #define TUYA_DIMMER_ID       0              // Default dimmer Id
 #endif
@@ -108,6 +108,7 @@ char* ToHex_P(const unsigned char * in, size_t insz, char * out, size_t outsz, c
 #define USE_ADS1115                           // Add I2C code for ADS1115 16 bit A/D converter based on Adafruit ADS1x15 library (no library needed) (+0k7 code)
 //#define USE_ADS1115_I2CDEV                    // Add I2C code for ADS1115 16 bit A/D converter using library i2cdevlib-Core and i2cdevlib-ADS1115 (+2k code)
 #define USE_INA219                            // Add I2C code for INA219 Low voltage and current sensor (+1k code)
+//#define USE_INA226                            // Enable INA226 (I2C address 0x40, 0x41 0x44 or 0x45) Low voltage and current sensor (+2k3 code)
 #define USE_SHT3X                             // Add I2C code for SHT3x sensor (+0k6 code)
 #define USE_TSL2561                           // Add I2C code for TSL2561 sensor using library Adafruit TSL2561 Arduino (+1k2 code)
 #define USE_MGS                               // Add I2C code for Xadow and Grove Mutichannel Gas sensor using library Multichannel_Gas_Sensor (+10k code)
@@ -217,7 +218,7 @@ char* ToHex_P(const unsigned char * in, size_t insz, char * out, size_t outsz, c
 //#ifndef USE_SONOFF_IFAN
 #define USE_SONOFF_IFAN                       // Add support for Sonoff iFan02 and iFan03 (+2k code)
 //#endif
-#undef USE_TUYA_DIMMER                        // Disable support for Tuya Serial Dimmer
+#undef USE_TUYA_MCU                           // Disable support for Tuya Serial MCU
 #undef USE_ARMTRONIX_DIMMERS                  // Disable support for Armtronix Dimmers (+1k4 code)
 #undef USE_PS_16_DZ                           // Disable support for PS-16-DZ Dimmer and Sonoff L1 (+2k code)
 #undef ROTARY_V1                              // Disable support for MI Desk Lamp
@@ -242,6 +243,7 @@ char* ToHex_P(const unsigned char * in, size_t insz, char * out, size_t outsz, c
 #undef USE_PZEM_AC                            // Disable PZEM014,016 Energy monitor
 #undef USE_PZEM_DC                            // Disable PZEM003,017 Energy monitor
 #undef USE_MCP39F501                          // Disable support for MCP39F501 Energy monitor as used in Shelly 2 (+3k1 code)
+#undef USE_SDM120_2                           // Disable support for Eastron SDM120-Modbus energy meter
 #define USE_DHT                               // Add support for DHT11, AM2301 (DHT21, DHT22, AM2302, AM2321) and SI7021 Temperature and Humidity sensor
 #undef USE_MAX31855                           // Disable MAX31855 K-Type thermocouple sensor using softSPI
 #undef USE_IR_REMOTE                          // Disable IR remote commands using library IRremoteESP8266 and ArduinoJson
@@ -256,6 +258,7 @@ char* ToHex_P(const unsigned char * in, size_t insz, char * out, size_t outsz, c
 #undef USE_RF_SENSOR                          // Disable support for RF sensor receiver (434MHz or 868MHz) (+0k8 code)
 #undef USE_SM16716                            // Disable support for SM16716 RGB LED controller (+0k7 code)
 #undef USE_HRE                                // Disable support for Badger HR-E Water Meter (+1k4 code)
+#undef USE_A4988_Stepper                      // Disable support for A4988_Stepper
 #undef DEBUG_THEO                             // Disable debug code
 #undef USE_DEBUG_DRIVER                       // Disable debug code
 #endif  // FIRMWARE_CLASSIC
@@ -344,7 +347,7 @@ char* ToHex_P(const unsigned char * in, size_t insz, char * out, size_t outsz, c
 // -- Optional modules -------------------------
 #undef USE_BUZZER                             // Disable support for a buzzer (+0k6 code)
 #undef USE_SONOFF_IFAN                        // Disable support for Sonoff iFan02 and iFan03 (+2k code)
-#undef USE_TUYA_DIMMER                        // Disable support for Tuya Serial Dimmer
+#undef USE_TUYA_MCU                           // Disable support for Tuya Serial MCU
 #undef USE_ARMTRONIX_DIMMERS                  // Disable support for Armtronix Dimmers (+1k4 code)
 #undef USE_PS_16_DZ                           // Disable support for PS-16-DZ Dimmer and Sonoff L1 (+2k code)
 #undef USE_DS18x20                            // Disable Optional for more than one DS18x20 sensors with id sort, single scan and read retry (+1k3 code)
@@ -371,6 +374,7 @@ char* ToHex_P(const unsigned char * in, size_t insz, char * out, size_t outsz, c
 #undef USE_PZEM_AC                            // Disable PZEM014,016 Energy monitor
 #undef USE_PZEM_DC                            // Disable PZEM003,017 Energy monitor
 #undef USE_MCP39F501                          // Disable support for MCP39F501 Energy monitor as used in Shelly 2 (+3k1 code)
+#undef USE_SDM120_2                           // Disable support for Eastron SDM120-Modbus energy meter
 //#define USE_DHT                               // Add support for DHT11, AM2301 (DHT21, DHT22, AM2302, AM2321) and SI7021 Temperature and Humidity sensor
 #undef USE_MAX31855                           // Disable MAX31855 K-Type thermocouple sensor using softSPI
 #undef USE_WS2812                             // Disable WS2812 Led string using library NeoPixelBus (+5k code, +1k mem, 232 iram) - Disable by //
@@ -384,6 +388,7 @@ char* ToHex_P(const unsigned char * in, size_t insz, char * out, size_t outsz, c
 #undef USE_RF_SENSOR                          // Disable support for RF sensor receiver (434MHz or 868MHz) (+0k8 code)
 #undef USE_SM16716                            // Disable support for SM16716 RGB LED controller (+0k7 code)
 #undef USE_HRE                                // Disable support for Badger HR-E Water Meter (+1k4 code)
+#undef USE_A4988_Stepper                      // Disable support for A4988_Stepper
 #undef DEBUG_THEO                             // Disable debug code
 #undef USE_DEBUG_DRIVER                       // Disable debug code
 
@@ -434,7 +439,7 @@ char* ToHex_P(const unsigned char * in, size_t insz, char * out, size_t outsz, c
 
 // -- Optional modules -------------------------
 #define USE_SONOFF_IFAN                       // Add support for Sonoff iFan02 and iFan03 (+2k code)
-//#undef USE_TUYA_DIMMER                        // Disable support for Tuya Serial Dimmer
+//#undef USE_TUYA_MCU                         // Disable support for Tuya Serial MCU
 #undef USE_ARMTRONIX_DIMMERS                  // Disable support for Armtronix Dimmers (+1k4 code)
 #undef USE_PS_16_DZ                           // Disable support for PS-16-DZ Dimmer and Sonoff L1 (+2k code)
 #undef ROTARY_V1                              // Disable support for MI Desk Lamp
@@ -465,6 +470,7 @@ char* ToHex_P(const unsigned char * in, size_t insz, char * out, size_t outsz, c
 //#undef USE_MCP39F501                          // Disable MCP39F501 Energy monitor as used in Shelly 2
 #undef USE_DHT                                // Disable support for DHT11, AM2301 (DHT21, DHT22, AM2302, AM2321) and SI7021 Temperature and Humidity sensor
 #undef USE_MAX31855                           // Disable MAX31855 K-Type thermocouple sensor using softSPI
+#undef USE_SDM120_2                           // Disable support for Eastron SDM120-Modbus energy meter
 #undef USE_IR_REMOTE                          // Disable IR driver
 #undef USE_WS2812                             // Disable WS2812 Led string
 #undef USE_ARILUX_RF                          // Disable support for Arilux RF remote controller
@@ -477,6 +483,7 @@ char* ToHex_P(const unsigned char * in, size_t insz, char * out, size_t outsz, c
 #undef USE_RF_SENSOR                          // Disable support for RF sensor receiver (434MHz or 868MHz) (+0k8 code)
 #undef USE_SM16716                            // Disable support for SM16716 RGB LED controller (+0k7 code)
 #undef USE_HRE                                // Disable support for Badger HR-E Water Meter (+1k4 code)
+#undef USE_A4988_Stepper                      // Disable support for A4988_Stepper
 #undef DEBUG_THEO                             // Disable debug code
 #undef USE_DEBUG_DRIVER                       // Disable debug code
 #endif  // FIRMWARE_BASIC
@@ -514,7 +521,7 @@ char* ToHex_P(const unsigned char * in, size_t insz, char * out, size_t outsz, c
 
 // -- Optional modules -------------------------
 #undef USE_SONOFF_IFAN                        // Disable support for Sonoff iFan02 and iFan03 (+2k code)
-#undef USE_TUYA_DIMMER                        // Disable support for Tuya Serial Dimmer
+#undef USE_TUYA_MCU                           // Disable support for Tuya Serial MCU
 #undef USE_ARMTRONIX_DIMMERS                  // Disable support for Armtronix Dimmers (+1k4 code)
 #undef USE_PS_16_DZ                           // Disable support for PS-16-DZ Dimmer and Sonoff L1 (+2k code)
 #undef ROTARY_V1                              // Disable support for MI Desk Lamp
@@ -543,6 +550,7 @@ char* ToHex_P(const unsigned char * in, size_t insz, char * out, size_t outsz, c
 #undef USE_PZEM_AC                            // Disable PZEM014,016 Energy monitor
 #undef USE_PZEM_DC                            // Disable PZEM003,017 Energy monitor
 #undef USE_MCP39F501                          // Disable MCP39F501 Energy monitor as used in Shelly 2
+#undef USE_SDM120_2                           // Disable support for Eastron SDM120-Modbus energy meter
 #undef USE_DHT                                // Disable support for DHT11, AM2301 (DHT21, DHT22, AM2302, AM2321) and SI7021 Temperature and Humidity sensor
 #undef USE_MAX31855                           // Disable MAX31855 K-Type thermocouple sensor using softSPI
 #undef USE_IR_REMOTE                          // Disable IR driver
@@ -557,6 +565,7 @@ char* ToHex_P(const unsigned char * in, size_t insz, char * out, size_t outsz, c
 #undef USE_RF_SENSOR                          // Disable support for RF sensor receiver (434MHz or 868MHz) (+0k8 code)
 #undef USE_SM16716                            // Disable support for SM16716 RGB LED controller (+0k7 code)
 #undef USE_HRE                                // Disable support for Badger HR-E Water Meter (+1k4 code)
+#undef USE_A4988_Stepper                      // Disable support for A4988_Stepper
 #undef DEBUG_THEO                             // Disable debug code
 #undef USE_DEBUG_DRIVER                       // Disable debug code
 #endif  // FIRMWARE_MINIMAL
