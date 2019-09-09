@@ -463,8 +463,10 @@ int32_t Z_Recv_Default(int32_t res, class SBuffer &buf) {
       JsonObject& json = json_root.createNestedObject(shortaddr);
       if ( (!zcl_received.isClusterSpecificCommand()) && (ZCL_REPORT_ATTRIBUTES == zcl_received.getCmdId())) {
         zcl_received.parseRawAttributes(json);
-        zcl_received.postProcessAttributes(json);
+      } else if (zcl_received.isClusterSpecificCommand()) {
+        zcl_received.parseClusterSpecificCommand(json);
       }
+      zcl_received.postProcessAttributes(json);
 
       String msg("");
       msg.reserve(100);

@@ -100,6 +100,7 @@ public:
   }
 
   void parseRawAttributes(JsonObject& json, uint8_t offset = 0);
+  void parseClusterSpecificCommand(JsonObject& json, uint8_t offset = 0);
   void postProcessAttributes(JsonObject& json);
 
   inline void setGroupId(uint16_t groupid) {
@@ -373,7 +374,7 @@ uint32_t parseSingleAttribute(JsonObject& json, char *attrid_str, class SBuffer 
 void ZCLFrame::parseRawAttributes(JsonObject& json, uint8_t offset) {
   uint32_t i = offset;
   uint32_t len = _payload.len();
-  uint32_t attrid = _cluster_id << 16;      // set high 16 bits with cluster if
+  uint32_t attrid = _cluster_id << 16;      // set high 16 bits with cluster id
 
   while (len + offset - i >= 3) {
     attrid = (attrid & 0xFFFF0000) | _payload.get16(i);    // get lower 16 bits
@@ -388,26 +389,45 @@ void ZCLFrame::parseRawAttributes(JsonObject& json, uint8_t offset) {
         _payload.set8(i, 0x41);   // change type from 0x42 to 0x41
       }
     }
-
     i += parseSingleAttribute(json, shortaddr, _payload, i, len);
-
-
-//          else if (0x0000FF01 == attrid) { parse_as_string = false; }    // special case for Xiamoi lumi.weather
-
-
   }
-
-  // MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCLSENT));
 }
 
-//static const char ZCL_TEMPERATURE[] PROGMEM = "0x04020000";
-#define ZCL_MODELID       "0x00000005"
-#define ZCL_TEMPERATURE   "0x04020000"
-#define ZCL_PRESSURE      "0x04030000"
-#define ZCL_PRESSURE_SCALED       "0x04030010"
-#define ZCL_PRESSURE_SCALE        "0x04030014"
-#define ZCL_HUMIDITY      "0x04050000"
-#define ZCL_LUMI_WEATHER  "0x0000FF01"
+// Parse non-normalized attributes
+// The key is 24 bits, high 16 bits is cluserid, low 8 bits is command id
+void ZCLFrame::parseClusterSpecificCommand(JsonObject& json, uint8_t offset) {
+  uint32_t i = offset;
+  uint32_t len = _payload.len();
+  uint32_t attrid = _cluster_id << 8 | _cmd_id;
+
+  char attrid_str[12];
+  snprintf_P(attrid_str, sizeof(attrid_str), PSTR("0x%06X"), attrid);   // 24 bits
+
+  char hex_char[_payload.len()*2+2];
+  ToHex_P((unsigned char*)_payload.getBuffer(), _payload.len(), hex_char, sizeof(hex_char));
+
+  json[attrid_str] = hex_char;
+}
+
+#define ZCL_MODELID       "0x00000005"      // Cluster 0x0000, attribute 0x05
+#define ZCL_TEMPERATURE   "0x04020000"      // Cluster 0x0402, attribute 0x00
+#define ZCL_PRESSURE      "0x04030000"      // Cluster 0x0403, attribute 0x00
+#define ZCL_PRESSURE_SCALED       "0x04030010"      // Cluster 0x0403, attribute 0x10
+#define ZCL_PRESSURE_SCALE        "0x04030014"      // Cluster 0x0403, attribute 0x14
+#define ZCL_HUMIDITY      "0x04050000"      // Cluster 0x0403, attribute 0x00
+#define ZCL_LUMI_WEATHER  "0x0000FF01"      // Cluster 0x0000, attribute 0xFF01 - proprietary
+
+#define ZCL_OO_OFF        "0x000600"        // Cluster 0x0006, cmd 0x00 - On/Off - Off
+#define ZCL_OO_ON         "0x000601"        // Cluster 0x0006, cmd 0x01 - On/Off - On
+#define ZCL_COLORTEMP_MOVE "0x03000A"       // Cluster 0x0300, cmd 0x0A, Move to Color Temp
+#define ZCL_LC_MOVE        "0x000800"       // Cluster 0x0008, cmd 0x00, Level Control Move to Level
+#define ZCL_LC_MOVE_1      "0x000801"       // Cluster 0x0008, cmd 0x01, Level Control Move
+#define ZCL_LC_STEP        "0x000802"       // Cluster 0x0008, cmd 0x02, Level Control Step
+#define ZCL_LC_STOP        "0x000803"       // Cluster 0x0008, cmd 0x03, Level Control Stop
+#define ZCL_LC_MOVE_WOO    "0x000804"       // Cluster 0x0008, cmd 0x04, Level Control Move to Level, with On/Off
+#define ZCL_LC_MOVE_1_WOO  "0x000805"       // Cluster 0x0008, cmd 0x05, Level Control Move, with On/Off
+#define ZCL_LC_STEP_WOO    "0x000806"       // Cluster 0x0008, cmd 0x05, Level Control Step, with On/Off
+#define ZCL_LC_STOP_WOO    "0x000807"       // Cluster 0x0008, cmd 0x07, Level Control Stop
 
 void ZCLFrame::postProcessAttributes(JsonObject& json) {
   const __FlashStringHelper *key;
@@ -447,6 +467,113 @@ void ZCLFrame::postProcessAttributes(JsonObject& json) {
     json[F(D_JSON_HUMIDITY)] = humidity / 100.0f;
   }
 
+  // Osram Mini Switch
+  key = F(ZCL_OO_OFF);
+  if (json.containsKey(key)) {
+    json.remove(key);
+    json[F(D_CMND_POWER)] = F("Off");
+  }
+  key = F(ZCL_OO_ON);
+  if (json.containsKey(key)) {
+    json.remove(key);
+    json[F(D_CMND_POWER)] = F("On");
+  }
+  key = F(ZCL_COLORTEMP_MOVE);
+  if (json.containsKey(key)) {
+    String hex = json[key];
+    SBuffer buf2 = SBuffer::SBufferFromHex(hex.c_str(), hex.length());
+    uint16_t color_temp = buf2.get16(0);
+    uint16_t transition_time = buf2.get16(2);
+    json.remove(key);
+    json[F("ColorTemp")] = color_temp;
+    json[F("TransitionTime")] = transition_time / 10.0f;
+  }
+  key = F(ZCL_LC_MOVE_WOO);
+  if (json.containsKey(key)) {
+    String hex = json[key];
+    SBuffer buf2 = SBuffer::SBufferFromHex(hex.c_str(), hex.length());
+    uint8_t level = buf2.get8(0);
+    uint16_t transition_time = buf2.get16(1);
+    json.remove(key);
+    json[F("Dimmer")] = changeUIntScale(level, 0, 255, 0, 100);  // change to percentage
+    json[F("TransitionTime")] = transition_time / 10.0f;
+    if (0 == level) {
+      json[F(D_CMND_POWER)] = F("Off");
+    } else {
+      json[F(D_CMND_POWER)] = F("On");
+    }
+  }
+  key = F(ZCL_LC_MOVE);
+  if (json.containsKey(key)) {
+    String hex = json[key];
+    SBuffer buf2 = SBuffer::SBufferFromHex(hex.c_str(), hex.length());
+    uint8_t level = buf2.get8(0);
+    uint16_t transition_time = buf2.get16(1);
+    json.remove(key);
+    json[F("Dimmer")] = changeUIntScale(level, 0, 255, 0, 100);  // change to percentage
+    json[F("TransitionTime")] = transition_time / 10.0f;
+  }
+  key = F(ZCL_LC_MOVE_1);
+  if (json.containsKey(key)) {
+    String hex = json[key];
+    SBuffer buf2 = SBuffer::SBufferFromHex(hex.c_str(), hex.length());
+    uint8_t move_mode = buf2.get8(0);
+    uint8_t move_rate = buf2.get8(1);
+    json.remove(key);
+    json[F("Move")] = move_mode ? F("Down") : F("Up");
+    json[F("Rate")] = move_rate;
+  }
+  key = F(ZCL_LC_MOVE_1_WOO);
+  if (json.containsKey(key)) {
+    String hex = json[key];
+    SBuffer buf2 = SBuffer::SBufferFromHex(hex.c_str(), hex.length());
+    uint8_t move_mode = buf2.get8(0);
+    uint8_t move_rate = buf2.get8(1);
+    json.remove(key);
+    json[F("Move")] = move_mode ? F("Down") : F("Up");
+    json[F("Rate")] = move_rate;
+    if (0 == move_mode) {
+      json[F(D_CMND_POWER)] = F("On");
+    }
+  }
+  key = F(ZCL_LC_STEP);
+  if (json.containsKey(key)) {
+    String hex = json[key];
+    SBuffer buf2 = SBuffer::SBufferFromHex(hex.c_str(), hex.length());
+    uint8_t step_mode = buf2.get8(0);
+    uint8_t step_size = buf2.get8(1);
+    uint16_t transition_time = buf2.get16(2);
+    json.remove(key);
+    json[F("Step")] = step_mode ? F("Down") : F("Up");
+    json[F("StepSize")] = step_size;
+    json[F("TransitionTime")] = transition_time / 10.0f;
+  }
+  key = F(ZCL_LC_STEP_WOO);
+  if (json.containsKey(key)) {
+    String hex = json[key];
+    SBuffer buf2 = SBuffer::SBufferFromHex(hex.c_str(), hex.length());
+    uint8_t step_mode = buf2.get8(0);
+    uint8_t step_size = buf2.get8(1);
+    uint16_t transition_time = buf2.get16(2);
+    json.remove(key);
+    json[F("Step")] = step_mode ? F("Down") : F("Up");
+    json[F("StepSize")] = step_size;
+    json[F("TransitionTime")] = transition_time / 10.0f;
+    if (0 == step_mode) {
+      json[F(D_CMND_POWER)] = F("On");
+    }
+  }
+  key = F(ZCL_LC_STOP);
+  if (json.containsKey(key)) {
+    json.remove(key);
+    json[F("Stop")] = 1;
+  }
+  key = F(ZCL_LC_STOP_WOO);
+  if (json.containsKey(key)) {
+    json.remove(key);
+    json[F("Stop")] = 1;
+  }
+
   // Lumi.weather proprietary field
   key = F(ZCL_LUMI_WEATHER);
   if (json.containsKey(key)) {
@@ -484,7 +611,6 @@ void ZCLFrame::postProcessAttributes(JsonObject& json) {
       json[F(D_JSON_VOLTAGE)] = voltage / 1000.0f;
       json[F("Battery")] = toPercentageCR2032(voltage);
     }
-
     json.remove(key);
   }
 
