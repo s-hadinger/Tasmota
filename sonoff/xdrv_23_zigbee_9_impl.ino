@@ -25,8 +25,10 @@ const uint32_t ZIGBEE_BUFFER_SIZE = 256;  // Max ZNP frame is SOF+LEN+CMD1+CMD2+
 const uint8_t  ZIGBEE_SOF = 0xFE;
 const uint8_t  ZIGBEE_LABEL_ABORT = 99;   // goto label 99 in case of fatal error
 const uint8_t  ZIGBEE_LABEL_READY = 20;   // goto label 20 for main loop
+const uint8_t  ZIGBEE_LABEL_MAIN_LOOP = 21;   // main loop
 const uint8_t  ZIGBEE_LABEL_PERMIT_JOIN_CLOSE = 30;   // disable permit join
-const uint8_t  ZIGBEE_LABEL_PERMIT_JOIN_OPEN = 31;    // enable permit join for 60 seconds
+const uint8_t  ZIGBEE_LABEL_PERMIT_JOIN_OPEN_60 = 31;    // enable permit join for 60 seconds
+const uint8_t  ZIGBEE_LABEL_PERMIT_JOIN_OPEN_XX = 32;    // enable permit join for 60 seconds
 
 //#define Z_USE_SOFTWARE_SERIAL
 
@@ -39,9 +41,9 @@ TasmotaSerial *ZigbeeSerial = nullptr;
 #endif
 
 
-const char kZigbeeCommands[] PROGMEM = "|" D_CMND_ZIGBEEZNPSEND;
+const char kZigbeeCommands[] PROGMEM = "|" D_CMND_ZIGBEEZNPSEND "|" D_CMND_ZIGBEE_PERMITJOIN;
 
-void (* const ZigbeeCommand[])(void) PROGMEM = { &CmndZigbeeZNPSend };
+void (* const ZigbeeCommand[])(void) PROGMEM = { &CmndZigbeeZNPSend, &CmndZigbeePermitJoin };
 
 typedef int32_t (*ZB_Func)(uint8_t value);
 typedef int32_t (*ZB_RecvMsgFunc)(int32_t res, class SBuffer &buf);
@@ -294,11 +296,14 @@ ZBM(ZBS_AF_REGISTER0B, Z_SREQ | Z_AF, AF_REGISTER, 0x0B /* endpoint */, Z_B0(Z_P
 // Z_ZDO:mgmtPermitJoinReq
 ZBM(ZBS_PERMITJOINREQ_CLOSE, Z_SREQ | Z_ZDO, ZDO_MGMT_PERMIT_JOIN_REQ, 0x02 /* AddrMode */,   // 25360200000000
                               0x00, 0x00 /* DstAddr */, 0x00 /* Duration */, 0x00 /* TCSignificance */)
-ZBM(ZBS_PERMITJOINREQ_OPEN, Z_SREQ | Z_ZDO, ZDO_MGMT_PERMIT_JOIN_REQ, 0x0F /* AddrMode */,   // 25360FFFFC3C00
+ZBM(ZBS_PERMITJOINREQ_OPEN_60, Z_SREQ | Z_ZDO, ZDO_MGMT_PERMIT_JOIN_REQ, 0x0F /* AddrMode */,   // 25360FFFFC3C00
                               0xFC, 0xFF /* DstAddr */, 60 /* Duration */, 0x00 /* TCSignificance */)
+ZBM(ZBS_PERMITJOINREQ_OPEN_XX, Z_SREQ | Z_ZDO, ZDO_MGMT_PERMIT_JOIN_REQ, 0x0F /* AddrMode */,   // 25360FFFFCFF00
+                              0xFC, 0xFF /* DstAddr */, 0xFF /* Duration */, 0x00 /* TCSignificance */)
 ZBM(ZBR_PERMITJOINREQ, Z_SRSP | Z_ZDO, ZDO_MGMT_PERMIT_JOIN_REQ, Z_Success)    // 653600
-ZBM(ZBR_PERMITJOIN_AREQ_CLOSE, Z_AREQ | Z_ZDO, ZDO_PERMIT_JOIN_IND, 0x00 /* Duration */)    // 45CB00
-ZBM(ZBR_PERMITJOIN_AREQ_OPEN, Z_AREQ | Z_ZDO, ZDO_PERMIT_JOIN_IND, 0xFF /* Duration */)    // 45CBFF
+ZBM(ZBR_PERMITJOIN_AREQ_CLOSE, Z_AREQ | Z_ZDO, ZDO_PERMIT_JOIN_IND, 0x00 /* Duration */)      // 45CB00
+ZBM(ZBR_PERMITJOIN_AREQ_OPEN_60, Z_AREQ | Z_ZDO, ZDO_PERMIT_JOIN_IND, 60 /* Duration */)      // 45CB3C
+ZBM(ZBR_PERMITJOIN_AREQ_OPEN_XX, Z_AREQ | Z_ZDO, ZDO_PERMIT_JOIN_IND, 0xFF /* Duration */)    // 45CBFF
 ZBM(ZBR_PERMITJOIN_AREQ_RSP,  Z_AREQ | Z_ZDO, ZDO_MGMT_PERMIT_JOIN_RSP, 0x00, 0x00 /* srcAddr*/, Z_Success )   // 45B6000000
 
 // Filters for ZCL frames
@@ -365,29 +370,42 @@ ZI_SEND(ZBS_STARTUPFROMAPP)                       // start coordinator
     ZI_WAIT_RECV(1000, ZBR_PERMITJOINREQ)
     ZI_WAIT_UNTIL(1000, ZBR_PERMITJOIN_AREQ_RSP)  // not sure it's useful
     //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_CLOSE)
-    //ZI_SEND(ZBS_PERMITJOINREQ_OPEN)               // Opening Permit Join, normally through command  TODO
+    //ZI_SEND(ZBS_PERMITJOINREQ_OPEN_XX)               // Opening Permit Join, normally through command  TODO
     //ZI_WAIT_RECV(1000, ZBR_PERMITJOINREQ)
     //ZI_WAIT_UNTIL(1000, ZBR_PERMITJOIN_AREQ_RSP)  // not sure it's useful
-    //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_OPEN)
+    //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_OPEN_XX)
 
   ZI_LABEL(ZIGBEE_LABEL_READY)
     ZI_MQTT_STATUS(0x00, "Started")
     //ZI_LOG(LOG_LEVEL_INFO, "ZIG: zigbee device ready, listening...")
     ZI_CALL(&Z_State_Ready, 1)
+  ZI_LABEL(ZIGBEE_LABEL_MAIN_LOOP)
     ZI_WAIT_FOREVER()
     ZI_GOTO(ZIGBEE_LABEL_READY)
 
   ZI_LABEL(ZIGBEE_LABEL_PERMIT_JOIN_CLOSE)
+    ZI_MQTT_STATUS(0x10, "Disable Pairing mode")
     ZI_SEND(ZBS_PERMITJOINREQ_CLOSE)              // Closing the Permit Join
     ZI_WAIT_RECV(1000, ZBR_PERMITJOINREQ)
     //ZI_WAIT_UNTIL(1000, ZBR_PERMITJOIN_AREQ_RSP)  // not sure it's useful
     //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_CLOSE)
+    ZI_GOTO(ZIGBEE_LABEL_MAIN_LOOP)
 
-  ZI_LABEL(ZIGBEE_LABEL_PERMIT_JOIN_OPEN)
-    ZI_SEND(ZBS_PERMITJOINREQ_OPEN)               // Opening Permit Join, normally through command  TODO
+  ZI_LABEL(ZIGBEE_LABEL_PERMIT_JOIN_OPEN_60)
+    ZI_MQTT_STATUS(0x10, "Enable Pairing mode for 60 seconds")
+    ZI_SEND(ZBS_PERMITJOINREQ_OPEN_60)               // Opening Permit Join, normally through command  TODO
     ZI_WAIT_RECV(1000, ZBR_PERMITJOINREQ)
     //ZI_WAIT_UNTIL(1000, ZBR_PERMITJOIN_AREQ_RSP)  // not sure it's useful
-    //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_OPEN)
+    //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_OPEN_60)
+    ZI_GOTO(ZIGBEE_LABEL_MAIN_LOOP)
+
+  ZI_LABEL(ZIGBEE_LABEL_PERMIT_JOIN_OPEN_XX)
+    ZI_MQTT_STATUS(0x10, "Enable Pairing mode until next boot")
+    ZI_SEND(ZBS_PERMITJOINREQ_OPEN_XX)               // Opening Permit Join, normally through command  TODO
+    ZI_WAIT_RECV(1000, ZBR_PERMITJOINREQ)
+    //ZI_WAIT_UNTIL(1000, ZBR_PERMITJOIN_AREQ_RSP)  // not sure it's useful
+    //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_OPEN_XX)
+    ZI_GOTO(ZIGBEE_LABEL_MAIN_LOOP)
 
   ZI_LABEL(50)                                    // reformat device
     ZI_MQTT_STATUS(0x01, "Reseting configuration")
@@ -882,7 +900,7 @@ void ZigbeeInit(void)
 
 void CmndZigbeeZNPSend(void)
 {
-  AddLog_P2(LOG_LEVEL_INFO, PSTR("CmndZigbeeZNPSend: entering, data_len = %d"), XdrvMailbox.data_len); // TODO
+  //AddLog_P2(LOG_LEVEL_INFO, PSTR("CmndZigbeeZNPSend: entering, data_len = %d"), XdrvMailbox.data_len); // TODO
   if (ZigbeeSerial && (XdrvMailbox.data_len > 0)) {
     uint8_t code;
 
@@ -934,6 +952,23 @@ void ZigbeeZNPSend(const uint8_t *msg, size_t len) {
 			ToHex_P(msg, len, hex_char, sizeof(hex_char)));
 	MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZNPSENT));
 	XdrvRulesProcess();
+}
+
+
+void CmndZigbeePermitJoin(void)
+{
+  uint32_t payload = XdrvMailbox.payload;
+  if (payload < 0) { payload = 0; }
+  if ((99 != payload) && (payload > 1)) { payload = 1; }
+
+  if (1 == payload) {
+    ZigbeeGotoLabel(ZIGBEE_LABEL_PERMIT_JOIN_OPEN_60);
+  } else if (99 == payload){
+    ZigbeeGotoLabel(ZIGBEE_LABEL_PERMIT_JOIN_OPEN_XX);
+  } else {
+    ZigbeeGotoLabel(ZIGBEE_LABEL_PERMIT_JOIN_CLOSE);
+  }
+  ResponseCmndDone();
 }
 
 /*********************************************************************************************\
