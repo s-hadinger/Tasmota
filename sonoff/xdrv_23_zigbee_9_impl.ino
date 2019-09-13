@@ -448,13 +448,13 @@ ZI_SEND(ZBS_STARTUPFROMAPP)                       // start coordinator
 };
 
 int32_t Z_ReceiveDeviceInfo(int32_t res, class SBuffer &buf) {
-  // Ex= 6700.00.6263151D004B1200.0000.07.09.00
-  //     6700.00.6263151D004B1200.0000.07.09.02.83869991
+  // Ex= 6700.00.6263151D004B1200.0000.07.09.02.83869991
   // IEEE Adr (8 bytes) = 6263151D004B1200
   // Short Addr (2 bytes) = 0000
   // Device Type (1 byte) = 07 (coord?)
   // Device State (1 byte) = 09 (coordinator started)
-  // NumAssocDevices (1 byte) = 00
+  // NumAssocDevices (1 byte) = 02
+  // List of devices: 0x8683, 0x9199
   Z_IEEEAddress  long_adr = 0x1234567812345678;   // TODO
   Z_ShortAddress short_adr = buf.get16(11);
   uint8_t device_type = buf.get8(13);
@@ -462,12 +462,25 @@ int32_t Z_ReceiveDeviceInfo(int32_t res, class SBuffer &buf) {
   uint8_t device_associated = buf.get8(15);
 
   Response_P(PSTR("{\"" D_JSON_ZIGBEE_STATUS "\":{"
-                  "\"code\":%d,\"IEEEAddr\":\"%s\",\"ShortAddr\":\"0x%4x\""
+                  "\"code\":%d,\"IEEEAddr\":\"%s\",\"ShortAddr\":\"0x%04X\""
                   ",\"DeviceType\":%d,\"DeviceState\":%d"
-                  ",\"NumAssocDevices\":%d"
-                  "}}"),
-                  99, "nononono", short_adr, device_type, device_state,
+                  ",\"NumAssocDevices\":%d"),
+                  51, "nononono", short_adr, device_type, device_state,
                   device_associated); // TODO add array
+
+  if (device_associated > 0) {
+    uint idx = 16;
+    ResponseAppend_P(PSTR(",\"AssocDevicesList\":["));
+    for (uint32_t i = 0; i < device_associated; i++) {
+      if (i > 0) { ResponseAppend_P(PSTR(",")); }
+      ResponseAppend_P(PSTR("\"0x%04X\""), buf.get16(idx));
+      idx += 2;
+    }
+    ResponseAppend_P(PSTR("]"));
+  }
+
+  ResponseJsonEnd();      // append '}'
+  ResponseJsonEnd();      // append '}'
   MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEE_STATUS));
   XdrvRulesProcess();
 
