@@ -350,7 +350,8 @@ ZI_SEND(ZBS_STARTUPFROMAPP)                       // start coordinator
     ZI_WAIT_RECV(2000, ZBR_STARTUPFROMAPP)        // wait for sync ack of command
     ZI_WAIT_UNTIL(5000, AREQ_STARTUPFROMAPP)      // wait for async message that coordinator started
     ZI_SEND(ZBS_GETDEVICEINFO)                    // GetDeviceInfo
-    ZI_WAIT_RECV(2000, ZBR_GETDEVICEINFO)         // TODO memorize info
+    ZI_WAIT_RECV_FUNC(2000, ZBR_GETDEVICEINFO, &Z_ReceiveDeviceInfo)
+    //ZI_WAIT_RECV(2000, ZBR_GETDEVICEINFO)         // TODO memorize info
     ZI_SEND(ZBS_ZDO_NODEDESCREQ)                  // Z_ZDO:nodeDescReq
     ZI_WAIT_RECV(1000, ZBR_ZDO_NODEDESCREQ)
     ZI_WAIT_UNTIL(5000, AREQ_ZDO_NODEDESCREQ)
@@ -393,7 +394,7 @@ ZI_SEND(ZBS_STARTUPFROMAPP)                       // start coordinator
 
   ZI_LABEL(ZIGBEE_LABEL_PERMIT_JOIN_OPEN_60)
     ZI_MQTT_STATUS(0x10, "Enable Pairing mode for 60 seconds")
-    ZI_SEND(ZBS_PERMITJOINREQ_OPEN_60)               // Opening Permit Join, normally through command  TODO
+    ZI_SEND(ZBS_PERMITJOINREQ_OPEN_60)
     ZI_WAIT_RECV(1000, ZBR_PERMITJOINREQ)
     //ZI_WAIT_UNTIL(1000, ZBR_PERMITJOIN_AREQ_RSP)  // not sure it's useful
     //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_OPEN_60)
@@ -401,7 +402,7 @@ ZI_SEND(ZBS_STARTUPFROMAPP)                       // start coordinator
 
   ZI_LABEL(ZIGBEE_LABEL_PERMIT_JOIN_OPEN_XX)
     ZI_MQTT_STATUS(0x10, "Enable Pairing mode until next boot")
-    ZI_SEND(ZBS_PERMITJOINREQ_OPEN_XX)               // Opening Permit Join, normally through command  TODO
+    ZI_SEND(ZBS_PERMITJOINREQ_OPEN_XX)
     ZI_WAIT_RECV(1000, ZBR_PERMITJOINREQ)
     //ZI_WAIT_UNTIL(1000, ZBR_PERMITJOIN_AREQ_RSP)  // not sure it's useful
     //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_OPEN_XX)
@@ -446,6 +447,32 @@ ZI_SEND(ZBS_STARTUPFROMAPP)                       // start coordinator
     ZI_STOP(ZIGBEE_LABEL_ABORT)
 };
 
+int32_t Z_ReceiveDeviceInfo(int32_t res, class SBuffer &buf) {
+  // Ex= 6700.00.6263151D004B1200.0000.07.09.00
+  //     6700.00.6263151D004B1200.0000.07.09.02.83869991
+  // IEEE Adr (8 bytes) = 6263151D004B1200
+  // Short Addr (2 bytes) = 0000
+  // Device Type (1 byte) = 07 (coord?)
+  // Device State (1 byte) = 09 (coordinator started)
+  // NumAssocDevices (1 byte) = 00
+  Z_IEEEAddress  long_adr = 0x1234567812345678;   // TODO
+  Z_ShortAddress short_adr = buf.get16(11);
+  uint8_t device_type = buf.get8(13);
+  uint8_t device_state = buf.get8(14);
+  uint8_t device_associated = buf.get8(15);
+
+  Response_P(PSTR("{\"" D_JSON_ZIGBEE_STATUS "\":{"
+                  "\"code\":%d,\"IEEEAddr\":\"%s\",\"ShortAddr\":\"0x%4x\""
+                  ",\"DeviceType\":%d,\"DeviceState\":%d"
+                  ",\"NumAssocDevices\":%d"
+                  "}}"),
+                  99, "nononono", short_adr, device_type, device_state,
+                  device_associated); // TODO add array
+  MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEE_STATUS));
+  XdrvRulesProcess();
+
+  return res;
+}
 
 int32_t Z_Recv_Vers(int32_t res, class SBuffer &buf) {
   // check that the version is supported
