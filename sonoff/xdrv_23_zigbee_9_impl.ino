@@ -24,7 +24,9 @@
 const uint32_t ZIGBEE_BUFFER_SIZE = 256;  // Max ZNP frame is SOF+LEN+CMD1+CMD2+250+FCS = 255
 const uint8_t  ZIGBEE_SOF = 0xFE;
 const uint8_t  ZIGBEE_LABEL_ABORT = 99;   // goto label 99 in case of fatal error
-const uint8_t  ZIGBEE_LABEL_READY = 20;   // goto label 99 in case of fatal error
+const uint8_t  ZIGBEE_LABEL_READY = 20;   // goto label 20 for main loop
+const uint8_t  ZIGBEE_LABEL_PERMIT_JOIN_CLOSE = 30;   // disable permit join
+const uint8_t  ZIGBEE_LABEL_PERMIT_JOIN_OPEN = 31;    // enable permit join for 60 seconds
 
 //#define Z_USE_SOFTWARE_SERIAL
 
@@ -292,8 +294,8 @@ ZBM(ZBS_AF_REGISTER0B, Z_SREQ | Z_AF, AF_REGISTER, 0x0B /* endpoint */, Z_B0(Z_P
 // Z_ZDO:mgmtPermitJoinReq
 ZBM(ZBS_PERMITJOINREQ_CLOSE, Z_SREQ | Z_ZDO, ZDO_MGMT_PERMIT_JOIN_REQ, 0x02 /* AddrMode */,   // 25360200000000
                               0x00, 0x00 /* DstAddr */, 0x00 /* Duration */, 0x00 /* TCSignificance */)
-ZBM(ZBS_PERMITJOINREQ_OPEN, Z_SREQ | Z_ZDO, ZDO_MGMT_PERMIT_JOIN_REQ, 0x0F /* AddrMode */,   // 25360FFFFCFF00
-                              0xFC, 0xFF /* DstAddr */, 0xFF /* Duration */, 0x00 /* TCSignificance */)
+ZBM(ZBS_PERMITJOINREQ_OPEN, Z_SREQ | Z_ZDO, ZDO_MGMT_PERMIT_JOIN_REQ, 0x0F /* AddrMode */,   // 25360FFFFC3C00
+                              0xFC, 0xFF /* DstAddr */, 60 /* Duration */, 0x00 /* TCSignificance */)
 ZBM(ZBR_PERMITJOINREQ, Z_SRSP | Z_ZDO, ZDO_MGMT_PERMIT_JOIN_REQ, Z_Success)    // 653600
 ZBM(ZBR_PERMITJOIN_AREQ_CLOSE, Z_AREQ | Z_ZDO, ZDO_PERMIT_JOIN_IND, 0x00 /* Duration */)    // 45CB00
 ZBM(ZBR_PERMITJOIN_AREQ_OPEN, Z_AREQ | Z_ZDO, ZDO_PERMIT_JOIN_IND, 0xFF /* Duration */)    // 45CBFF
@@ -333,39 +335,39 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     //ZI_LOG(LOG_LEVEL_INFO, "ZIG: zigbee configuration ok")
     // all is good, we can start
 
-  ZI_LABEL(10)                                // START ZNP App
+  ZI_LABEL(10)                                  // START ZNP App
     ZI_MQTT_STATUS(0x03, "Configured, starting coordinator")
     ZI_CALL(&Z_State_Ready, 1)
     ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_ABORT)
     // Z_ZDO:startupFromApp
     //ZI_LOG(LOG_LEVEL_INFO, "ZIG: starting zigbee coordinator")
-    ZI_SEND(ZBS_STARTUPFROMAPP)               // start coordinator
-    ZI_WAIT_RECV(2000, ZBR_STARTUPFROMAPP)     // wait for sync ack of command
-    ZI_WAIT_UNTIL(5000, AREQ_STARTUPFROMAPP)  // wait for async message that coordinator started
-    ZI_SEND(ZBS_GETDEVICEINFO)                // GetDeviceInfo
-    ZI_WAIT_RECV(2000, ZBR_GETDEVICEINFO)      // TODO memorize info
-    ZI_SEND(ZBS_ZDO_NODEDESCREQ)              // Z_ZDO:nodeDescReq
+ZI_SEND(ZBS_STARTUPFROMAPP)                       // start coordinator
+    ZI_WAIT_RECV(2000, ZBR_STARTUPFROMAPP)        // wait for sync ack of command
+    ZI_WAIT_UNTIL(5000, AREQ_STARTUPFROMAPP)      // wait for async message that coordinator started
+    ZI_SEND(ZBS_GETDEVICEINFO)                    // GetDeviceInfo
+    ZI_WAIT_RECV(2000, ZBR_GETDEVICEINFO)         // TODO memorize info
+    ZI_SEND(ZBS_ZDO_NODEDESCREQ)                  // Z_ZDO:nodeDescReq
     ZI_WAIT_RECV(1000, ZBR_ZDO_NODEDESCREQ)
     ZI_WAIT_UNTIL(5000, AREQ_ZDO_NODEDESCREQ)
-    ZI_SEND(ZBS_ZDO_ACTIVEEPREQ)              // Z_ZDO:activeEpReq
+    ZI_SEND(ZBS_ZDO_ACTIVEEPREQ)                  // Z_ZDO:activeEpReq
     ZI_WAIT_RECV(1000, ZBR_ZDO_ACTIVEEPREQ)
     ZI_WAIT_UNTIL(1000, ZBR_ZDO_ACTIVEEPRSP_NONE)
-    ZI_SEND(ZBS_AF_REGISTER01)                // Z_AF register for endpoint 01, profile 0x0104 Home Automation
+    ZI_SEND(ZBS_AF_REGISTER01)                    // Z_AF register for endpoint 01, profile 0x0104 Home Automation
     ZI_WAIT_RECV(1000, ZBR_AF_REGISTER)
-    ZI_SEND(ZBS_AF_REGISTER0B)                // Z_AF register for endpoint 0B, profile 0x0104 Home Automation
+    ZI_SEND(ZBS_AF_REGISTER0B)                    // Z_AF register for endpoint 0B, profile 0x0104 Home Automation
     ZI_WAIT_RECV(1000, ZBR_AF_REGISTER)
     // Z_ZDO:nodeDescReq ?? Is is useful to redo it?  TODO
     // redo Z_ZDO:activeEpReq to check that Ep are available
-    ZI_SEND(ZBS_ZDO_ACTIVEEPREQ)              // Z_ZDO:activeEpReq
+    ZI_SEND(ZBS_ZDO_ACTIVEEPREQ)                  // Z_ZDO:activeEpReq
     ZI_WAIT_RECV(1000, ZBR_ZDO_ACTIVEEPREQ)
     ZI_WAIT_UNTIL(1000, ZBR_ZDO_ACTIVEEPRSP_OK)
-    ZI_SEND(ZBS_PERMITJOINREQ_CLOSE)          // Closing the Permit Join
+    ZI_SEND(ZBS_PERMITJOINREQ_CLOSE)              // Closing the Permit Join
     ZI_WAIT_RECV(1000, ZBR_PERMITJOINREQ)
-    ZI_WAIT_UNTIL(1000, ZBR_PERMITJOIN_AREQ_RSP)   // not sure it's useful
+    ZI_WAIT_UNTIL(1000, ZBR_PERMITJOIN_AREQ_RSP)  // not sure it's useful
     //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_CLOSE)
-    ZI_SEND(ZBS_PERMITJOINREQ_OPEN)           // Opening Permit Join, normally through command  TODO
-    ZI_WAIT_RECV(1000, ZBR_PERMITJOINREQ)
-    ZI_WAIT_UNTIL(1000, ZBR_PERMITJOIN_AREQ_RSP)   // not sure it's useful
+    //ZI_SEND(ZBS_PERMITJOINREQ_OPEN)               // Opening Permit Join, normally through command  TODO
+    //ZI_WAIT_RECV(1000, ZBR_PERMITJOINREQ)
+    //ZI_WAIT_UNTIL(1000, ZBR_PERMITJOIN_AREQ_RSP)  // not sure it's useful
     //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_OPEN)
 
   ZI_LABEL(ZIGBEE_LABEL_READY)
@@ -375,40 +377,52 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     ZI_WAIT_FOREVER()
     ZI_GOTO(ZIGBEE_LABEL_READY)
 
-  ZI_LABEL(50)                                  // reformat device
+  ZI_LABEL(ZIGBEE_LABEL_PERMIT_JOIN_CLOSE)
+    ZI_SEND(ZBS_PERMITJOINREQ_CLOSE)              // Closing the Permit Join
+    ZI_WAIT_RECV(1000, ZBR_PERMITJOINREQ)
+    //ZI_WAIT_UNTIL(1000, ZBR_PERMITJOIN_AREQ_RSP)  // not sure it's useful
+    //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_CLOSE)
+
+  ZI_LABEL(ZIGBEE_LABEL_PERMIT_JOIN_OPEN)
+    ZI_SEND(ZBS_PERMITJOINREQ_OPEN)               // Opening Permit Join, normally through command  TODO
+    ZI_WAIT_RECV(1000, ZBR_PERMITJOINREQ)
+    //ZI_WAIT_UNTIL(1000, ZBR_PERMITJOIN_AREQ_RSP)  // not sure it's useful
+    //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_OPEN)
+
+  ZI_LABEL(50)                                    // reformat device
     ZI_MQTT_STATUS(0x01, "Reseting configuration")
     //ZI_LOG(LOG_LEVEL_INFO, "ZIG: zigbee bad configuration of device, doing a factory reset")
     ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_ABORT)
-    ZI_SEND(ZBS_FACTRES)                        // factory reset
+    ZI_SEND(ZBS_FACTRES)                          // factory reset
     ZI_WAIT_RECV(1000, ZBR_W_OK)
-    ZI_SEND(ZBS_RESET)                          // reset device
+    ZI_SEND(ZBS_RESET)                            // reset device
     ZI_WAIT_RECV(5000, ZBR_RESET)
-    ZI_SEND(ZBS_W_PAN)                          // write PAN ID
+    ZI_SEND(ZBS_W_PAN)                            // write PAN ID
     ZI_WAIT_RECV(1000, ZBR_W_OK)
-    ZI_SEND(ZBS_W_EXTPAN)                       // write EXT PAN ID
+    ZI_SEND(ZBS_W_EXTPAN)                         // write EXT PAN ID
     ZI_WAIT_RECV(1000, ZBR_W_OK)
-    ZI_SEND(ZBS_W_CHANN)                        // write CHANNEL
+    ZI_SEND(ZBS_W_CHANN)                          // write CHANNEL
     ZI_WAIT_RECV(1000, ZBR_W_OK)
-    ZI_SEND(ZBS_W_LOGTYP)                       // write Logical Type = coordinator
+    ZI_SEND(ZBS_W_LOGTYP)                         // write Logical Type = coordinator
     ZI_WAIT_RECV(1000, ZBR_W_OK)
-    ZI_SEND(ZBS_W_PFGK)                         // write PRECFGKEY
+    ZI_SEND(ZBS_W_PFGK)                           // write PRECFGKEY
     ZI_WAIT_RECV(1000, ZBR_W_OK)
-    ZI_SEND(ZBS_W_PFGKEN)                       // write PRECFGKEY Enable
+    ZI_SEND(ZBS_W_PFGKEN)                         // write PRECFGKEY Enable
     ZI_WAIT_RECV(1000, ZBR_W_OK)
-    ZI_SEND(ZBS_WNV_SECMODE)                    // write Security Mode
+    ZI_SEND(ZBS_WNV_SECMODE)                      // write Security Mode
     ZI_WAIT_RECV(1000, ZBR_WNV_OK)
-    ZI_SEND(ZBS_W_ZDODCB)                       // write Z_ZDO Direct CB
+    ZI_SEND(ZBS_W_ZDODCB)                         // write Z_ZDO Direct CB
     ZI_WAIT_RECV(1000, ZBR_W_OK)
     // Now mark the device as ready, writing 0x55 in memory slot 0x0F00
-    ZI_SEND(ZBS_WNV_INITZNPHC)                  // Init NV ZNP Has Configured
+    ZI_SEND(ZBS_WNV_INITZNPHC)                    // Init NV ZNP Has Configured
     ZI_WAIT_RECV(1000, ZBR_WNV_INIT_OK)
-    ZI_SEND(ZBS_WNV_ZNPHC)                      // Write NV ZNP Has Configured
+    ZI_SEND(ZBS_WNV_ZNPHC)                        // Write NV ZNP Has Configured
     ZI_WAIT_RECV(1000, ZBR_WNV_OK)
 
     //ZI_LOG(LOG_LEVEL_INFO, "ZIG: zigbee device reconfigured")
     ZI_GOTO(10)
 
-  ZI_LABEL(ZIGBEE_LABEL_ABORT)                  // Label 99: abort
+  ZI_LABEL(ZIGBEE_LABEL_ABORT)                    // Label 99: abort
     ZI_MQTT_STATUS(0xFF, "Abort")
     ZI_LOG(LOG_LEVEL_ERROR, "ZIG: Abort")
     ZI_STOP(ZIGBEE_LABEL_ABORT)
