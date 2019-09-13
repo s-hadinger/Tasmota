@@ -370,14 +370,14 @@ ZI_SEND(ZBS_STARTUPFROMAPP)                       // start coordinator
     ZI_WAIT_RECV(1000, ZBR_PERMITJOINREQ)
     ZI_WAIT_UNTIL(1000, ZBR_PERMITJOIN_AREQ_RSP)  // not sure it's useful
     //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_CLOSE)
-    //ZI_SEND(ZBS_PERMITJOINREQ_OPEN_XX)               // Opening Permit Join, normally through command  TODO
+    //ZI_SEND(ZBS_PERMITJOINREQ_OPEN_XX)               // Opening Permit Join, normally through command
     //ZI_WAIT_RECV(1000, ZBR_PERMITJOINREQ)
     //ZI_WAIT_UNTIL(1000, ZBR_PERMITJOIN_AREQ_RSP)  // not sure it's useful
     //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_OPEN_XX)
 
   ZI_LABEL(ZIGBEE_LABEL_READY)
     ZI_MQTT_STATUS(0x00, "Started")
-    //ZI_LOG(LOG_LEVEL_INFO, "ZIG: zigbee device ready, listening...")
+    ZI_LOG(LOG_LEVEL_INFO, "ZIG: zigbee device ready, listening...")
     ZI_CALL(&Z_State_Ready, 1)
   ZI_LABEL(ZIGBEE_LABEL_MAIN_LOOP)
     ZI_WAIT_FOREVER()
@@ -669,7 +669,6 @@ void ZigbeeStateMachine_Run(void) {
             continue;
           }
         }
-        // TODO
         break;
       case ZGB_INSTR_LOG:
         AddLog_P(cur_d8, (char*) cur_ptr1);
@@ -900,7 +899,6 @@ void ZigbeeInit(void)
 
 void CmndZigbeeZNPSend(void)
 {
-  //AddLog_P2(LOG_LEVEL_INFO, PSTR("CmndZigbeeZNPSend: entering, data_len = %d"), XdrvMailbox.data_len); // TODO
   if (ZigbeeSerial && (XdrvMailbox.data_len > 0)) {
     uint8_t code;
 
