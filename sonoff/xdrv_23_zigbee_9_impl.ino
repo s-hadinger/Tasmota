@@ -80,6 +80,7 @@ enum Zigbee_StateMachine_Instruction_Set {
   ZGB_INSTR_8_BYTES = 0x80,
   ZGB_INSTR_CALL = 0x80,                // call a function
   ZGB_INSTR_LOG,                        // log a message, if more detailed logging required, call a function
+  ZGB_INSTR_MQTT_STATUS,                // send MQTT status string with code
   ZGB_INSTR_SEND,                       // send a ZNP message
   ZGB_INSTR_WAIT_UNTIL,                 // wait until the specified message is received, ignore all others
   ZGB_INSTR_WAIT_RECV,                  // wait for a message according to the filter
@@ -101,6 +102,7 @@ enum Zigbee_StateMachine_Instruction_Set {
 
 #define ZI_CALL(f, x)       { .i = { ZGB_INSTR_CALL, (x), 0x0000} }, { .p = (const void*)(f) },
 #define ZI_LOG(x, m)        { .i = { ZGB_INSTR_LOG,    (x), 0x0000 } }, { .p = ((const void*)(m)) },
+#define ZI_MQTT_STATUS(x, m) { .i = { ZGB_INSTR_MQTT_STATUS,    (x), 0x0000 } }, { .p = ((const void*)(m)) },
 #define ZI_ON_RECV_UNEXPECTED(f) { .i = { ZGB_ON_RECV_UNEXPECTED, 0x00, 0x0000} }, { .p = (const void*)(f) },
 #define ZI_SEND(m)          { .i = { ZGB_INSTR_SEND, sizeof(m), 0x0000} }, { .p = (const void*)(m) },
 #define ZI_WAIT_RECV(x, m)  { .i = { ZGB_INSTR_WAIT_RECV, sizeof(m), (x)} }, { .p = (const void*)(m) },
@@ -309,7 +311,8 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     ZI_WAIT(15000)                             // wait for 15 seconds for Tasmota to stabilize
     ZI_ON_ERROR_GOTO(50)
 
-    ZI_LOG(LOG_LEVEL_INFO, "ZIG: rebooting device")
+    ZI_MQTT_STATUS(0x01, "Booting")
+    //ZI_LOG(LOG_LEVEL_INFO, "ZIG: rebooting device")
     ZI_SEND(ZBS_RESET)                        // reboot cc2530 just in case we rebooted ESP8266 but not cc2530
     ZI_WAIT_RECV(5000, ZBR_RESET)             // timeout 5s
     ZI_LOG(LOG_LEVEL_INFO, "ZIG: checking device configuration")
@@ -327,14 +330,15 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     ZI_WAIT_RECV(1000, ZBR_PFGK)
     ZI_SEND(ZBS_PFGKEN)                       // check PFGKEN
     ZI_WAIT_RECV(1000, ZBR_PFGKEN)
-    ZI_LOG(LOG_LEVEL_INFO, "ZIG: zigbee configuration ok")
+    //ZI_LOG(LOG_LEVEL_INFO, "ZIG: zigbee configuration ok")
     // all is good, we can start
 
   ZI_LABEL(10)                                // START ZNP App
+    ZI_MQTT_STATUS(0x03, "Configured, starting coordinator")
     ZI_CALL(&Z_State_Ready, 1)
     ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_ABORT)
     // Z_ZDO:startupFromApp
-    ZI_LOG(LOG_LEVEL_INFO, "ZIG: starting zigbee coordinator")
+    //ZI_LOG(LOG_LEVEL_INFO, "ZIG: starting zigbee coordinator")
     ZI_SEND(ZBS_STARTUPFROMAPP)               // start coordinator
     ZI_WAIT_RECV(2000, ZBR_STARTUPFROMAPP)     // wait for sync ack of command
     ZI_WAIT_UNTIL(5000, AREQ_STARTUPFROMAPP)  // wait for async message that coordinator started
@@ -365,13 +369,15 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_OPEN)
 
   ZI_LABEL(ZIGBEE_LABEL_READY)
-    ZI_LOG(LOG_LEVEL_INFO, "ZIG: zigbee device ready, listening...")
+    ZI_MQTT_STATUS(0x00, "Started")
+    //ZI_LOG(LOG_LEVEL_INFO, "ZIG: zigbee device ready, listening...")
     ZI_CALL(&Z_State_Ready, 1)
     ZI_WAIT_FOREVER()
     ZI_GOTO(ZIGBEE_LABEL_READY)
 
   ZI_LABEL(50)                                  // reformat device
-    ZI_LOG(LOG_LEVEL_INFO, "ZIG: zigbee bad configuration of device, doing a factory reset")
+    ZI_MQTT_STATUS(0x01, "Reseting configuration")
+    //ZI_LOG(LOG_LEVEL_INFO, "ZIG: zigbee bad configuration of device, doing a factory reset")
     ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_ABORT)
     ZI_SEND(ZBS_FACTRES)                        // factory reset
     ZI_WAIT_RECV(1000, ZBR_W_OK)
@@ -399,10 +405,11 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     ZI_SEND(ZBS_WNV_ZNPHC)                      // Write NV ZNP Has Configured
     ZI_WAIT_RECV(1000, ZBR_WNV_OK)
 
-    ZI_LOG(LOG_LEVEL_INFO, "ZIG: zigbee device reconfigured")
+    //ZI_LOG(LOG_LEVEL_INFO, "ZIG: zigbee device reconfigured")
     ZI_GOTO(10)
 
   ZI_LABEL(ZIGBEE_LABEL_ABORT)                  // Label 99: abort
+    ZI_MQTT_STATUS(0xFF, "Abort")
     ZI_LOG(LOG_LEVEL_ERROR, "ZIG: Abort")
     ZI_STOP(ZIGBEE_LABEL_ABORT)
 };
@@ -634,6 +641,12 @@ void ZigbeeStateMachine_Run(void) {
         break;
       case ZGB_INSTR_LOG:
         AddLog_P(cur_d8, (char*) cur_ptr1);
+        break;
+      case ZGB_INSTR_MQTT_STATUS:
+        Response_P(PSTR("{\"" D_JSON_ZIGBEE_STATUS "\":{\"code\":%d,\"message\":\"%s\"}}"),
+                          cur_d8, (char*) cur_ptr1);
+      	MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEE_STATUS));
+      	XdrvRulesProcess();
         break;
       case ZGB_INSTR_SEND:
         ZigbeeZNPSend((uint8_t*) cur_ptr1, cur_d8 /* len */);
