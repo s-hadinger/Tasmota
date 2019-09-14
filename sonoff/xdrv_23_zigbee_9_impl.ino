@@ -35,6 +35,7 @@ const uint8_t  ZIGBEE_STATUS_PERMITJOIN_OPEN_60 = 21;   // Enable PermitJoin for
 const uint8_t  ZIGBEE_STATUS_PERMITJOIN_OPEN_XX = 22;   // Enable PermitJoin until next boot
 const uint8_t  ZIGBEE_STATUS_DEVICE_VERSION = 50;       // Status: CC2530 ZNP Version
 const uint8_t  ZIGBEE_STATUS_DEVICE_INFO = 51;          // Status: CC2530 Device Configuration
+const uint8_t  ZIGBEE_STATUS_UNSUPPORTED_VERSION = 98;  // Unsupported ZNP version
 const uint8_t  ZIGBEE_STATUS_ABORT = 99;                // Fatal error, Zigbee not working
 
 //#define Z_USE_SOFTWARE_SERIAL
@@ -121,12 +122,15 @@ enum Zigbee_StateMachine_Instruction_Set {
 #define ZI_WAIT_RECV_FUNC(x, m, f) { .i = { ZGB_INSTR_WAIT_RECV_CALL, sizeof(m), (x)} }, { .p = (const void*)(m) }, { .p = (const void*)(f) },
 
 // Labels used in the State Machine -- internal only
-const uint8_t  ZIGBEE_LABEL_ABORT = 99;   // goto label 99 in case of fatal error
+const uint8_t  ZIGBEE_LABEL_START = 10;   // Start ZNP
 const uint8_t  ZIGBEE_LABEL_READY = 20;   // goto label 20 for main loop
 const uint8_t  ZIGBEE_LABEL_MAIN_LOOP = 21;   // main loop
 const uint8_t  ZIGBEE_LABEL_PERMIT_JOIN_CLOSE = 30;   // disable permit join
 const uint8_t  ZIGBEE_LABEL_PERMIT_JOIN_OPEN_60 = 31;    // enable permit join for 60 seconds
 const uint8_t  ZIGBEE_LABEL_PERMIT_JOIN_OPEN_XX = 32;    // enable permit join for 60 seconds
+// errors
+const uint8_t  ZIGBEE_LABEL_ABORT = 99;   // goto label 99 in case of fatal error
+const uint8_t  ZIGBEE_LABEL_UNSUPPORTED_VERSION = 98;  // Unsupported ZNP version
 
 struct ZigbeeStatus {
   bool active = true;                 // is Zigbee active for this device, i.e. GPIOs configured
@@ -341,7 +345,7 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     ZI_SEND(ZBS_ZNPHC)                        // check value of ZNP Has Configured
     ZI_WAIT_RECV(2000, ZBR_ZNPHC)
     ZI_SEND(ZBS_VERSION)                      // check ZNP software version
-    ZI_WAIT_RECV(1000, ZBR_VERSION)
+    ZI_WAIT_RECV_FUNC(1000, ZBR_VERSION, &Z_ReceiveCheckVersion)  // Check version
     ZI_SEND(ZBS_PAN)                          // check PAN ID
     ZI_WAIT_RECV(1000, ZBR_PAN)
     ZI_SEND(ZBS_EXTPAN)                       // check EXT PAN ID
@@ -355,9 +359,9 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     //ZI_LOG(LOG_LEVEL_INFO, "ZIG: zigbee configuration ok")
     // all is good, we can start
 
-  ZI_LABEL(10)                                  // START ZNP App
+  ZI_LABEL(ZIGBEE_LABEL_START)                // START ZNP App
     ZI_MQTT_STATUS(ZIGBEE_STATUS_STARTING, "Configured, starting coordinator")
-    ZI_CALL(&Z_State_Ready, 1)
+    //ZI_CALL(&Z_State_Ready, 1)                // Now accept incoming messages
     ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_ABORT)
     // Z_ZDO:startupFromApp
     //ZI_LOG(LOG_LEVEL_INFO, "ZIG: starting zigbee coordinator")
@@ -394,7 +398,7 @@ ZI_SEND(ZBS_STARTUPFROMAPP)                       // start coordinator
   ZI_LABEL(ZIGBEE_LABEL_READY)
     ZI_MQTT_STATUS(ZIGBEE_STATUS_OK, "Started")
     ZI_LOG(LOG_LEVEL_INFO, "ZIG: zigbee device ready, listening...")
-    ZI_CALL(&Z_State_Ready, 1)
+    ZI_CALL(&Z_State_Ready, 1)                    // Now accept incoming messages
   ZI_LABEL(ZIGBEE_LABEL_MAIN_LOOP)
     ZI_WAIT_FOREVER()
     ZI_GOTO(ZIGBEE_LABEL_READY)
@@ -454,7 +458,11 @@ ZI_SEND(ZBS_STARTUPFROMAPP)                       // start coordinator
     ZI_WAIT_RECV(1000, ZBR_WNV_OK)
 
     //ZI_LOG(LOG_LEVEL_INFO, "ZIG: zigbee device reconfigured")
-    ZI_GOTO(10)
+    ZI_GOTO(ZIGBEE_LABEL_START)
+
+  ZI_LABEL(ZIGBEE_LABEL_UNSUPPORTED_VERSION)
+    ZI_MQTT_STATUS(ZIGBEE_STATUS_UNSUPPORTED_VERSION, "Only ZNP 1.2 is currently supported")
+    ZI_GOTO(ZIGBEE_LABEL_ABORT)
 
   ZI_LABEL(ZIGBEE_LABEL_ABORT)                    // Label 99: abort
     ZI_MQTT_STATUS(ZIGBEE_STATUS_ABORT, "Abort")
@@ -483,7 +491,7 @@ int32_t Z_ReceiveDeviceInfo(int32_t res, class SBuffer &buf) {
                   ",\"DeviceType\":%d,\"DeviceState\":%d"
                   ",\"NumAssocDevices\":%d"),
                   ZIGBEE_STATUS_DEVICE_INFO, hex, short_adr, device_type, device_state,
-                  device_associated); // TODO add array
+                  device_associated);
 
   if (device_associated > 0) {
     uint idx = 16;
@@ -504,20 +512,34 @@ int32_t Z_ReceiveDeviceInfo(int32_t res, class SBuffer &buf) {
   return res;
 }
 
-int32_t Z_Recv_Vers(int32_t res, class SBuffer &buf) {
+int32_t Z_ReceiveCheckVersion(int32_t res, class SBuffer &buf) {
   // check that the version is supported
   // typical version for ZNP 1.2
-  // 61020200-020603D91434010200000000
-    // TranportRev = 02
-    // Product = 00
-    // MajorRel = 2
-    // MinorRel = 6
-    // MaintRel = 3
-    // Revision = 20190425 d (0x013414D9)
-  if ((0x02 == buf.get8(4)) && (0x06 == buf.get8(5))) {
+  // 61020200-02.06.03.D9143401.0200000000
+  // TranportRev = 02
+  // Product = 00
+  // MajorRel = 2
+  // MinorRel = 6
+  // MaintRel = 3
+  // Revision = 20190425 d (0x013414D9)
+  uint8_t major_rel = buf.get8(4);
+  uint8_t minor_rel = buf.get8(5);
+  uint8_t maint_rel = buf.get8(6);
+  uint32_t revision = buf.get32(7);
+
+  Response_P(PSTR("{\"" D_JSON_ZIGBEE_STATUS "\":{"
+                  "\"code\":%d,\"MajorRel\":%d,\"MinorRel\":%d"
+                  ",\"MaintRel\":%d,\"Revision\":%d}}"),
+                  ZIGBEE_STATUS_DEVICE_VERSION, major_rel, minor_rel,
+                  maint_rel, revision);
+
+  MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEE_STATUS));
+  XdrvRulesProcess();
+
+  if ((0x02 == major_rel) && (0x06 == minor_rel)) {
   	return 0;	  // version 2.6.x is ok
   } else {
-    return -2;  // abort
+    return ZIGBEE_LABEL_UNSUPPORTED_VERSION;  // abort
   }
 }
 
