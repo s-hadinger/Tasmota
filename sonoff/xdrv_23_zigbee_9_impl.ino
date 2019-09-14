@@ -23,12 +23,19 @@
 
 const uint32_t ZIGBEE_BUFFER_SIZE = 256;  // Max ZNP frame is SOF+LEN+CMD1+CMD2+250+FCS = 255
 const uint8_t  ZIGBEE_SOF = 0xFE;
-const uint8_t  ZIGBEE_LABEL_ABORT = 99;   // goto label 99 in case of fatal error
-const uint8_t  ZIGBEE_LABEL_READY = 20;   // goto label 20 for main loop
-const uint8_t  ZIGBEE_LABEL_MAIN_LOOP = 21;   // main loop
-const uint8_t  ZIGBEE_LABEL_PERMIT_JOIN_CLOSE = 30;   // disable permit join
-const uint8_t  ZIGBEE_LABEL_PERMIT_JOIN_OPEN_60 = 31;    // enable permit join for 60 seconds
-const uint8_t  ZIGBEE_LABEL_PERMIT_JOIN_OPEN_XX = 32;    // enable permit join for 60 seconds
+
+// Status code used for ZigbeeStatus MQTT message
+// Ex: {"ZigbeeStatus":{"code": 3,"message":"Configured, starting coordinator"}}
+const uint8_t  ZIGBEE_STATUS_OK = 0;                    // Zigbee started and working
+const uint8_t  ZIGBEE_STATUS_BOOT = 1;                  // CC2530 booting
+const uint8_t  ZIGBEE_STATUS_RESET_CONF = 2;            // Resetting CC2530 configuration
+const uint8_t  ZIGBEE_STATUS_STARTING = 3;              // Starting CC2530 as coordinator
+const uint8_t  ZIGBEE_STATUS_PERMITJOIN_CLOSE = 20;     // Disable PermitJoin
+const uint8_t  ZIGBEE_STATUS_PERMITJOIN_OPEN_60 = 21;   // Enable PermitJoin for 60 seconds
+const uint8_t  ZIGBEE_STATUS_PERMITJOIN_OPEN_XX = 22;   // Enable PermitJoin until next boot
+const uint8_t  ZIGBEE_STATUS_DEVICE_VERSION = 50;       // Status: CC2530 ZNP Version
+const uint8_t  ZIGBEE_STATUS_DEVICE_INFO = 51;          // Status: CC2530 Device Configuration
+const uint8_t  ZIGBEE_STATUS_ABORT = 99;                // Fatal error, Zigbee not working
 
 //#define Z_USE_SOFTWARE_SERIAL
 
@@ -112,6 +119,14 @@ enum Zigbee_StateMachine_Instruction_Set {
 #define ZI_WAIT_RECV(x, m)  { .i = { ZGB_INSTR_WAIT_RECV, sizeof(m), (x)} }, { .p = (const void*)(m) },
 #define ZI_WAIT_UNTIL(x, m) { .i = { ZGB_INSTR_WAIT_UNTIL, sizeof(m), (x)} }, { .p = (const void*)(m) },
 #define ZI_WAIT_RECV_FUNC(x, m, f) { .i = { ZGB_INSTR_WAIT_RECV_CALL, sizeof(m), (x)} }, { .p = (const void*)(m) }, { .p = (const void*)(f) },
+
+// Labels used in the State Machine -- internal only
+const uint8_t  ZIGBEE_LABEL_ABORT = 99;   // goto label 99 in case of fatal error
+const uint8_t  ZIGBEE_LABEL_READY = 20;   // goto label 20 for main loop
+const uint8_t  ZIGBEE_LABEL_MAIN_LOOP = 21;   // main loop
+const uint8_t  ZIGBEE_LABEL_PERMIT_JOIN_CLOSE = 30;   // disable permit join
+const uint8_t  ZIGBEE_LABEL_PERMIT_JOIN_OPEN_60 = 31;    // enable permit join for 60 seconds
+const uint8_t  ZIGBEE_LABEL_PERMIT_JOIN_OPEN_XX = 32;    // enable permit join for 60 seconds
 
 struct ZigbeeStatus {
   bool active = true;                 // is Zigbee active for this device, i.e. GPIOs configured
@@ -318,7 +333,7 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     ZI_WAIT(15000)                             // wait for 15 seconds for Tasmota to stabilize
     ZI_ON_ERROR_GOTO(50)
 
-    ZI_MQTT_STATUS(0x01, "Booting")
+    ZI_MQTT_STATUS(ZIGBEE_STATUS_BOOT, "Booting")
     //ZI_LOG(LOG_LEVEL_INFO, "ZIG: rebooting device")
     ZI_SEND(ZBS_RESET)                        // reboot cc2530 just in case we rebooted ESP8266 but not cc2530
     ZI_WAIT_RECV(5000, ZBR_RESET)             // timeout 5s
@@ -341,7 +356,7 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     // all is good, we can start
 
   ZI_LABEL(10)                                  // START ZNP App
-    ZI_MQTT_STATUS(0x03, "Configured, starting coordinator")
+    ZI_MQTT_STATUS(ZIGBEE_STATUS_STARTING, "Configured, starting coordinator")
     ZI_CALL(&Z_State_Ready, 1)
     ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_ABORT)
     // Z_ZDO:startupFromApp
@@ -377,7 +392,7 @@ ZI_SEND(ZBS_STARTUPFROMAPP)                       // start coordinator
     //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_OPEN_XX)
 
   ZI_LABEL(ZIGBEE_LABEL_READY)
-    ZI_MQTT_STATUS(0x00, "Started")
+    ZI_MQTT_STATUS(ZIGBEE_STATUS_OK, "Started")
     ZI_LOG(LOG_LEVEL_INFO, "ZIG: zigbee device ready, listening...")
     ZI_CALL(&Z_State_Ready, 1)
   ZI_LABEL(ZIGBEE_LABEL_MAIN_LOOP)
@@ -385,7 +400,7 @@ ZI_SEND(ZBS_STARTUPFROMAPP)                       // start coordinator
     ZI_GOTO(ZIGBEE_LABEL_READY)
 
   ZI_LABEL(ZIGBEE_LABEL_PERMIT_JOIN_CLOSE)
-    ZI_MQTT_STATUS(0x10, "Disable Pairing mode")
+    ZI_MQTT_STATUS(ZIGBEE_STATUS_PERMITJOIN_CLOSE, "Disable Pairing mode")
     ZI_SEND(ZBS_PERMITJOINREQ_CLOSE)              // Closing the Permit Join
     ZI_WAIT_RECV(1000, ZBR_PERMITJOINREQ)
     //ZI_WAIT_UNTIL(1000, ZBR_PERMITJOIN_AREQ_RSP)  // not sure it's useful
@@ -393,7 +408,7 @@ ZI_SEND(ZBS_STARTUPFROMAPP)                       // start coordinator
     ZI_GOTO(ZIGBEE_LABEL_MAIN_LOOP)
 
   ZI_LABEL(ZIGBEE_LABEL_PERMIT_JOIN_OPEN_60)
-    ZI_MQTT_STATUS(0x10, "Enable Pairing mode for 60 seconds")
+    ZI_MQTT_STATUS(ZIGBEE_STATUS_PERMITJOIN_OPEN_60, "Enable Pairing mode for 60 seconds")
     ZI_SEND(ZBS_PERMITJOINREQ_OPEN_60)
     ZI_WAIT_RECV(1000, ZBR_PERMITJOINREQ)
     //ZI_WAIT_UNTIL(1000, ZBR_PERMITJOIN_AREQ_RSP)  // not sure it's useful
@@ -401,7 +416,7 @@ ZI_SEND(ZBS_STARTUPFROMAPP)                       // start coordinator
     ZI_GOTO(ZIGBEE_LABEL_MAIN_LOOP)
 
   ZI_LABEL(ZIGBEE_LABEL_PERMIT_JOIN_OPEN_XX)
-    ZI_MQTT_STATUS(0x10, "Enable Pairing mode until next boot")
+    ZI_MQTT_STATUS(ZIGBEE_STATUS_PERMITJOIN_OPEN_XX, "Enable Pairing mode until next boot")
     ZI_SEND(ZBS_PERMITJOINREQ_OPEN_XX)
     ZI_WAIT_RECV(1000, ZBR_PERMITJOINREQ)
     //ZI_WAIT_UNTIL(1000, ZBR_PERMITJOIN_AREQ_RSP)  // not sure it's useful
@@ -409,7 +424,7 @@ ZI_SEND(ZBS_STARTUPFROMAPP)                       // start coordinator
     ZI_GOTO(ZIGBEE_LABEL_MAIN_LOOP)
 
   ZI_LABEL(50)                                    // reformat device
-    ZI_MQTT_STATUS(0x01, "Reseting configuration")
+    ZI_MQTT_STATUS(ZIGBEE_STATUS_RESET_CONF, "Reseting configuration")
     //ZI_LOG(LOG_LEVEL_INFO, "ZIG: zigbee bad configuration of device, doing a factory reset")
     ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_ABORT)
     ZI_SEND(ZBS_FACTRES)                          // factory reset
@@ -442,30 +457,32 @@ ZI_SEND(ZBS_STARTUPFROMAPP)                       // start coordinator
     ZI_GOTO(10)
 
   ZI_LABEL(ZIGBEE_LABEL_ABORT)                    // Label 99: abort
-    ZI_MQTT_STATUS(0xFF, "Abort")
+    ZI_MQTT_STATUS(ZIGBEE_STATUS_ABORT, "Abort")
     ZI_LOG(LOG_LEVEL_ERROR, "ZIG: Abort")
     ZI_STOP(ZIGBEE_LABEL_ABORT)
 };
 
 int32_t Z_ReceiveDeviceInfo(int32_t res, class SBuffer &buf) {
   // Ex= 6700.00.6263151D004B1200.0000.07.09.02.83869991
-  // IEEE Adr (8 bytes) = 6263151D004B1200
-  // Short Addr (2 bytes) = 0000
-  // Device Type (1 byte) = 07 (coord?)
-  // Device State (1 byte) = 09 (coordinator started)
-  // NumAssocDevices (1 byte) = 02
+  // IEEE Adr (8 bytes) = 0x00124B001D156362
+  // Short Addr (2 bytes) = 0x0000
+  // Device Type (1 byte) = 0x07 (coord?)
+  // Device State (1 byte) = 0x09 (coordinator started)
+  // NumAssocDevices (1 byte) = 0x02
   // List of devices: 0x8683, 0x9199
-  Z_IEEEAddress  long_adr = 0x1234567812345678;   // TODO
+  Z_IEEEAddress  long_adr = buf.get64(3);
   Z_ShortAddress short_adr = buf.get16(11);
   uint8_t device_type = buf.get8(13);
   uint8_t device_state = buf.get8(14);
   uint8_t device_associated = buf.get8(15);
 
+  char hex[20];
+  Uint64toHex(long_adr, hex, 64);
   Response_P(PSTR("{\"" D_JSON_ZIGBEE_STATUS "\":{"
                   "\"code\":%d,\"IEEEAddr\":\"%s\",\"ShortAddr\":\"0x%04X\""
                   ",\"DeviceType\":%d,\"DeviceState\":%d"
                   ",\"NumAssocDevices\":%d"),
-                  51, "nononono", short_adr, device_type, device_state,
+                  ZIGBEE_STATUS_DEVICE_INFO, hex, short_adr, device_type, device_state,
                   device_associated); // TODO add array
 
   if (device_associated > 0) {

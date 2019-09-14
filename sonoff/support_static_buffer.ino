@@ -133,6 +133,15 @@ public:
     }
     return 0;
   }
+  uint64_t get64(const size_t offset) const {
+    if (offset < len() - 7) {
+      return (uint64_t)_buf->buf[offset]          | ((uint64_t)_buf->buf[offset+1] <<  8) |
+            ((uint64_t)_buf->buf[offset+2] << 16) | ((uint64_t)_buf->buf[offset+3] << 24) |
+            ((uint64_t)_buf->buf[offset+4] << 32) | ((uint64_t)_buf->buf[offset+5] << 40) |
+            ((uint64_t)_buf->buf[offset+6] << 48) | ((uint64_t)_buf->buf[offset+7] << 56);
+    }
+    return 0;
+  }
 
   SBuffer subBuffer(const size_t start, size_t len) const {
     if (start >= _buf->len) {
