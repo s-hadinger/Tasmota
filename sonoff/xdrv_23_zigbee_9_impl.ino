@@ -25,7 +25,7 @@ const uint32_t ZIGBEE_BUFFER_SIZE = 256;  // Max ZNP frame is SOF+LEN+CMD1+CMD2+
 const uint8_t  ZIGBEE_SOF = 0xFE;
 
 // Status code used for ZigbeeStatus MQTT message
-// Ex: {"ZigbeeStatus":{"code": 3,"message":"Configured, starting coordinator"}}
+// Ex: {"ZigbeeStatus":{"Status": 3,"Message":"Configured, starting coordinator"}}
 const uint8_t  ZIGBEE_STATUS_OK = 0;                    // Zigbee started and working
 const uint8_t  ZIGBEE_STATUS_BOOT = 1;                  // CC2530 booting
 const uint8_t  ZIGBEE_STATUS_RESET_CONF = 2;            // Resetting CC2530 configuration
@@ -491,7 +491,7 @@ int32_t Z_ReceiveDeviceInfo(int32_t res, class SBuffer &buf) {
   char hex[20];
   Uint64toHex(long_adr, hex, 64);
   Response_P(PSTR("{\"" D_JSON_ZIGBEE_STATUS "\":{"
-                  "\"code\":%d,\"IEEEAddr\":\"%s\",\"ShortAddr\":\"0x%04X\""
+                  "\"Status\":%d,\"IEEEAddr\":\"%s\",\"ShortAddr\":\"0x%04X\""
                   ",\"DeviceType\":%d,\"DeviceState\":%d"
                   ",\"NumAssocDevices\":%d"),
                   ZIGBEE_STATUS_CC_INFO, hex, short_adr, device_type, device_state,
@@ -532,7 +532,7 @@ int32_t Z_ReceiveCheckVersion(int32_t res, class SBuffer &buf) {
   uint32_t revision = buf.get32(7);
 
   Response_P(PSTR("{\"" D_JSON_ZIGBEE_STATUS "\":{"
-                  "\"code\":%d,\"MajorRel\":%d,\"MinorRel\":%d"
+                  "\"Status\":%d,\"MajorRel\":%d,\"MinorRel\":%d"
                   ",\"MaintRel\":%d,\"Revision\":%d}}"),
                   ZIGBEE_STATUS_CC_VERSION, major_rel, minor_rel,
                   maint_rel, revision);
@@ -565,7 +565,7 @@ int32_t Z_ReceiveEndDeviceAnnonce(int32_t res, const class SBuffer &buf) {
   char hex[20];
   Uint64toHex(ieeeAddr, hex, 64);
   Response_P(PSTR("{\"" D_JSON_ZIGBEE_STATUS "\":{"
-                  "\"code\":%d,\"IEEEAddr\":\"%s\",\"ShortAddr\":\"0x%04X\""
+                  "\"Status\":%d,\"IEEEAddr\":\"%s\",\"ShortAddr\":\"0x%04X\""
                   ",\"PowerSource\":%s,\"ReceiveWhenIdle\":%s,\"Security\":%s}}"),
                   ZIGBEE_STATUS_DEVICE_ANNOUNCE, hex, nwkAddr,
                   (capabilities & 0x04) ? "true" : "false",
@@ -794,7 +794,7 @@ void ZigbeeStateMachine_Run(void) {
         AddLog_P(cur_d8, (char*) cur_ptr1);
         break;
       case ZGB_INSTR_MQTT_STATUS:
-        Response_P(PSTR("{\"" D_JSON_ZIGBEE_STATUS "\":{\"code\":%d,\"message\":\"%s\"}}"),
+        Response_P(PSTR("{\"" D_JSON_ZIGBEE_STATUS "\":{\"Status\":%d,\"Message\":\"%s\"}}"),
                           cur_d8, (char*) cur_ptr1);
       	MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEE_STATUS));
       	XdrvRulesProcess();
