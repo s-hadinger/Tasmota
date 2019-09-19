@@ -498,7 +498,11 @@
     #define IR_RCV_MIN_UNKNOWN_SIZE 6            // Set the smallest sized "UNKNOWN" message packets we actually care about (default 6, max 255)
 
 // -- Zigbee interface ----------------------------
+<<<<<<< HEAD
 //#define USE_ZIGBEE                              // Enable serial communication with Zigbee CC2530 flashed with ZNP
+=======
+//#define USE_ZIGBEE                                // Enable serial communication with Zigbee CC2530 flashed with ZNP
+>>>>>>> c822b65f347460c8a6a87abeec890a6340084089
   #define USE_ZIGBEE_PANID  0x1A63                // arbitrary PAN ID for Zigbee network, must be unique in the home
   #define USE_ZIGBEE_EXTPANID 0xCCCCCCCCCCCCCCCCL // arbitrary extended PAN ID
   #define USE_ZIGBEE_CHANNEL  11                  // Zigbee Channel (11-26)
