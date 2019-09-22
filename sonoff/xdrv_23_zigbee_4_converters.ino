@@ -493,6 +493,30 @@ int32_t Z_ConvFloatDivider(JsonObject& json, const char *name, JsonVariant& valu
 #define ZCL_LC_STEP_WOO     "s_0008_06"       // Cluster 0x0008, cmd 0x05, Level Control Step, with On/Off
 #define ZCL_LC_STOP_WOO     "s_0008_07"       // Cluster 0x0008, cmd 0x07, Level Control Stop
 
+// inspired from https://github.com/torvalds/linux/blob/master/lib/glob.c
+bool mini_glob_match(char const *pat, char const *str) {
+	for (;;) {
+		unsigned char c = *str++;
+		unsigned char d = *pat++;
+
+		switch (d) {
+		case '?':	/* Wildcard: anything but nul */
+			if (c == '\0')
+				return false;
+			break;
+		case '\\':
+			d = *pat++;
+			/*FALLTHROUGH*/
+		default:	/* Literal character */
+			if (c == d) {
+				if (d == '\0')
+					return true;
+				break;
+			}
+			return false;	/* No point continuing */
+		}
+	}
+}
 
 void ZCLFrame::postProcessAttributes(JsonObject& json) {
   // iterate on json elements
@@ -504,9 +528,7 @@ void ZCLFrame::postProcessAttributes(JsonObject& json) {
     for (uint32_t i = 0; i < sizeof(Z_PostProcess) / sizeof(Z_PostProcess[0]); i++) {
       const Z_AttributeConverter *converter = &Z_PostProcess[i];
 
-      // TODO apply regexp filter
-      if (key.equals(converter->filter)) {
-        // Exact match of filter
+      if (mini_glob_match(converter->filter, key.c_str())) {
         int32_t drop = (*converter->func)(json, key.c_str(), value, converter->name, converter->param);
         if (drop) {
           json.remove(key);
