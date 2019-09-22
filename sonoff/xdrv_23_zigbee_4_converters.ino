@@ -441,6 +441,8 @@ const Z_AttributeConverter Z_PostProcess[] = {
   { "A_0403_0000",  D_JSON_PRESSURE,        &Z_Copy,                nullptr },     // Pressure
   { "A_0403_????",  "",                     &Z_Remove,              nullptr },     // Remove
 
+  { "A_0405_0000",  D_JSON_HUMIDITY,        &Z_ConvFloatDivider,    (void*) &Z_100 },   // Humidity
+  { "A_0405_????",  "",                     &Z_Remove,              nullptr },     // Remove
 };
 
 // ======================================================================
@@ -502,6 +504,7 @@ void ZCLFrame::postProcessAttributes(JsonObject& json) {
     for (uint32_t i = 0; i < sizeof(Z_PostProcess) / sizeof(Z_PostProcess[0]); i++) {
       const Z_AttributeConverter *converter = &Z_PostProcess[i];
 
+      // TODO apply regexp filter
       if (key.equals(converter->filter)) {
         // Exact match of filter
         int32_t drop = (*converter->func)(json, key.c_str(), value, converter->name, converter->param);
@@ -518,40 +521,40 @@ void ZCLFrame::postProcessAttributes(JsonObject& json) {
 void postProcessAttributes2(JsonObject& json) {
   const __FlashStringHelper *key;
 
-  // ModelID ZCL 3.2
-  key = F(ZCL_MODELID);
-  if (json.containsKey(key)) {
-    json[F(D_JSON_MODEL D_JSON_ID)] = json[key];
-    json.remove(key);
-  }
+  // // ModelID ZCL 3.2
+  // key = F(ZCL_MODELID);
+  // if (json.containsKey(key)) {
+  //   json[F(D_JSON_MODEL D_JSON_ID)] = json[key];
+  //   json.remove(key);
+  // }
 
-  // Temperature ZCL 4.4
-  key = F(ZCL_TEMPERATURE);
-  if (json.containsKey(key)) {
-    // parse temperature
-    int32_t temperature = json[key];
-    json.remove(key);
-    json[F(D_JSON_TEMPERATURE)] = temperature / 100.0f;
-  }
+  // // Temperature ZCL 4.4
+  // key = F(ZCL_TEMPERATURE);
+  // if (json.containsKey(key)) {
+  //   // parse temperature
+  //   int32_t temperature = json[key];
+  //   json.remove(key);
+  //   json[F(D_JSON_TEMPERATURE)] = temperature / 100.0f;
+  // }
 
-  // Pressure ZCL 4.5
-  key = F(ZCL_PRESSURE);
-  if (json.containsKey(key)) {
-    json[F(D_JSON_PRESSURE)] = json[key];
-    json[F(D_JSON_PRESSURE_UNIT)] = F(D_UNIT_PRESSURE);   // hPa
-    json.remove(key);
-  }
-  json.remove(F(ZCL_PRESSURE_SCALE));
-  json.remove(F(ZCL_PRESSURE_SCALED));
+  // // Pressure ZCL 4.5
+  // key = F(ZCL_PRESSURE);
+  // if (json.containsKey(key)) {
+  //   json[F(D_JSON_PRESSURE)] = json[key];
+  //   json[F(D_JSON_PRESSURE_UNIT)] = F(D_UNIT_PRESSURE);   // hPa
+  //   json.remove(key);
+  // }
+  // json.remove(F(ZCL_PRESSURE_SCALE));
+  // json.remove(F(ZCL_PRESSURE_SCALED));
 
-  // Humidity ZCL 4.7
-  key = F(ZCL_HUMIDITY);
-  if (json.containsKey(key)) {
-    // parse temperature
-    uint32_t humidity = json[key];
-    json.remove(key);
-    json[F(D_JSON_HUMIDITY)] = humidity / 100.0f;
-  }
+  // // Humidity ZCL 4.7
+  // key = F(ZCL_HUMIDITY);
+  // if (json.containsKey(key)) {
+  //   // parse temperature
+  //   uint32_t humidity = json[key];
+  //   json.remove(key);
+  //   json[F(D_JSON_HUMIDITY)] = humidity / 100.0f;
+  // }
 
   // Osram Mini Switch
   key = F(ZCL_OO_OFF);
