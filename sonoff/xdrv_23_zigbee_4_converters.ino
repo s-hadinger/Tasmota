@@ -133,6 +133,16 @@ private:
   SBuffer                 _payload;
 };
 
+char Hex36Char(uint8_t value) {
+  // convert an integer from 0 to 46, to a single digit 0-9A-Z
+  if (value < 10) {
+    return '0' + value;
+  } else if (value < 46) {
+    return 'A' + value - 10;
+  } else {
+    return '?';   // out of range
+  }
+}
 
 // Zigbee ZCL converters
 
@@ -374,17 +384,17 @@ uint32_t parseSingleAttribute(JsonObject& json, char *attrid_str, class SBuffer 
 void ZCLFrame::parseRawAttributes(JsonObject& json, uint8_t offset) {
   uint32_t i = offset;
   uint32_t len = _payload.len();
-  uint32_t attrid = _cluster_id << 16;      // set high 16 bits with cluster id
 
   while (len + offset - i >= 3) {
-    attrid = (attrid & 0xFFFF0000) | _payload.get16(i);    // get lower 16 bits
+    uint16_t attrid = _payload.get16(i);
     i += 2;
 
-    char shortaddr[12];
-    snprintf_P(shortaddr, sizeof(shortaddr), PSTR("0x%08X"), attrid);
+    char shortaddr[16];
+    snprintf_P(shortaddr, sizeof(shortaddr), PSTR("%c-%04X-%04X"),
+                Hex36Char(_cmd_id), _cluster_id, attrid);
 
     // exception for Xiaomi lumi.weather - specific field to be treated as octet and not char
-    if (0x0000FF01 == attrid) {
+    if ((0x0000 == _cmd_id) && (0xFF01 == attrid)) {
       if (0x42 == _payload.get8(i)) {
         _payload.set8(i, 0x41);   // change type from 0x42 to 0x41
       }
@@ -409,25 +419,25 @@ void ZCLFrame::parseClusterSpecificCommand(JsonObject& json, uint8_t offset) {
   json[attrid_str] = hex_char;
 }
 
-#define ZCL_MODELID       "0x00000005"      // Cluster 0x0000, attribute 0x05
-#define ZCL_TEMPERATURE   "0x04020000"      // Cluster 0x0402, attribute 0x00
-#define ZCL_PRESSURE      "0x04030000"      // Cluster 0x0403, attribute 0x00
-#define ZCL_PRESSURE_SCALED       "0x04030010"      // Cluster 0x0403, attribute 0x10
-#define ZCL_PRESSURE_SCALE        "0x04030014"      // Cluster 0x0403, attribute 0x14
-#define ZCL_HUMIDITY      "0x04050000"      // Cluster 0x0403, attribute 0x00
-#define ZCL_LUMI_WEATHER  "0x0000FF01"      // Cluster 0x0000, attribute 0xFF01 - proprietary
+#define ZCL_MODELID         "A-0000-0005"      // Cluster 0x0000, attribute 0x05
+#define ZCL_TEMPERATURE     "A-0402-0000"      // Cluster 0x0402, attribute 0x00
+#define ZCL_PRESSURE        "A-0403-0000"      // Cluster 0x0403, attribute 0x00
+#define ZCL_PRESSURE_SCALED "A-0403-0010"      // Cluster 0x0403, attribute 0x10
+#define ZCL_PRESSURE_SCALE  "A-0403-0014"      // Cluster 0x0403, attribute 0x14
+#define ZCL_HUMIDITY        "A-0405-0000"      // Cluster 0x0403, attribute 0x00
+#define ZCL_LUMI_WEATHER    "A-0000-FF01"      // Cluster 0x0000, attribute 0xFF01 - proprietary
 
-#define ZCL_OO_OFF        "0x000600"        // Cluster 0x0006, cmd 0x00 - On/Off - Off
-#define ZCL_OO_ON         "0x000601"        // Cluster 0x0006, cmd 0x01 - On/Off - On
-#define ZCL_COLORTEMP_MOVE "0x03000A"       // Cluster 0x0300, cmd 0x0A, Move to Color Temp
-#define ZCL_LC_MOVE        "0x000800"       // Cluster 0x0008, cmd 0x00, Level Control Move to Level
-#define ZCL_LC_MOVE_1      "0x000801"       // Cluster 0x0008, cmd 0x01, Level Control Move
-#define ZCL_LC_STEP        "0x000802"       // Cluster 0x0008, cmd 0x02, Level Control Step
-#define ZCL_LC_STOP        "0x000803"       // Cluster 0x0008, cmd 0x03, Level Control Stop
-#define ZCL_LC_MOVE_WOO    "0x000804"       // Cluster 0x0008, cmd 0x04, Level Control Move to Level, with On/Off
-#define ZCL_LC_MOVE_1_WOO  "0x000805"       // Cluster 0x0008, cmd 0x05, Level Control Move, with On/Off
-#define ZCL_LC_STEP_WOO    "0x000806"       // Cluster 0x0008, cmd 0x05, Level Control Step, with On/Off
-#define ZCL_LC_STOP_WOO    "0x000807"       // Cluster 0x0008, cmd 0x07, Level Control Stop
+#define ZCL_OO_OFF          "0x000600"        // Cluster 0x0006, cmd 0x00 - On/Off - Off
+#define ZCL_OO_ON           "0x000601"        // Cluster 0x0006, cmd 0x01 - On/Off - On
+#define ZCL_COLORTEMP_MOVE  "0x03000A"       // Cluster 0x0300, cmd 0x0A, Move to Color Temp
+#define ZCL_LC_MOVE         "0x000800"       // Cluster 0x0008, cmd 0x00, Level Control Move to Level
+#define ZCL_LC_MOVE_1       "0x000801"       // Cluster 0x0008, cmd 0x01, Level Control Move
+#define ZCL_LC_STEP         "0x000802"       // Cluster 0x0008, cmd 0x02, Level Control Step
+#define ZCL_LC_STOP         "0x000803"       // Cluster 0x0008, cmd 0x03, Level Control Stop
+#define ZCL_LC_MOVE_WOO     "0x000804"       // Cluster 0x0008, cmd 0x04, Level Control Move to Level, with On/Off
+#define ZCL_LC_MOVE_1_WOO   "0x000805"       // Cluster 0x0008, cmd 0x05, Level Control Move, with On/Off
+#define ZCL_LC_STEP_WOO     "0x000806"       // Cluster 0x0008, cmd 0x05, Level Control Step, with On/Off
+#define ZCL_LC_STOP_WOO     "0x000807"       // Cluster 0x0008, cmd 0x07, Level Control Stop
 
 void ZCLFrame::postProcessAttributes(JsonObject& json) {
   const __FlashStringHelper *key;
