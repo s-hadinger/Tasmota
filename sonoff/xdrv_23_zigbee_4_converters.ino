@@ -390,7 +390,7 @@ void ZCLFrame::parseRawAttributes(JsonObject& json, uint8_t offset) {
     i += 2;
 
     char shortaddr[16];
-    snprintf_P(shortaddr, sizeof(shortaddr), PSTR("%c-%04X-%04X"),
+    snprintf_P(shortaddr, sizeof(shortaddr), PSTR("%c_%04X_%04X"),
                 Hex36Char(_cmd_id), _cluster_id, attrid);
 
     // exception for Xiaomi lumi.weather - specific field to be treated as octet and not char
@@ -419,13 +419,13 @@ void ZCLFrame::parseClusterSpecificCommand(JsonObject& json, uint8_t offset) {
   json[attrid_str] = hex_char;
 }
 
-#define ZCL_MODELID         "A-0000-0005"      // Cluster 0x0000, attribute 0x05
-#define ZCL_TEMPERATURE     "A-0402-0000"      // Cluster 0x0402, attribute 0x00
-#define ZCL_PRESSURE        "A-0403-0000"      // Cluster 0x0403, attribute 0x00
-#define ZCL_PRESSURE_SCALED "A-0403-0010"      // Cluster 0x0403, attribute 0x10
-#define ZCL_PRESSURE_SCALE  "A-0403-0014"      // Cluster 0x0403, attribute 0x14
-#define ZCL_HUMIDITY        "A-0405-0000"      // Cluster 0x0403, attribute 0x00
-#define ZCL_LUMI_WEATHER    "A-0000-FF01"      // Cluster 0x0000, attribute 0xFF01 - proprietary
+#define ZCL_MODELID         "A_0000_0005"      // Cluster 0x0000, attribute 0x05
+#define ZCL_TEMPERATURE     "A_0402_0000"      // Cluster 0x0402, attribute 0x00
+#define ZCL_PRESSURE        "A_0403_0000"      // Cluster 0x0403, attribute 0x00
+#define ZCL_PRESSURE_SCALED "A_0403_0010"      // Cluster 0x0403, attribute 0x10
+#define ZCL_PRESSURE_SCALE  "A_0403_0014"      // Cluster 0x0403, attribute 0x14
+#define ZCL_HUMIDITY        "A_0405_0000"      // Cluster 0x0403, attribute 0x00
+#define ZCL_LUMI_WEATHER    "A_0000_FF01"      // Cluster 0x0000, attribute 0xFF01 - proprietary
 
 #define ZCL_OO_OFF          "0x000600"        // Cluster 0x0006, cmd 0x00 - On/Off - Off
 #define ZCL_OO_ON           "0x000601"        // Cluster 0x0006, cmd 0x01 - On/Off - On
