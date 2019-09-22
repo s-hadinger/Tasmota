@@ -82,8 +82,7 @@ struct ENERGY {
 
   float start_energy = 0;                       // 12345.12345 kWh total previous
   float daily = 0;                              // 123.123 kWh
-  float total = 0;                              // 12345.12345 kWh tariff 1 + 2
-  float total1 = 0;                             // 12345.12345 kWh tariff 1 - off-peak
+  float total = 0;                              // 12345.12345 kWh total energy
   float export_active = NAN;                    // 123.123 KWh
 
   unsigned long kWhtoday_delta = 0;             // 1212312345 Wh 10^-5 (deca micro Watt hours) - Overflows to Energy.kWhtoday (HLW and CSE only)
@@ -93,7 +92,7 @@ struct ENERGY {
 
   uint8_t fifth_second = 0;
   uint8_t command_code = 0;
-  uint8_t data_valid = 0;
+  uint8_t data_valid[3] = { 0, 0, 0 };
 
   uint8_t phase_count = 1;                      // Number of phases active
   bool voltage_common = false;                  // Use single voltage
@@ -155,24 +154,28 @@ void EnergyUpdateToday(void)
     Energy.kWhtoday += delta;
   }
 
-  uint32_t energy_diff = Energy.kWhtoday_offset + Energy.kWhtoday - RtcSettings.energy_kWhtoday;
-
-  uint32_t return_diff = 0;
-  if (!isnan(Energy.export_active)) {
-    return_diff = (uint32_t)(Energy.export_active * 1000) - RtcSettings.energy_usage.last_return_kWhtotal;
-    RtcSettings.energy_usage.last_return_kWhtotal = (uint32_t)(Energy.export_active * 1000);
-  }
-
   RtcSettings.energy_kWhtoday = Energy.kWhtoday_offset + Energy.kWhtoday;
   Energy.daily = (float)(RtcSettings.energy_kWhtoday) / 100000;
   Energy.total = (float)(RtcSettings.energy_kWhtotal + RtcSettings.energy_kWhtoday) / 100000;
 
-  if (EnergyTariff1Active()) {  // Tarrif1 = Off-Peak
-    RtcSettings.energy_usage.usage1_kWhtoday += energy_diff;
-    RtcSettings.energy_usage.return1_kWhtotal += return_diff;
-    Energy.total1 = (float)(RtcSettings.energy_usage.usage1_kWhtotal + RtcSettings.energy_usage.usage1_kWhtoday) / 100000;
-  } else {
-    RtcSettings.energy_usage.return2_kWhtotal += return_diff;
+  if (RtcTime.valid){ // We calc the difference only if we have a valid RTC time.
+
+    uint32_t energy_diff = (uint32_t)(Energy.total * 1000) - RtcSettings.energy_usage.last_usage_kWhtotal;
+    RtcSettings.energy_usage.last_usage_kWhtotal = (uint32_t)(Energy.total * 1000);
+
+    uint32_t return_diff = 0;
+    if (!isnan(Energy.export_active)) {
+      return_diff = (uint32_t)(Energy.export_active * 1000) - RtcSettings.energy_usage.last_return_kWhtotal;
+      RtcSettings.energy_usage.last_return_kWhtotal = (uint32_t)(Energy.export_active * 1000);
+    }
+
+    if (EnergyTariff1Active()) {  // Tarrif1 = Off-Peak
+      RtcSettings.energy_usage.usage1_kWhtotal += energy_diff;
+      RtcSettings.energy_usage.return1_kWhtotal += return_diff;
+    } else {
+      RtcSettings.energy_usage.usage2_kWhtotal += energy_diff;
+      RtcSettings.energy_usage.return2_kWhtotal += return_diff;
+    }
   }
 }
 
@@ -191,11 +194,12 @@ void EnergyUpdateTotal(float value, bool kwh)
     Energy.kWhtoday = (unsigned long)((value - Energy.start_energy) * multiplier);
   }
 
-  if (Energy.total < value){
+  if (Energy.total < (value - 0.01)){ // We subtract a little offset to avoid continuous updates
     RtcSettings.energy_kWhtotal = (unsigned long)((value * multiplier) - Energy.kWhtoday_offset - Energy.kWhtoday);
     Settings.energy_kWhtotal = RtcSettings.energy_kWhtotal;
     Energy.total = (float)(RtcSettings.energy_kWhtotal + Energy.kWhtoday_offset + Energy.kWhtoday) / 100000;
     Settings.energy_kWhtotal_time = (!Energy.kWhtoday_offset) ? LocalTime() : Midnight();
+    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("NRG: Energy Total updated with hardware value"));
   }
   EnergyUpdateToday();
 }
@@ -222,10 +226,6 @@ void Energy200ms(void)
         Energy.kWhtoday_offset = 0;
         RtcSettings.energy_kWhtoday = 0;
         Energy.start_energy = 0;
-
-        RtcSettings.energy_usage.usage1_kWhtotal += RtcSettings.energy_usage.usage1_kWhtoday;
-        Settings.energy_usage.usage1_kWhtotal = RtcSettings.energy_usage.usage1_kWhtotal;
-        RtcSettings.energy_usage.usage1_kWhtoday = 0;
 
         Energy.kWhtoday_delta = 0;
         Energy.period = Energy.kWhtoday;
@@ -423,18 +423,22 @@ void EnergyMqttShow(void)
 }
 #endif  // USE_ENERGY_MARGIN_DETECTION
 
-void EnergyOverTempCheck()
+void EnergyEverySecond()
 {
+  // Overtemp check
   if (global_update) {
     if (power && (global_temperature != 9999) && (global_temperature > Settings.param[P_OVER_TEMP])) {  // Device overtemp, turn off relays
       SetAllPower(POWER_ALL_OFF, SRC_OVERTEMP);
     }
   }
-  if (Energy.data_valid <= ENERGY_WATCHDOG) {
-    Energy.data_valid++;
-    if (Energy.data_valid > ENERGY_WATCHDOG) {
-      // Reset energy registers
-      for (uint32_t i = 0; i < Energy.phase_count; i++) {
+
+  // Invalid data reset
+  uint32_t data_valid = Energy.phase_count;
+  for (uint32_t i = 0; i < Energy.phase_count; i++) {
+    if (Energy.data_valid[i] <= ENERGY_WATCHDOG) {
+      Energy.data_valid[i]++;
+      if (Energy.data_valid[i] > ENERGY_WATCHDOG) {
+        // Reset energy registers
         Energy.voltage[i] = 0;
         Energy.current[i] = 0;
         Energy.active_power[i] = 0;
@@ -442,13 +446,21 @@ void EnergyOverTempCheck()
         if (!isnan(Energy.reactive_power[i])) { Energy.reactive_power[i] = 0; }
         if (!isnan(Energy.frequency[i])) { Energy.frequency[i] = 0; }
         if (!isnan(Energy.power_factor[i])) { Energy.power_factor[i] = 0; }
-      }
-      if (!isnan(Energy.export_active)) { Energy.export_active = 0; }
-      Energy.start_energy = 0;
 
-      XnrgCall(FUNC_ENERGY_RESET);
+        data_valid--;
+      }
     }
   }
+  if (!data_valid) {
+    if (!isnan(Energy.export_active)) { Energy.export_active = 0; }
+    Energy.start_energy = 0;
+
+    XnrgCall(FUNC_ENERGY_RESET);
+  }
+
+#ifdef USE_ENERGY_MARGIN_DETECTION
+  EnergyMarginCheck();
+#endif  // USE_ENERGY_MARGIN_DETECTION
 }
 
 /*********************************************************************************************\
@@ -500,32 +512,54 @@ void CmndEnergyReset(void)
         Settings.energy_kWhtotal = RtcSettings.energy_kWhtotal;
         Energy.total = (float)(RtcSettings.energy_kWhtotal + Energy.kWhtoday_offset + Energy.kWhtoday) / 100000;
         Settings.energy_kWhtotal_time = (!Energy.kWhtoday_offset) ? LocalTime() : Midnight();
+        RtcSettings.energy_usage.last_usage_kWhtotal = (uint32_t)(Energy.total * 1000);
         break;
       }
     }
-
-    if (RtcSettings.energy_usage.usage1_kWhtoday > (Energy.kWhtoday_offset + Energy.kWhtoday)) {
-      RtcSettings.energy_usage.usage1_kWhtoday = Energy.kWhtoday_offset + Energy.kWhtoday;
-    }
-    if (Settings.energy_usage.usage1_kWhtoday > Settings.energy_kWhtoday) {
-      Settings.energy_usage.usage1_kWhtoday = Settings.energy_kWhtoday;
-      RtcSettings.energy_usage.usage1_kWhtoday = Settings.energy_kWhtoday;
-    }
-    if (Settings.energy_usage.usage1_kWhtotal > Settings.energy_kWhtotal) {
-      Settings.energy_usage.usage1_kWhtotal = Settings.energy_kWhtotal;
-      RtcSettings.energy_usage.usage1_kWhtotal = Settings.energy_kWhtotal;
-    }
-
-    char energy_total_chr[FLOATSZ];
-    dtostrfd(Energy.total, Settings.flag2.energy_resolution, energy_total_chr);
-    char energy_daily_chr[FLOATSZ];
-    dtostrfd(Energy.daily, Settings.flag2.energy_resolution, energy_daily_chr);
-    char energy_yesterday_chr[FLOATSZ];
-    dtostrfd((float)Settings.energy_kWhyesterday / 100000, Settings.flag2.energy_resolution, energy_yesterday_chr);
-
-    Response_P(PSTR("{\"%s\":{\"" D_JSON_TOTAL "\":%s,\"" D_JSON_YESTERDAY "\":%s,\"" D_JSON_TODAY "\":%s}}"),
-      XdrvMailbox.command, energy_total_chr, energy_yesterday_chr, energy_daily_chr);
   }
+
+  if ((XdrvMailbox.index > 3) && (XdrvMailbox.index <= 5)) {
+    char *p;
+    char *str = strtok_r(XdrvMailbox.data, ", ", &p);
+    uint32_t position = 0;
+    uint32_t values[2];
+
+    while ((str != nullptr) && (position <= 1)) {
+      uint32_t value = strtoul(str, nullptr, 10);
+      values[position] = value;
+      str = strtok_r(nullptr, ", ", &p);
+      position += 1;
+    }
+
+    switch (XdrvMailbox.index)
+    {
+      case 4:
+        // Reset energy_usage.usage totals
+        RtcSettings.energy_usage.usage1_kWhtotal = values[0];
+        RtcSettings.energy_usage.usage2_kWhtotal = values[1];
+        Settings.energy_usage.usage1_kWhtotal = RtcSettings.energy_usage.usage1_kWhtotal;
+        Settings.energy_usage.usage2_kWhtotal = RtcSettings.energy_usage.usage2_kWhtotal;
+        break;
+      case 5:
+        // Reset energy_usage.return totals
+        RtcSettings.energy_usage.return1_kWhtotal = values[0];
+        RtcSettings.energy_usage.return2_kWhtotal = values[1];
+        Settings.energy_usage.return1_kWhtotal = RtcSettings.energy_usage.return1_kWhtotal;
+        Settings.energy_usage.return2_kWhtotal = RtcSettings.energy_usage.return2_kWhtotal;
+        break;
+      }
+  }
+
+  char energy_total_chr[FLOATSZ];
+  dtostrfd(Energy.total, Settings.flag2.energy_resolution, energy_total_chr);
+  char energy_daily_chr[FLOATSZ];
+  dtostrfd(Energy.daily, Settings.flag2.energy_resolution, energy_daily_chr);
+  char energy_yesterday_chr[FLOATSZ];
+  dtostrfd((float)Settings.energy_kWhyesterday / 100000, Settings.flag2.energy_resolution, energy_yesterday_chr);
+  Response_P(PSTR("{\"%s\":{\"" D_JSON_TOTAL "\":%s,\"" D_JSON_YESTERDAY "\":%s,\"" D_JSON_TODAY "\":%s,\"" D_JSON_USAGE "\":[%d,%d],\"" D_JSON_EXPORT "\":[%d,%d]}}"),
+    XdrvMailbox.command, energy_total_chr, energy_yesterday_chr, energy_daily_chr,
+    Settings.energy_usage.usage1_kWhtotal, Settings.energy_usage.usage2_kWhtotal,
+    Settings.energy_usage.return1_kWhtotal, Settings.energy_usage.return2_kWhtotal);
 }
 
 void CmndTariff(void)
@@ -773,11 +807,9 @@ void EnergySnsInit(void)
     }
     else if (RtcTime.day_of_year == Settings.energy_kWhdoy) {
       Energy.kWhtoday_offset = Settings.energy_kWhtoday;
-      RtcSettings.energy_usage.usage1_kWhtoday = Settings.energy_usage.usage1_kWhtoday;
     }
     else {
       Energy.kWhtoday_offset = 0;
-      RtcSettings.energy_usage.usage1_kWhtoday = 0;
     }
     Energy.kWhtoday = 0;
     Energy.kWhtoday_delta = 0;
@@ -897,18 +929,21 @@ void EnergyShow(bool json)
   dtostrfd(Energy.daily, Settings.flag2.energy_resolution, energy_daily_chr);
   char energy_yesterday_chr[FLOATSZ];
   dtostrfd((float)Settings.energy_kWhyesterday / 100000, Settings.flag2.energy_resolution, energy_yesterday_chr);
+
   char energy_total_chr[3][FLOATSZ];
   dtostrfd(Energy.total, Settings.flag2.energy_resolution, energy_total_chr[0]);
+  char export_active_chr[3][FLOATSZ];
+  dtostrfd(Energy.export_active, Settings.flag2.energy_resolution, export_active_chr[0]);
   uint8_t energy_total_fields = 1;
   if (Settings.register8[R8_ENERGY_TARIFF1_ST] != Settings.register8[R8_ENERGY_TARIFF2_ST]) {
-    dtostrfd(Energy.total1, Settings.flag2.energy_resolution, energy_total_chr[1]);  // Tariff1
-    dtostrfd(Energy.total - Energy.total1, Settings.flag2.energy_resolution, energy_total_chr[2]);  // Tariff2
+    dtostrfd((float)RtcSettings.energy_usage.usage1_kWhtotal / 1000, Settings.flag2.energy_resolution, energy_total_chr[1]);  // Tariff1
+    dtostrfd((float)RtcSettings.energy_usage.usage2_kWhtotal / 1000, Settings.flag2.energy_resolution, energy_total_chr[2]);  // Tariff2
+    dtostrfd((float)RtcSettings.energy_usage.return1_kWhtotal / 1000, Settings.flag2.energy_resolution, export_active_chr[1]);  // Tariff1
+    dtostrfd((float)RtcSettings.energy_usage.return2_kWhtotal / 1000, Settings.flag2.energy_resolution, export_active_chr[2]);  // Tariff2
     energy_total_fields = 3;
   }
-  char export_active_chr[FLOATSZ];
-  dtostrfd(Energy.export_active, Settings.flag2.energy_resolution, export_active_chr);
 
-  char value_chr[FLOATSZ *3];
+  char value_chr[FLOATSZ *3];   // Used by EnergyFormatIndex
   char value2_chr[FLOATSZ *3];
   char value3_chr[FLOATSZ *3];
 
@@ -922,7 +957,8 @@ void EnergyShow(bool json)
       energy_daily_chr);
 
     if (!isnan(Energy.export_active)) {
-      ResponseAppend_P(PSTR(",\"" D_JSON_EXPORT_ACTIVE "\":%s"), export_active_chr);
+      ResponseAppend_P(PSTR(",\"" D_JSON_EXPORT_ACTIVE "\":%s"),
+        EnergyFormatIndex(value_chr, export_active_chr[0], json, energy_total_fields));
     }
 
     if (show_energy_period) {
@@ -965,13 +1001,11 @@ void EnergyShow(bool json)
       dtostrfd(Energy.total * 1000, 1, energy_total_chr[0]);
       DomoticzSensorPowerEnergy((int)Energy.active_power[0], energy_total_chr[0]);  // PowerUsage, EnergyToday
 
-      dtostrfd(Energy.total1 * 1000, 1, energy_total_chr[1]);  // Tariff1
-      dtostrfd((Energy.total - Energy.total1) * 1000, 1, energy_total_chr[2]);  // Tariff2
-      char return1_total_chr[FLOATSZ];
-      dtostrfd(RtcSettings.energy_usage.return1_kWhtotal, 1, return1_total_chr);
-      char return2_total_chr[FLOATSZ];
-      dtostrfd(RtcSettings.energy_usage.return2_kWhtotal, 1, return2_total_chr);
-      DomoticzSensorP1SmartMeter(energy_total_chr[1], energy_total_chr[2], return1_total_chr, return2_total_chr, (int)Energy.active_power[0]);
+      dtostrfd(RtcSettings.energy_usage.usage1_kWhtotal, 1, energy_total_chr[1]);  // Tariff1
+      dtostrfd(RtcSettings.energy_usage.usage2_kWhtotal, 1, energy_total_chr[2]);  // Tariff2
+      dtostrfd(RtcSettings.energy_usage.return1_kWhtotal, 1, export_active_chr[1]);
+      dtostrfd(RtcSettings.energy_usage.return2_kWhtotal, 1, export_active_chr[2]);
+      DomoticzSensorP1SmartMeter(energy_total_chr[1], energy_total_chr[2], export_active_chr[1], export_active_chr[2], (int)Energy.active_power[0]);
 
       if (Energy.voltage_available) {
         DomoticzSensor(DZ_VOLTAGE, voltage_chr[0]);  // Voltage
@@ -1023,7 +1057,7 @@ void EnergyShow(bool json)
     }
     WSContentSend_PD(HTTP_ENERGY_SNS2, energy_daily_chr, energy_yesterday_chr, energy_total_chr[0]);
     if (!isnan(Energy.export_active)) {
-      WSContentSend_PD(HTTP_ENERGY_SNS3, export_active_chr);
+      WSContentSend_PD(HTTP_ENERGY_SNS3, export_active_chr[0]);
     }
 
     XnrgCall(FUNC_WEB_SENSOR);
@@ -1073,10 +1107,7 @@ bool Xsns03(uint8_t function)
   if (energy_flg) {
     switch (function) {
       case FUNC_EVERY_SECOND:
-#ifdef USE_ENERGY_MARGIN_DETECTION
-        EnergyMarginCheck();
-#endif  // USE_ENERGY_MARGIN_DETECTION
-        EnergyOverTempCheck();
+        EnergyEverySecond();
         break;
       case FUNC_JSON_APPEND:
         EnergyShow(true);
