@@ -418,6 +418,58 @@ void ZCLFrame::parseClusterSpecificCommand(JsonObject& json, uint8_t offset) {
   json[attrid_str] = hex_char;
 }
 
+// return value:
+// 0 = keep initial value
+// 1 = remove initial value
+typedef int32_t (*Z_AttrConverter)(JsonObject& json, const char *name, JsonVariant& value, const char *new_name, void * param);
+typedef struct Z_AttributeConverter {
+  const char * filter;
+  const char * name;
+  Z_AttrConverter func;
+  void * param;
+} Z_AttributeConverter;
+
+const float Z_100 PROGMEM = 100.0f;
+
+// list of post-processing directives
+const Z_AttributeConverter Z_PostProcess[] = {
+  { "A_0000_0005",  D_JSON_MODEL D_JSON_ID, &Z_Copy,                nullptr },     // ModelID
+  { "A_0402_0000",  D_JSON_TEMPERATURE,     &Z_ConvFloatDivider,    (void*) &Z_100 },   // Temperature
+  { "A_0402_????",  "",                     &Z_Remove,              nullptr },     // Remove
+
+  { "A_0403_0000",  D_JSON_PRESSURE_UNIT,   &Z_Const_Keep,          (void*) D_UNIT_PRESSURE},     // Pressure Unit
+  { "A_0403_0000",  D_JSON_PRESSURE,        &Z_Copy,                nullptr },     // Pressure
+  { "A_0403_????",  "",                     &Z_Remove,              nullptr },     // Remove
+
+};
+
+// ======================================================================
+// Remove attribute
+int32_t Z_Remove(JsonObject& json, const char *name, JsonVariant& value, const char *new_name, void * param) {
+  return 1;
+}
+
+// Copy value as-is
+int32_t Z_Copy(JsonObject& json, const char *name, JsonVariant& value, const char *new_name, void * param) {
+  json[new_name] = value;
+  return 1;
+}
+
+// Copy value as-is
+int32_t Z_Const_Keep(JsonObject& json, const char *name, JsonVariant& value, const char *new_name, void * param) {
+  json[new_name] = (char*)param;
+  return 0;
+}
+
+// Convert int to float with divider
+int32_t Z_ConvFloatDivider(JsonObject& json, const char *name, JsonVariant& value, const char *new_name, void * param) {
+  float f_value = value;
+  float *divider = (float*) param;
+  json[new_name] = f_value / *divider;
+  return 1;
+}
+// ======================================================================
+
 #define ZCL_MODELID         "A_0000_0005"     // Cmd 0x0A - Cluster 0x0000, attribute 0x05
 #define ZCL_TEMPERATURE     "A_0402_0000"     // Cmd 0x0A - Cluster 0x0402, attribute 0x00
 #define ZCL_PRESSURE        "A_0403_0000"     // Cmd 0x0A - Cluster 0x0403, attribute 0x00
@@ -439,7 +491,31 @@ void ZCLFrame::parseClusterSpecificCommand(JsonObject& json, uint8_t offset) {
 #define ZCL_LC_STEP_WOO     "s_0008_06"       // Cluster 0x0008, cmd 0x05, Level Control Step, with On/Off
 #define ZCL_LC_STOP_WOO     "s_0008_07"       // Cluster 0x0008, cmd 0x07, Level Control Stop
 
+
 void ZCLFrame::postProcessAttributes(JsonObject& json) {
+  // iterate on json elements
+  for (auto kv : json) {
+    String key = kv.key;
+    JsonVariant& value = kv.value;
+
+    // Iterate on filters
+    for (uint32_t i = 0; i < sizeof(Z_PostProcess) / sizeof(Z_PostProcess[0]); i++) {
+      const Z_AttributeConverter *converter = &Z_PostProcess[i];
+
+      if (key.equals(converter->filter)) {
+        // Exact match of filter
+        int32_t drop = (*converter->func)(json, key.c_str(), value, converter->name, converter->param);
+        if (drop) {
+          json.remove(key);
+        }
+
+      }
+    }
+  }
+}
+
+//void ZCLFrame::postProcessAttributes2(JsonObject& json) {
+void postProcessAttributes2(JsonObject& json) {
   const __FlashStringHelper *key;
 
   // ModelID ZCL 3.2

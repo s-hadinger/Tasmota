@@ -347,9 +347,11 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     //ZI_LOG(LOG_LEVEL_INFO, "ZIG: rebooting device")
     ZI_SEND(ZBS_RESET)                        // reboot cc2530 just in case we rebooted ESP8266 but not cc2530
     ZI_WAIT_RECV(5000, ZBR_RESET)             // timeout 5s
+    ZI_WAIT(100)
     ZI_LOG(LOG_LEVEL_INFO, "ZIG: checking device configuration")
     ZI_SEND(ZBS_ZNPHC)                        // check value of ZNP Has Configured
     ZI_WAIT_RECV(2000, ZBR_ZNPHC)
+    ZI_WAIT(100)
     ZI_SEND(ZBS_VERSION)                      // check ZNP software version
     ZI_WAIT_RECV_FUNC(2000, ZBR_VERSION, &Z_ReceiveCheckVersion)  // Check version
     ZI_SEND(ZBS_PAN)                          // check PAN ID
