@@ -435,14 +435,14 @@ const float Z_100 PROGMEM = 100.0f;
 const Z_AttributeConverter Z_PostProcess[] = {
   { "A_0000_0005",  D_JSON_MODEL D_JSON_ID, &Z_Copy,                nullptr },     // ModelID
   { "A_0402_0000",  D_JSON_TEMPERATURE,     &Z_ConvFloatDivider,    (void*) &Z_100 },   // Temperature
-  { "A_0402_????",  "",                     &Z_Remove,              nullptr },     // Remove
+  { "A_0402_????",  "",                     &Z_Remove,              nullptr },     // Remove all other temp values
 
   { "A_0403_0000",  D_JSON_PRESSURE_UNIT,   &Z_Const_Keep,          (void*) D_UNIT_PRESSURE},     // Pressure Unit
   { "A_0403_0000",  D_JSON_PRESSURE,        &Z_Copy,                nullptr },     // Pressure
-  { "A_0403_????",  "",                     &Z_Remove,              nullptr },     // Remove
+  { "A_0403_????",  "",                     &Z_Remove,              nullptr },     // Remove all other Pressure values
 
   { "A_0405_0000",  D_JSON_HUMIDITY,        &Z_ConvFloatDivider,    (void*) &Z_100 },   // Humidity
-  { "A_0405_????",  "",                     &Z_Remove,              nullptr },     // Remove
+  { "A_0405_????",  "",                     &Z_Remove,              nullptr },     // Remove all other Humidity values
 };
 
 // ======================================================================
