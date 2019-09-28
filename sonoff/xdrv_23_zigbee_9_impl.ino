@@ -607,6 +607,10 @@ int32_t Z_ReceiveEndDeviceAnnonce(int32_t res, const class SBuffer &buf) {
   Z_IEEEAddress     ieeeAddr = buf.get64(6);
   uint8_t           capabilities = buf.get8(14);
 
+  Z_AddDeviceLongAddr(nwkAddr, ieeeAddr);
+//   String dump = Z_DumpDevices();
+// Serial.printf(">>> Devices dump = %s\n", dump.c_str());
+
   char hex[20];
   Uint64toHex(ieeeAddr, hex, 64);
   Response_P(PSTR("{\"" D_JSON_ZIGBEE_STATUS "\":{"
