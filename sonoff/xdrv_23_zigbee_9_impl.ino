@@ -35,6 +35,7 @@ const uint8_t  ZIGBEE_STATUS_PERMITJOIN_OPEN_60 = 21;   // Enable PermitJoin for
 const uint8_t  ZIGBEE_STATUS_PERMITJOIN_OPEN_XX = 22;   // Enable PermitJoin until next boot
 const uint8_t  ZIGBEE_STATUS_DEVICE_ANNOUNCE = 30;      // Device announces its address
 const uint8_t  ZIGBEE_STATUS_NODE_DESC = 31;            // Node descriptor
+const uint8_t  ZIGBEE_STATUS_ACTIVE_EP = 32;            // Node descriptor
 const uint8_t  ZIGBEE_STATUS_CC_VERSION = 50;           // Status: CC2530 ZNP Version
 const uint8_t  ZIGBEE_STATUS_CC_INFO = 51;              // Status: CC2530 Device Configuration
 const uint8_t  ZIGBEE_STATUS_UNSUPPORTED_VERSION = 98;  // Unsupported ZNP version
@@ -288,7 +289,7 @@ ZBM(ZBR_GETDEVICEINFO, Z_SRSP | Z_UTIL, Z_UTIL_GET_DEVICE_INFO, Z_Success )   //
 ZBM(ZBS_ZDO_NODEDESCREQ, Z_SREQ | Z_ZDO, ZDO_NODE_DESC_REQ, 0x00, 0x00 /* dst addr */, 0x00, 0x00 /* NWKAddrOfInterest */)    // 250200000000
 ZBM(ZBR_ZDO_NODEDESCREQ, Z_SRSP | Z_ZDO, ZDO_NODE_DESC_REQ, Z_Success )   // 650200
 // Async resp ex: 4582.0000.00.0000.00.40.8F.0000.50.A000.0100.A000.00
-ZBM(AREQ_ZDO_NODEDESCREQ, Z_AREQ | Z_ZDO, ZDO_NODE_DESC_RSP)    // 4582
+ZBM(AREQ_ZDO_NODEDESCRSP, Z_AREQ | Z_ZDO, ZDO_NODE_DESC_RSP)    // 4582
 // SrcAddr (2 bytes) 0000
 // Status (1 byte) 00 Success
 // NwkAddr (2 bytes) 0000
@@ -301,6 +302,7 @@ ZBM(AREQ_ZDO_NODEDESCREQ, Z_AREQ | Z_ZDO, ZDO_NODE_DESC_RSP)    // 4582
 // ServerMask (2 bytes) - 0100 - Primary Trust Center
 // MaxOutTransferSize (2 bytes) - A000 = 160
 // DescriptorCapabilities (1 byte) - 00
+ZBM(AREQ_ZDO_ACTIVEEPRSP, Z_AREQ | Z_ZDO, ZDO_ACTIVE_EP_RSP)    // 4585
 
 // Z_ZDO:activeEpReq
 ZBM(ZBS_ZDO_ACTIVEEPREQ, Z_SREQ | Z_ZDO, ZDO_ACTIVE_EP_REQ, 0x00, 0x00, 0x00, 0x00)  // 250500000000
@@ -383,7 +385,7 @@ ZI_SEND(ZBS_STARTUPFROMAPP)                       // start coordinator
     //ZI_WAIT_RECV(2000, ZBR_GETDEVICEINFO)         // TODO memorize info
     ZI_SEND(ZBS_ZDO_NODEDESCREQ)                  // Z_ZDO:nodeDescReq
     ZI_WAIT_RECV(1000, ZBR_ZDO_NODEDESCREQ)
-    ZI_WAIT_UNTIL(5000, AREQ_ZDO_NODEDESCREQ)
+    ZI_WAIT_UNTIL(5000, AREQ_ZDO_NODEDESCRSP)
     ZI_SEND(ZBS_ZDO_ACTIVEEPREQ)                  // Z_ZDO:activeEpReq
     ZI_WAIT_RECV(1000, ZBR_ZDO_ACTIVEEPREQ)
     ZI_WAIT_UNTIL(1000, ZBR_ZDO_ACTIVEEPRSP_NONE)
@@ -614,7 +616,6 @@ void Z_SendActiveEpReq(uint16_t shortaddr) {
 }
 
 const char* Z_DeviceType[] = { "Coordinator", "Router", "End Device", "Unknown" };
-
 int32_t Z_ReceiveNodeDesc(int32_t res, const class SBuffer &buf) {
   // Received ZDO_NODE_DESC_RSP
   Z_ShortAddress    srcAddr = buf.get16(2);
@@ -630,16 +631,43 @@ int32_t Z_ReceiveNodeDesc(int32_t res, const class SBuffer &buf) {
   uint16_t          maxOutTransferSize = buf.get16(17);
   uint8_t           descriptorCapabilities = buf.get8(19);
 
-  uint8_t           deviceType = logicalType & 0x7;   // 0=coordinator, 1=router, 2=end device
-  if (deviceType > 3) { deviceType = 3; }
-  bool              complexDescriptorAvailable = (logicalType & 0x08) ? 1 : 0;
+  if (0 == status) {
+    uint8_t           deviceType = logicalType & 0x7;   // 0=coordinator, 1=router, 2=end device
+    if (deviceType > 3) { deviceType = 3; }
+    bool              complexDescriptorAvailable = (logicalType & 0x08) ? 1 : 0;
+
+    Response_P(PSTR("{\"" D_JSON_ZIGBEE_STATUS "\":{"
+                    "\"Status\":%d,\"NodeType\":\"%s\",\"ComplexDesc\":%s}}"),
+                    ZIGBEE_STATUS_NODE_DESC, Z_DeviceType[deviceType],
+                    complexDescriptorAvailable ? "true" : "false"
+                    );
+
+    MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCLRECEIVED));
+    XdrvRulesProcess();
+  }
+
+  return -1;
+}
+
+int32_t Z_ReceiveActiveEp(int32_t res, const class SBuffer &buf) {
+  // Received ZDO_ACTIVE_EP_RSP
+  Z_ShortAddress    srcAddr = buf.get16(2);
+  uint8_t           status  = buf.get8(4);
+  Z_ShortAddress    nwkAddr = buf.get16(5);
+  uint8_t           activeEpCount = buf.get8(7);
+  uint8_t*          activeEpList = (uint8_t*) buf.charptr(8);
+
+  // TODO add active EPs to Device list
 
   Response_P(PSTR("{\"" D_JSON_ZIGBEE_STATUS "\":{"
-                  "\"Status\":%d,\"NodeType\":\"%s\",\"ComplexDesc\":%s}}"),
-                  ZIGBEE_STATUS_NODE_DESC, Z_DeviceType[deviceType],
-                  complexDescriptorAvailable ? "true" : "false"
-                  );
-
+                  "\"Status\":%d,\"ActiveEndpoints\":["),
+                  ZIGBEE_STATUS_ACTIVE_EP);
+  for (uint32_t i = 0; i < activeEpCount; i++) {
+    if (i > 0) { ResponseAppend_P(PSTR(",")); }
+    char hex[8];
+    ResponseAppend_P(PSTR("\"0x%02X\""), activeEpList[i]);
+  }
+  ResponseAppend_P(PSTR("]}}"));
   MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCLRECEIVED));
   XdrvRulesProcess();
   return -1;
@@ -727,8 +755,10 @@ int32_t Z_Recv_Default(int32_t res, const class SBuffer &buf) {
       return Z_ReceiveEndDeviceAnnonce(res, buf);
     } else if (Z_ReceiveMatchPrefix(buf, ZBR_PERMITJOIN_AREQ_OPEN_XX)) {
       return Z_ReceivePermitJoinStatus(res, buf);
-    } else if (Z_ReceiveMatchPrefix(buf, AREQ_ZDO_NODEDESCREQ)) {
+    } else if (Z_ReceiveMatchPrefix(buf, AREQ_ZDO_NODEDESCRSP)) {
       return Z_ReceiveNodeDesc(res, buf);
+    } else if (Z_ReceiveMatchPrefix(buf, AREQ_ZDO_ACTIVEEPRSP)) {
+      return Z_ReceiveActiveEp(res, buf);
     }
     return -1;
   }
