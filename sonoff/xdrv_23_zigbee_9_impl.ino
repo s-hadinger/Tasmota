@@ -327,7 +327,8 @@ ZBM(ZBS_PERMITJOINREQ_OPEN_XX, Z_SREQ | Z_ZDO, ZDO_MGMT_PERMIT_JOIN_REQ, 0x0F /*
 ZBM(ZBR_PERMITJOINREQ, Z_SRSP | Z_ZDO, ZDO_MGMT_PERMIT_JOIN_REQ, Z_Success)    // 653600
 ZBM(ZBR_PERMITJOIN_AREQ_CLOSE, Z_AREQ | Z_ZDO, ZDO_PERMIT_JOIN_IND, 0x00 /* Duration */)      // 45CB00
 ZBM(ZBR_PERMITJOIN_AREQ_OPEN_60, Z_AREQ | Z_ZDO, ZDO_PERMIT_JOIN_IND, 60 /* Duration */)      // 45CB3C
-ZBM(ZBR_PERMITJOIN_AREQ_OPEN_XX, Z_AREQ | Z_ZDO, ZDO_PERMIT_JOIN_IND, 0xFF /* Duration */)    // 45CBFF
+ZBM(ZBR_PERMITJOIN_AREQ_OPEN_FF, Z_AREQ | Z_ZDO, ZDO_PERMIT_JOIN_IND, 0xFF /* Duration */)    // 45CBFF
+ZBM(ZBR_PERMITJOIN_AREQ_OPEN_XX, Z_AREQ | Z_ZDO, ZDO_PERMIT_JOIN_IND )    // 45CB
 ZBM(ZBR_PERMITJOIN_AREQ_RSP,  Z_AREQ | Z_ZDO, ZDO_MGMT_PERMIT_JOIN_RSP, 0x00, 0x00 /* srcAddr*/, Z_Success )   // 45B6000000
 
 // Filters for ZCL frames
@@ -401,7 +402,7 @@ ZI_SEND(ZBS_STARTUPFROMAPP)                       // start coordinator
     //ZI_SEND(ZBS_PERMITJOINREQ_OPEN_XX)               // Opening Permit Join, normally through command
     //ZI_WAIT_RECV(1000, ZBR_PERMITJOINREQ)
     //ZI_WAIT_UNTIL(1000, ZBR_PERMITJOIN_AREQ_RSP)  // not sure it's useful
-    //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_OPEN_XX)
+    //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_OPEN_FF)
 
   ZI_LABEL(ZIGBEE_LABEL_READY)
     ZI_MQTT_STATUS(ZIGBEE_STATUS_OK, "Started")
@@ -412,7 +413,7 @@ ZI_SEND(ZBS_STARTUPFROMAPP)                       // start coordinator
     ZI_GOTO(ZIGBEE_LABEL_READY)
 
   ZI_LABEL(ZIGBEE_LABEL_PERMIT_JOIN_CLOSE)
-    ZI_MQTT_STATUS(ZIGBEE_STATUS_PERMITJOIN_CLOSE, "Disable Pairing mode")
+    //ZI_MQTT_STATUS(ZIGBEE_STATUS_PERMITJOIN_CLOSE, "Disable Pairing mode")
     ZI_SEND(ZBS_PERMITJOINREQ_CLOSE)              // Closing the Permit Join
     ZI_WAIT_RECV(1000, ZBR_PERMITJOINREQ)
     //ZI_WAIT_UNTIL(1000, ZBR_PERMITJOIN_AREQ_RSP)  // not sure it's useful
@@ -420,7 +421,7 @@ ZI_SEND(ZBS_STARTUPFROMAPP)                       // start coordinator
     ZI_GOTO(ZIGBEE_LABEL_MAIN_LOOP)
 
   ZI_LABEL(ZIGBEE_LABEL_PERMIT_JOIN_OPEN_60)
-    ZI_MQTT_STATUS(ZIGBEE_STATUS_PERMITJOIN_OPEN_60, "Enable Pairing mode for 60 seconds")
+    //ZI_MQTT_STATUS(ZIGBEE_STATUS_PERMITJOIN_OPEN_60, "Enable Pairing mode for 60 seconds")
     ZI_SEND(ZBS_PERMITJOINREQ_OPEN_60)
     ZI_WAIT_RECV(1000, ZBR_PERMITJOINREQ)
     //ZI_WAIT_UNTIL(1000, ZBR_PERMITJOIN_AREQ_RSP)  // not sure it's useful
@@ -428,11 +429,11 @@ ZI_SEND(ZBS_STARTUPFROMAPP)                       // start coordinator
     ZI_GOTO(ZIGBEE_LABEL_MAIN_LOOP)
 
   ZI_LABEL(ZIGBEE_LABEL_PERMIT_JOIN_OPEN_XX)
-    ZI_MQTT_STATUS(ZIGBEE_STATUS_PERMITJOIN_OPEN_XX, "Enable Pairing mode until next boot")
+    //ZI_MQTT_STATUS(ZIGBEE_STATUS_PERMITJOIN_OPEN_XX, "Enable Pairing mode until next boot")
     ZI_SEND(ZBS_PERMITJOINREQ_OPEN_XX)
     ZI_WAIT_RECV(1000, ZBR_PERMITJOINREQ)
     //ZI_WAIT_UNTIL(1000, ZBR_PERMITJOIN_AREQ_RSP)  // not sure it's useful
-    //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_OPEN_XX)
+    //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_OPEN_FF)
     ZI_GOTO(ZIGBEE_LABEL_MAIN_LOOP)
 
   ZI_LABEL(50)                                    // reformat device
@@ -572,6 +573,34 @@ bool Z_ReceiveMatchPrefix(const class SBuffer &buf, const uint8_t *match) {
   }
 }
 
+
+int32_t Z_ReceivePermitJoinStatus(int32_t res, const class SBuffer &buf) {
+  // we received a PermitJoin status change
+  uint8_t     duration = buf.get8(2);
+  uint8_t     status_code;
+  const char* message;
+
+  if (0xFF == duration) {
+    status_code = ZIGBEE_STATUS_PERMITJOIN_OPEN_XX;
+    message = PSTR("Enable Pairing mode until next boot");
+  } else if (duration > 0) {
+    status_code = ZIGBEE_STATUS_PERMITJOIN_OPEN_60;
+    message = PSTR("Enable Pairing mode for %d seconds");
+  } else {
+    status_code = ZIGBEE_STATUS_PERMITJOIN_CLOSE;
+    message = PSTR("Disable Pairing mode");
+  }
+  Response_P(PSTR("{\"" D_JSON_ZIGBEE_STATUS "\":{"
+                  "\"Status\":%d,\"Message\":\""),
+                  status_code);
+  ResponseAppend_P(message, duration);
+  ResponseAppend_P(PSTR("\"}}"));
+
+  MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEE_STATUS));
+  XdrvRulesProcess();
+  return -1;
+}
+
 int32_t Z_ReceiveEndDeviceAnnonce(int32_t res, const class SBuffer &buf) {
   Z_ShortAddress    srcAddr = buf.get16(2);
   Z_ShortAddress    nwkAddr = buf.get16(4);
@@ -647,6 +676,8 @@ int32_t Z_Recv_Default(int32_t res, const class SBuffer &buf) {
       return Z_ReceiveAfIncomingMessage(res, buf);
     } else if (Z_ReceiveMatchPrefix(buf, ZBR_END_DEVICE_ANNCE_IND)) {
       return Z_ReceiveEndDeviceAnnonce(res, buf);
+    } else if (Z_ReceiveMatchPrefix(buf, ZBR_PERMITJOIN_AREQ_OPEN_XX)) {
+      return Z_ReceivePermitJoinStatus(res, buf);
     }
     return -1;
   }
@@ -1088,7 +1119,7 @@ void ZigbeeZNPSend(const uint8_t *msg, size_t len) {
 	XdrvRulesProcess();
 }
 
-
+// Allow or Deny pairing of new Zigbee devices
 void CmndZigbeePermitJoin(void)
 {
   uint32_t payload = XdrvMailbox.payload;
