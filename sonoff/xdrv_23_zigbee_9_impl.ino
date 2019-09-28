@@ -573,7 +573,6 @@ bool Z_ReceiveMatchPrefix(const class SBuffer &buf, const uint8_t *match) {
   }
 }
 
-
 int32_t Z_ReceivePermitJoinStatus(int32_t res, const class SBuffer &buf) {
   // we received a PermitJoin status change
   uint8_t     duration = buf.get8(2);
@@ -601,6 +600,19 @@ int32_t Z_ReceivePermitJoinStatus(int32_t res, const class SBuffer &buf) {
   return -1;
 }
 
+// Send ACTIVE_EP_REQ to collect active endpoints for this address
+void Z_SendActiveEpReq(uint16_t shortaddr) {
+  uint8_t ActiveEpReq[] = { Z_SREQ | Z_ZDO, ZDO_ACTIVE_EP_REQ,
+              Z_B0(shortaddr), Z_B1(shortaddr), Z_B0(shortaddr), Z_B1(shortaddr) };
+
+  uint8_t NodeDescReq[] = { Z_SREQ | Z_ZDO, ZDO_NODE_DESC_REQ,
+              Z_B0(shortaddr), Z_B1(shortaddr), Z_B0(shortaddr), Z_B1(shortaddr) };
+
+  ZigbeeZNPSend(ActiveEpReq, sizeof(ActiveEpReq));
+  ZigbeeZNPSend(NodeDescReq, sizeof(NodeDescReq));
+}
+
+
 int32_t Z_ReceiveEndDeviceAnnonce(int32_t res, const class SBuffer &buf) {
   Z_ShortAddress    srcAddr = buf.get16(2);
   Z_ShortAddress    nwkAddr = buf.get16(4);
@@ -624,6 +636,7 @@ int32_t Z_ReceiveEndDeviceAnnonce(int32_t res, const class SBuffer &buf) {
 
   MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCLRECEIVED));
   XdrvRulesProcess();
+  Z_SendActiveEpReq(nwkAddr);
   return -1;
 }
 
