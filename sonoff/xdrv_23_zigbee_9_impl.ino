@@ -34,6 +34,7 @@ const uint8_t  ZIGBEE_STATUS_PERMITJOIN_CLOSE = 20;     // Disable PermitJoin
 const uint8_t  ZIGBEE_STATUS_PERMITJOIN_OPEN_60 = 21;   // Enable PermitJoin for 60 seconds
 const uint8_t  ZIGBEE_STATUS_PERMITJOIN_OPEN_XX = 22;   // Enable PermitJoin until next boot
 const uint8_t  ZIGBEE_STATUS_DEVICE_ANNOUNCE = 30;      // Device announces its address
+const uint8_t  ZIGBEE_STATUS_NODE_DESC = 31;            // Node descriptor
 const uint8_t  ZIGBEE_STATUS_CC_VERSION = 50;           // Status: CC2530 ZNP Version
 const uint8_t  ZIGBEE_STATUS_CC_INFO = 51;              // Status: CC2530 Device Configuration
 const uint8_t  ZIGBEE_STATUS_UNSUPPORTED_VERSION = 98;  // Unsupported ZNP version
@@ -612,6 +613,37 @@ void Z_SendActiveEpReq(uint16_t shortaddr) {
   ZigbeeZNPSend(NodeDescReq, sizeof(NodeDescReq));
 }
 
+const char* Z_DeviceType[] = { "Coordinator", "Router", "End Device", "Unknown" };
+
+int32_t Z_ReceiveNodeDesc(int32_t res, const class SBuffer &buf) {
+  // Received ZDO_NODE_DESC_RSP
+  Z_ShortAddress    srcAddr = buf.get16(2);
+  uint8_t           status  = buf.get8(4);
+  Z_ShortAddress    nwkAddr = buf.get16(5);
+  uint8_t           logicalType = buf.get8(7);
+  uint8_t           apsFlags = buf.get8(8);
+  uint8_t           MACCapabilityFlags = buf.get8(9);
+  uint16_t          manufacturerCapabilities = buf.get16(10);
+  uint8_t           maxBufferSize = buf.get8(12);
+  uint16_t          maxInTransferSize = buf.get16(13);
+  uint16_t          serverMask = buf.get16(15);
+  uint16_t          maxOutTransferSize = buf.get16(17);
+  uint8_t           descriptorCapabilities = buf.get8(19);
+
+  uint8_t           deviceType = logicalType & 0x7;   // 0=coordinator, 1=router, 2=end device
+  if (deviceType > 3) { deviceType = 3; }
+  bool              complexDescriptorAvailable = (logicalType & 0x08) ? 1 : 0;
+
+  Response_P(PSTR("{\"" D_JSON_ZIGBEE_STATUS "\":{"
+                  "\"Status\":%d,\"NodeType\":\"%s\",\"ComplexDesc\":%s}}"),
+                  ZIGBEE_STATUS_NODE_DESC, Z_DeviceType[deviceType],
+                  complexDescriptorAvailable ? "true" : "false"
+                  );
+
+  MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCLRECEIVED));
+  XdrvRulesProcess();
+  return -1;
+}
 
 int32_t Z_ReceiveEndDeviceAnnonce(int32_t res, const class SBuffer &buf) {
   Z_ShortAddress    srcAddr = buf.get16(2);
@@ -695,6 +727,8 @@ int32_t Z_Recv_Default(int32_t res, const class SBuffer &buf) {
       return Z_ReceiveEndDeviceAnnonce(res, buf);
     } else if (Z_ReceiveMatchPrefix(buf, ZBR_PERMITJOIN_AREQ_OPEN_XX)) {
       return Z_ReceivePermitJoinStatus(res, buf);
+    } else if (Z_ReceiveMatchPrefix(buf, AREQ_ZDO_NODEDESCREQ)) {
+      return Z_ReceiveNodeDesc(res, buf);
     }
     return -1;
   }
