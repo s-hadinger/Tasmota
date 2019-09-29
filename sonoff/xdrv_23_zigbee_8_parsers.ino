@@ -230,11 +230,11 @@ int32_t Z_ReceiveSimpleDesc(int32_t res, const class SBuffer &buf) {
   Z_ShortAddress    nwkAddr = buf.get16(5);
   uint8_t           lenDescriptor = buf.get8(7);
   uint8_t           endpoint = buf.get8(8);
-  uint16_t          profileId = buf.get16(10);  // The profile Id for this endpoint.
-  uint16_t          deviceId = buf.get16(12);   // The Device Description Id for this endpoint.
-  uint8_t           deviceVersion = buf.get8(14); // 0 – Version 1.00
-  uint8_t           numInCluster = buf.get8(15);
-  uint8_t           numOutCluster = buf.get8(16 + numInCluster*2);
+  uint16_t          profileId = buf.get16(9);  // The profile Id for this endpoint.
+  uint16_t          deviceId = buf.get16(11);   // The Device Description Id for this endpoint.
+  uint8_t           deviceVersion = buf.get8(13); // 0 – Version 1.00
+  uint8_t           numInCluster = buf.get8(14);
+  uint8_t           numOutCluster = buf.get8(15 + numInCluster*2);
 
   if (0 == status) {
     // TODO add active Clusters to Device list
@@ -246,12 +246,12 @@ int32_t Z_ReceiveSimpleDesc(int32_t res, const class SBuffer &buf) {
                     profileId, deviceId, deviceVersion);
     for (uint32_t i = 0; i < numInCluster; i++) {
       if (i > 0) { ResponseAppend_P(PSTR(",")); }
-      ResponseAppend_P(PSTR("\"0x%04X\""), buf.get16(16 + i*2));
+      ResponseAppend_P(PSTR("\"0x%04X\""), buf.get16(15 + i*2));
     }
     ResponseAppend_P(PSTR("],\"OutClusters\":["));
     for (uint32_t i = 0; i < numOutCluster; i++) {
       if (i > 0) { ResponseAppend_P(PSTR(",")); }
-      ResponseAppend_P(PSTR("\"0x%04X\""), buf.get16(17 + numInCluster*2 + i*2));
+      ResponseAppend_P(PSTR("\"0x%04X\""), buf.get16(16 + numInCluster*2 + i*2));
     }
     ResponseAppend_P(PSTR("]}}"));
     MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCLRECEIVED));
