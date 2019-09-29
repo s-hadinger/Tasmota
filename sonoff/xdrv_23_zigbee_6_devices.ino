@@ -24,23 +24,40 @@
 
 typedef struct Z_Device {
   uint16_t              shortaddr;
-  uint64_t              longaddr;
+  uint64_t              longaddr;       // 0x00 means unspecified
   std::vector<uint8_t>  endpoints;
-  std::vector<uint32_t> clusters_in;   // encoded as high 16 bits is endpoint, low 16 bits is cluster number
+  std::vector<uint32_t> clusters_in;    // encoded as high 16 bits is endpoint, low 16 bits is cluster number
   std::vector<uint32_t> clusters_out;   // encoded as high 16 bits is endpoint, low 16 bits is cluster number
 } Z_Device;
 
 std::map<uint16_t, Z_Device> zigbee_devices = {};
 
+
+template < typename T>
+bool findInVector(const std::vector<T>  & vecOfElements, const T  & element) {
+	// Find given element in vector
+	auto it = std::find(vecOfElements.begin(), vecOfElements.end(), element);
+
+	if (it != vecOfElements.end()) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
+// insert an entry when it is known it is missing
+void Z_InsertShortAddrEntry(uint16_t shortaddr, uint64_t longaddr) {
+  Z_Device device = { shortaddr, longaddr,
+                      std::vector<uint8_t>(),
+                      std::vector<uint32_t>() };
+  zigbee_devices[shortaddr] = device;
+}
+
 void Z_AddDeviceLongAddr(uint16_t shortaddr, uint64_t longaddr) {
   // is the short address already recorded?
   if (0 == zigbee_devices.count(shortaddr)) {
     // No, add an entry
-    Z_Device device = { shortaddr, longaddr,
-                        std::vector<uint8_t>(),
-                        std::vector<uint32_t>() };
-    zigbee_devices[shortaddr] = device;
-    //zigbee_devices.insert(std::make_pair(shortaddr, device));
+    Z_InsertShortAddrEntry(shortaddr, longaddr);
   } else {
     // Yes, update the longaddr if necessary
     Z_Device &device = zigbee_devices[shortaddr];
@@ -52,6 +69,17 @@ void Z_AddDeviceLongAddr(uint16_t shortaddr, uint64_t longaddr) {
       device.clusters_in.clear();
       device.clusters_out.clear();
     }
+  }
+}
+
+void Z_AddDeviceEndpoint(uint16_t shortaddr, uint8_t endpoint) {
+  if (0 == zigbee_devices.count(shortaddr)) {
+    // No entry
+    Z_InsertShortAddrEntry(shortaddr, 0);
+  }
+  Z_Device &device = zigbee_devices[shortaddr];
+  if (!findInVector(device.endpoints, endpoint)) {
+    device.endpoints.push_back(endpoint);
   }
 }
 

@@ -203,7 +203,12 @@ int32_t Z_ReceiveActiveEp(int32_t res, const class SBuffer &buf) {
   uint8_t           activeEpCount = buf.get8(7);
   uint8_t*          activeEpList = (uint8_t*) buf.charptr(8);
 
-  // TODO add active EPs to Device list
+
+  for (uint32_t i = 0; i < activeEpCount; i++) {
+    Z_AddDeviceEndpoint(nwkAddr, activeEpList[i]);
+  }
+ String dump = Z_DumpDevices();
+ Serial.printf(">>> Devices dump = %s\n", dump.c_str());
 
   for (uint32_t i = 0; i < activeEpCount; i++) {
     Z_SendSimpleDescReq(nwkAddr, activeEpList[i]);
