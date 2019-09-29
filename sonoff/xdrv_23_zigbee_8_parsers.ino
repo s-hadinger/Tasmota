@@ -251,7 +251,7 @@ int32_t Z_ReceiveSimpleDesc(int32_t res, const class SBuffer &buf) {
 
     Response_P(PSTR("{\"" D_JSON_ZIGBEE_STATUS "\":{"
                     "\"Status\":%d,\"Endpoint\":\"0x%02X\""
-                    ",\"ProfileId\":\"0x%04X\",\"DeviceId\":\"0x%04X\",\"DeviceVerion\":%d"
+                    ",\"ProfileId\":\"0x%04X\",\"DeviceId\":\"0x%04X\",\"DeviceVersion\":%d"
                     "\"InClusters\":["),
                     ZIGBEE_STATUS_SIMPLE_DESC, endpoint,
                     profileId, deviceId, deviceVersion);
