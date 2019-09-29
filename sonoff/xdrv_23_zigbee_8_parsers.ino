@@ -207,8 +207,6 @@ int32_t Z_ReceiveActiveEp(int32_t res, const class SBuffer &buf) {
   for (uint32_t i = 0; i < activeEpCount; i++) {
     Z_AddDeviceEndpoint(nwkAddr, activeEpList[i]);
   }
- String dump = Z_DumpDevices();
- Serial.printf(">>> Devices dump = %s\n", dump.c_str());
 
   for (uint32_t i = 0; i < activeEpCount; i++) {
     Z_SendSimpleDescReq(nwkAddr, activeEpList[i]);
@@ -242,7 +240,15 @@ int32_t Z_ReceiveSimpleDesc(int32_t res, const class SBuffer &buf) {
   uint8_t           numOutCluster = buf.get8(15 + numInCluster*2);
 
   if (0 == status) {
-    // TODO add active Clusters to Device list
+    for (uint32_t i = 0; i < numInCluster; i++) {
+      Z_AddDeviceCluster(nwkAddr, endpoint, buf.get16(15 + i*2), false);
+    }
+    for (uint32_t i = 0; i < numOutCluster; i++) {
+      Z_AddDeviceCluster(nwkAddr, endpoint, buf.get16(16 + numInCluster*2 + i*2), true);
+    }
+    String dump = Z_DumpDevices();
+    Serial.printf(">>> Devices dump = %s\n", dump.c_str());
+
     Response_P(PSTR("{\"" D_JSON_ZIGBEE_STATUS "\":{"
                     "\"Status\":%d,\"Endpoint\":\"0x%02X\""
                     ",\"ProfileId\":\"0x%04X\",\"DeviceId\":\"0x%04X\",\"DeviceVerion\":%d"

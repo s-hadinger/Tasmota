@@ -49,6 +49,7 @@ bool findInVector(const std::vector<T>  & vecOfElements, const T  & element) {
 void Z_InsertShortAddrEntry(uint16_t shortaddr, uint64_t longaddr) {
   Z_Device device = { shortaddr, longaddr,
                       std::vector<uint8_t>(),
+                      std::vector<uint32_t>(),
                       std::vector<uint32_t>() };
   zigbee_devices[shortaddr] = device;
 }
@@ -80,6 +81,27 @@ void Z_AddDeviceEndpoint(uint16_t shortaddr, uint8_t endpoint) {
   Z_Device &device = zigbee_devices[shortaddr];
   if (!findInVector(device.endpoints, endpoint)) {
     device.endpoints.push_back(endpoint);
+  }
+}
+
+void Z_AddDeviceCluster(uint16_t shortaddr, uint8_t endpoint, uint16_t cluster, bool out) {
+  if (0 == zigbee_devices.count(shortaddr)) {
+    // No entry
+    Z_InsertShortAddrEntry(shortaddr, 0);
+  }
+  Z_Device &device = zigbee_devices[shortaddr];
+  if (!findInVector(device.endpoints, endpoint)) {
+    device.endpoints.push_back(endpoint);
+  }
+  uint32_t ep_cluster = (endpoint << 16) | cluster;
+  if (!out) {
+    if (!findInVector(device.clusters_in, ep_cluster)) {
+      device.clusters_in.push_back(ep_cluster);
+    }
+  } else { // out
+    if (!findInVector(device.clusters_out, ep_cluster)) {
+      device.clusters_out.push_back(ep_cluster);
+    }
   }
 }
 
