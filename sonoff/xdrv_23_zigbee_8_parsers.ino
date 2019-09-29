@@ -152,6 +152,15 @@ void Z_SendActiveEpReq(uint16_t shortaddr) {
   //ZigbeeZNPSend(NodeDescReq, sizeof(NodeDescReq));      Not sure this is useful
 }
 
+// Send ZDO_SIMPLE_DESC_REQ to get full list of supported Clusters for a specific endpoint
+void Z_SendSimpleDescReq(uint16_t shortaddr, uint8_t endpoint) {
+  uint8_t SimpleDescReq[] = { Z_SREQ | Z_ZDO, ZDO_SIMPLE_DESC_REQ,  // 2504
+              Z_B0(shortaddr), Z_B1(shortaddr), Z_B0(shortaddr), Z_B1(shortaddr),
+              endpoint };
+
+  ZigbeeZNPSend(SimpleDescReq, sizeof(SimpleDescReq));
+}
+
 const char* Z_DeviceType[] = { "Coordinator", "Router", "End Device", "Unknown" };
 int32_t Z_ReceiveNodeDesc(int32_t res, const class SBuffer &buf) {
   // Received ZDO_NODE_DESC_RSP
@@ -195,6 +204,10 @@ int32_t Z_ReceiveActiveEp(int32_t res, const class SBuffer &buf) {
   uint8_t*          activeEpList = (uint8_t*) buf.charptr(8);
 
   // TODO add active EPs to Device list
+
+  for (uint32_t i = 0; i < activeEpCount; i++) {
+    Z_SendSimpleDescReq(nwkAddr, activeEpList[i]);
+  }
 
   Response_P(PSTR("{\"" D_JSON_ZIGBEE_STATUS "\":{"
                   "\"Status\":%d,\"ActiveEndpoints\":["),
