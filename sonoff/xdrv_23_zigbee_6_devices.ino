@@ -151,8 +151,8 @@ String Z_DumpDevices(void) {
       uint8_t  endpoint = (*itc >> 16) & 0xFF;
 
       snprintf_P(hex, sizeof(hex), PSTR("0x%02X"), endpoint);
-      if (!dev_clusters_in.containsKey(hex)) {
-        dev_clusters_in.createNestedArray(hex);
+      if (!dev_clusters_out.containsKey(hex)) {
+        dev_clusters_out.createNestedArray(hex);
       }
       JsonArray &cluster_arr = dev_clusters_out[hex];
 

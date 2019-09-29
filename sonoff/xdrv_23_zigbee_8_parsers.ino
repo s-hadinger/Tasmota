@@ -246,8 +246,8 @@ int32_t Z_ReceiveSimpleDesc(int32_t res, const class SBuffer &buf) {
     for (uint32_t i = 0; i < numOutCluster; i++) {
       Z_AddDeviceCluster(nwkAddr, endpoint, buf.get16(16 + numInCluster*2 + i*2), true);
     }
-    String dump = Z_DumpDevices();
-    Serial.printf(">>> Devices dump = %s\n", dump.c_str());
+    // String dump = Z_DumpDevices();
+    // Serial.printf(">>> Devices dump = %s\n", dump.c_str());
 
     Response_P(PSTR("{\"" D_JSON_ZIGBEE_STATUS "\":{"
                     "\"Status\":%d,\"Endpoint\":\"0x%02X\""
