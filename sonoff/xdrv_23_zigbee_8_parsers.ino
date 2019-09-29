@@ -214,12 +214,49 @@ int32_t Z_ReceiveActiveEp(int32_t res, const class SBuffer &buf) {
                   ZIGBEE_STATUS_ACTIVE_EP);
   for (uint32_t i = 0; i < activeEpCount; i++) {
     if (i > 0) { ResponseAppend_P(PSTR(",")); }
-    char hex[8];
     ResponseAppend_P(PSTR("\"0x%02X\""), activeEpList[i]);
   }
   ResponseAppend_P(PSTR("]}}"));
   MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCLRECEIVED));
   XdrvRulesProcess();
+  return -1;
+}
+
+
+int32_t Z_ReceiveSimpleDesc(int32_t res, const class SBuffer &buf) {
+  // Received ZDO_SIMPLE_DESC_RSP
+  Z_ShortAddress    srcAddr = buf.get16(2);
+  uint8_t           status  = buf.get8(4);
+  Z_ShortAddress    nwkAddr = buf.get16(5);
+  uint8_t           lenDescriptor = buf.get8(7);
+  uint8_t           endpoint = buf.get8(8);
+  uint16_t          profileId = buf.get16(10);  // The profile Id for this endpoint.
+  uint16_t          deviceId = buf.get16(12);   // The Device Description Id for this endpoint.
+  uint8_t           deviceVersion = buf.get8(14); // 0 – Version 1.00
+  uint8_t           numInCluster = buf.get8(15);
+  uint8_t           numOutCluster = buf.get8(16 + numInCluster*2);
+
+  if (0 == status) {
+    // TODO add active Clusters to Device list
+    Response_P(PSTR("{\"" D_JSON_ZIGBEE_STATUS "\":{"
+                    "\"Status\":%d,\"Endpoint\":\"0x%02X\""
+                    ",\"ProfileId\":\"0x%04X\",\"DeviceId\":\"0x%04X\",\"DeviceVerion\":%d"
+                    "\"InClusters\":["),
+                    ZIGBEE_STATUS_SIMPLE_DESC, endpoint,
+                    profileId, deviceId, deviceVersion);
+    for (uint32_t i = 0; i < numInCluster; i++) {
+      if (i > 0) { ResponseAppend_P(PSTR(",")); }
+      ResponseAppend_P(PSTR("\"0x%04X\""), buf.get16(16 + i*2));
+    }
+    ResponseAppend_P(PSTR("],\"OutClusters\":["));
+    for (uint32_t i = 0; i < numOutCluster; i++) {
+      if (i > 0) { ResponseAppend_P(PSTR(",")); }
+      ResponseAppend_P(PSTR("\"0x%04X\""), buf.get16(17 + numInCluster*2 + i*2));
+    }
+    ResponseAppend_P(PSTR("]}}"));
+    MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCLRECEIVED));
+    XdrvRulesProcess();
+  }
   return -1;
 }
 
@@ -309,6 +346,8 @@ int32_t Z_Recv_Default(int32_t res, const class SBuffer &buf) {
       return Z_ReceiveNodeDesc(res, buf);
     } else if (Z_ReceiveMatchPrefix(buf, AREQ_ZDO_ACTIVEEPRSP)) {
       return Z_ReceiveActiveEp(res, buf);
+    } else if (Z_ReceiveMatchPrefix(buf, AREQ_ZDO_SIMPLEDESCRSP)) {
+      return Z_ReceiveSimpleDesc(res, buf);
     }
     return -1;
   }
