@@ -340,6 +340,20 @@ int32_t Z_ReceiveAfIncomingMessage(int32_t res, const class SBuffer &buf) {
   return -1;
 }
 
+typedef struct Z_Dispatcher {
+  const uint8_t*  match;
+  ZB_RecvMsgFunc  func;
+} Z_Dispatcher;
+
+const Z_Dispatcher Z_DispatchTable[] PROGMEM = {
+  { ZBR_AF_INCOMING_MESSAGE,      &Z_ReceiveAfIncomingMessage },
+  { ZBR_END_DEVICE_ANNCE_IND,     &Z_ReceiveEndDeviceAnnonce },
+  { ZBR_PERMITJOIN_AREQ_OPEN_XX,  &Z_ReceivePermitJoinStatus },
+  { AREQ_ZDO_NODEDESCRSP,         &Z_ReceiveNodeDesc },
+  { AREQ_ZDO_ACTIVEEPRSP,         &Z_ReceiveActiveEp },
+  { AREQ_ZDO_SIMPLEDESCRSP,       &Z_ReceiveSimpleDesc },
+};
+
 int32_t Z_Recv_Default(int32_t res, const class SBuffer &buf) {
   // Default message handler for new messages
   AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZIG: Z_Recv_Default"));
@@ -347,19 +361,24 @@ int32_t Z_Recv_Default(int32_t res, const class SBuffer &buf) {
     // if still during initialization phase, ignore any unexpected message
   	return -1;	// ignore message
   } else {
-    if (Z_ReceiveMatchPrefix(buf, ZBR_AF_INCOMING_MESSAGE)) {
-      return Z_ReceiveAfIncomingMessage(res, buf);
-    } else if (Z_ReceiveMatchPrefix(buf, ZBR_END_DEVICE_ANNCE_IND)) {
-      return Z_ReceiveEndDeviceAnnonce(res, buf);
-    } else if (Z_ReceiveMatchPrefix(buf, ZBR_PERMITJOIN_AREQ_OPEN_XX)) {
-      return Z_ReceivePermitJoinStatus(res, buf);
-    } else if (Z_ReceiveMatchPrefix(buf, AREQ_ZDO_NODEDESCRSP)) {
-      return Z_ReceiveNodeDesc(res, buf);
-    } else if (Z_ReceiveMatchPrefix(buf, AREQ_ZDO_ACTIVEEPRSP)) {
-      return Z_ReceiveActiveEp(res, buf);
-    } else if (Z_ReceiveMatchPrefix(buf, AREQ_ZDO_SIMPLEDESCRSP)) {
-      return Z_ReceiveSimpleDesc(res, buf);
+    for (uint32_t i = 0; i < sizeof(Z_DispatchTable)/sizeof(Z_Dispatcher); i++) {
+      if (Z_ReceiveMatchPrefix(buf, Z_DispatchTable[i].match)) {
+        (*Z_DispatchTable[i].func)(res, buf);
+      }
     }
+    // if (Z_ReceiveMatchPrefix(buf, ZBR_AF_INCOMING_MESSAGE)) {
+    //   return Z_ReceiveAfIncomingMessage(res, buf);
+    // } else if (Z_ReceiveMatchPrefix(buf, ZBR_END_DEVICE_ANNCE_IND)) {
+    //   return Z_ReceiveEndDeviceAnnonce(res, buf);
+    // } else if (Z_ReceiveMatchPrefix(buf, ZBR_PERMITJOIN_AREQ_OPEN_XX)) {
+    //   return Z_ReceivePermitJoinStatus(res, buf);
+    // } else if (Z_ReceiveMatchPrefix(buf, AREQ_ZDO_NODEDESCRSP)) {
+    //   return Z_ReceiveNodeDesc(res, buf);
+    // } else if (Z_ReceiveMatchPrefix(buf, AREQ_ZDO_ACTIVEEPRSP)) {
+    //   return Z_ReceiveActiveEp(res, buf);
+    // } else if (Z_ReceiveMatchPrefix(buf, AREQ_ZDO_SIMPLEDESCRSP)) {
+    //   return Z_ReceiveSimpleDesc(res, buf);
+    // }
     return -1;
   }
 }

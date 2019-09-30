@@ -38,7 +38,7 @@ const uint8_t  ZIGBEE_STATUS_UNSUPPORTED_VERSION = 98;  // Unsupported ZNP versi
 const uint8_t  ZIGBEE_STATUS_ABORT = 99;                // Fatal error, Zigbee not working
 
 typedef int32_t (*ZB_Func)(uint8_t value);
-typedef int32_t (*ZB_RecvMsgFunc)(int32_t res, class SBuffer &buf);
+typedef int32_t (*ZB_RecvMsgFunc)(int32_t res, const class SBuffer &buf);
 
 typedef union Zigbee_Instruction {
   struct {
