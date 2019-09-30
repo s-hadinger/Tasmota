@@ -205,7 +205,7 @@ int32_t Z_ReceiveActiveEp(int32_t res, const class SBuffer &buf) {
 
 
   for (uint32_t i = 0; i < activeEpCount; i++) {
-    Z_AddDeviceEndpoint(nwkAddr, activeEpList[i]);
+    zigbee_devices.addEndoint(nwkAddr, activeEpList[i]);
   }
 
   for (uint32_t i = 0; i < activeEpCount; i++) {
@@ -241,10 +241,10 @@ int32_t Z_ReceiveSimpleDesc(int32_t res, const class SBuffer &buf) {
 
   if (0 == status) {
     for (uint32_t i = 0; i < numInCluster; i++) {
-      Z_AddDeviceCluster(nwkAddr, endpoint, buf.get16(15 + i*2), false);
+      zigbee_devices.addCluster(nwkAddr, endpoint, buf.get16(15 + i*2), false);
     }
     for (uint32_t i = 0; i < numOutCluster; i++) {
-      Z_AddDeviceCluster(nwkAddr, endpoint, buf.get16(16 + numInCluster*2 + i*2), true);
+      zigbee_devices.addCluster(nwkAddr, endpoint, buf.get16(16 + numInCluster*2 + i*2), true);
     }
     // String dump = Z_DumpDevices();
     // Serial.printf(">>> Devices dump = %s\n", dump.c_str());
@@ -277,7 +277,7 @@ int32_t Z_ReceiveEndDeviceAnnonce(int32_t res, const class SBuffer &buf) {
   Z_IEEEAddress     ieeeAddr = buf.get64(6);
   uint8_t           capabilities = buf.get8(14);
 
-  Z_AddDeviceLongAddr(nwkAddr, ieeeAddr);
+  zigbee_devices.addDevice(nwkAddr, ieeeAddr);
 //   String dump = Z_DumpDevices();
 // Serial.printf(">>> Devices dump = %s\n", dump.c_str());
 

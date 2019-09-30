@@ -236,7 +236,7 @@ void ZigbeeInit(void)
 
 void CmndZigbeeDump(void) {
   if (ZigbeeSerial) {
-    String dump = Z_DumpDevices();
+    String dump = zigbee_devices.dump();
     Response_P(S_JSON_COMMAND_XVALUE, XdrvMailbox.command, dump.c_str());
   }
 }
