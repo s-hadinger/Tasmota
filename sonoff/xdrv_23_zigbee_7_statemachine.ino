@@ -346,13 +346,10 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     ZI_WAIT(50)
     ZI_SEND(ZBS_EXTPAN)                       // check EXT PAN ID
     ZI_WAIT_RECV(1000, ZBR_EXTPAN)
-    ZI_WAIT(50)
     ZI_SEND(ZBS_CHANN)                        // check CHANNEL
     ZI_WAIT_RECV(1000, ZBR_CHANN)
-    ZI_WAIT(50)
     ZI_SEND(ZBS_PFGK)                         // check PFGK
     ZI_WAIT_RECV(1000, ZBR_PFGK)
-    ZI_WAIT(50)
     ZI_SEND(ZBS_PFGKEN)                       // check PFGKEN
     ZI_WAIT_RECV(1000, ZBR_PFGKEN)
     //ZI_LOG(LOG_LEVEL_INFO, "ZIG: zigbee configuration ok")
