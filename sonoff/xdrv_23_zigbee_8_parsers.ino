@@ -246,8 +246,6 @@ int32_t Z_ReceiveSimpleDesc(int32_t res, const class SBuffer &buf) {
     for (uint32_t i = 0; i < numOutCluster; i++) {
       zigbee_devices.addCluster(nwkAddr, endpoint, buf.get16(16 + numInCluster*2 + i*2), true);
     }
-    // String dump = Z_DumpDevices();
-    // Serial.printf(">>> Devices dump = %s\n", dump.c_str());
 
     Response_P(PSTR("{\"" D_JSON_ZIGBEE_STATUS "\":{"
                     "\"Status\":%d,\"Endpoint\":\"0x%02X\""
@@ -278,8 +276,6 @@ int32_t Z_ReceiveEndDeviceAnnonce(int32_t res, const class SBuffer &buf) {
   uint8_t           capabilities = buf.get8(14);
 
   zigbee_devices.addDevice(nwkAddr, ieeeAddr);
-//   String dump = Z_DumpDevices();
-// Serial.printf(">>> Devices dump = %s\n", dump.c_str());
 
   char hex[20];
   Uint64toHex(ieeeAddr, hex, 64);
