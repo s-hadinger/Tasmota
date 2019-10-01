@@ -337,13 +337,10 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     ZI_LOG(LOG_LEVEL_INFO, "ZIG: checking device configuration")
     ZI_SEND(ZBS_ZNPHC)                        // check value of ZNP Has Configured
     ZI_WAIT_RECV(2000, ZBR_ZNPHC)
-    ZI_WAIT(50)
     ZI_SEND(ZBS_VERSION)                      // check ZNP software version
     ZI_WAIT_RECV_FUNC(2000, ZBR_VERSION, &Z_ReceiveCheckVersion)  // Check version
-    ZI_WAIT(50)
     ZI_SEND(ZBS_PAN)                          // check PAN ID
     ZI_WAIT_RECV(1000, ZBR_PAN)
-    ZI_WAIT(50)
     ZI_SEND(ZBS_EXTPAN)                       // check EXT PAN ID
     ZI_WAIT_RECV(1000, ZBR_EXTPAN)
     ZI_SEND(ZBS_CHANN)                        // check CHANNEL
@@ -364,31 +361,24 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
 ZI_SEND(ZBS_STARTUPFROMAPP)                       // start coordinator
     ZI_WAIT_RECV(2000, ZBR_STARTUPFROMAPP)        // wait for sync ack of command
     ZI_WAIT_UNTIL(5000, AREQ_STARTUPFROMAPP)      // wait for async message that coordinator started
-    ZI_WAIT(50)
     ZI_SEND(ZBS_GETDEVICEINFO)                    // GetDeviceInfo
     ZI_WAIT_RECV_FUNC(2000, ZBR_GETDEVICEINFO, &Z_ReceiveDeviceInfo)
     //ZI_WAIT_RECV(2000, ZBR_GETDEVICEINFO)         // TODO memorize info
-    ZI_WAIT(50)
     ZI_SEND(ZBS_ZDO_NODEDESCREQ)                  // Z_ZDO:nodeDescReq
     ZI_WAIT_RECV(1000, ZBR_ZDO_NODEDESCREQ)
     ZI_WAIT_UNTIL(5000, AREQ_ZDO_NODEDESCRSP)
-    ZI_WAIT(50)
     ZI_SEND(ZBS_ZDO_ACTIVEEPREQ)                  // Z_ZDO:activeEpReq
     ZI_WAIT_RECV(1000, ZBR_ZDO_ACTIVEEPREQ)
     ZI_WAIT_UNTIL(1000, ZBR_ZDO_ACTIVEEPRSP_NONE)
-    ZI_WAIT(50)
     ZI_SEND(ZBS_AF_REGISTER01)                    // Z_AF register for endpoint 01, profile 0x0104 Home Automation
     ZI_WAIT_RECV(1000, ZBR_AF_REGISTER)
-    ZI_WAIT(50)
     ZI_SEND(ZBS_AF_REGISTER0B)                    // Z_AF register for endpoint 0B, profile 0x0104 Home Automation
     ZI_WAIT_RECV(1000, ZBR_AF_REGISTER)
     // Z_ZDO:nodeDescReq ?? Is is useful to redo it?  TODO
     // redo Z_ZDO:activeEpReq to check that Ep are available
-    ZI_WAIT(50)
     ZI_SEND(ZBS_ZDO_ACTIVEEPREQ)                  // Z_ZDO:activeEpReq
     ZI_WAIT_RECV(1000, ZBR_ZDO_ACTIVEEPREQ)
     ZI_WAIT_UNTIL(1000, ZBR_ZDO_ACTIVEEPRSP_OK)
-    ZI_WAIT(50)
     ZI_SEND(ZBS_PERMITJOINREQ_CLOSE)              // Closing the Permit Join
     ZI_WAIT_RECV(1000, ZBR_PERMITJOINREQ)
     ZI_WAIT_UNTIL(1000, ZBR_PERMITJOIN_AREQ_RSP)  // not sure it's useful
