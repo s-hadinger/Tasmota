@@ -182,7 +182,18 @@ String Z_Devices::dump(void) const {
 
       snprintf_P(hex, sizeof(hex), PSTR("0x%04X"), profileId);
       ep[F("ProfileId")] = hex;
-      // TODO profileId Name
+
+      int32_t found = -1;
+      for (uint32_t i = 0; i < sizeof(Z_ProfileIds) / sizeof(Z_ProfileIds[0]); i++) {
+        if (pgm_read_word(&Z_ProfileIds[i]) == profileId) {
+          found = i;
+          break;
+        }
+      }
+      if (found > 0) {
+        GetTextIndexed(hex, sizeof(hex), found, Z_ProfileNames);
+        ep[F("ProfileIdName")] = hex;
+      }
 
       ep.createNestedArray(F("ClustersIn"));
       ep.createNestedArray(F("ClustersOut"));
