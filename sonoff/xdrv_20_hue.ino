@@ -36,7 +36,7 @@ const char HUE_RESPONSE[] PROGMEM =
   "CACHE-CONTROL: max-age=100\r\n"
   "EXT:\r\n"
   "LOCATION: http://%s:80/description.xml\r\n"
-  "SERVER: Linux/3.14.0 UPnP/1.0 IpBridge/1.17.0\r\n"
+  "SERVER: Linux/3.14.0 UPnP/1.0 IpBridge/1.24.0\r\n"  // was 1.17
   "hue-bridgeid: %s\r\n";
 const char HUE_ST1[] PROGMEM =
   "ST: upnp:rootdevice\r\n"
@@ -503,12 +503,22 @@ void HueLights(String *path)
         response += ",\"";
       }
     }
+#ifdef USE_SCRIPT_HUE
+    Script_Check_Hue(&response);
+#endif
     response += "}";
   }
   else if (path->endsWith("/state")) {               // Got ID/state
     path->remove(0,8);                               // Remove /lights/
     path->remove(path->indexOf("/state"));           // Remove /state
     device = DecodeLightId(atoi(path->c_str()));
+
+#ifdef USE_SCRIPT_HUE
+    if (device>devices_present) {
+      return Script_Handle_Hue(path);
+    }
+#endif
+
     if ((device < 1) || (device > maxhue)) {
       device = 1;
     }
@@ -659,7 +669,7 @@ void HueLights(String *path)
 #ifdef USE_SHUTTER
         if (ShutterState(device)) {
           AddLog_P2(LOG_LEVEL_DEBUG, PSTR("Settings.shutter_invert: %d"), Settings.shutter_invert[device-1]);
-          SetShutterPosition(device, bri * 100.0f );
+          ShutterSetPosition(device, bri * 100.0f );
         } else
 #endif
         if (light_type && (local_light_subtype > LST_NONE)) {   // not relay
@@ -695,6 +705,14 @@ void HueLights(String *path)
     AddLog_P2(LOG_LEVEL_DEBUG_MORE, "/lights path=%s", path->c_str());
     path->remove(0,8);                               // Remove /lights/
     device = DecodeLightId(atoi(path->c_str()));
+
+#ifdef USE_SCRIPT_HUE
+    if (device>devices_present) {
+      Script_HueStatus(&response,device-devices_present-1);
+      goto exit;
+}
+#endif
+
     if ((device < 1) || (device > maxhue)) {
       device = 1;
     }
@@ -706,6 +724,7 @@ void HueLights(String *path)
     response = "{}";
     code = 406;
   }
+  exit:
   AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR(D_LOG_HTTP D_HUE " Result (%s)"), response.c_str());
   WSSend(code, CT_JSON, response);
 }
@@ -780,7 +799,11 @@ bool Xdrv20(uint8_t function)
 {
   bool result = false;
 
+#ifdef USE_SCRIPT_HUE
+  if ((EMUL_HUE == Settings.flag2.emulation)) {
+#else
   if (devices_present && (EMUL_HUE == Settings.flag2.emulation)) {
+#endif
     switch (function) {
       case FUNC_WEB_ADD_HANDLER:
         WebServer->on("/description.xml", HandleUpnpSetupHue);
