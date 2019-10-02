@@ -240,6 +240,7 @@ int32_t Z_ReceiveSimpleDesc(int32_t res, const class SBuffer &buf) {
   uint8_t           numOutCluster = buf.get8(15 + numInCluster*2);
 
   if (0 == status) {
+    zigbee_devices.addEndointProfile(nwkAddr, endpoint, profileId);
     for (uint32_t i = 0; i < numInCluster; i++) {
       zigbee_devices.addCluster(nwkAddr, endpoint, buf.get16(15 + i*2), false);
     }
@@ -362,19 +363,6 @@ int32_t Z_Recv_Default(int32_t res, const class SBuffer &buf) {
         (*Z_DispatchTable[i].func)(res, buf);
       }
     }
-    // if (Z_ReceiveMatchPrefix(buf, ZBR_AF_INCOMING_MESSAGE)) {
-    //   return Z_ReceiveAfIncomingMessage(res, buf);
-    // } else if (Z_ReceiveMatchPrefix(buf, ZBR_END_DEVICE_ANNCE_IND)) {
-    //   return Z_ReceiveEndDeviceAnnonce(res, buf);
-    // } else if (Z_ReceiveMatchPrefix(buf, ZBR_PERMITJOIN_AREQ_OPEN_XX)) {
-    //   return Z_ReceivePermitJoinStatus(res, buf);
-    // } else if (Z_ReceiveMatchPrefix(buf, AREQ_ZDO_NODEDESCRSP)) {
-    //   return Z_ReceiveNodeDesc(res, buf);
-    // } else if (Z_ReceiveMatchPrefix(buf, AREQ_ZDO_ACTIVEEPRSP)) {
-    //   return Z_ReceiveActiveEp(res, buf);
-    // } else if (Z_ReceiveMatchPrefix(buf, AREQ_ZDO_SIMPLEDESCRSP)) {
-    //   return Z_ReceiveSimpleDesc(res, buf);
-    // }
     return -1;
   }
 }
