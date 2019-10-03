@@ -342,10 +342,17 @@ typedef struct Z_Dispatcher {
   ZB_RecvMsgFunc  func;
 } Z_Dispatcher;
 
+// Filters for ZCL frames
+ZBM(AREQ_AF_INCOMING_MESSAGE, Z_AREQ | Z_AF, AF_INCOMING_MSG)              // 4481
+ZBM(AREQ_END_DEVICE_ANNCE_IND, Z_AREQ | Z_ZDO, ZDO_END_DEVICE_ANNCE_IND)   // 45C1
+ZBM(AREQ_PERMITJOIN_OPEN_XX, Z_AREQ | Z_ZDO, ZDO_PERMIT_JOIN_IND )    // 45CB
+ZBM(AREQ_ZDO_ACTIVEEPRSP, Z_AREQ | Z_ZDO, ZDO_ACTIVE_EP_RSP)    // 4585
+ZBM(AREQ_ZDO_SIMPLEDESCRSP, Z_AREQ | Z_ZDO, ZDO_SIMPLE_DESC_RSP)    // 4584
+
 const Z_Dispatcher Z_DispatchTable[] PROGMEM = {
-  { ZBR_AF_INCOMING_MESSAGE,      &Z_ReceiveAfIncomingMessage },
-  { ZBR_END_DEVICE_ANNCE_IND,     &Z_ReceiveEndDeviceAnnonce },
-  { ZBR_PERMITJOIN_AREQ_OPEN_XX,  &Z_ReceivePermitJoinStatus },
+  { AREQ_AF_INCOMING_MESSAGE,     &Z_ReceiveAfIncomingMessage },
+  { AREQ_END_DEVICE_ANNCE_IND,    &Z_ReceiveEndDeviceAnnonce },
+  { AREQ_PERMITJOIN_OPEN_XX,      &Z_ReceivePermitJoinStatus },
   { AREQ_ZDO_NODEDESCRSP,         &Z_ReceiveNodeDesc },
   { AREQ_ZDO_ACTIVEEPRSP,         &Z_ReceiveActiveEp },
   { AREQ_ZDO_SIMPLEDESCRSP,       &Z_ReceiveSimpleDesc },
