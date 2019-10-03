@@ -322,6 +322,8 @@ int32_t Z_ReceiveAfIncomingMessage(int32_t res, const class SBuffer &buf) {
   JsonObject& json = json_root.createNestedObject(shortaddr);
   if ( (!zcl_received.isClusterSpecificCommand()) && (ZCL_REPORT_ATTRIBUTES == zcl_received.getCmdId())) {
    zcl_received.parseRawAttributes(json);
+  } else if ( (!zcl_received.isClusterSpecificCommand()) && (ZCL_READ_ATTRIBUTES_RESPONSE == zcl_received.getCmdId())) {
+    zcl_received.parseReadAttributes(json);
   } else if (zcl_received.isClusterSpecificCommand()) {
    zcl_received.parseClusterSpecificCommand(json);
   }

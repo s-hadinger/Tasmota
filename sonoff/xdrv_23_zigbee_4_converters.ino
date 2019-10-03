@@ -100,6 +100,7 @@ public:
   }
 
   void parseRawAttributes(JsonObject& json, uint8_t offset = 0);
+  void parseReadAttributes(JsonObject& json, uint8_t offset = 0);
   void parseClusterSpecificCommand(JsonObject& json, uint8_t offset = 0);
   void postProcessAttributes(JsonObject& json);
 
@@ -403,6 +404,27 @@ void ZCLFrame::parseRawAttributes(JsonObject& json, uint8_t offset) {
   }
 }
 
+// ZCL_READ_ATTRIBUTES_RESPONSE
+void ZCLFrame::parseReadAttributes(JsonObject& json, uint8_t offset) {
+  uint32_t i = offset;
+  uint32_t len = _payload.len();
+
+  while (len - i >= 4) {
+    uint16_t attrid = _payload.get16(i);
+    i += 2;
+    uint8_t status = _payload.get8(i++);
+
+    if (0 == status) {
+      char shortaddr[16];
+      snprintf_P(shortaddr, sizeof(shortaddr), PSTR("%c_%04X_%04X"),
+                  Hex36Char(_cmd_id), _cluster_id, attrid);
+
+      i += parseSingleAttribute(json, shortaddr, _payload, i, len);
+    }
+  }
+}
+
+
 // Parse non-normalized attributes
 // The key is "s_" followed by 16 bits clusterId, "_" followed by 8 bits command id
 void ZCLFrame::parseClusterSpecificCommand(JsonObject& json, uint8_t offset) {
@@ -434,7 +456,8 @@ const float Z_10  PROGMEM =  10.0f;
 
 // list of post-processing directives
 const Z_AttributeConverter Z_PostProcess[] = {
-  { "A_0000_0005",  D_JSON_MODEL D_JSON_ID, &Z_Copy,                nullptr },     // ModelID
+  { "?_0000_0004",  "Manufacturer",         &Z_Copy,                nullptr },     // ModelID
+  { "?_0000_0005",  D_JSON_MODEL D_JSON_ID, &Z_Copy,                nullptr },     // ModelID
 
   { "A_0400_0000",  D_JSON_ILLUMINANCE,     &Z_Copy,                nullptr },    // Illuminance (in Lux)
   { "A_0400_0004",  "LightSensorType",      &Z_Copy,                nullptr },    // LightSensorType
