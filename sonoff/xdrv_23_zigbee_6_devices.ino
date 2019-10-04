@@ -51,6 +51,8 @@ public:
 
   uint8_t findClusterEndpointIn(uint16_t shortaddr, uint16_t cluster);
 
+  Z_Device &findDevice(uint16_t shortaddr);
+
   // Dump json
   String dump(uint8_t dump_mode) const;
 
@@ -107,6 +109,10 @@ int32_t Z_Devices::findClusterEndpoint(const std::vector<uint32_t>  & vecOfEleme
   return -1;
 }
 
+Z_Device & Z_Devices::findDevice(uint16_t shortaddr) {
+  return _devices[shortaddr];
+}
+
 // insert an entry when it is known it is missing
 bool Z_Devices::addIfNotPresent(uint16_t shortaddr, uint64_t longaddr) {
   if (0 == _devices.count(shortaddr)) {
@@ -126,7 +132,7 @@ bool Z_Devices::addIfNotPresent(uint16_t shortaddr, uint64_t longaddr) {
 void Z_Devices::addDevice(uint16_t shortaddr, uint64_t longaddr) {
   if (!addIfNotPresent(shortaddr, longaddr)) {
     // if already present
-    Z_Device &device = _devices[shortaddr];
+    Z_Device &device = findDevice(shortaddr);
     if (device.longaddr != longaddr) {
       // new device, i.e. collision
       device.longaddr = longaddr;
@@ -140,7 +146,7 @@ void Z_Devices::addDevice(uint16_t shortaddr, uint64_t longaddr) {
 void Z_Devices::addEndoint(uint16_t shortaddr, uint8_t endpoint) {
   uint32_t ep_profile = (endpoint << 16);
   addIfNotPresent(shortaddr);
-  Z_Device &device = _devices[shortaddr];
+  Z_Device &device = findDevice(shortaddr);
   if (findEndpointInVector(device.endpoints, ep_profile) < 0) {    // TODO search only on enpoint
     device.endpoints.push_back(ep_profile);
   }
@@ -149,7 +155,7 @@ void Z_Devices::addEndoint(uint16_t shortaddr, uint8_t endpoint) {
 void Z_Devices::addEndointProfile(uint16_t shortaddr, uint8_t endpoint, uint16_t profileId) {
   uint32_t ep_profile = (endpoint << 16) | profileId;
   addIfNotPresent(shortaddr);
-  Z_Device &device = _devices[shortaddr];
+  Z_Device &device = findDevice(shortaddr);
   int32_t found = findEndpointInVector(device.endpoints, ep_profile);
   if (found < 0) {    // TODO search only on enpoint
     device.endpoints.push_back(ep_profile);
@@ -160,7 +166,7 @@ void Z_Devices::addEndointProfile(uint16_t shortaddr, uint8_t endpoint, uint16_t
 
 void Z_Devices::addCluster(uint16_t shortaddr, uint8_t endpoint, uint16_t cluster, bool out) {
   addIfNotPresent(shortaddr);
-  Z_Device &device = _devices[shortaddr];
+  Z_Device &device = findDevice(shortaddr);
   uint32_t ep_cluster = (endpoint << 16) | cluster;
   if (!out) {
     if (!findInVector(device.clusters_in, ep_cluster)) {
@@ -176,7 +182,7 @@ void Z_Devices::addCluster(uint16_t shortaddr, uint8_t endpoint, uint16_t cluste
 // Look for the best endpoint match to send a command for a specific Cluster ID
 // return 0x00 if none found
 uint8_t Z_Devices::findClusterEndpointIn(uint16_t shortaddr, uint16_t cluster){
-  Z_Device &device = _devices[shortaddr];
+  Z_Device &device = findDevice(shortaddr);
   int32_t found = findClusterEndpoint(device.clusters_in, cluster);
   if (found > 0) {
     return (device.clusters_in[found] >> 16) & 0xFF;
