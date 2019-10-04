@@ -25,6 +25,9 @@
 typedef struct Z_Device {
   uint16_t              shortaddr;
   uint64_t              longaddr;       // 0x00 means unspecified
+  String                manufacturerId;
+  String                modelId;
+  String                friendlyName;
   std::vector<uint32_t> endpoints;      // encoded as high 16 bits is endpoint, low 16 bits is ProfileId
   std::vector<uint32_t> clusters_in;    // encoded as high 16 bits is endpoint, low 16 bits is cluster number
   std::vector<uint32_t> clusters_out;   // encoded as high 16 bits is endpoint, low 16 bits is cluster number
@@ -49,7 +52,7 @@ public:
   uint8_t findClusterEndpointIn(uint16_t shortaddr, uint16_t cluster);
 
   // Dump json
-  String dump(void) const;
+  String dump(uint8_t dump_mode) const;
 
 private:
   std::map<uint16_t, Z_Device> _devices = {};
@@ -108,6 +111,9 @@ int32_t Z_Devices::findClusterEndpoint(const std::vector<uint32_t>  & vecOfEleme
 bool Z_Devices::addIfNotPresent(uint16_t shortaddr, uint64_t longaddr) {
   if (0 == _devices.count(shortaddr)) {
     Z_Device device = { shortaddr, longaddr,
+                        String(),   // ManufId
+                        String(),   // DeviceId
+                        String(),   // FriendlyName
                         std::vector<uint32_t>(),
                         std::vector<uint32_t>(),
                         std::vector<uint32_t>() };
@@ -179,8 +185,10 @@ uint8_t Z_Devices::findClusterEndpointIn(uint16_t shortaddr, uint16_t cluster){
   }
 }
 
-
-String Z_Devices::dump(void) const {
+// Dump the internal memory of Zigbee devices
+// Mode = 1: simple dump of devices addresses and names
+// Mode = 2: Mode 1 + also dump the endpoints, profiles and clusters
+String Z_Devices::dump(uint8_t dump_mode) const {
   DynamicJsonBuffer jsonBuffer;
   JsonObject& json = jsonBuffer.createObject();
   JsonArray& devices = json.createNestedArray(F("ZigbeeDevices"));
@@ -198,54 +206,57 @@ String Z_Devices::dump(void) const {
     Uint64toHex(device.longaddr, hex, 64);
     dev[F("IEEEAddr")] = hex;
 
-    JsonObject& dev_endpoints = dev.createNestedObject(F("Endpoints"));
-    for (std::vector<uint32_t>::const_iterator ite = device.endpoints.begin() ; ite != device.endpoints.end(); ++ite) {
-      uint32_t ep_profile = *ite;
-      uint8_t endpoint = (ep_profile >> 16) & 0xFF;
-      uint16_t profileId = ep_profile & 0xFFFF;
+    // If dump_mode == 2, dump a lot more details
+    if (2 == dump_mode) {
+      JsonObject& dev_endpoints = dev.createNestedObject(F("Endpoints"));
+      for (std::vector<uint32_t>::const_iterator ite = device.endpoints.begin() ; ite != device.endpoints.end(); ++ite) {
+        uint32_t ep_profile = *ite;
+        uint8_t endpoint = (ep_profile >> 16) & 0xFF;
+        uint16_t profileId = ep_profile & 0xFFFF;
 
-      snprintf_P(hex, sizeof(hex), PSTR("0x%02X"), endpoint);
-      JsonObject& ep = dev_endpoints.createNestedObject(hex);
+        snprintf_P(hex, sizeof(hex), PSTR("0x%02X"), endpoint);
+        JsonObject& ep = dev_endpoints.createNestedObject(hex);
 
-      snprintf_P(hex, sizeof(hex), PSTR("0x%04X"), profileId);
-      ep[F("ProfileId")] = hex;
+        snprintf_P(hex, sizeof(hex), PSTR("0x%04X"), profileId);
+        ep[F("ProfileId")] = hex;
 
-      int32_t found = -1;
-      for (uint32_t i = 0; i < sizeof(Z_ProfileIds) / sizeof(Z_ProfileIds[0]); i++) {
-        if (pgm_read_word(&Z_ProfileIds[i]) == profileId) {
-          found = i;
-          break;
+        int32_t found = -1;
+        for (uint32_t i = 0; i < sizeof(Z_ProfileIds) / sizeof(Z_ProfileIds[0]); i++) {
+          if (pgm_read_word(&Z_ProfileIds[i]) == profileId) {
+            found = i;
+            break;
+          }
         }
+        if (found > 0) {
+          GetTextIndexed(hex, sizeof(hex), found, Z_ProfileNames);
+          ep[F("ProfileIdName")] = hex;
+        }
+
+        ep.createNestedArray(F("ClustersIn"));
+        ep.createNestedArray(F("ClustersOut"));
       }
-      if (found > 0) {
-        GetTextIndexed(hex, sizeof(hex), found, Z_ProfileNames);
-        ep[F("ProfileIdName")] = hex;
+
+      for (std::vector<uint32_t>::const_iterator itc = device.clusters_in.begin() ; itc != device.clusters_in.end(); ++itc) {
+        uint16_t cluster = *itc & 0xFFFF;
+        uint8_t  endpoint = (*itc >> 16) & 0xFF;
+
+        snprintf_P(hex, sizeof(hex), PSTR("0x%02X"), endpoint);
+        JsonArray &cluster_arr = dev_endpoints[hex][F("ClustersIn")];
+
+        snprintf_P(hex, sizeof(hex), PSTR("0x%04X"), cluster);
+        cluster_arr.add(hex);
       }
 
-      ep.createNestedArray(F("ClustersIn"));
-      ep.createNestedArray(F("ClustersOut"));
-    }
+      for (std::vector<uint32_t>::const_iterator itc = device.clusters_out.begin() ; itc != device.clusters_out.end(); ++itc) {
+        uint16_t cluster = *itc & 0xFFFF;
+        uint8_t  endpoint = (*itc >> 16) & 0xFF;
 
-    for (std::vector<uint32_t>::const_iterator itc = device.clusters_in.begin() ; itc != device.clusters_in.end(); ++itc) {
-      uint16_t cluster = *itc & 0xFFFF;
-      uint8_t  endpoint = (*itc >> 16) & 0xFF;
+        snprintf_P(hex, sizeof(hex), PSTR("0x%02X"), endpoint);
+        JsonArray &cluster_arr = dev_endpoints[hex][F("ClustersOut")];
 
-      snprintf_P(hex, sizeof(hex), PSTR("0x%02X"), endpoint);
-      JsonArray &cluster_arr = dev_endpoints[hex][F("ClustersIn")];
-
-      snprintf_P(hex, sizeof(hex), PSTR("0x%04X"), cluster);
-      cluster_arr.add(hex);
-    }
-
-    for (std::vector<uint32_t>::const_iterator itc = device.clusters_out.begin() ; itc != device.clusters_out.end(); ++itc) {
-      uint16_t cluster = *itc & 0xFFFF;
-      uint8_t  endpoint = (*itc >> 16) & 0xFF;
-
-      snprintf_P(hex, sizeof(hex), PSTR("0x%02X"), endpoint);
-      JsonArray &cluster_arr = dev_endpoints[hex][F("ClustersOut")];
-
-      snprintf_P(hex, sizeof(hex), PSTR("0x%04X"), cluster);
-      cluster_arr.add(hex);
+        snprintf_P(hex, sizeof(hex), PSTR("0x%04X"), cluster);
+        cluster_arr.add(hex);
+      }
     }
   }
   String payload = "";
