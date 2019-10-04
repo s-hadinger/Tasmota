@@ -46,6 +46,8 @@ public:
   // Add cluster
   void addCluster(uint16_t shortaddr, uint8_t endpoint, uint16_t cluster, bool out);
 
+  uint8_t findClusterEndpointIn(uint16_t shortaddr, uint16_t cluster);
+
   // Dump json
   String dump(void) const;
 
@@ -60,6 +62,9 @@ private:
 
   template < typename T>
   static int32_t findEndpointInVector(const std::vector<T>  & vecOfElements, const T  & element);
+
+  // find the first endpoint match for a cluster
+  static int32_t findClusterEndpoint(const std::vector<uint32_t>  & vecOfElements, uint16_t element);
 };
 
 Z_Devices zigbee_devices = Z_Devices();
@@ -87,6 +92,15 @@ int32_t Z_Devices::findEndpointInVector(const std::vector<T>  & vecOfElements, c
     found++;
   }
 
+  return -1;
+}
+
+int32_t Z_Devices::findClusterEndpoint(const std::vector<uint32_t>  & vecOfElements, uint16_t element) {
+  int32_t found = 0;
+  for (auto &elem : vecOfElements) {
+    if ((elem & 0xFFFF) == element) { return found; }
+    found++;
+  }
   return -1;
 }
 
@@ -152,6 +166,19 @@ void Z_Devices::addCluster(uint16_t shortaddr, uint8_t endpoint, uint16_t cluste
     }
   }
 }
+
+// Look for the best endpoint match to send a command for a specific Cluster ID
+// return 0x00 if none found
+uint8_t Z_Devices::findClusterEndpointIn(uint16_t shortaddr, uint16_t cluster){
+  Z_Device &device = _devices[shortaddr];
+  int32_t found = findClusterEndpoint(device.clusters_in, cluster);
+  if (found > 0) {
+    return (device.clusters_in[found] >> 16) & 0xFF;
+  } else {
+    return 0;
+  }
+}
+
 
 String Z_Devices::dump(void) const {
   DynamicJsonBuffer jsonBuffer;

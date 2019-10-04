@@ -225,6 +225,28 @@ int32_t Z_ReceiveActiveEp(int32_t res, const class SBuffer &buf) {
   return -1;
 }
 
+void Z_SendAFInfoRequest(uint16_t shortaddr, uint8_t endpoint, uint16_t clusterid, uint8_t transacid) {
+  SBuffer buf(100);
+  buf.add8(Z_SREQ | Z_AF);        // 24
+  buf.add8(AF_DATA_REQUEST);      // 01
+  buf.add16(shortaddr);
+  buf.add8(endpoint);             // dest endpoint
+  buf.add8(0x01);                 // source endpoint
+  buf.add16(clusterid);
+  buf.add8(transacid);
+  buf.add8(0x30);                 // 30 options
+  buf.add8(0x1E);                 // 1E radius
+
+  buf.add8(3 + 2*sizeof(uint16_t)); // Len = 0x07
+  buf.add8(0x00);                 // Frame Control Field
+  buf.add8(transacid);            // Transaction Sequance Number
+  buf.add8(ZCL_READ_ATTRIBUTES);  // 00 Command
+  buf.add16(0x0004);              // 0400 ManufacturerName
+  buf.add16(0x0005);              // 0500 ModelIdentifier
+
+  ZigbeeZNPSend(buf.getBuffer(), buf.size());
+}
+
 
 int32_t Z_ReceiveSimpleDesc(int32_t res, const class SBuffer &buf) {
   // Received ZDO_SIMPLE_DESC_RSP
@@ -266,6 +288,11 @@ int32_t Z_ReceiveSimpleDesc(int32_t res, const class SBuffer &buf) {
     ResponseAppend_P(PSTR("]}}"));
     MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCLRECEIVED));
     XdrvRulesProcess();
+
+    uint8_t cluster = zigbee_devices.findClusterEndpointIn(nwkAddr, 0x0000);
+    if (cluster) {
+      Z_SendAFInfoRequest(nwkAddr, cluster, 0x0000, 0x01); // TODO
+    }
   }
   return -1;
 }

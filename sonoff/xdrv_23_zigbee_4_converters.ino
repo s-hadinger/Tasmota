@@ -456,8 +456,16 @@ const float Z_10  PROGMEM =  10.0f;
 
 // list of post-processing directives
 const Z_AttributeConverter Z_PostProcess[] = {
-  { "?_0000_0004",  "Manufacturer",         &Z_Copy,                nullptr },     // ModelID
-  { "?_0000_0005",  D_JSON_MODEL D_JSON_ID, &Z_Copy,                nullptr },     // ModelID
+  { "?_0000_0000",  "ZCLVersion",           &Z_Copy,                nullptr },
+  { "?_0000_0001",  "AppVersion",           &Z_Copy,                nullptr },
+  { "?_0000_0002",  "StackVersion",         &Z_Copy,                nullptr },
+  { "?_0000_0003",  "HWVersion",            &Z_Copy,                nullptr }, 
+  { "?_0000_0004",  "Manufacturer",         &Z_Copy,                nullptr },
+  { "?_0000_0005",  D_JSON_MODEL D_JSON_ID, &Z_Copy,                nullptr },
+  { "?_0000_0006",  "DateCode",             &Z_Copy,                nullptr },
+  { "?_0000_0007",  "PowerSource",          &Z_Copy,                nullptr },
+  { "?_0000_4000",  "SWBuildID",            &Z_Copy,                nullptr },
+  { "A_0000_????",  nullptr,                &Z_Remove,              nullptr },    // Remove all other values
 
   { "A_0400_0000",  D_JSON_ILLUMINANCE,     &Z_Copy,                nullptr },    // Illuminance (in Lux)
   { "A_0400_0004",  "LightSensorType",      &Z_Copy,                nullptr },    // LightSensorType
