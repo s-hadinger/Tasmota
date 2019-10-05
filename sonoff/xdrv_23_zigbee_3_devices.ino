@@ -58,6 +58,10 @@ public:
 
   uint8_t findClusterEndpointIn(uint16_t shortaddr, uint16_t cluster);
 
+  void setManufId(uint16_t shortaddr, const char * str);
+  void setModelId(uint16_t shortaddr, const char * str);
+  void setFriendlyNameId(uint16_t shortaddr, const char * str);
+
   // Dump json
   String dump(uint8_t dump_mode) const;
 
@@ -282,13 +286,27 @@ void Z_Devices::addCluster(uint16_t shortaddr, uint8_t endpoint, uint16_t cluste
 // Look for the best endpoint match to send a command for a specific Cluster ID
 // return 0x00 if none found
 uint8_t Z_Devices::findClusterEndpointIn(uint16_t shortaddr, uint16_t cluster){
-  Z_Device device = getShortAddr(shortaddr);
+  Z_Device & device = getShortAddr(shortaddr);
   int32_t found = findClusterEndpoint(device.clusters_in, cluster);
   if (found > 0) {
     return (device.clusters_in[found] >> 16) & 0xFF;
   } else {
     return 0;
   }
+}
+
+
+void Z_Devices::setManufId(uint16_t shortaddr, const char * str) {
+  Z_Device & device = getShortAddr(shortaddr);
+  device.manufacturerId = str;
+}
+void Z_Devices::setModelId(uint16_t shortaddr, const char * str) {
+  Z_Device & device = getShortAddr(shortaddr);
+  device.modelId = str;
+}
+void Z_Devices::setFriendlyNameId(uint16_t shortaddr, const char * str) {
+  Z_Device & device = getShortAddr(shortaddr);
+  device.friendlyName = str;
 }
 
 // Dump the internal memory of Zigbee devices
