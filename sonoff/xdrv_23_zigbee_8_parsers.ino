@@ -290,6 +290,7 @@ int32_t Z_ReceiveSimpleDesc(int32_t res, const class SBuffer &buf) {
     XdrvRulesProcess();
 
     uint8_t cluster = zigbee_devices.findClusterEndpointIn(nwkAddr, 0x0000);
+Serial.printf(">>> Endpoint is 0x%02X for cluster 0x%04X\n", cluster, 0x0000);
     if (cluster) {
       Z_SendAFInfoRequest(nwkAddr, cluster, 0x0000, 0x01); // TODO
     }
@@ -361,6 +362,8 @@ int32_t Z_ReceiveAfIncomingMessage(int32_t res, const class SBuffer &buf) {
 
   zcl_received.postProcessAttributes(json);
 
+  msg = "";
+  json_root.printTo(msg);
   Response_P(PSTR("%s"), msg.c_str());
   MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCL_RECEIVED));
   XdrvRulesProcess();

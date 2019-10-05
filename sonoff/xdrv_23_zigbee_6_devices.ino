@@ -193,6 +193,7 @@ Z_Device & Z_Devices::getShortAddr(uint16_t shortaddr) {
   if (found >= 0) {
     return _devices[found];
   }
+//Serial.printf("Device entry created for shortaddr = 0x%02X, found = %d\n", shortaddr, found);
   return createDeviceEntry(shortaddr, 0);
 }
 
@@ -265,7 +266,7 @@ void Z_Devices::addEndointProfile(uint16_t shortaddr, uint8_t endpoint, uint16_t
 
 void Z_Devices::addCluster(uint16_t shortaddr, uint8_t endpoint, uint16_t cluster, bool out) {
   if (!shortaddr) { return; }
-  Z_Device device = getShortAddr(shortaddr);
+  Z_Device & device = getShortAddr(shortaddr);
   uint32_t ep_cluster = (endpoint << 16) | cluster;
   if (!out) {
     if (!findInVector(device.clusters_in, ep_cluster)) {
