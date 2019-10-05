@@ -624,15 +624,12 @@ void ZCLFrame::postProcessAttributes(uint16_t shortaddr, JsonObject& json) {
   for (auto kv : json) {
     String key = kv.key;
     JsonVariant& value = kv.value;
-Serial.printf(">>> key = %s\n", key.c_str());
 
     // Iterate on filter
     for (uint32_t i = 0; i < sizeof(Z_PostProcess) / sizeof(Z_PostProcess[0]); i++) {
-Serial.printf(">>>++ processing %d\n", i);
       const Z_AttributeConverter *converter = &Z_PostProcess[i];
-Serial.printf("Filter = %s\n", converter->filter);
+
       if (mini_glob_match(converter->filter, key.c_str())) {
-Serial.printf(">>>++ running %d\n", i);
         int32_t drop = (*converter->func)(shortaddr, json, key.c_str(), value, converter->name, converter->param);
         if (drop) {
           json.remove(key);
@@ -640,7 +637,6 @@ Serial.printf(">>>++ running %d\n", i);
 
       }
     }
-Serial.printf("<<< key = %s\n", key.c_str());
   }
 }
 

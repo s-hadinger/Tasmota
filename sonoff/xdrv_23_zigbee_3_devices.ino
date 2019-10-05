@@ -147,6 +147,7 @@ Z_Device & Z_Devices::createDeviceEntry(uint16_t shortaddr, uint64_t longaddr) {
                       std::vector<uint32_t>(),
                       std::vector<uint32_t>() };
   _devices.push_back(device);
+  return _devices.back();
 }
 
 //
