@@ -188,7 +188,7 @@ int32_t Z_ReceiveNodeDesc(int32_t res, const class SBuffer &buf) {
                     complexDescriptorAvailable ? "true" : "false"
                     );
 
-    MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCLRECEIVED));
+    MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCL_RECEIVED));
     XdrvRulesProcess();
   }
 
@@ -220,7 +220,7 @@ int32_t Z_ReceiveActiveEp(int32_t res, const class SBuffer &buf) {
     ResponseAppend_P(PSTR("\"0x%02X\""), activeEpList[i]);
   }
   ResponseAppend_P(PSTR("]}}"));
-  MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCLRECEIVED));
+  MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCL_RECEIVED));
   XdrvRulesProcess();
   return -1;
 }
@@ -286,7 +286,7 @@ int32_t Z_ReceiveSimpleDesc(int32_t res, const class SBuffer &buf) {
       ResponseAppend_P(PSTR("\"0x%04X\""), buf.get16(16 + numInCluster*2 + i*2));
     }
     ResponseAppend_P(PSTR("]}}"));
-    MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCLRECEIVED));
+    MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCL_RECEIVED));
     XdrvRulesProcess();
 
     uint8_t cluster = zigbee_devices.findClusterEndpointIn(nwkAddr, 0x0000);
@@ -316,7 +316,7 @@ int32_t Z_ReceiveEndDeviceAnnonce(int32_t res, const class SBuffer &buf) {
                   (capabilities & 0x40) ? "true" : "false"
                   );
 
-  MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCLRECEIVED));
+  MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCL_RECEIVED));
   XdrvRulesProcess();
   Z_SendActiveEpReq(nwkAddr);
   return -1;
@@ -354,14 +354,15 @@ int32_t Z_ReceiveAfIncomingMessage(int32_t res, const class SBuffer &buf) {
   } else if (zcl_received.isClusterSpecificCommand()) {
    zcl_received.parseClusterSpecificCommand(json);
   }
-  zcl_received.postProcessAttributes(json);
-
   String msg("");
   msg.reserve(100);
   json_root.printTo(msg);
+  MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCL_RAW_RECEIVED));
+
+  zcl_received.postProcessAttributes(json);
 
   Response_P(PSTR("%s"), msg.c_str());
-  MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCLRECEIVED));
+  MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCL_RECEIVED));
   XdrvRulesProcess();
   return -1;
 }

@@ -55,7 +55,7 @@ public:
                            uint32_t timestamp) {
     char hex_char[_payload.len()*2+2];
 		ToHex_P((unsigned char*)_payload.getBuffer(), _payload.len(), hex_char, sizeof(hex_char));
-    Response_P(PSTR("{\"" D_JSON_ZIGBEEZCLRECEIVED "\":{"
+    Response_P(PSTR("{\"" D_JSON_ZIGBEEZCL_RECEIVED "\":{"
                     "\"groupid\":%d," "\"clusterid\":%d," "\"srcaddr\":\"0x%04X\","
                     "\"srcendpoint\":%d," "\"dstendpoint\":%d," "\"wasbroadcast\":%d,"
                     "\"linkquality\":%d," "\"securityuse\":%d," "\"seqnumber\":%d,"
@@ -71,7 +71,7 @@ public:
 
     ResponseJsonEnd();      // append '}'
     ResponseJsonEnd();      // append '}'
-  	MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCLSENT));
+  	MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCL_RECEIVED));
   	XdrvRulesProcess();
   }
 
@@ -209,7 +209,7 @@ uint32_t parseSingleAttribute(JsonObject& json, char *attrid_str, class SBuffer 
         }
       }
       break;
-    case 0x23:      // uint16
+    case 0x23:      // uint32
       {
         uint32_t uint32_val = buf.get32(i);
         i += 4;

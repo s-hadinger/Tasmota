@@ -461,7 +461,8 @@
   #define D_JSON_ZIGBEE_STATUS "ZigbeeStatus"
   #define D_JSON_ZIGBEEZNPRECEIVED "ZigbeeZNPReceived"
   #define D_JSON_ZIGBEEZNPSENT "ZigbeeZNPSent"
-  #define D_JSON_ZIGBEEZCLRECEIVED "ZigbeeZCLReceived"
+  #define D_JSON_ZIGBEEZCL_RECEIVED "ZigbeeZCLReceived"
+  #define D_JSON_ZIGBEEZCL_RAW_RECEIVED "ZigbeeZCLRawReceived"
   #define D_JSON_ZIGBEEZCLSENT "ZigbeeZCLSent"
 
   // Commands xdrv_25_A4988_Stepper.ino
