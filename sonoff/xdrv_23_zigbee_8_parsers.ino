@@ -303,7 +303,7 @@ int32_t Z_ReceiveEndDeviceAnnonce(int32_t res, const class SBuffer &buf) {
   Z_IEEEAddress     ieeeAddr = buf.get64(6);
   uint8_t           capabilities = buf.get8(14);
 
-  zigbee_devices.addDevice(nwkAddr, ieeeAddr);
+  zigbee_devices.updateDevice(nwkAddr, ieeeAddr);
 
   char hex[20];
   Uint64toHex(ieeeAddr, hex, 64);

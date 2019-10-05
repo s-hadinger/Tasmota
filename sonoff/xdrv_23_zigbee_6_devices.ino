@@ -23,7 +23,7 @@
 #include <map>
 
 typedef struct Z_Device {
-  uint16_t              shortaddr;
+  uint16_t              shortaddr;      // unique key if not null, or unspecified if null
   uint64_t              longaddr;       // 0x00 means unspecified
   String                manufacturerId;
   String                modelId;
@@ -33,12 +33,19 @@ typedef struct Z_Device {
   std::vector<uint32_t> clusters_out;   // encoded as high 16 bits is endpoint, low 16 bits is cluster number
 } Z_Device;
 
+// All devices are stored in a Vector
+// Invariants:
+// - shortaddr is unique if not null
+// - longaddr is unique if not null
+// - shortaddr and longaddr cannot be both null
+// - clusters_in and clusters_out containt only endpoints listed in endpoints
 class Z_Devices {
 public:
   Z_Devices() {};
 
   // Add new device, provide ShortAddr and optional longAddr
-  void addDevice(uint16_t shortaddr, uint64_t longaddr = 0);
+  // If it is already registered, update information, otherwise create the entry
+  void updateDevice(uint16_t shortaddr, uint64_t longaddr = 0);
 
   // Add an endpoint to a device
   void addEndoint(uint16_t shortaddr, uint8_t endpoint);
@@ -51,16 +58,11 @@ public:
 
   uint8_t findClusterEndpointIn(uint16_t shortaddr, uint16_t cluster);
 
-  Z_Device &findDevice(uint16_t shortaddr);
-
   // Dump json
   String dump(uint8_t dump_mode) const;
 
 private:
-  std::map<uint16_t, Z_Device> _devices = {};
-
-  // add Short and Long address when it is known not to be present, true if added
-  bool addIfNotPresent(uint16_t shortaddr, uint64_t longaddr = 0);
+  std::vector<Z_Device> _devices = {};
 
   template < typename T>
   static bool findInVector(const std::vector<T>  & vecOfElements, const T  & element);
@@ -70,6 +72,15 @@ private:
 
   // find the first endpoint match for a cluster
   static int32_t findClusterEndpoint(const std::vector<uint32_t>  & vecOfElements, uint16_t element);
+
+  Z_Device & getShortAddr(uint16_t shortaddr);   // find Device from shortAddr, creates it if does not exist
+  Z_Device & getLongAddr(uint64_t longaddr);     // find Device from shortAddr, creates it if does not exist
+
+  int32_t findShortAddr(uint16_t shortaddr);
+  int32_t findLongAddr(uint64_t longaddr);
+
+  // Create a new entry in the devices list - must be called if it is sure it does not already exist
+  Z_Device & createDeviceEntry(uint16_t shortaddr, uint64_t longaddr = 0);
 };
 
 Z_Devices zigbee_devices = Z_Devices();
@@ -100,62 +111,152 @@ int32_t Z_Devices::findEndpointInVector(const std::vector<T>  & vecOfElements, c
   return -1;
 }
 
-int32_t Z_Devices::findClusterEndpoint(const std::vector<uint32_t>  & vecOfElements, uint16_t element) {
+//
+// Find the first endpoint match for a cluster, whether in or out
+// Clusters are stored in the format 0x00EECCCC (EE=endpoint, CCCC=cluster number)
+// In:
+//    _devices.clusters_in or _devices.clusters_out
+//    cluster number looked for
+// Out:
+//    Index of found Endpoint_Cluster number, or -1 if not found
+//
+int32_t Z_Devices::findClusterEndpoint(const std::vector<uint32_t>  & vecOfElements, uint16_t cluster) {
   int32_t found = 0;
   for (auto &elem : vecOfElements) {
-    if ((elem & 0xFFFF) == element) { return found; }
+    if ((elem & 0xFFFF) == cluster) { return found; }
     found++;
   }
   return -1;
 }
 
-Z_Device & Z_Devices::findDevice(uint16_t shortaddr) {
-  return _devices[shortaddr];
+//
+// Create a new Z_Device entry in _devices. Only to be called if you are sure that no
+// entry with same shortaddr or longaddr exists.
+//
+Z_Device & Z_Devices::createDeviceEntry(uint16_t shortaddr, uint64_t longaddr) {
+  //if (!shortaddr && !longaddr) { return; }      // it is not legal to create an enrty with both short/long addr null
+  Z_Device device = { shortaddr, longaddr,
+                      String(),   // ManufId
+                      String(),   // DeviceId
+                      String(),   // FriendlyName
+                      std::vector<uint32_t>(),
+                      std::vector<uint32_t>(),
+                      std::vector<uint32_t>() };
+  _devices.push_back(device);
 }
 
-// insert an entry when it is known it is missing
-bool Z_Devices::addIfNotPresent(uint16_t shortaddr, uint64_t longaddr) {
-  if (0 == _devices.count(shortaddr)) {
-    Z_Device device = { shortaddr, longaddr,
-                        String(),   // ManufId
-                        String(),   // DeviceId
-                        String(),   // FriendlyName
-                        std::vector<uint32_t>(),
-                        std::vector<uint32_t>(),
-                        std::vector<uint32_t>() };
-    _devices[shortaddr] = device;
-    return true;
+//
+// Scan all devices to find a corresponding shortaddr
+// Looks info device.shortaddr entry
+// In:
+//    shortaddr (non null)
+// Out:
+//    index in _devices of entry, -1 if not found
+//
+int32_t Z_Devices::findShortAddr(uint16_t shortaddr) {
+  if (!shortaddr) { return -1; }              // does not make sense to look for 0x0000 shortaddr (localhost)
+  int32_t found = 0;
+  if (shortaddr) {
+    for (auto &elem : _devices) {
+      if (elem.shortaddr == shortaddr) { return found; }
+      found++;
+    }
   }
-  return false;
+  return -1;
+}
+//
+// Scan all devices to find a corresponding longaddr
+// Looks info device.longaddr entry
+// In:
+//    longaddr (non null)
+// Out:
+//    index in _devices of entry, -1 if not found
+//
+int32_t Z_Devices::findLongAddr(uint64_t longaddr) {
+  if (!longaddr) { return -1; }
+  int32_t found = 0;
+  if (longaddr) {
+    for (auto &elem : _devices) {
+      if (elem.longaddr == longaddr) { return found; }
+      found++;
+    }
+  }
+  return -1;
 }
 
-void Z_Devices::addDevice(uint16_t shortaddr, uint64_t longaddr) {
-  if (!addIfNotPresent(shortaddr, longaddr)) {
-    // if already present
-    Z_Device &device = findDevice(shortaddr);
-    if (device.longaddr != longaddr) {
-      // new device, i.e. collision
-      device.longaddr = longaddr;
-      device.endpoints.clear();
-      device.clusters_in.clear();
-      device.clusters_out.clear();
+//
+// We have a seen a shortaddr on the network, get the corresponding 
+//
+Z_Device & Z_Devices::getShortAddr(uint16_t shortaddr) {
+  //if (!shortaddr) { return nullptr; }   // this is not legal, nothing we can do more except crash or raise an exception
+  int32_t found = findShortAddr(shortaddr);
+  if (found >= 0) {
+    return _devices[found];
+  }
+  return createDeviceEntry(shortaddr, 0);
+}
+
+// find the Device object by its longaddr (unique key if not null)
+Z_Device & Z_Devices::getLongAddr(uint64_t longaddr) {
+  //if (!longaddr) { return nullptr; }
+  int32_t found = findLongAddr(longaddr);
+  if (found > 0) {
+    return _devices[found];
+  }
+  return createDeviceEntry(0, longaddr);
+}
+
+//
+// We have just seen a device on the network, update the info based on short/long addr
+// In:
+//    shortaddr
+//    longaddr (both can't be null at the same time)
+void Z_Devices::updateDevice(uint16_t shortaddr, uint64_t longaddr) {
+  int32_t s_found = findShortAddr(shortaddr);       // is there already a shortaddr entry
+  int32_t l_found = findLongAddr(longaddr);         // is there already a longaddr entry
+
+  if ((s_found >= 0) && (l_found >= 0)) {           // both shortaddr and longaddr are already registered
+    if (s_found == l_found) {
+      ;                                       // short/long addr match, all good
+    } else {                                        // they don't match
+      // the device with longaddr got a new shortaddr
+      _devices[l_found].shortaddr = shortaddr;      // update the shortaddr corresponding to the longaddr
+      // erase the previous shortaddr
+      _devices.erase(_devices.begin() + s_found);
+    }
+  } else if (s_found >= 0) {
+    // shortaddr already exists but longaddr not
+    // add the longaddr to the entry
+    _devices[s_found].longaddr = longaddr;
+  } else if (l_found >= 0) {
+    // longaddr entry exists, update shortaddr
+    _devices[l_found].shortaddr = shortaddr;
+  } else {
+    // neither short/lonf addr are found.
+    if (shortaddr || longaddr) {
+      createDeviceEntry(shortaddr, longaddr);
     }
   }
 }
 
+//
+// Add an endpoint to a shortaddr
+//
 void Z_Devices::addEndoint(uint16_t shortaddr, uint8_t endpoint) {
+  if (!shortaddr) { return; }
   uint32_t ep_profile = (endpoint << 16);
-  addIfNotPresent(shortaddr);
-  Z_Device &device = findDevice(shortaddr);
+  updateDevice(shortaddr);
+  Z_Device device = getShortAddr(shortaddr);
   if (findEndpointInVector(device.endpoints, ep_profile) < 0) {    // TODO search only on enpoint
     device.endpoints.push_back(ep_profile);
   }
 }
 
 void Z_Devices::addEndointProfile(uint16_t shortaddr, uint8_t endpoint, uint16_t profileId) {
+  if (!shortaddr) { return; }
   uint32_t ep_profile = (endpoint << 16) | profileId;
-  addIfNotPresent(shortaddr);
-  Z_Device &device = findDevice(shortaddr);
+  updateDevice(shortaddr);
+  Z_Device &device = getShortAddr(shortaddr);
   int32_t found = findEndpointInVector(device.endpoints, ep_profile);
   if (found < 0) {    // TODO search only on enpoint
     device.endpoints.push_back(ep_profile);
@@ -165,8 +266,9 @@ void Z_Devices::addEndointProfile(uint16_t shortaddr, uint8_t endpoint, uint16_t
 }
 
 void Z_Devices::addCluster(uint16_t shortaddr, uint8_t endpoint, uint16_t cluster, bool out) {
-  addIfNotPresent(shortaddr);
-  Z_Device &device = findDevice(shortaddr);
+  if (!shortaddr) { return; }
+  updateDevice(shortaddr);
+  Z_Device device = getShortAddr(shortaddr);
   uint32_t ep_cluster = (endpoint << 16) | cluster;
   if (!out) {
     if (!findInVector(device.clusters_in, ep_cluster)) {
@@ -182,7 +284,7 @@ void Z_Devices::addCluster(uint16_t shortaddr, uint8_t endpoint, uint16_t cluste
 // Look for the best endpoint match to send a command for a specific Cluster ID
 // return 0x00 if none found
 uint8_t Z_Devices::findClusterEndpointIn(uint16_t shortaddr, uint16_t cluster){
-  Z_Device &device = findDevice(shortaddr);
+  Z_Device device = getShortAddr(shortaddr);
   int32_t found = findClusterEndpoint(device.clusters_in, cluster);
   if (found > 0) {
     return (device.clusters_in[found] >> 16) & 0xFF;
@@ -199,9 +301,9 @@ String Z_Devices::dump(uint8_t dump_mode) const {
   JsonObject& json = jsonBuffer.createObject();
   JsonArray& devices = json.createNestedArray(F("ZigbeeDevices"));
 
-  for (std::map<uint16_t, Z_Device>::const_iterator it = _devices.begin(); it != _devices.end(); ++it) {
-    uint16_t shortaddr = it->first;
-    const Z_Device& device = it->second;
+  for (std::vector<Z_Device>::const_iterator it = _devices.begin(); it != _devices.end(); ++it) {
+    const Z_Device& device = *it;
+    uint16_t shortaddr = device.shortaddr;
     char hex[20];
 
     JsonObject& dev = devices.createNestedObject();
