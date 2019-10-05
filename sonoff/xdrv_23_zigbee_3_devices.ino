@@ -289,7 +289,7 @@ void Z_Devices::addCluster(uint16_t shortaddr, uint8_t endpoint, uint16_t cluste
 uint8_t Z_Devices::findClusterEndpointIn(uint16_t shortaddr, uint16_t cluster){
   Z_Device & device = getShortAddr(shortaddr);
   int32_t found = findClusterEndpoint(device.clusters_in, cluster);
-  if (found > 0) {
+  if (found >= 0) {
     return (device.clusters_in[found] >> 16) & 0xFF;
   } else {
     return 0;
