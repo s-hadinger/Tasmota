@@ -36,10 +36,10 @@ TasmotaSerial *ZigbeeSerial = nullptr;
 
 
 const char kZigbeeCommands[] PROGMEM = "|" D_CMND_ZIGBEEZNPSEND "|" D_CMND_ZIGBEE_PERMITJOIN
-                                "|" D_CMND_ZIGBEE_DUMP;
+                                "|" D_CMND_ZIGBEE_STATUS;
 
 void (* const ZigbeeCommand[])(void) PROGMEM = { &CmndZigbeeZNPSend, &CmndZigbeePermitJoin,
-                                &CmndZigbeeDump };
+                                &CmndZigbeeStatus };
 
 int32_t ZigbeeProcessInput(class SBuffer &buf) {
   if (!zigbee.state_machine) { return -1; }     // if state machine is stopped, send 'ignore' message
@@ -234,7 +234,7 @@ void ZigbeeInit(void)
  * Commands
 \*********************************************************************************************/
 
-void CmndZigbeeDump(void) {
+void CmndZigbeeStatus(void) {
   if (ZigbeeSerial) {
     String dump = zigbee_devices.dump(XdrvMailbox.payload);
     Response_P(S_JSON_COMMAND_XVALUE, XdrvMailbox.command, dump.c_str());

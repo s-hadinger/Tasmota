@@ -245,7 +245,6 @@ void Z_Devices::updateDevice(uint16_t shortaddr, uint64_t longaddr) {
 void Z_Devices::addEndoint(uint16_t shortaddr, uint8_t endpoint) {
   if (!shortaddr) { return; }
   uint32_t ep_profile = (endpoint << 16);
-  updateDevice(shortaddr);
   Z_Device device = getShortAddr(shortaddr);
   if (findEndpointInVector(device.endpoints, ep_profile) < 0) {    // TODO search only on enpoint
     device.endpoints.push_back(ep_profile);
@@ -255,7 +254,6 @@ void Z_Devices::addEndoint(uint16_t shortaddr, uint8_t endpoint) {
 void Z_Devices::addEndointProfile(uint16_t shortaddr, uint8_t endpoint, uint16_t profileId) {
   if (!shortaddr) { return; }
   uint32_t ep_profile = (endpoint << 16) | profileId;
-  updateDevice(shortaddr);
   Z_Device &device = getShortAddr(shortaddr);
   int32_t found = findEndpointInVector(device.endpoints, ep_profile);
   if (found < 0) {    // TODO search only on enpoint
@@ -267,7 +265,6 @@ void Z_Devices::addEndointProfile(uint16_t shortaddr, uint8_t endpoint, uint16_t
 
 void Z_Devices::addCluster(uint16_t shortaddr, uint8_t endpoint, uint16_t cluster, bool out) {
   if (!shortaddr) { return; }
-  updateDevice(shortaddr);
   Z_Device device = getShortAddr(shortaddr);
   uint32_t ep_cluster = (endpoint << 16) | cluster;
   if (!out) {
