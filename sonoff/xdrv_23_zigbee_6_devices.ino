@@ -295,8 +295,9 @@ uint8_t Z_Devices::findClusterEndpointIn(uint16_t shortaddr, uint16_t cluster){
 // Mode = 2: Mode 1 + also dump the endpoints, profiles and clusters
 String Z_Devices::dump(uint8_t dump_mode) const {
   DynamicJsonBuffer jsonBuffer;
-  JsonObject& json = jsonBuffer.createObject();
-  JsonArray& devices = json.createNestedArray(F("ZigbeeDevices"));
+  JsonArray& json = jsonBuffer.createArray();
+  JsonArray& devices = json;
+  //JsonArray& devices = json.createNestedArray(F("ZigbeeDevices"));
 
   for (std::vector<Z_Device>::const_iterator it = _devices.begin(); it != _devices.end(); ++it) {
     const Z_Device& device = *it;
