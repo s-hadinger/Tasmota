@@ -310,8 +310,19 @@ String Z_Devices::dump(uint8_t dump_mode) const {
     snprintf_P(hex, sizeof(hex), PSTR("0x%04X"), shortaddr);
     dev[F("ShortAddr")] = hex;
 
-    Uint64toHex(device.longaddr, hex, 64);
-    dev[F("IEEEAddr")] = hex;
+    if (1 == dump_mode) {
+      Uint64toHex(device.longaddr, hex, 64);
+      dev[F("IEEEAddr")] = hex;
+      if (device.friendlyName.length() > 0) {
+        dev[F("FriendlyName")] = device.friendlyName;
+      }
+      if (device.modelId.length() > 0) {
+        dev[F(D_JSON_MODEL D_JSON_ID)] = device.modelId;
+      }
+      if (device.manufacturerId.length() > 0) {
+        dev[F("Manufacturer")] = device.manufacturerId;
+      }
+    }
 
     // If dump_mode == 2, dump a lot more details
     if (2 == dump_mode) {
