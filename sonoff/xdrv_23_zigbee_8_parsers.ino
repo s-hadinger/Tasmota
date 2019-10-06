@@ -178,6 +178,8 @@ int32_t Z_ReceiveNodeDesc(int32_t res, const class SBuffer &buf) {
   uint8_t           descriptorCapabilities = buf.get8(19);
 
   if (0 == status) {
+    zigbee_devices.updateLastSeen(nwkAddr);
+
     uint8_t           deviceType = logicalType & 0x7;   // 0=coordinator, 1=router, 2=end device
     if (deviceType > 3) { deviceType = 3; }
     bool              complexDescriptorAvailable = (logicalType & 0x08) ? 1 : 0;
@@ -335,6 +337,7 @@ int32_t Z_ReceiveAfIncomingMessage(int32_t res, const class SBuffer &buf) {
   uint32_t        timestamp = buf.get32(13);
   uint8_t         seqnumber = buf.get8(17);
 
+  zigbee_devices.updateLastSeen(srcaddr);
   ZCLFrame zcl_received = ZCLFrame::parseRawFrame(buf, 19, buf.get8(18), clusterid, groupid);
 
   zcl_received.publishMQTTReceived(groupid, clusterid, srcaddr,
