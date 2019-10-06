@@ -244,7 +244,7 @@ void Z_SendAFInfoRequest(uint16_t shortaddr, uint8_t endpoint, uint16_t clusteri
   buf.add16(0x0004);              // 0400 ManufacturerName
   buf.add16(0x0005);              // 0500 ModelIdentifier
 
-  ZigbeeZNPSend(buf.getBuffer(), buf.size());
+  ZigbeeZNPSend(buf.getBuffer(), buf.len());
 }
 
 

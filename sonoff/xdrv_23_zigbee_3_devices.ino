@@ -138,7 +138,7 @@ int32_t Z_Devices::findClusterEndpoint(const std::vector<uint32_t>  & vecOfEleme
 // entry with same shortaddr or longaddr exists.
 //
 Z_Device & Z_Devices::createDeviceEntry(uint16_t shortaddr, uint64_t longaddr) {
-  //if (!shortaddr && !longaddr) { return; }      // it is not legal to create an enrty with both short/long addr null
+  if (!shortaddr && !longaddr) { return *(Z_Device*) nullptr; }      // it is not legal to create an enrty with both short/long addr null
   Z_Device device = { shortaddr, longaddr,
                       String(),   // ManufId
                       String(),   // DeviceId
@@ -193,7 +193,7 @@ int32_t Z_Devices::findLongAddr(uint64_t longaddr) {
 // We have a seen a shortaddr on the network, get the corresponding 
 //
 Z_Device & Z_Devices::getShortAddr(uint16_t shortaddr) {
-  //if (!shortaddr) { return nullptr; }   // this is not legal, nothing we can do more except crash or raise an exception
+  if (!shortaddr) { return *(Z_Device*) nullptr; }   // this is not legal
   int32_t found = findShortAddr(shortaddr);
   if (found >= 0) {
     return _devices[found];
@@ -204,7 +204,7 @@ Z_Device & Z_Devices::getShortAddr(uint16_t shortaddr) {
 
 // find the Device object by its longaddr (unique key if not null)
 Z_Device & Z_Devices::getLongAddr(uint64_t longaddr) {
-  //if (!longaddr) { return nullptr; }
+  if (!longaddr) { return *(Z_Device*) nullptr; }
   int32_t found = findLongAddr(longaddr);
   if (found > 0) {
     return _devices[found];
@@ -251,7 +251,8 @@ void Z_Devices::updateDevice(uint16_t shortaddr, uint64_t longaddr) {
 void Z_Devices::addEndoint(uint16_t shortaddr, uint8_t endpoint) {
   if (!shortaddr) { return; }
   uint32_t ep_profile = (endpoint << 16);
-  Z_Device device = getShortAddr(shortaddr);
+  Z_Device &device = getShortAddr(shortaddr);
+  if (&device == nullptr) { return; }                 // don't crash if not found
   if (findEndpointInVector(device.endpoints, ep_profile) < 0) {    // TODO search only on enpoint
     device.endpoints.push_back(ep_profile);
   }
@@ -261,6 +262,7 @@ void Z_Devices::addEndointProfile(uint16_t shortaddr, uint8_t endpoint, uint16_t
   if (!shortaddr) { return; }
   uint32_t ep_profile = (endpoint << 16) | profileId;
   Z_Device &device = getShortAddr(shortaddr);
+  if (&device == nullptr) { return; }                 // don't crash if not found
   int32_t found = findEndpointInVector(device.endpoints, ep_profile);
   if (found < 0) {    // TODO search only on enpoint
     device.endpoints.push_back(ep_profile);
@@ -272,6 +274,7 @@ void Z_Devices::addEndointProfile(uint16_t shortaddr, uint8_t endpoint, uint16_t
 void Z_Devices::addCluster(uint16_t shortaddr, uint8_t endpoint, uint16_t cluster, bool out) {
   if (!shortaddr) { return; }
   Z_Device & device = getShortAddr(shortaddr);
+  if (&device == nullptr) { return; }                 // don't crash if not found
   uint32_t ep_cluster = (endpoint << 16) | cluster;
   if (!out) {
     if (!findInVector(device.clusters_in, ep_cluster)) {
@@ -287,7 +290,8 @@ void Z_Devices::addCluster(uint16_t shortaddr, uint8_t endpoint, uint16_t cluste
 // Look for the best endpoint match to send a command for a specific Cluster ID
 // return 0x00 if none found
 uint8_t Z_Devices::findClusterEndpointIn(uint16_t shortaddr, uint16_t cluster){
-  Z_Device & device = getShortAddr(shortaddr);
+  Z_Device &device = getShortAddr(shortaddr);
+  if (&device == nullptr) { return 0; }                 // don't crash if not found
   int32_t found = findClusterEndpoint(device.clusters_in, cluster);
   if (found >= 0) {
     return (device.clusters_in[found] >> 16) & 0xFF;
@@ -299,14 +303,17 @@ uint8_t Z_Devices::findClusterEndpointIn(uint16_t shortaddr, uint16_t cluster){
 
 void Z_Devices::setManufId(uint16_t shortaddr, const char * str) {
   Z_Device & device = getShortAddr(shortaddr);
+  if (&device == nullptr) { return; }                 // don't crash if not found
   device.manufacturerId = str;
 }
 void Z_Devices::setModelId(uint16_t shortaddr, const char * str) {
   Z_Device & device = getShortAddr(shortaddr);
+  if (&device == nullptr) { return; }                 // don't crash if not found
   device.modelId = str;
 }
 void Z_Devices::setFriendlyNameId(uint16_t shortaddr, const char * str) {
   Z_Device & device = getShortAddr(shortaddr);
+  if (&device == nullptr) { return; }                 // don't crash if not found
   device.friendlyName = str;
 }
 
@@ -329,12 +336,13 @@ String Z_Devices::dump(uint8_t dump_mode) const {
     snprintf_P(hex, sizeof(hex), PSTR("0x%04X"), shortaddr);
     dev[F("ShortAddr")] = hex;
 
+    if (device.friendlyName.length() > 0) {
+      dev[F("FriendlyName")] = device.friendlyName;
+    }
+
     if (1 == dump_mode) {
       Uint64toHex(device.longaddr, hex, 64);
       dev[F("IEEEAddr")] = hex;
-      if (device.friendlyName.length() > 0) {
-        dev[F("FriendlyName")] = device.friendlyName;
-      }
       if (device.modelId.length() > 0) {
         dev[F(D_JSON_MODEL D_JSON_ID)] = device.modelId;
       }
