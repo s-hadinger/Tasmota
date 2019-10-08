@@ -322,10 +322,10 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     ZI_WAIT(10000)                             // wait for 10 seconds for Tasmota to stabilize
     ZI_ON_ERROR_GOTO(50)
 
-    ZI_MQTT_STATUS(ZIGBEE_STATUS_BOOT, "Booting")
+    //ZI_MQTT_STATUS(ZIGBEE_STATUS_BOOT, "Booting")
     //ZI_LOG(LOG_LEVEL_INFO, "ZIG: rebooting device")
     ZI_SEND(ZBS_RESET)                        // reboot cc2530 just in case we rebooted ESP8266 but not cc2530
-    ZI_WAIT_RECV(5000, ZBR_RESET)             // timeout 5s
+    ZI_WAIT_RECV_FUNC(5000, ZBR_RESET, &Z_Reboot)             // timeout 5s
     ZI_WAIT(100)
     ZI_LOG(LOG_LEVEL_INFO, "ZIG: checking device configuration")
     ZI_SEND(ZBS_ZNPHC)                        // check value of ZNP Has Configured
