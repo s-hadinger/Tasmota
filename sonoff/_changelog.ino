@@ -1,10 +1,16 @@
 /*********************************************************************************************\
+ * 6.6.0.16 20191008
+ * Change PZEM004T default address mask from 0.0.0.x to 192.168.1.x for legacy reason (#6585)
+ * Fix PZEM004T, PZEMAC and PZEMDC autodetection (#6585)
+ * Change light drivers internals to ease management
+ *
  * 6.6.0.15 20191003
  * Change command PulseTime JSON message format and allow display of all pulsetimer information (#6519)
  * Add support for Chint DDSU666 Modbus energy meter by Pablo Zerón
  * Add support for SM2135 as used in Action LSC Smart Led E14 (#6495)
  * Add command SetOption72 0/1 to switch between software (0) or hardware (1) energy total counter (#6561)
  * Add Zigbee tracking of connected devices and auto-probing of Manuf/Model Ids
+ * Fix better handling of PWM White Temperature mode for Module 48 (#6534)
  *
  * 6.6.0.14 20190925
  * Change command Tariffx to allow time entries like 23 (hours), 1320 (minutes) or 23:00. NOTE: As this is development branch previous tariffs are lost! (#6488)
