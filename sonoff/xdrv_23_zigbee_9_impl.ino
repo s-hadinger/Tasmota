@@ -23,6 +23,7 @@
 
 const uint32_t ZIGBEE_BUFFER_SIZE = 256;  // Max ZNP frame is SOF+LEN+CMD1+CMD2+250+FCS = 255
 const uint8_t  ZIGBEE_SOF = 0xFE;
+const uint8_t  ZIGBEE_SOF_ALT = 0xFF;
 
 //#define Z_USE_SOFTWARE_SERIAL
 
@@ -140,6 +141,13 @@ void ZigbeeInput(void)
 		if (0 == zigbee_buffer->len()) {  // make sure all variables are correctly initialized
 			zigbee_frame_len = 5;
 			fcs = ZIGBEE_SOF;
+      // there is a rare race condition when an interrupt occurs when receiving the first byte
+      // in this case the first bit (lsb) is missed and Tasmota receives 0xFF instead of 0xFE
+      // We forgive this mistake, and next bytes are automatically resynchronized
+      if (ZIGBEE_SOF_ALT == zigbee_in_byte) {
+        AddLog_P2(LOG_LEVEL_INFO, PSTR("ZigbeeInput forgiven first byte %02X (only for statistics)"), zigbee_in_byte);
+        zigbee_in_byte = ZIGBEE_SOF;
+      }
 		}
 
     if ((0 == zigbee_buffer->len()) && (ZIGBEE_SOF != zigbee_in_byte)) {
