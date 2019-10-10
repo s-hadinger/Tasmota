@@ -37,10 +37,10 @@ TasmotaSerial *ZigbeeSerial = nullptr;
 
 
 const char kZigbeeCommands[] PROGMEM = "|" D_CMND_ZIGBEEZNPSEND "|" D_CMND_ZIGBEE_PERMITJOIN
-                                "|" D_CMND_ZIGBEE_STATUS "|" D_CMND_ZIGBEE_RESET;
+                                "|" D_CMND_ZIGBEE_STATUS "|" D_CMND_ZIGBEE_RESET "|" D_CMND_ZIGBEE_ZCL_SEND;
 
 void (* const ZigbeeCommand[])(void) PROGMEM = { &CmndZigbeeZNPSend, &CmndZigbeePermitJoin,
-                                &CmndZigbeeStatus, &CmndZigbeeReset };
+                                &CmndZigbeeStatus, &CmndZigbeeReset, &CmndZigbeeZCLSend };
 
 int32_t ZigbeeProcessInput(class SBuffer &buf) {
   if (!zigbee.state_machine) { return -1; }     // if state machine is stopped, send 'ignore' message
@@ -243,6 +243,10 @@ void ZigbeeInit(void)
 /*********************************************************************************************\
  * Commands
 \*********************************************************************************************/
+
+void CmndZigbeeZCLSend(void) {
+  ResponseCmndDone();
+}
 
 const unsigned char ZIGBEE_FACTORY_RESET[] PROGMEM = "2112000F0100";  // Z_SREQ | Z_SYS, SYS_OSAL_NV_DELETE, 0x0F00 id, 0x0001 len
 // Do a factory reset of the CC2530
