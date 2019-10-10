@@ -37,10 +37,10 @@ TasmotaSerial *ZigbeeSerial = nullptr;
 
 
 const char kZigbeeCommands[] PROGMEM = "|" D_CMND_ZIGBEEZNPSEND "|" D_CMND_ZIGBEE_PERMITJOIN
-                                "|" D_CMND_ZIGBEE_STATUS;
+                                "|" D_CMND_ZIGBEE_STATUS "|" D_CMND_ZIGBEE_RESET;
 
 void (* const ZigbeeCommand[])(void) PROGMEM = { &CmndZigbeeZNPSend, &CmndZigbeePermitJoin,
-                                &CmndZigbeeStatus };
+                                &CmndZigbeeStatus, &CmndZigbeeReset };
 
 int32_t ZigbeeProcessInput(class SBuffer &buf) {
   if (!zigbee.state_machine) { return -1; }     // if state machine is stopped, send 'ignore' message
@@ -241,6 +241,22 @@ void ZigbeeInit(void)
 /*********************************************************************************************\
  * Commands
 \*********************************************************************************************/
+
+const unsigned char ZIGBEE_FACTORY_RESET[] PROGMEM = "2112000F0100";  // Z_SREQ | Z_SYS, SYS_OSAL_NV_DELETE, 0x0F00 id, 0x0001 len
+// Do a factory reset of the CC2530
+void CmndZigbeeReset(void) {
+  if (ZigbeeSerial) {
+    switch (XdrvMailbox.payload) {
+    case 1:
+      ZigbeeZNPSend(ZIGBEE_FACTORY_RESET, sizeof(ZIGBEE_FACTORY_RESET));
+      restart_flag = 2;
+      ResponseCmndChar(D_JSON_ZIGBEE_CC2530 " " D_JSON_RESET_AND_RESTARTING);
+      break;
+    default:
+      ResponseCmndChar(D_JSON_ONE_TO_RESET);
+    }
+  }
+}
 
 void CmndZigbeeStatus(void) {
   if (ZigbeeSerial) {
