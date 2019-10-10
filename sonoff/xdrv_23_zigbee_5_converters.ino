@@ -53,6 +53,7 @@ public:
                            uint8_t srcendpoint, uint8_t dstendpoint, uint8_t wasbroadcast,
                            uint8_t linkquality, uint8_t securityuse, uint8_t seqnumber,
                            uint32_t timestamp) {
+#ifdef ZIGBEE_VERBOSE
     char hex_char[_payload.len()*2+2];
 		ToHex_P((unsigned char*)_payload.getBuffer(), _payload.len(), hex_char, sizeof(hex_char));
     Response_P(PSTR("{\"" D_JSON_ZIGBEEZCL_RECEIVED "\":{"
@@ -73,6 +74,7 @@ public:
     ResponseJsonEnd();      // append '}'
   	MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCL_RECEIVED));
   	XdrvRulesProcess();
+#endif
   }
 
   static ZCLFrame parseRawFrame(const SBuffer &buf, uint8_t offset, uint8_t len, uint16_t clusterid, uint16_t groupid) { // parse a raw frame and build the ZCL frame object
