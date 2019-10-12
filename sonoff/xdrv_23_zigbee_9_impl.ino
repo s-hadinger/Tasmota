@@ -37,7 +37,7 @@ TasmotaSerial *ZigbeeSerial = nullptr;
 
 
 const char kZigbeeCommands[] PROGMEM = "|" D_CMND_ZIGBEEZNPSEND "|" D_CMND_ZIGBEE_PERMITJOIN
-                                "|" D_CMND_ZIGBEE_STATUS "|" D_CMND_ZIGBEE_RESET "|" 
+                                "|" D_CMND_ZIGBEE_STATUS "|" D_CMND_ZIGBEE_RESET "|" D_CMND_ZIGBEE_ZCL_SEND
                                 "|" D_CMND_ZIGBEE_PROBE;
 
 void (* const ZigbeeCommand[])(void) PROGMEM = { &CmndZigbeeZNPSend, &CmndZigbeePermitJoin,
