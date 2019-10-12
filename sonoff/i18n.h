@@ -469,6 +469,7 @@
   #define D_JSON_ZIGBEEZCL_RAW_RECEIVED "ZigbeeZCLRawReceived"
 #define D_CMND_ZIGBEE_ZCL_SEND "ZigbeeZCLSend"
   #define D_JSON_ZIGBEE_ZCL_SENT "ZigbeeZCLSent"
+#define D_CMND_ZIGBEE_PROBE "ZigbeeProbe"
 
   // Commands xdrv_25_A4988_Stepper.ino
   #ifdef USE_A4988_Stepper

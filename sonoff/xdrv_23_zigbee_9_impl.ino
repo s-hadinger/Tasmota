@@ -37,10 +37,12 @@ TasmotaSerial *ZigbeeSerial = nullptr;
 
 
 const char kZigbeeCommands[] PROGMEM = "|" D_CMND_ZIGBEEZNPSEND "|" D_CMND_ZIGBEE_PERMITJOIN
-                                "|" D_CMND_ZIGBEE_STATUS "|" D_CMND_ZIGBEE_RESET "|" D_CMND_ZIGBEE_ZCL_SEND;
+                                "|" D_CMND_ZIGBEE_STATUS "|" D_CMND_ZIGBEE_RESET "|" 
+                                "|" D_CMND_ZIGBEE_PROBE;
 
 void (* const ZigbeeCommand[])(void) PROGMEM = { &CmndZigbeeZNPSend, &CmndZigbeePermitJoin,
-                                &CmndZigbeeStatus, &CmndZigbeeReset, &CmndZigbeeZCLSend };
+                                &CmndZigbeeStatus, &CmndZigbeeReset, &CmndZigbeeZCLSend,
+                                &CmndZigbeeProbe };
 
 int32_t ZigbeeProcessInput(class SBuffer &buf) {
   if (!zigbee.state_machine) { return -1; }     // if state machine is stopped, send 'ignore' message
@@ -414,6 +416,22 @@ void CmndZigbeeZCLSend(void) {
 
   // everything is good, we can send the command
   ZigbeeZCLSend(dstAddr, clusterId, endpoint, cmd, true, buf.getBuffer(), buf.len());   // TODO
+  ResponseCmndDone();
+}
+
+// Probe a specific device to get its endpoints and supported clusters
+void CmndZigbeeProbe(void) {
+  char dataBufUc[XdrvMailbox.data_len];
+  UpperCase(dataBufUc, XdrvMailbox.data);
+  RemoveSpace(dataBufUc);
+  if (strlen(dataBufUc) < 3) { ResponseCmndChar("Invalid destination"); return; }
+
+  // TODO, fro now ignore friendly names
+  uint16_t shortaddr = strtoull(dataBufUc, nullptr, 0);
+  AddLog_P2(LOG_LEVEL_DEBUG, PSTR("CmndZigbeeScan: short addr 0x%04X"), shortaddr);
+
+  // everything is good, we can send the command
+  Z_SendActiveEpReq(shortaddr);
   ResponseCmndDone();
 }
 
