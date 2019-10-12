@@ -256,63 +256,6 @@ uint32_t strToUInt(const JsonVariant &val) {
   return 0;   // couldn't parse anything
 }
 
-void CmndZigbeeZCLSend(void) {
-  char parm_uc[12];   // used to convert JSON keys to uppercase
-  // ZigbeeZCLSend { "dst":"0x1234", "cluster":"0x0300", "endpoint":"0x01", "data":"AABBCC" }
-  char dataBufUc[XdrvMailbox.data_len];
-  UpperCase(dataBufUc, XdrvMailbox.data);
-  RemoveSpace(dataBufUc);
-  if (strlen(dataBufUc) < 8) { ResponseCmndChar(D_JSON_INVALID_JSON); return; }
-
-  DynamicJsonBuffer jsonBuf;
-  JsonObject &json = jsonBuf.parseObject(dataBufUc);
-  if (!json.success()) { ResponseCmndChar(D_JSON_INVALID_JSON); return; }
-
-  // params
-  uint16_t dstAddr = 0x0000;      // 0x0000 is local host, so considered invalid
-  uint16_t clusterId = 0x0000;    // 0x0000 is a valid default value
-  uint8_t  endpoint = 0x00;       // 0x00 is invalid for the dst endpoint
-  const char* data = "";             // empty string is valid
-
-  UpperCase_P(parm_uc, PSTR("dst"));
-  if (json.containsKey(parm_uc)) { dstAddr = strToUInt(json[parm_uc]); }
-  UpperCase_P(parm_uc, PSTR("cluster"));
-  if (json.containsKey(parm_uc)) { clusterId = strToUInt(json[parm_uc]); }
-  UpperCase_P(parm_uc, PSTR("endpoint"));
-  if (json.containsKey(parm_uc)) { endpoint = strToUInt(json[parm_uc]); }
-  UpperCase_P(parm_uc, PSTR("data"));
-  if (json.containsKey(parm_uc)) { data = json[parm_uc].as<const char*>(); }
-
-  size_t size = strlen(data);
-  SBuffer buf((size+1)/2);    // actual bytes buffer for data
-
-  while (size > 0) {
-    char stemp[3];
-    strlcpy(stemp, data, sizeof(stemp));
-    uint8_t code = strtol(stemp, nullptr, 16);
-    buf.add8(code);
-    size -= 2;
-    data += 2;
-  }
-
-  if (0 == endpoint) {
-    // endpoint is not specified, let's try to find it from shortAddr
-    endpoint = zigbee_devices.findClusterEndpointIn(dstAddr, clusterId);
-    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("CmndZigbeeZCLSend: guessing endpoint 0x%02X"), endpoint);
-  }
-  AddLog_P2(LOG_LEVEL_DEBUG, PSTR("CmndZigbeeZCLSend: dstAddr 0x%04X, cluster 0x%04X, endpoint 0x%02X, data %s"),
-    dstAddr, clusterId, endpoint, data);
-
-  if ((0 == dstAddr) || (0 == endpoint)) {
-    AddLog_P2(LOG_LEVEL_INFO, PSTR("CmndZigbeeZCLSend: invalid address or endpoint"));
-    return;
-  }
-
-  // everything is good, we can send the command
-  
-  ResponseCmndDone();
-}
-
 const unsigned char ZIGBEE_FACTORY_RESET[] PROGMEM = "2112000F0100";  // Z_SREQ | Z_SYS, SYS_OSAL_NV_DELETE, 0x0F00 id, 0x0001 len
 // Do a factory reset of the CC2530
 void CmndZigbeeReset(void) {
@@ -391,6 +334,87 @@ void ZigbeeZNPSend(const uint8_t *msg, size_t len) {
 	MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZNPSENT));
 	XdrvRulesProcess();
 #endif
+}
+
+void ZigbeeZCLSend(uint16_t dtsAddr, uint16_t clusterId, uint8_t endpoint, uint8_t cmdId, const uint8_t *msg, size_t len, uint8_t transacId = 1) {
+  SBuffer buf(25+len);
+  buf.add8(Z_SREQ | Z_AF);        // 24
+  buf.add8(AF_DATA_REQUEST);      // 01
+  buf.add16(dtsAddr);
+  buf.add8(endpoint);             // dest endpoint
+  buf.add8(0x01);                 // source endpoint
+  buf.add16(clusterId);
+  buf.add8(transacId);                 // transacId
+  buf.add8(0x30);                 // 30 options
+  buf.add8(0x1E);                 // 1E radius
+
+  buf.add8(3 + 2*sizeof(uint16_t)); // Len = 0x07
+  buf.add8(0x00);                 // Frame Control Field
+  buf.add8(transacId);            // Transaction Sequance Number
+  buf.add8(cmdId);
+  buf.addBuffer(msg, len);             // add the payload
+
+  ZigbeeZNPSend(buf.getBuffer(), buf.len());
+}
+
+void CmndZigbeeZCLSend(void) {
+  char parm_uc[12];   // used to convert JSON keys to uppercase
+  // ZigbeeZCLSend { "dst":"0x1234", "cluster":"0x0300", "endpoint":"0x01", "cmd":10, "data":"AABBCC" }
+  char dataBufUc[XdrvMailbox.data_len];
+  UpperCase(dataBufUc, XdrvMailbox.data);
+  RemoveSpace(dataBufUc);
+  if (strlen(dataBufUc) < 8) { ResponseCmndChar(D_JSON_INVALID_JSON); return; }
+
+  DynamicJsonBuffer jsonBuf;
+  JsonObject &json = jsonBuf.parseObject(dataBufUc);
+  if (!json.success()) { ResponseCmndChar(D_JSON_INVALID_JSON); return; }
+
+  // params
+  uint16_t dstAddr = 0x0000;      // 0x0000 is local host, so considered invalid
+  uint16_t clusterId = 0x0000;    // 0x0000 is a valid default value
+  uint8_t  endpoint = 0x00;       // 0x00 is invalid for the dst endpoint
+  uint8_t  cmd = ZCL_READ_ATTRIBUTES; // default command is READ_ATTRIBUTES
+  const char* data = "";             // empty string is valid
+
+  UpperCase_P(parm_uc, PSTR("dst"));
+  if (json.containsKey(parm_uc)) { dstAddr = strToUInt(json[parm_uc]); }
+  UpperCase_P(parm_uc, PSTR("cluster"));
+  if (json.containsKey(parm_uc)) { clusterId = strToUInt(json[parm_uc]); }
+  UpperCase_P(parm_uc, PSTR("endpoint"));
+  if (json.containsKey(parm_uc)) { endpoint = strToUInt(json[parm_uc]); }
+  UpperCase_P(parm_uc, PSTR("cmd"));
+  if (json.containsKey(parm_uc)) { cmd = strToUInt(json[parm_uc]); }
+  UpperCase_P(parm_uc, PSTR("data"));
+  if (json.containsKey(parm_uc)) { data = json[parm_uc].as<const char*>(); }
+
+  size_t size = strlen(data);
+  SBuffer buf((size+1)/2);    // actual bytes buffer for data
+
+  while (size > 0) {
+    char stemp[3];
+    strlcpy(stemp, data, sizeof(stemp));
+    uint8_t code = strtol(stemp, nullptr, 16);
+    buf.add8(code);
+    size -= 2;
+    data += 2;
+  }
+
+  if (0 == endpoint) {
+    // endpoint is not specified, let's try to find it from shortAddr
+    endpoint = zigbee_devices.findClusterEndpointIn(dstAddr, clusterId);
+    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("CmndZigbeeZCLSend: guessing endpoint 0x%02X"), endpoint);
+  }
+  AddLog_P2(LOG_LEVEL_DEBUG, PSTR("CmndZigbeeZCLSend: dstAddr 0x%04X, cluster 0x%04X, endpoint 0x%02X, cmd 0x%02X, data %s"),
+    dstAddr, clusterId, endpoint, cmd, data);
+
+  if ((0 == dstAddr) || (0 == endpoint)) {
+    AddLog_P2(LOG_LEVEL_INFO, PSTR("CmndZigbeeZCLSend: invalid address or endpoint"));
+    return;
+  }
+
+  // everything is good, we can send the command
+  ZigbeeZCLSend(dstAddr, clusterId, endpoint, cmd, buf.getBuffer(), buf.len());
+  ResponseCmndDone();
 }
 
 // Allow or Deny pairing of new Zigbee devices

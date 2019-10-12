@@ -307,6 +307,8 @@ void Z_Devices::addCluster(uint16_t shortaddr, uint8_t endpoint, uint16_t cluste
 // Look for the best endpoint match to send a command for a specific Cluster ID
 // return 0x00 if none found
 uint8_t Z_Devices::findClusterEndpointIn(uint16_t shortaddr, uint16_t cluster){
+  int32_t short_found = findShortAddr(shortaddr);
+  if (short_found < 0)  return 0;     // avoid creating an entry if the device was never seen
   Z_Device &device = getShortAddr(shortaddr);
   if (&device == nullptr) { return 0; }                 // don't crash if not found
   int32_t found = findClusterEndpoint(device.clusters_in, cluster);
