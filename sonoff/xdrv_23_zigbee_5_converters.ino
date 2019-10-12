@@ -301,19 +301,29 @@ uint32_t parseSingleAttribute(JsonObject& json, char *attrid_str, class SBuffer 
       i += buf.get8(i) + 1;
       break;
 
-
-    // TODO
     case 0x08:      // data8
-      i++;
-      break;
     case 0x18:      // map8
-      i++;
+      {
+        uint8_t uint8_val = buf.get8(i);
+        i += 1;
+        json[attrid_str] = uint8_val;
+      }
       break;
+    case 0x09:      // data16
     case 0x19:      // map16
-      i += 2;
+      {
+        uint16_t uint16_val = buf.get16(i);
+        i += 2;
+        json[attrid_str] = uint16_val;
+      }
       break;
+    case 0x0B:      // data32
     case 0x1B:      // map32
-      i += 4;
+      {
+        uint32_t uint32_val = buf.get32(i);
+        i += 4;
+        json[attrid_str] = uint32_val;
+      }
       break;
     // enum
     case 0x30:      // enum8
@@ -321,6 +331,7 @@ uint32_t parseSingleAttribute(JsonObject& json, char *attrid_str, class SBuffer 
       i += attrtype - 0x2F;
       break;
 
+    // TODO
     case 0x39:      // float
       i += 4;
       break;
@@ -347,9 +358,7 @@ uint32_t parseSingleAttribute(JsonObject& json, char *attrid_str, class SBuffer 
       break;
 
     // Other un-implemented data types
-    case 0x09:      // data16
     case 0x0A:      // data24
-    case 0x0B:      // data32
     case 0x0C:      // data40
     case 0x0D:      // data48
     case 0x0E:      // data56
