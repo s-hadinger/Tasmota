@@ -350,7 +350,7 @@ void ZigbeeZCLSend(uint16_t dtsAddr, uint16_t clusterId, uint8_t endpoint, uint8
   buf.add8(0x30);                 // 30 options
   buf.add8(0x1E);                 // 1E radius
 
-  buf.add8(3 + 2*sizeof(uint16_t)); // Len = 0x07
+  buf.add8(3 + len);
   buf.add8(0x10 | (clusterSpecific ? 0x01 : 0x00));                 // Frame Control Field
   buf.add8(transacId);            // Transaction Sequance Number
   buf.add8(cmdId);
