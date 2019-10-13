@@ -452,7 +452,7 @@ void CmndZigbeeZCLSend(void) {
   }
 
   // everything is good, we can send the command
-  ZigbeeZCLSend(dstAddr, clusterId, endpoint, cmd, clusterSpecific, buf.getBuffer(), buf.len());   // TODO
+  ZigbeeZCLSend(dstAddr, clusterId, endpoint, cmd, clusterSpecific, buf.getBuffer(), buf.len());
   ResponseCmndDone();
 }
 
@@ -463,7 +463,7 @@ void CmndZigbeeProbe(void) {
   RemoveSpace(dataBufUc);
   if (strlen(dataBufUc) < 3) { ResponseCmndChar("Invalid destination"); return; }
 
-  // TODO, fro now ignore friendly names
+  // TODO, for now ignore friendly names
   uint16_t shortaddr = strtoull(dataBufUc, nullptr, 0);
   AddLog_P2(LOG_LEVEL_DEBUG, PSTR("CmndZigbeeScan: short addr 0x%04X"), shortaddr);
 

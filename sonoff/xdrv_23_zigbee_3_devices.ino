@@ -268,7 +268,7 @@ void Z_Devices::addEndoint(uint16_t shortaddr, uint8_t endpoint) {
   Z_Device &device = getShortAddr(shortaddr);
   if (&device == nullptr) { return; }                 // don't crash if not found
   _updateLastSeen(device);
-  if (findEndpointInVector(device.endpoints, ep_profile) < 0) {    // TODO search only on enpoint
+  if (findEndpointInVector(device.endpoints, ep_profile) < 0) {
     device.endpoints.push_back(ep_profile);
   }
 }
@@ -280,7 +280,7 @@ void Z_Devices::addEndointProfile(uint16_t shortaddr, uint8_t endpoint, uint16_t
   if (&device == nullptr) { return; }                 // don't crash if not found
   _updateLastSeen(device);
   int32_t found = findEndpointInVector(device.endpoints, ep_profile);
-  if (found < 0) {    // TODO search only on enpoint
+  if (found < 0) {
     device.endpoints.push_back(ep_profile);
   } else {
     device.endpoints[found] = ep_profile;
