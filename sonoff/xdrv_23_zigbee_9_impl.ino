@@ -389,6 +389,9 @@ void CmndZigbeeZCLSend(void) {
   UpperCase_P(parm_uc, PSTR("data"));
   if (json.containsKey(parm_uc)) { data = json[parm_uc].as<const char*>(); }
 
+
+
+
   size_t size = strlen(data);
   SBuffer buf((size+1)/2);    // actual bytes buffer for data
 

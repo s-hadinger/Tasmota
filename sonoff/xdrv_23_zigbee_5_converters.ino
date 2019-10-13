@@ -431,7 +431,7 @@ void ZCLFrame::parseClusterSpecificCommand(JsonObject& json, uint8_t offset) {
   uint32_t len = _payload.len();
 
   char attrid_str[12];
-  snprintf_P(attrid_str, sizeof(attrid_str), PSTR("s_%04X_%02X"), _cluster_id, _cmd_id);
+  snprintf_P(attrid_str, sizeof(attrid_str), PSTR("%02X>%04X"), _cmd_id, _cluster_id);
 
   char hex_char[_payload.len()*2+2];
   ToHex_P((unsigned char*)_payload.getBuffer(), _payload.len(), hex_char, sizeof(hex_char));
