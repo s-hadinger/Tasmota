@@ -359,6 +359,30 @@ void ZigbeeZCLSend(uint16_t dtsAddr, uint16_t clusterId, uint8_t endpoint, uint8
   ZigbeeZNPSend(buf.getBuffer(), buf.len());
 }
 
+inline int8_t hexValue(char c) {
+  if ((c >= '0') && (c <= '9')) {
+    return c - '0';
+  }
+  if ((c >= 'A') && (c <= 'F')) {
+    return 10 + c - 'A';
+  }
+  if ((c >= 'a') && (c <= 'f')) {
+    return 10 + c - 'a';
+  }
+  return -1;
+}
+
+uint32_t parseHex(const char **data, size_t max_len = 8) {
+  uint32_t ret = 0;
+  for (uint32_t i = 0; i < max_len; i++) {
+    int8_t v = hexValue(**data);
+    if (v < 0) { break; }     // non hex digit, we stop parsing
+    ret = (ret << 4) | v;
+    *data += 1;
+  }
+  return ret;
+}
+
 void CmndZigbeeZCLSend(void) {
   char parm_uc[12];   // used to convert JSON keys to uppercase
   // ZigbeeZCLSend { "dst":"0x1234", "cluster":"0x0300", "endpoint":"0x01", "cmd":10, "data":"AABBCC" }
@@ -376,32 +400,42 @@ void CmndZigbeeZCLSend(void) {
   uint16_t clusterId = 0x0000;    // 0x0000 is a valid default value
   uint8_t  endpoint = 0x00;       // 0x00 is invalid for the dst endpoint
   uint8_t  cmd = ZCL_READ_ATTRIBUTES; // default command is READ_ATTRIBUTES
+  bool     clusterSpecific = false;
   const char* data = "";             // empty string is valid
 
-  UpperCase_P(parm_uc, PSTR("dst"));
+  UpperCase_P(parm_uc, PSTR("device"));
   if (json.containsKey(parm_uc)) { dstAddr = strToUInt(json[parm_uc]); }
-  UpperCase_P(parm_uc, PSTR("cluster"));
-  if (json.containsKey(parm_uc)) { clusterId = strToUInt(json[parm_uc]); }
   UpperCase_P(parm_uc, PSTR("endpoint"));
   if (json.containsKey(parm_uc)) { endpoint = strToUInt(json[parm_uc]); }
   UpperCase_P(parm_uc, PSTR("cmd"));
-  if (json.containsKey(parm_uc)) { cmd = strToUInt(json[parm_uc]); }
-  UpperCase_P(parm_uc, PSTR("data"));
   if (json.containsKey(parm_uc)) { data = json[parm_uc].as<const char*>(); }
 
+  // Parse 'cmd' in the form "AAAA_BB/CCCCCCCC" or "AAAA!BB/CCCCCCCC"
+  // where AA is the cluster number, BBBB the command number, CCCC... the payload
+  // First delimiter is '_' for a global command, or '!' for a cluster specific commanc
+  clusterId = parseHex(&data, 4);
 
+  // delimiter
+  if (('_' == *data) || ('!' == *data)) {
+    if ('!' == *data) { clusterSpecific = true; }
+    data++;
+  } else {
+    ResponseCmndChar("Wrong delimiter for payload");
+    return;
+  }
+  // parse cmd number
+  cmd = parseHex(&data, 2);
 
+  // move to end of payload
+  // delimiter is optional
+  if ('/' == *data) { data++; }   // skip delimiter
 
   size_t size = strlen(data);
-  SBuffer buf((size+1)/2);    // actual bytes buffer for data
+  SBuffer buf((size+2)/2);    // actual bytes buffer for data
 
-  while (size > 0) {
-    char stemp[3];
-    strlcpy(stemp, data, sizeof(stemp));
-    uint8_t code = strtol(stemp, nullptr, 16);
+  while (*data) {
+    uint8_t code = parseHex(&data, 2);
     buf.add8(code);
-    size -= 2;
-    data += 2;
   }
 
   if (0 == endpoint) {
@@ -418,7 +452,7 @@ void CmndZigbeeZCLSend(void) {
   }
 
   // everything is good, we can send the command
-  ZigbeeZCLSend(dstAddr, clusterId, endpoint, cmd, true, buf.getBuffer(), buf.len());   // TODO
+  ZigbeeZCLSend(dstAddr, clusterId, endpoint, cmd, clusterSpecific, buf.getBuffer(), buf.len());   // TODO
   ResponseCmndDone();
 }
 
