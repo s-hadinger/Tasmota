@@ -43,4 +43,44 @@ const Z_CommandConverter Z_Commands[] = {
   { "ShutterTilt",  "0102!08xx"},           // Tilt percentage
 };
 
+static inline bool isXYZ(char c) {
+  return (c >= 'x') && (c <= 'z');
+}
+
+// replace all xx/yy/zz substrings with unsigned ints, and the corresponding len (8, 16 or 32 bits)
+// zcl_cmd can be in PROGMEM
+String SendZCLCommand_P(const char *zcl_cmd_P, uint32_t x, uint32_t y, uint32_t z) {
+  size_t len = strlen_P(zcl_cmd_P);
+  char zcl_cmd[len+1];
+  strcpy_P(zcl_cmd, zcl_cmd_P);     // copy into RAM
+
+  char *p = zcl_cmd;
+  while (*p) {
+    if (isXYZ(*p) && (*p == *(p+1))) {    // if char is [x-z] and followed by same char
+      uint8_t val;
+      switch (*p) {
+        case 'x':
+          val = x & 0xFF;
+          x = x >> 8;
+          break;
+        case 'y':
+          val = y & 0xFF;
+          y = y >> 8;
+          break;
+        case 'z':
+          val = z & 0xFF;
+          z = z >> 8;
+          break;
+      }
+      *p = ((val & 0xF0) >> 4) + '0';
+      *(p+1) = (val & 0x0F) + '0';
+      p++;
+    }
+    p++;
+  }
+  AddLog_P2(LOG_LEVEL_DEBUG, PSTR("SendZCLCommand_P: zcl_cmd = %s"), zcl_cmd);
+
+  return String(zcl_cmd);
+}
+
 #endif // USE_ZIGBEE
