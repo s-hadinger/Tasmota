@@ -385,7 +385,9 @@ int32_t Z_ReceiveAfIncomingMessage(int32_t res, const class SBuffer &buf) {
 
   DynamicJsonBuffer jsonBuffer;
   JsonObject& json_root = jsonBuffer.createObject();
-  JsonObject& json = json_root.createNestedObject(shortaddr);
+  JsonObject& json = json_root.createNestedObject(F(D_CMND_ZIGBEE_RECEIVED));
+  json[F(D_JSON_ZIGBEE_DEVICE)] = shortaddr;
+  // TODO add name field if it is known
   if ( (!zcl_received.isClusterSpecificCommand()) && (ZCL_REPORT_ATTRIBUTES == zcl_received.getCmdId())) {
    zcl_received.parseRawAttributes(json);
   } else if ( (!zcl_received.isClusterSpecificCommand()) && (ZCL_READ_ATTRIBUTES_RESPONSE == zcl_received.getCmdId())) {
@@ -399,11 +401,13 @@ int32_t Z_ReceiveAfIncomingMessage(int32_t res, const class SBuffer &buf) {
   AddLog_P2(LOG_LEVEL_INFO, PSTR("ZigbeeZCLRawReceived: %s"), msg.c_str());
 
   zcl_received.postProcessAttributes(srcaddr, json);
+  // Add linkquality
+  json[F(D_CMND_ZIGBEE_LINKQUALITY)] = linkquality;
 
   msg = "";
   json_root.printTo(msg);
   Response_P(PSTR("%s"), msg.c_str());
-  MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCL_RECEIVED));
+  MqttPublishPrefixTopic_P(TELE, PSTR(D_RSLT_SENSOR));
   XdrvRulesProcess();
   return -1;
 }
