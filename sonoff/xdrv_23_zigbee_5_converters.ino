@@ -59,7 +59,7 @@ public:
     Response_P(PSTR("{\"" D_JSON_ZIGBEEZCL_RECEIVED "\":{"
                     "\"groupid\":%d," "\"clusterid\":%d," "\"srcaddr\":\"0x%04X\","
                     "\"srcendpoint\":%d," "\"dstendpoint\":%d," "\"wasbroadcast\":%d,"
-                    "\"linkquality\":%d," "\"securityuse\":%d," "\"seqnumber\":%d,"
+                    "\"" D_CMND_ZIGBEE_LINKQUALITY "\":%d," "\"securityuse\":%d," "\"seqnumber\":%d,"
                     "\"timestamp\":%d,"
                     "\"fc\":\"0x%02X\",\"manuf\":\"0x%04X\",\"transact\":%d,"
                     "\"cmdid\":\"0x%02X\",\"payload\":\"%s\""),
