@@ -469,7 +469,31 @@ const Z_AttributeConverter Z_PostProcess[] = {
   { "0000/4000",  "SWBuildID",            &Z_Copy,                nullptr },
   { "0000/????",  nullptr,                &Z_Remove,              nullptr },    // Remove all other values
 
+  // On/off cluster
   { "0006/0000",  "Power",                &Z_Copy,                nullptr },
+  // On/Off Switch Configuration cluster
+  { "0007/0000",  "SwitchType",           &Z_Copy,                nullptr },
+  // Level Control cluster
+  { "0008/0000",  "CurrentLevel",         &Z_Copy,                nullptr },
+  { "0008/0001",  "RemainingTime",        &Z_Copy,                nullptr },
+  { "0008/0010",  "OnOffTransitionTime",  &Z_Copy,                nullptr },
+  { "0008/0011",  "OnLevel",              &Z_Copy,                nullptr },
+  { "0008/0012",  "OnTransitionTime",     &Z_Copy,                nullptr },
+  { "0008/0013",  "OffTransitionTime",    &Z_Copy,                nullptr },
+  { "0008/0014",  "DefaultMoveRate",      &Z_Copy,                nullptr },
+  // Alarms cluster
+  { "0009/0000",  "AlarmCount",           &Z_Copy,                nullptr },
+  // Time cluster
+  { "000A/0000",  "Time",                 &Z_Copy,                nullptr },
+  { "000A/0001",  "TimeStatus",           &Z_Copy,                nullptr },
+  { "000A/0002",  "TimeZone",             &Z_Copy,                nullptr },
+  { "000A/0003",  "DstStart",             &Z_Copy,                nullptr },
+  { "000A/0004",  "DstStart",             &Z_Copy,                nullptr },
+  { "000A/0005",  "DstShift",             &Z_Copy,                nullptr },
+  { "000A/0006",  "StandardTime",         &Z_Copy,                nullptr },
+  { "000A/0007",  "LocalTime",            &Z_Copy,                nullptr },
+  { "000A/0008",  "LastSetTime",          &Z_Copy,                nullptr },
+  { "000A/0009",  "ValidUntilTime",       &Z_Copy,                nullptr },
 
   { "0400/0000",  D_JSON_ILLUMINANCE,     &Z_Copy,                nullptr },    // Illuminance (in Lux)
   { "0400/0004",  "LightSensorType",      &Z_Copy,                nullptr },    // LightSensorType
