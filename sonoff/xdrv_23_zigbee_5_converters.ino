@@ -469,6 +469,8 @@ const Z_AttributeConverter Z_PostProcess[] = {
   { "0000/4000",  "SWBuildID",            &Z_Copy,                nullptr },
   { "0000/????",  nullptr,                &Z_Remove,              nullptr },    // Remove all other values
 
+  { "0006/0000",  "Power",                &Z_Copy,                nullptr },
+
   { "0400/0000",  D_JSON_ILLUMINANCE,     &Z_Copy,                nullptr },    // Illuminance (in Lux)
   { "0400/0004",  "LightSensorType",      &Z_Copy,                nullptr },    // LightSensorType
   { "0400/????",  nullptr,                &Z_Remove,              nullptr },    // Remove all other values
