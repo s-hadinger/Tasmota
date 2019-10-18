@@ -43,8 +43,14 @@ const Z_CommandConverter Z_Commands[] = {
   { "ShutterTilt",  "0102!08xx"},           // Tilt percentage
 };
 
-static inline bool isXYZ(char c) {
+inline bool isXYZ(char c) {
   return (c >= 'x') && (c <= 'z');
+}
+
+// take the lower 4 bits and turn it to an hex char
+inline char hexDigit(uint32_t h) {
+  uint32_t nybble = h & 0x0F;
+  return (nybble > 9) ? 'A' - 10 + nybble : '0' + nybble;
 }
 
 // replace all xx/yy/zz substrings with unsigned ints, and the corresponding len (8, 16 or 32 bits)
@@ -72,8 +78,8 @@ String SendZCLCommand_P(const char *zcl_cmd_P, uint32_t x, uint32_t y, uint32_t 
           z = z >> 8;
           break;
       }
-      *p = ((val & 0xF0) >> 4) + '0';
-      *(p+1) = (val & 0x0F) + '0';
+      *p = hexDigit(val >> 4);
+      *(p+1) = hexDigit(val);
       p++;
     }
     p++;
