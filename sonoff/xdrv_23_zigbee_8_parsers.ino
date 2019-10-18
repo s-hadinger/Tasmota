@@ -274,7 +274,7 @@ void Z_SendAFInfoRequest(uint16_t shortaddr, uint8_t endpoint, uint16_t clusteri
 
   buf.add8(3 + 2*sizeof(uint16_t)); // Len = 0x07
   buf.add8(0x00);                 // Frame Control Field
-  buf.add8(transacid);            // Transaction Sequance Number
+  buf.add8(transacid);            // Transaction Sequence Number
   buf.add8(ZCL_READ_ATTRIBUTES);  // 00 Command
   buf.add16(0x0004);              // 0400 ManufacturerName
   buf.add16(0x0005);              // 0500 ModelIdentifier
