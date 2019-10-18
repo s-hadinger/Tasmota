@@ -390,8 +390,8 @@ void ZCLFrame::parseRawAttributes(JsonObject& json, uint8_t offset) {
     i += 2;
 
     char key[16];
-    snprintf_P(key, sizeof(key), PSTR("%04X_%02X_%04X"),
-                _cluster_id, _cmd_id, attrid);
+    snprintf_P(key, sizeof(key), PSTR("%04X/%04X"),
+                _cluster_id, attrid);
 
     // exception for Xiaomi lumi.weather - specific field to be treated as octet and not char
     if ((0x0000 == _cluster_id) && (0xFF01 == attrid)) {
@@ -415,8 +415,8 @@ void ZCLFrame::parseReadAttributes(JsonObject& json, uint8_t offset) {
 
     if (0 == status) {
       char key[16];
-      snprintf_P(key, sizeof(key), PSTR("%04X_%02X_%04X"),
-                  _cluster_id, _cmd_id, attrid);
+      snprintf_P(key, sizeof(key), PSTR("%04X/%04X"),
+                  _cluster_id, attrid);
 
       i += parseSingleAttribute(json, key, _payload, i, len);
     }
@@ -455,51 +455,51 @@ const float Z_10  PROGMEM =  10.0f;
 
 // list of post-processing directives
 const Z_AttributeConverter Z_PostProcess[] = {
-  { "0000_0?_0004",  nullptr,                &Z_ManufKeep,           nullptr },    // record Manufacturer
-  { "0000_0?_0005",  nullptr,                &Z_ModelKeep,           nullptr },    // record Model
+  { "0000/0004",  nullptr,                &Z_ManufKeep,           nullptr },    // record Manufacturer
+  { "0000/0005",  nullptr,                &Z_ModelKeep,           nullptr },    // record Model
 
-  { "0000_0?_0000",  "ZCLVersion",           &Z_Copy,                nullptr },
-  { "0000_0?_0001",  "AppVersion",           &Z_Copy,                nullptr },
-  { "0000_0?_0002",  "StackVersion",         &Z_Copy,                nullptr },
-  { "0000_0?_0003",  "HWVersion",            &Z_Copy,                nullptr }, 
-  { "0000_0?_0004",  "Manufacturer",         &Z_Copy,                nullptr },
-  { "0000_0?_0005",  D_JSON_MODEL D_JSON_ID, &Z_Copy,                nullptr },
-  { "0000_0?_0006",  "DateCode",             &Z_Copy,                nullptr },
-  { "0000_0?_0007",  "PowerSource",          &Z_Copy,                nullptr },
-  { "0000_0?_4000",  "SWBuildID",            &Z_Copy,                nullptr },
-  { "0000_0?_????",  nullptr,                &Z_Remove,              nullptr },    // Remove all other values
+  { "0000/0000",  "ZCLVersion",           &Z_Copy,                nullptr },
+  { "0000/0001",  "AppVersion",           &Z_Copy,                nullptr },
+  { "0000/0002",  "StackVersion",         &Z_Copy,                nullptr },
+  { "0000/0003",  "HWVersion",            &Z_Copy,                nullptr }, 
+  { "0000/0004",  "Manufacturer",         &Z_Copy,                nullptr },
+  { "0000/0005",  D_JSON_MODEL D_JSON_ID, &Z_Copy,                nullptr },
+  { "0000/0006",  "DateCode",             &Z_Copy,                nullptr },
+  { "0000/0007",  "PowerSource",          &Z_Copy,                nullptr },
+  { "0000/4000",  "SWBuildID",            &Z_Copy,                nullptr },
+  { "0000/????",  nullptr,                &Z_Remove,              nullptr },    // Remove all other values
 
-  { "0400_0A_0000",  D_JSON_ILLUMINANCE,     &Z_Copy,                nullptr },    // Illuminance (in Lux)
-  { "0400_0A_0004",  "LightSensorType",      &Z_Copy,                nullptr },    // LightSensorType
-  { "0400_0A_????",  nullptr,                &Z_Remove,              nullptr },    // Remove all other values
+  { "0400/0000",  D_JSON_ILLUMINANCE,     &Z_Copy,                nullptr },    // Illuminance (in Lux)
+  { "0400/0004",  "LightSensorType",      &Z_Copy,                nullptr },    // LightSensorType
+  { "0400/????",  nullptr,                &Z_Remove,              nullptr },    // Remove all other values
 
-  { "0401_0A_0000",  "LevelStatus",          &Z_Copy,                nullptr },    // Illuminance (in Lux)
-  { "0401_0A_0001",  "LightSensorType",      &Z_Copy,                nullptr },    // LightSensorType
-  { "0401_0A_????",  nullptr,                &Z_Remove,              nullptr },    // Remove all other values
+  { "0401/0000",  "LevelStatus",          &Z_Copy,                nullptr },    // Illuminance (in Lux)
+  { "0401/0001",  "LightSensorType",      &Z_Copy,                nullptr },    // LightSensorType
+  { "0401/????",  nullptr,                &Z_Remove,              nullptr },    // Remove all other values
 
-  { "0402_0A_0000",  D_JSON_TEMPERATURE,     &Z_ConvFloatDivider,    (void*) &Z_100 },   // Temperature
-  { "0402_0A_????",  nullptr,                &Z_Remove,              nullptr },     // Remove all other values
+  { "0402/0000",  D_JSON_TEMPERATURE,     &Z_ConvFloatDivider,    (void*) &Z_100 },   // Temperature
+  { "0402/????",  nullptr,                &Z_Remove,              nullptr },     // Remove all other values
 
-  { "0403_0A_0000",  D_JSON_PRESSURE_UNIT,   &Z_Const_Keep,          (void*) D_UNIT_PRESSURE},     // Pressure Unit
-  { "0403_0A_0000",  D_JSON_PRESSURE,        &Z_Copy,                nullptr },     // Pressure
-  { "0403_0A_????",  nullptr,                &Z_Remove,              nullptr },     // Remove all other Pressure values
+  { "0403/0000",  D_JSON_PRESSURE_UNIT,   &Z_Const_Keep,          (void*) D_UNIT_PRESSURE},     // Pressure Unit
+  { "0403/0000",  D_JSON_PRESSURE,        &Z_Copy,                nullptr },     // Pressure
+  { "0403/????",  nullptr,                &Z_Remove,              nullptr },     // Remove all other Pressure values
 
-  { "0404_0A_0000",  D_JSON_FLOWRATE,        &Z_ConvFloatDivider,    (void*) &Z_10 },    // Flow (in m3/h)
-  { "0404_0A_????",  nullptr,                &Z_Remove,              nullptr },    // Remove all other values
+  { "0404/0000",  D_JSON_FLOWRATE,        &Z_ConvFloatDivider,    (void*) &Z_10 },    // Flow (in m3/h)
+  { "0404/????",  nullptr,                &Z_Remove,              nullptr },    // Remove all other values
 
-  { "0405_0A_0000",  D_JSON_HUMIDITY,        &Z_ConvFloatDivider,    (void*) &Z_100 },   // Humidity
-  { "0405_0A_????",  nullptr,                &Z_Remove,              nullptr },     // Remove all other values
+  { "0405/0000",  D_JSON_HUMIDITY,        &Z_ConvFloatDivider,    (void*) &Z_100 },   // Humidity
+  { "0405/????",  nullptr,                &Z_Remove,              nullptr },     // Remove all other values
 
-  { "0406_0A_0000",  "Occupancy",            &Z_Copy,                nullptr },    // Occupancy (map8)
-  { "0406_0A_0001",  "OccupancySensorType",  &Z_Copy,                nullptr },    // OccupancySensorType
-  { "0406_0A_????",  nullptr,                &Z_Remove,              nullptr },    // Remove all other values
+  { "0406/0000",  "Occupancy",            &Z_Copy,                nullptr },    // Occupancy (map8)
+  { "0406/0001",  "OccupancySensorType",  &Z_Copy,                nullptr },    // OccupancySensorType
+  { "0406/????",  nullptr,                &Z_Remove,              nullptr },    // Remove all other values
 
   // Cmd 0x0A - Cluster 0x0000, attribute 0xFF01 - proprietary
-  { "0000_0A_FF01",  nullptr,                &Z_AqaraSensor,         nullptr },    // Occupancy (map8)
+  { "0000/FF01",  nullptr,                &Z_AqaraSensor,         nullptr },    // Occupancy (map8)
   // // 0x0b04 Electrical Measurement
-  // { "0B04_0100",  "DCVoltage",            &Z_Copy,                nullptr },    // 
-  // { "0B04_0001",  "OccupancySensorType",  &Z_Copy,                nullptr },    // 
-  // { "0B04_????",  "",                     &Z_Remove,              nullptr },    // 
+  // { "0B04/0100",  "DCVoltage",            &Z_Copy,                nullptr },    // 
+  // { "0B04/0001",  "OccupancySensorType",  &Z_Copy,                nullptr },    // 
+  // { "0B04/????",  "",                     &Z_Remove,              nullptr },    // 
 };
 
 
