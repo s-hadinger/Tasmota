@@ -469,6 +469,38 @@ const Z_AttributeConverter Z_PostProcess[] = {
   { "0000/4000",  "SWBuildID",            &Z_Copy,                nullptr },
   { "0000/????",  nullptr,                &Z_Remove,              nullptr },    // Remove all other values
 
+  // Color Control cluster
+  { "0003/0000",  "CurrentHue",           &Z_Copy,                nullptr },
+  { "0003/0001",  "CurrentSaturation",    &Z_Copy,                nullptr },
+  { "0003/0002",  "RemainingTime",        &Z_Copy,                nullptr },
+  { "0003/0003",  "CurrentX",             &Z_Copy,                nullptr },
+  { "0003/0004",  "CurrentY",             &Z_Copy,                nullptr },
+  { "0003/0005",  "DriftCompensation",    &Z_Copy,                nullptr },
+  { "0003/0006",  "CompensationText",     &Z_Copy,                nullptr },
+  { "0003/0007",  "ColorTemperatureMireds",&Z_Copy,                nullptr },
+  { "0003/0008",  "ColorMode",            &Z_Copy,                nullptr },
+  { "0003/0010",  "NumberOfPrimaries",    &Z_Copy,                nullptr },
+  { "0003/0011",  "Primary1X",            &Z_Copy,                nullptr },
+  { "0003/0012",  "Primary1Y",            &Z_Copy,                nullptr },
+  { "0003/0013",  "Primary1Intensity",    &Z_Copy,                nullptr },
+  { "0003/0015",  "Primary2X",            &Z_Copy,                nullptr },
+  { "0003/0016",  "Primary2Y",            &Z_Copy,                nullptr },
+  { "0003/0017",  "Primary2Intensity",    &Z_Copy,                nullptr },
+  { "0003/0019",  "Primary3X",            &Z_Copy,                nullptr },
+  { "0003/001A",  "Primary3Y",            &Z_Copy,                nullptr },
+  { "0003/001B",  "Primary3Intensity",    &Z_Copy,                nullptr },
+  { "0003/0030",  "WhitePointX",          &Z_Copy,                nullptr },
+  { "0003/0031",  "WhitePointY",          &Z_Copy,                nullptr },
+  { "0003/0032",  "ColorPointRX",         &Z_Copy,                nullptr },
+  { "0003/0033",  "ColorPointRY",         &Z_Copy,                nullptr },
+  { "0003/0034",  "ColorPointRIntensity", &Z_Copy,                nullptr },
+  { "0003/0036",  "ColorPointGX",         &Z_Copy,                nullptr },
+  { "0003/0037",  "ColorPointGY",         &Z_Copy,                nullptr },
+  { "0003/0038",  "ColorPointGIntensity", &Z_Copy,                nullptr },
+  { "0003/003A",  "ColorPointBX",         &Z_Copy,                nullptr },
+  { "0003/003B",  "ColorPointBY",         &Z_Copy,                nullptr },
+  { "0003/003C",  "ColorPointBIntensity", &Z_Copy,                nullptr },
+
   // On/off cluster
   { "0006/0000",  "Power",                &Z_Copy,                nullptr },
   // On/Off Switch Configuration cluster
@@ -542,7 +574,7 @@ const Z_AttributeConverter Z_PostProcess[] = {
   { "0011/0068",  "RelinquishDefault",    &Z_Copy,                nullptr },
   { "0011/006F",  "StatusFlags",          &Z_Copy,                nullptr },
   { "0011/0100",  "ApplicationType",      &Z_Copy,                nullptr },
-  // Lultistate Input cluster
+  // Multistate Input cluster
   { "0012/000E",  "StateText",            &Z_Copy,                nullptr },
   { "0012/001C",  "Description",          &Z_Copy,                nullptr },
   { "0012/004A",  "NumberOfStates",       &Z_Copy,                nullptr },
@@ -551,10 +583,63 @@ const Z_AttributeConverter Z_PostProcess[] = {
   { "0012/0067",  "Reliability",          &Z_Copy,                nullptr },
   { "0012/006F",  "StatusFlags",          &Z_Copy,                nullptr },
   { "0012/0100",  "ApplicationType",      &Z_Copy,                nullptr },
-
+  // Multistate output
+  { "0013/000E",  "StateText",            &Z_Copy,                nullptr },
+  { "0013/001C",  "Description",          &Z_Copy,                nullptr },
+  { "0013/004A",  "NumberOfStates",       &Z_Copy,                nullptr },
+  { "0013/0051",  "OutOfService",         &Z_Copy,                nullptr },
+  { "0013/0055",  "PresentValue",         &Z_Copy,                nullptr },
+  { "0013/0057",  "PriorityArray",        &Z_Copy,                nullptr },
+  { "0013/0067",  "Reliability",          &Z_Copy,                nullptr },
+  { "0013/0068",  "RelinquishDefault",    &Z_Copy,                nullptr },
+  { "0013/006F",  "StatusFlags",          &Z_Copy,                nullptr },
+  { "0013/0100",  "ApplicationType",      &Z_Copy,                nullptr },
+  // Multistate Value cluster
+  { "0014/000E",  "StateText",            &Z_Copy,                nullptr },
+  { "0014/001C",  "Description",          &Z_Copy,                nullptr },
+  { "0014/004A",  "NumberOfStates",       &Z_Copy,                nullptr },
+  { "0014/0051",  "OutOfService",         &Z_Copy,                nullptr },
+  { "0014/0055",  "PresentValue",         &Z_Copy,                nullptr },
+  { "0014/0067",  "Reliability",          &Z_Copy,                nullptr },
+  { "0014/0068",  "RelinquishDefault",    &Z_Copy,                nullptr },
+  { "0014/006F",  "StatusFlags",          &Z_Copy,                nullptr },
+  { "0014/0100",  "ApplicationType",      &Z_Copy,                nullptr },
+  // Diagnostics cluster
+  { "0B05/0000",  "NumberOfResets",       &Z_Copy,                nullptr },
+  { "0B05/0001",  "PersistentMemoryWrites",&Z_Copy,                nullptr },
+  { "0B05/011C",  "LastMessageLQI",       &Z_Copy,                nullptr },
+  { "0B05/011D",  "LastMessageRSSI",      &Z_Copy,                nullptr },
+  // Poll Control cluster
+  { "0020/0000",  "CheckinInterval",      &Z_Copy,                nullptr },
+  { "0020/0001",  "LongPollInterval",     &Z_Copy,                nullptr },
+  { "0020/0002",  "ShortPollInterval",    &Z_Copy,                nullptr },
+  { "0020/0003",  "FastPollTimeout",      &Z_Copy,                nullptr },
+  { "0020/0004",  "CheckinIntervalMin",   &Z_Copy,                nullptr },
+  { "0020/0005",  "LongPollIntervalMin",  &Z_Copy,                nullptr },
+  { "0020/0006",  "FastPollTimeoutMax",   &Z_Copy,                nullptr },
+  // Power Profile cluster
+  { "001A/0000",  "TotalProfileNum",      &Z_Copy,                nullptr },
+  { "001A/0001",  "MultipleScheduling",   &Z_Copy,                nullptr },
+  { "001A/0002",  "EnergyFormatting",     &Z_Copy,                nullptr },
+  { "001A/0003",  "EnergyRemote",         &Z_Copy,                nullptr },
+  { "001A/0004",  "ScheduleMode",         &Z_Copy,                nullptr },
+  // Meter Identification cluster
+  { "0B01/0000",  "CompanyName",          &Z_Copy,                nullptr },
+  { "0B01/0001",  "MeterTypeID",          &Z_Copy,                nullptr },
+  { "0B01/0004",  "DataQualityID",        &Z_Copy,                nullptr },
+  { "0B01/0005",  "CustomerName",         &Z_Copy,                nullptr },
+  { "0B01/0006",  "Model",                &Z_Copy,                nullptr },
+  { "0B01/0007",  "PartNumber",           &Z_Copy,                nullptr },
+  { "0B01/000A",  "SoftwareRevision",     &Z_Copy,                nullptr },
+  { "0B01/000C",  "POD",                  &Z_Copy,                nullptr },
+  { "0B01/000D",  "AvailablePower",       &Z_Copy,                nullptr },
+  { "0B01/000E",  "PowerThreshold",       &Z_Copy,                nullptr },
 
   { "0400/0000",  D_JSON_ILLUMINANCE,     &Z_Copy,                nullptr },    // Illuminance (in Lux)
-  { "0400/0004",  "LightSensorType",      &Z_Copy,                nullptr },    // LightSensorType
+  { "0400/0001",  "MinMeasuredValue",     &Z_Copy,                nullptr },    // 
+  { "0400/0002",  "MaxMeasuredValue",     &Z_Copy,                nullptr },    // 
+  { "0400/0003",  "Tolerance",            &Z_Copy,                nullptr },    // 
+  { "0400/0004",  "LightSensorType",      &Z_Copy,                nullptr },    // 
   { "0400/????",  nullptr,                &Z_Remove,              nullptr },    // Remove all other values
 
   { "0401/0000",  "LevelStatus",          &Z_Copy,                nullptr },    // Illuminance (in Lux)
@@ -562,16 +647,33 @@ const Z_AttributeConverter Z_PostProcess[] = {
   { "0401/????",  nullptr,                &Z_Remove,              nullptr },    // Remove all other values
 
   { "0402/0000",  D_JSON_TEMPERATURE,     &Z_ConvFloatDivider,    (void*) &Z_100 },   // Temperature
+  { "0402/0001",  "MinMeasuredValue",     &Z_ConvFloatDivider,    (void*) &Z_100 },    // 
+  { "0402/0002",  "MaxMeasuredValue",     &Z_ConvFloatDivider,    (void*) &Z_100 },    // 
+  { "0402/0003",  "Tolerance",            &Z_ConvFloatDivider,    (void*) &Z_100 },    // 
   { "0402/????",  nullptr,                &Z_Remove,              nullptr },     // Remove all other values
 
   { "0403/0000",  D_JSON_PRESSURE_UNIT,   &Z_Const_Keep,          (void*) D_UNIT_PRESSURE},     // Pressure Unit
   { "0403/0000",  D_JSON_PRESSURE,        &Z_Copy,                nullptr },     // Pressure
+  { "0403/0001",  "MinMeasuredValue",     &Z_Copy,                nullptr },    // 
+  { "0403/0002",  "MaxMeasuredValue",     &Z_Copy,                nullptr },    // 
+  { "0403/0003",  "Tolerance",            &Z_Copy,                nullptr },    // 
+  { "0403/0010",  "ScaledValue",          &Z_Copy,                nullptr },    // 
+  { "0403/0011",  "MinScaledValue",       &Z_Copy,                nullptr },    // 
+  { "0403/0012",  "MaxScaledValue",       &Z_Copy,                nullptr },    // 
+  { "0403/0013",  "ScaledTolerance",      &Z_Copy,                nullptr },    // 
+  { "0403/0014",  "Scale",                &Z_Copy,                nullptr },    // 
   { "0403/????",  nullptr,                &Z_Remove,              nullptr },     // Remove all other Pressure values
 
   { "0404/0000",  D_JSON_FLOWRATE,        &Z_ConvFloatDivider,    (void*) &Z_10 },    // Flow (in m3/h)
+  { "0404/0001",  "MinMeasuredValue",     &Z_Copy,                nullptr },    // 
+  { "0404/0002",  "MaxMeasuredValue",     &Z_Copy,                nullptr },    // 
+  { "0404/0003",  "Tolerance",            &Z_Copy,                nullptr },    // 
   { "0404/????",  nullptr,                &Z_Remove,              nullptr },    // Remove all other values
 
   { "0405/0000",  D_JSON_HUMIDITY,        &Z_ConvFloatDivider,    (void*) &Z_100 },   // Humidity
+  { "0405/0001",  "MinMeasuredValue",     &Z_Copy,                nullptr },    // 
+  { "0405/0002",  "MaxMeasuredValue",     &Z_Copy,                nullptr },    // 
+  { "0405/0003",  "Tolerance",            &Z_Copy,                nullptr },    // 
   { "0405/????",  nullptr,                &Z_Remove,              nullptr },     // Remove all other values
 
   { "0406/0000",  "Occupancy",            &Z_Copy,                nullptr },    // Occupancy (map8)
