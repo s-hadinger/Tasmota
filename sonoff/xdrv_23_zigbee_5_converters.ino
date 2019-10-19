@@ -617,6 +617,21 @@ const Z_AttributeConverter Z_PostProcess[] = {
   { "0020/0004",  "CheckinIntervalMin",   &Z_Copy,                nullptr },
   { "0020/0005",  "LongPollIntervalMin",  &Z_Copy,                nullptr },
   { "0020/0006",  "FastPollTimeoutMax",   &Z_Copy,                nullptr },
+  // Shade Configuration cluster
+  { "0100/0000",  "PhysicalClosedLimit",  &Z_Copy,                nullptr },
+  { "0100/0001",  "MotorStepSize",        &Z_Copy,                nullptr },
+  { "0100/0002",  "Status",               &Z_Copy,                nullptr },
+  { "0100/0010",  "ClosedLimit",          &Z_Copy,                nullptr },
+  { "0100/0011",  "Mode",                 &Z_Copy,                nullptr },
+  // Door Lock cluster
+  { "0101/0000",  "LockState",            &Z_Copy,                nullptr },
+  { "0101/0001",  "LockType",             &Z_Copy,                nullptr },
+  { "0101/0002",  "ActuatorEnabled",      &Z_Copy,                nullptr },
+  { "0101/0003",  "DoorState",            &Z_Copy,                nullptr },
+  { "0101/0004",  "DoorOpenEvents",       &Z_Copy,                nullptr },
+  { "0101/0005",  "DoorClosedEvents",     &Z_Copy,                nullptr },
+  { "0101/0006",  "OpenPeriod",           &Z_Copy,                nullptr },
+
   // Power Profile cluster
   { "001A/0000",  "TotalProfileNum",      &Z_Copy,                nullptr },
   { "001A/0001",  "MultipleScheduling",   &Z_Copy,                nullptr },
