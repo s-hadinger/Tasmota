@@ -452,10 +452,6 @@ typedef struct Z_AttributeConverter {
 
 // list of post-processing directives
 const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
-  // { 0x0000, 0x0004,  "Manufacturer",         &Z_ManufKeep },    // record Manufacturer
-  // { 0x0000, 0x0005,  D_JSON_MODEL D_JSON_ID, &Z_ModelKeep },    // record Model
-  // { 0x0405, 0x0000,  D_JSON_HUMIDITY,        &Z_FloatDiv100 },   // Humidity
-
   { 0x0000, 0x0000,  "ZCLVersion",           &Z_Copy },
   { 0x0000, 0x0001,  "AppVersion",           &Z_Copy },
   { 0x0000, 0x0002,  "StackVersion",         &Z_Copy },
