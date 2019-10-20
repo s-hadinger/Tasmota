@@ -450,7 +450,7 @@ typedef struct Z_AttributeConverter {
 } Z_AttributeConverter;
 
 // list of post-processing directives
-const Z_AttributeConverter Z_PostProcess[] = {
+const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
   { "0000/0000",  "ZCLVersion",           &Z_Copy },
   { "0000/0001",  "AppVersion",           &Z_Copy },
   { "0000/0002",  "StackVersion",         &Z_Copy },
@@ -849,16 +849,6 @@ void ZCLFrame::postProcessAttributes(uint16_t shortaddr, JsonObject& json) {
       const Z_AttributeConverter *converter = &Z_PostProcess[i];
 
       if (mini_glob_match(converter->filter, key.c_str())) {
-//         // copy converter->name from PROGMEM to stack
-//         size_t name_len = (converter->name) ? strlen_P(converter->name) : 0;
-//         char name[name_len+1];
-//         if (converter->name) {
-//           strcpy_P(name, converter->name);
-//         } else {
-//           name[0] = 0x00;
-//         }
-// Serial.printf(">>> Name = %s\n", name);
-// if (converter->name) { Serial.printf(">>> Converter Name = %s\n", converter->name); }
         int32_t drop = (*converter->func)(shortaddr, json, key.c_str(), value, (const __FlashStringHelper*) converter->name);
         if (drop) {
           json.remove(key);
