@@ -43,6 +43,17 @@ const Z_CommandConverter Z_Commands[] = {
   { "ShutterTilt",  "0102!08xx"},           // Tilt percentage
 };
 
+const __FlashStringHelper* zigbeeFindCommand(const char *command) {
+  for (uint32_t i = 0; i < sizeof(Z_Commands) / sizeof(Z_Commands[0]); i++) {
+    const Z_CommandConverter *conv = &Z_Commands[i];
+    if (0 == strcmp_P(command, conv->tasmota_cmd)) {
+      return (const __FlashStringHelper*) conv->zcl_cmd;
+    }
+  }
+
+  return nullptr;
+}
+
 inline bool isXYZ(char c) {
   return (c >= 'x') && (c <= 'z');
 }
@@ -54,8 +65,7 @@ inline char hexDigit(uint32_t h) {
 }
 
 // replace all xx/yy/zz substrings with unsigned ints, and the corresponding len (8, 16 or 32 bits)
-// zcl_cmd can be in PROGMEM
-String SendZCLCommand_P(const char *zcl_cmd_P, uint32_t x, uint32_t y, uint32_t z) {
+String zigbeeCmdAddParams(const char *zcl_cmd_P, uint32_t x, uint32_t y, uint32_t z) {
   size_t len = strlen_P(zcl_cmd_P);
   char zcl_cmd[len+1];
   strcpy_P(zcl_cmd, zcl_cmd_P);     // copy into RAM

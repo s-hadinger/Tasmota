@@ -38,11 +38,11 @@ TasmotaSerial *ZigbeeSerial = nullptr;
 
 const char kZigbeeCommands[] PROGMEM = "|" D_CMND_ZIGBEEZNPSEND "|" D_CMND_ZIGBEE_PERMITJOIN
                                 "|" D_CMND_ZIGBEE_STATUS "|" D_CMND_ZIGBEE_RESET "|" D_CMND_ZIGBEE_ZCL_SEND
-                                "|" D_CMND_ZIGBEE_PROBE "|" D_CMND_ZIGBEE_READ;
+                                "|" D_CMND_ZIGBEE_PROBE "|" D_CMND_ZIGBEE_READ "|" D_CMND_ZIGBEE_CMD;
 
 void (* const ZigbeeCommand[])(void) PROGMEM = { &CmndZigbeeZNPSend, &CmndZigbeePermitJoin,
                                 &CmndZigbeeStatus, &CmndZigbeeReset, &CmndZigbeeZCLSend,
-                                &CmndZigbeeProbe, &CmndZigbeeRead };
+                                &CmndZigbeeProbe, &CmndZigbeeRead, &CmndZigbeeCmd };
 
 int32_t ZigbeeProcessInput(class SBuffer &buf) {
   if (!zigbee.state_machine) { return -1; }     // if state machine is stopped, send 'ignore' message
@@ -456,6 +456,77 @@ void CmndZigbeeZCLSend(void) {
   // everything is good, we can send the command
   ZigbeeZCLSend(dstAddr, clusterId, endpoint, cmd, clusterSpecific, buf.getBuffer(), buf.len());
   ResponseCmndDone();
+}
+
+void CmndZigbeeCmd(void) {
+  char parm_uc[12];   // used to convert JSON keys to uppercase
+  // ZigbeeCmd { "dst":"0x1234", "endpoint":"0x03", "Power":1 }
+  // ZigbeeCmd { "dst":"0x1234", "endpoint":"0x03", "Dimmer":100 }
+  // ZigbeeCmd { "dst":"0x1234", "endpoint":"0x03", "Color":"0x0400,0x0500" }
+  // ZigbeeCmd { "dst":"0x1234", "endpoint":"0x03", "ShutterOpen":null }
+  char dataBufUc[XdrvMailbox.data_len];
+  UpperCase(dataBufUc, XdrvMailbox.data);
+  RemoveSpace(dataBufUc);
+
+  DynamicJsonBuffer jsonBuf;
+  JsonObject &json = jsonBuf.parseObject(dataBufUc);
+  if (!json.success()) { ResponseCmndChar(D_JSON_INVALID_JSON); return; }
+
+  // params
+  uint16_t dstAddr = 0xFFFF;      // 0xFFFF is braodcast, so considered invalid
+  uint16_t cluster = 0x0000;    // 0x0000 is a valid default value
+  uint8_t  endpoint = 0x00;       // 0x00 is invalid for the dst endpoint
+  uint8_t  cmd = ZCL_READ_ATTRIBUTES; // default command is READ_ATTRIBUTES
+  bool     clusterSpecific = false;
+  const char* data = "";             // empty string is valid
+
+  UpperCase_P(parm_uc, PSTR("device"));
+  if (json.containsKey(parm_uc)) { dstAddr = strToUInt(json[parm_uc]); }
+  json.remove(parm_uc);
+  UpperCase_P(parm_uc, PSTR("endpoint"));
+  if (json.containsKey(parm_uc)) { endpoint = strToUInt(json[parm_uc]); }
+  json.remove(parm_uc);
+  
+  // first replace high-level commands with low-level
+  for (auto kv : json) {
+    String key = kv.key;
+    JsonVariant& value = kv.value;
+
+    const __FlashStringHelper* tasmota_cmd = zigbeeFindCommand(key.c_str());
+    if (tasmota_cmd) {
+      json[tasmota_cmd] = value;
+      json.remove(key);
+    }
+  }
+
+  // Parse all commands, and fill in the parameters
+  for (auto kv : json) {
+    String key = kv.key;
+    JsonVariant& value = kv.value;
+    uint32_t x = 0, y = 0, z = 0;
+
+    if (value.is<bool>()) {
+      x = value.as<bool>() ? 1 : 0;
+    } else if (value.is<unsigned int>()) {
+      x = value.as<unsigned int>();
+    } else if (value.is<const char*>()) {
+      // TODO replace values like On/Off, Up/Down...
+      const char *s = value.as<const char*>();
+      char *n;
+      x = strtoul(s, &n, 0);
+      if ((n != s) && (0 != *n)) {
+        s = n+1;
+        y = strtoul(s, &n, 0);
+        if ((n != s) && (0 != *n)) {
+          s = n+1;
+          z = strtoul(s, &n, 0);
+        }
+      }
+    } else {
+      continue;
+    }
+    String cmd = zigbeeCmdAddParams(key.c_str(), x, y, z);   // fill in parameters
+  }
 }
 
 // Probe a specific device to get its endpoints and supported clusters
