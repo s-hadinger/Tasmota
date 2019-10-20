@@ -444,13 +444,18 @@ void ZCLFrame::parseClusterSpecificCommand(JsonObject& json, uint8_t offset) {
 // 1 = remove initial value
 typedef int32_t (*Z_AttrConverter)(uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const __FlashStringHelper* new_name);
 typedef struct Z_AttributeConverter {
-  const char * filter;
+  uint16_t cluster;
+  uint16_t attribute;
   const char * name;
   Z_AttrConverter func;
 } Z_AttributeConverter;
 
 // list of post-processing directives
 const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
+  { 0x0000, 0x0004,  "Manufacturer",         &Z_ManufKeep },    // record Manufacturer
+  { 0x0000, 0x0005,  D_JSON_MODEL D_JSON_ID, &Z_ModelKeep },    // record Model
+  { 0x0405, 0x0000,  D_JSON_HUMIDITY,        &Z_FloatDiv100 },   // Humidity
+/*
   { "0000/0000",  "ZCLVersion",           &Z_Copy },
   { "0000/0001",  "AppVersion",           &Z_Copy },
   { "0000/0002",  "StackVersion",         &Z_Copy },
@@ -715,6 +720,7 @@ const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
   // { "0B04/0100",  "DCVoltage",            &Z_Copy },    // 
   // { "0B04/0001",  "OccupancySensorType",  &Z_Copy },    // 
   // { "0B04/????",  "",                     &Z_Remove },    // 
+*/
 };
 
 
@@ -841,20 +847,34 @@ bool mini_glob_match(char const *pat, char const *str) {
 void ZCLFrame::postProcessAttributes(uint16_t shortaddr, JsonObject& json) {
   // iterate on json elements
   for (auto kv : json) {
-    String key = kv.key;
+    String key_string = kv.key;
+    const char * key = key_string.c_str();
     JsonVariant& value = kv.value;
+    // Check that format looks like "CCCC/AAAA"
+    char * delimiter = strchr(key, '/');
+    if (delimiter) {
+      uint16_t cluster = strtoul(key, &delimiter, 16);
+      uint16_t attribute = strtoul(delimiter+1, nullptr, 16);
+//Serial.printf(">>> Key = %s, cluster 0x%04X, attr 0x%04X\n", key, cluster, attribute);
 
-    // Iterate on filter
-    for (uint32_t i = 0; i < sizeof(Z_PostProcess) / sizeof(Z_PostProcess[0]); i++) {
-      const Z_AttributeConverter *converter = &Z_PostProcess[i];
+      // Iterate on filter
+      for (uint32_t i = 0; i < sizeof(Z_PostProcess) / sizeof(Z_PostProcess[0]); i++) {
+        const Z_AttributeConverter *converter = &Z_PostProcess[i];
+        uint16_t conv_cluster = pgm_read_word(&converter->cluster);
+        uint16_t conv_attribute = pgm_read_word(&converter->attribute);
 
-      if (mini_glob_match(converter->filter, key.c_str())) {
-        int32_t drop = (*converter->func)(shortaddr, json, key.c_str(), value, (const __FlashStringHelper*) converter->name);
-        if (drop) {
-          json.remove(key);
+        if ((conv_cluster == cluster) &&
+            ((conv_attribute == attribute) || (conv_attribute == 0xFFFF)) ) {
+//        if (mini_glob_match(converter->filter, key.c_str())) {
+          int32_t drop = (*converter->func)(shortaddr, json, key, value, (const __FlashStringHelper*) converter->name);
+          if (drop) {
+            json.remove(key);
+          }
+
         }
-
       }
+    } else {
+      AddLog_P2(LOG_LEVEL_INFO, PSTR("postProcessAttributes: wrong format for attribute : %s"), key);
     }
   }
 }
