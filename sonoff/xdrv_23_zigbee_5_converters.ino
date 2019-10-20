@@ -851,10 +851,10 @@ void ZCLFrame::postProcessAttributes(uint16_t shortaddr, JsonObject& json) {
 
       if (mini_glob_match(converter->filter, key.c_str())) {
         // copy converter->name from PROGMEM to stack
-        size_t name_len = strlen_P(converter->name);
-        char name[name_len+1];
-        strcpy_P(name, converter->name);
-        int32_t drop = (*converter->func)(shortaddr, json, key.c_str(), value, name);
+        // size_t name_len = strlen_P(converter->name);
+        // char name[name_len+1];
+        // strcpy_P(name, converter->name);
+        int32_t drop = (*converter->func)(shortaddr, json, key.c_str(), value, converter->name);
         if (drop) {
           json.remove(key);
         }
