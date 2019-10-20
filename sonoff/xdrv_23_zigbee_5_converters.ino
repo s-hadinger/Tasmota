@@ -466,6 +466,8 @@ const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
   { 0x0000, 0x0007,  "PowerSource",          &Z_Copy },
   { 0x0000, 0x4000,  "SWBuildID",            &Z_Copy },
   { 0x0000, 0xFFFF,  nullptr,                &Z_Remove },    // Remove all other values
+  // Cmd 0x0A - Cluster 0x0000, attribute 0xFF01 - proprietary
+  { 0x0000, 0xFF01,  nullptr,                &Z_AqaraSensor },    // Occupancy (map8)
 
   // Color Control cluster
   { 0x0003, 0x0000,  "CurrentHue",           &Z_Copy },
@@ -602,11 +604,12 @@ const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
   { 0x0014, 0x0068,  "RelinquishDefault",    &Z_Copy },
   { 0x0014, 0x006F,  "StatusFlags",          &Z_Copy },
   { 0x0014, 0x0100,  "ApplicationType",      &Z_Copy },
-  // Diagnostics cluster
-  { 0x0B05, 0x0000,  "NumberOfResets",       &Z_Copy },
-  { 0x0B05, 0x0001,  "PersistentMemoryWrites",&Z_Copy },
-  { 0x0B05, 0x011C,  "LastMessageLQI",       &Z_Copy },
-  { 0x0B05, 0x011D,  "LastMessageRSSI",      &Z_Copy },
+  // Power Profile cluster
+  { 0x001A, 0x0000,  "TotalProfileNum",      &Z_Copy },
+  { 0x001A, 0x0001,  "MultipleScheduling",   &Z_Copy },
+  { 0x001A, 0x0002,  "EnergyFormatting",     &Z_Copy },
+  { 0x001A, 0x0003,  "EnergyRemote",         &Z_Copy },
+  { 0x001A, 0x0004,  "ScheduleMode",         &Z_Copy },
   // Poll Control cluster
   { 0x0020, 0x0000,  "CheckinInterval",      &Z_Copy },
   { 0x0020, 0x0001,  "LongPollInterval",     &Z_Copy },
@@ -650,24 +653,6 @@ const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
   { 0x0102, 0x0017,  "Mode",&Z_Copy },
   { 0x0102, 0x0018,  "IntermediateSetpointsLift",&Z_Copy },
   { 0x0102, 0x0019,  "IntermediateSetpointsTilt",&Z_Copy },
-
-  // Power Profile cluster
-  { 0x001A, 0x0000,  "TotalProfileNum",      &Z_Copy },
-  { 0x001A, 0x0001,  "MultipleScheduling",   &Z_Copy },
-  { 0x001A, 0x0002,  "EnergyFormatting",     &Z_Copy },
-  { 0x001A, 0x0003,  "EnergyRemote",         &Z_Copy },
-  { 0x001A, 0x0004,  "ScheduleMode",         &Z_Copy },
-  // Meter Identification cluster
-  { 0x0B01, 0x0000,  "CompanyName",          &Z_Copy },
-  { 0x0B01, 0x0001,  "MeterTypeID",          &Z_Copy },
-  { 0x0B01, 0x0004,  "DataQualityID",        &Z_Copy },
-  { 0x0B01, 0x0005,  "CustomerName",         &Z_Copy },
-  { 0x0B01, 0x0006,  "Model",                &Z_Copy },
-  { 0x0B01, 0x0007,  "PartNumber",           &Z_Copy },
-  { 0x0B01, 0x000A,  "SoftwareRevision",     &Z_Copy },
-  { 0x0B01, 0x000C,  "POD",                  &Z_Copy },
-  { 0x0B01, 0x000D,  "AvailablePower",       &Z_Copy },
-  { 0x0B01, 0x000E,  "PowerThreshold",       &Z_Copy },
 
   { 0x0400, 0x0000,  D_JSON_ILLUMINANCE,     &Z_Copy },    // Illuminance (in Lux)
   { 0x0400, 0x0001,  "MinMeasuredValue",     &Z_Copy },    // 
@@ -713,9 +698,22 @@ const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
   { 0x0406, 0x0000,  "Occupancy",            &Z_Copy },    // Occupancy (map8)
   { 0x0406, 0x0001,  "OccupancySensorType",  &Z_Copy },    // OccupancySensorType
   { 0x0406, 0xFFFF,  nullptr,                &Z_Remove },    // Remove all other values
-
-  // Cmd 0x0A - Cluster 0x0000, attribute 0xFF01 - proprietary
-  { 0x0000, 0xFF01,  nullptr,                &Z_AqaraSensor },    // Occupancy (map8)
+  // Meter Identification cluster
+  { 0x0B01, 0x0000,  "CompanyName",          &Z_Copy },
+  { 0x0B01, 0x0001,  "MeterTypeID",          &Z_Copy },
+  { 0x0B01, 0x0004,  "DataQualityID",        &Z_Copy },
+  { 0x0B01, 0x0005,  "CustomerName",         &Z_Copy },
+  { 0x0B01, 0x0006,  "Model",                &Z_Copy },
+  { 0x0B01, 0x0007,  "PartNumber",           &Z_Copy },
+  { 0x0B01, 0x000A,  "SoftwareRevision",     &Z_Copy },
+  { 0x0B01, 0x000C,  "POD",                  &Z_Copy },
+  { 0x0B01, 0x000D,  "AvailablePower",       &Z_Copy },
+  { 0x0B01, 0x000E,  "PowerThreshold",       &Z_Copy },
+  // Diagnostics cluster
+  { 0x0B05, 0x0000,  "NumberOfResets",       &Z_Copy },
+  { 0x0B05, 0x0001,  "PersistentMemoryWrites",&Z_Copy },
+  { 0x0B05, 0x011C,  "LastMessageLQI",       &Z_Copy },
+  { 0x0B05, 0x011D,  "LastMessageRSSI",      &Z_Copy },
 
 };
 
