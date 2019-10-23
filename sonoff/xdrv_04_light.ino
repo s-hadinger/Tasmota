@@ -904,6 +904,18 @@ public:
     calcLevels();
   }
 
+  void changeBriRGB(uint8_t bri) {
+    _state->setBriRGB(bri);
+    saveSettings();
+    calcLevels(); 
+  }
+
+  void changeBriCT(uint8_t bri) {
+    _state->setBriCT(bri);
+    saveSettings();
+    calcLevels(); 
+  }
+
   void changeRGB(uint8_t r, uint8_t g, uint8_t b, bool keep_bri = false) {
     _state->setRGB(r, g, b, keep_bri);
     if (_ct_rgb_linked) { _state->setColorMode(LCM_RGB); }   // try to force RGB
@@ -1111,15 +1123,18 @@ void LightInit(void)
   Light.subtype = (light_type & 7) > LST_MAX ? LST_MAX : (light_type & 7); // Always 0 - LST_MAX (5)
   Light.pwm_multi_channels = Settings.flag3.pwm_multi_channels;
 
-  // do not allow independant RGV and WC colors
-  bool ct_rgb_linked = !(Settings.param[P_RGB_REMAP] & 128);
-  light_controller.setCTRGBLinked(ct_rgb_linked);
+  if (LST_RGBW <= Light.subtype) {
+    // only change if RGBW or RGBCW
+    // do not allow independant RGB and WC colors
+    bool ct_rgb_linked = !(Settings.param[P_RGB_REMAP] & 128);
+    light_controller.setCTRGBLinked(ct_rgb_linked);
+  }
 
   if ((LST_SINGLE < Light.subtype) && Light.pwm_multi_channels) {
     // we treat each PWM channel as an independant one, hence we switch to
     light_controller.setPWMMultiChannel(true);
     Light.device = devices_present - Light.subtype + 1; // adjust if we also have relays
-  } else if ((!light_controller.isCTRGBLinked()) && (LST_RGBW <= Light.subtype)) {
+  } else if (!light_controller.isCTRGBLinked()) {
     // if RGBW or RGBCW, and SetOption37 >= 128, we manage RGB and W separately
     Light.device--;   // we take the last two devices as lights
   }
@@ -1209,12 +1224,19 @@ uint8_t LightGetBri(uint8_t device) {
 }
 
 // If SetOption68 is set, get the brightness for a specific device
-
 void LightSetBri(uint8_t device, uint8_t bri) {
   if (Light.pwm_multi_channels) {
     if ((device >= Light.device) && (device < Light.device + LST_MAX) && (device <= devices_present)) {
       Light.current_color[device - Light.device] = bri;
       light_controller.changeChannels(Light.current_color);
+    }
+  } else if (!light_controller.isCTRGBLinked()) {
+    if (device == Light.device) {
+      // RGB
+      light_controller.changeBriRGB(bri);
+    } else {
+      // CW
+      light_controller.changeBriCT(bri);
     }
   } else if (device == Light.device) {
     light_controller.changeBri(bri);
