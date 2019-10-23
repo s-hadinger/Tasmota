@@ -1097,6 +1097,9 @@ bool LightModuleInit(void)
     uint32_t pwm_channels = (light_type & 7) > LST_MAX ? LST_MAX : (light_type & 7);
     if (0 == pwm_channels) { pwm_channels = 1; }
     devices_present += pwm_channels - 1;  // add the pwm channels controls at the end
+  } else if ((Settings.param[P_RGB_REMAP] & 128) && (LST_RGBW <= (light_type & 7))) {
+    // if RGBW or RGBCW, and SetOption37 >= 128, we manage RGB and W separately, hence adding a device
+    devices_present++;
   }
 
   return (light_type > LT_BASIC);
@@ -1108,10 +1111,17 @@ void LightInit(void)
   Light.subtype = (light_type & 7) > LST_MAX ? LST_MAX : (light_type & 7); // Always 0 - LST_MAX (5)
   Light.pwm_multi_channels = Settings.flag3.pwm_multi_channels;
 
+  // do not allow independant RGV and WC colors
+  bool ct_rgb_linked = !(Settings.param[P_RGB_REMAP] & 128);
+  light_controller.setCTRGBLinked(ct_rgb_linked);
+
   if ((LST_SINGLE < Light.subtype) && Light.pwm_multi_channels) {
     // we treat each PWM channel as an independant one, hence we switch to
     light_controller.setPWMMultiChannel(true);
     Light.device = devices_present - Light.subtype + 1; // adjust if we also have relays
+  } else if ((!light_controller.isCTRGBLinked()) && (LST_RGBW <= Light.subtype)) {
+    // if RGBW or RGBCW, and SetOption37 >= 128, we manage RGB and W separately
+    Light.device--;   // we take the last two devices as lights
   }
 #ifdef DEBUG_LIGHT
   AddLog_P2(LOG_LEVEL_DEBUG_MORE, "LightInit Light.pwm_multi_channels=%d Light.subtype=%d Light.device=%d devices_present=%d",
@@ -1176,10 +1186,6 @@ void LightUpdateColorMapping(void)
   param = param % 2;
   Light.color_remap[3] = tmp[param];
   Light.color_remap[4] = tmp[1-param];
-
-  // do not allow independant RGV and WC colors
-  bool ct_rgb_linked = !(Settings.param[P_RGB_REMAP] & 128);
-  light_controller.setCTRGBLinked(ct_rgb_linked);
 
   Light.update = true;
   //AddLog_P2(LOG_LEVEL_DEBUG, PSTR("%d colors: %d %d %d %d %d") ,Settings.param[P_RGB_REMAP], Light.color_remap[0],Light.color_remap[1],Light.color_remap[2],Light.color_remap[3],Light.color_remap[4]);
