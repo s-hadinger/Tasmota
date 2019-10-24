@@ -1005,7 +1005,7 @@ public:
     } else {
       uint8_t cm = _state->getColorMode();
 
-      memset(&Settings.light_color[0], 0, sizeof(Settings.light_color));
+      memset(&Settings.light_color[0], 0, sizeof(Settings.light_color));    // clear all channels
       if (LCM_RGB & cm) {   // can be either LCM_RGB or LCM_BOTH
         _state->getRGB(&Settings.light_color[0], &Settings.light_color[1], &Settings.light_color[2]);
         Settings.light_dimmer = _state->BriToDimmer(_state->getBriRGB());
@@ -1239,8 +1239,16 @@ uint8_t LightGetBri(uint8_t device) {
     if ((device >= Light.device) && (device < Light.device + LST_MAX) && (device <= devices_present)) {
       bri = Light.current_color[device - Light.device];
     }
-  } else if (device == Light.device) {
-    bri = light_state.getBri();
+  } else if (light_controller.isCTRGBLinked()) {   // standard behavior
+    if (device == Light.device) {
+      bri = light_state.getBri();
+    }
+  } else {
+    if (device == Light.device) {
+      bri = light_state.getBriRGB();
+    } else if (device == Light.device + 1) {
+      bri = light_state.getBriCT();
+    }
   }
   return bri;
 }
