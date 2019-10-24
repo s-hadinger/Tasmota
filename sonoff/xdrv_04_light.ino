@@ -1427,13 +1427,31 @@ void LightPreparePower(void)
 // #endif  // USE_DOMOTICZ
 //     }
   } else {
-    if (light_state.getBri() && !(Light.power)) {
-      if (!Settings.flag.not_power_linked) {
-        ExecuteCommandPower(Light.device, POWER_ON_NO_STATE, SRC_LIGHT);
+    if (light_controller.isCTRGBLinked()) {   // linked, standard
+      if (light_state.getBri() && !(Light.power)) {
+        if (!Settings.flag.not_power_linked) {
+          ExecuteCommandPower(Light.device, POWER_ON_NO_STATE, SRC_LIGHT);
+        }
+      } else if (!light_state.getBri() && Light.power) {
+        ExecuteCommandPower(Light.device, POWER_OFF_NO_STATE, SRC_LIGHT);
       }
-    }
-    else if (!light_state.getBri() && Light.power) {
-      ExecuteCommandPower(Light.device, POWER_OFF_NO_STATE, SRC_LIGHT);
+    } else {
+      // RGB
+      if (light_state.getBriRGB() && !(Light.power & 1)) {
+        if (!Settings.flag.not_power_linked) {
+          ExecuteCommandPower(Light.device, POWER_ON_NO_STATE, SRC_LIGHT);
+        }
+      } else if (!light_state.getBri() && (Light.power & 1)) {
+        ExecuteCommandPower(Light.device, POWER_OFF_NO_STATE, SRC_LIGHT);
+      }
+      // White CT
+      if (light_state.getBriCT() && !(Light.power & 2)) {
+        if (!Settings.flag.not_power_linked) {
+          ExecuteCommandPower(Light.device + 1, POWER_ON_NO_STATE, SRC_LIGHT);
+        }
+      } else if (!light_state.getBri() && (Light.power & 2)) {
+        ExecuteCommandPower(Light.device + 1, POWER_OFF_NO_STATE, SRC_LIGHT);
+      }
     }
 #ifdef USE_DOMOTICZ
     DomoticzUpdatePowerState(Light.device);
