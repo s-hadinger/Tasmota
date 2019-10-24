@@ -1978,6 +1978,17 @@ void CmndChannel(void)
 {
   if ((XdrvMailbox.index >= Light.device) && (XdrvMailbox.index < Light.device + Light.subtype )) {
     bool coldim = false;
+
+    // Handle +/- special command
+    if (1 == XdrvMailbox.data_len) {
+      uint8_t channel = changeUIntScale(Light.current_color[XdrvMailbox.index - Light.device],0,255,0,100);
+      if ('+' == XdrvMailbox.data[0]) {
+        XdrvMailbox.payload = (channel > 89) ? 100 : channel + 10;
+      } else if ('-' == XdrvMailbox.data[0]) {
+        XdrvMailbox.payload = (channel < 11) ? 1 : channel - 10;
+      }
+    }
+
     //  Set "Channel" directly - this allows Color and Direct PWM control to coexist
     if ((XdrvMailbox.payload >= 0) && (XdrvMailbox.payload <= 100)) {
       Light.current_color[XdrvMailbox.index - Light.device] = changeUIntScale(XdrvMailbox.payload,0,100,0,255);
@@ -2123,17 +2134,17 @@ void CmndDimmer(void)
   // Handle +/- special command
   if (1 == XdrvMailbox.data_len) {
     if ('+' == XdrvMailbox.data[0]) {
-      dimmer = (dimmer > 89) ? 100 : dimmer + 10;
+      XdrvMailbox.payload = (dimmer > 89) ? 100 : dimmer + 10;
     } else if ('-' == XdrvMailbox.data[0]) {
-      dimmer = (dimmer < 11) ? 1 : dimmer - 10;
+      XdrvMailbox.payload = (dimmer < 11) ? 1 : dimmer - 10;
     }
   }
   // If value is ok, change it, otherwise report old value
-  if ((dimmer >= 0) && (dimmer <= 100)) {
+  if ((XdrvMailbox.payload >= 0) && (XdrvMailbox.payload <= 100)) {
     if ((1 == XdrvMailbox.index) || (2 == XdrvMailbox.index)) {
-      light_controller.changeDimmer(dimmer, XdrvMailbox.index);
+      light_controller.changeDimmer(XdrvMailbox.payload, XdrvMailbox.index);
     } else {
-      light_controller.changeDimmer(dimmer);
+      light_controller.changeDimmer(XdrvMailbox.payload);
     }
     Light.update = true;
     LightPreparePower();
