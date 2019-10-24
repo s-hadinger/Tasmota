@@ -1674,6 +1674,16 @@ void LightAnimate(void)
       // #endif
     }
 
+    if (!light_controller.isCTRGBLinked()) {
+      // we have 2 power bits for RGB and White
+      if (0 == (Light.power & 1)) {
+        Light.new_color[0] = Light.new_color[1] = Light.new_color[2] = 0;
+      }
+      if (0 == (Light.power & 2)) {
+        Light.new_color[3] = Light.new_color[4] = 0;
+      }
+    }
+
     if (memcmp(Light.last_color, Light.new_color, Light.subtype)) {
       Light.update = true;
     }
