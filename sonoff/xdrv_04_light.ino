@@ -455,8 +455,20 @@ class LightStateClass {
       return dimmer;
     }
 
-    uint8_t getDimmer() {
-      return BriToDimmer(getBri());
+    uint8_t getDimmer(uint32_t mode = 0) {
+      uint8_t bri;
+      switch (mode) {
+        case 1:
+          bri = getBriRGB();
+          break;
+        case 2:
+          bri = getBriCT();
+          break;
+        default:
+          bri = getBri();
+          break;
+      }
+      return BriToDimmer(bri);
     }
 
     inline uint16_t getCT() {
@@ -893,9 +905,19 @@ public:
     //debugLogs();
   }
 
-  void changeDimmer(uint8_t dimmer) {
+  void changeDimmer(uint8_t dimmer, uint32_t mode = 0) {
     uint8_t bri = changeUIntScale(dimmer, 0, 100, 0, 255);
-    changeBri(bri);
+    switch (mode) {
+      case 1:
+        changeBriRGB(bri);
+        break;
+      case 2:
+        changeBriCT(bri);
+        break;
+      default:
+        changeBri(bri);
+        break;
+    }
   }
 
   void changeBri(uint8_t bri) {
@@ -2091,21 +2113,32 @@ void CmndColorTemperature(void)
 
 void CmndDimmer(void)
 {
-  uint32_t dimmer = light_state.getDimmer();
+  uint32_t dimmer;
+
+  if ((1 == XdrvMailbox.index) || (2 == XdrvMailbox.index)) {    // Dimmer1 is RGB, Dimmer 2 iw white
+    dimmer = light_state.getDimmer(XdrvMailbox.index);
+  } else {
+    dimmer = light_state.getDimmer();
+  }
+  // Handle +/- special command
   if (1 == XdrvMailbox.data_len) {
     if ('+' == XdrvMailbox.data[0]) {
-      XdrvMailbox.payload = (dimmer > 89) ? 100 : dimmer + 10;
-    }
-    else if ('-' == XdrvMailbox.data[0]) {
-      XdrvMailbox.payload = (dimmer < 11) ? 1 : dimmer - 10;
+      dimmer = (dimmer > 89) ? 100 : dimmer + 10;
+    } else if ('-' == XdrvMailbox.data[0]) {
+      dimmer = (dimmer < 11) ? 1 : dimmer - 10;
     }
   }
-  if ((XdrvMailbox.payload >= 0) && (XdrvMailbox.payload <= 100)) {
-    light_controller.changeDimmer(XdrvMailbox.payload);
+  // If value is ok, change it, otherwise report old value
+  if ((dimmer >= 0) && (dimmer <= 100)) {
+    if ((1 == XdrvMailbox.index) || (2 == XdrvMailbox.index)) {
+      light_controller.changeDimmer(dimmer, XdrvMailbox.index);
+    } else {
+      light_controller.changeDimmer(dimmer);
+    }
     Light.update = true;
     LightPreparePower();
   } else {
-    ResponseCmndNumber(Settings.light_dimmer);
+    ResponseCmndNumber(dimmer);
   }
 }
 
