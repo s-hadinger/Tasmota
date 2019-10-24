@@ -1243,7 +1243,7 @@ uint8_t LightGetBri(uint8_t device) {
     if (device == Light.device) {
       bri = light_state.getBri();
     }
-  } else {
+  } else {    // unlinked
     if (device == Light.device) {
       bri = light_state.getBriRGB();
     } else if (device == Light.device + 1) {
@@ -1253,23 +1253,23 @@ uint8_t LightGetBri(uint8_t device) {
   return bri;
 }
 
-// If SetOption68 is set, get the brightness for a specific device
+// If SetOption68 is set, set the brightness for a specific device
 void LightSetBri(uint8_t device, uint8_t bri) {
   if (Light.pwm_multi_channels) {
     if ((device >= Light.device) && (device < Light.device + LST_MAX) && (device <= devices_present)) {
       Light.current_color[device - Light.device] = bri;
       light_controller.changeChannels(Light.current_color);
     }
-  } else if (!light_controller.isCTRGBLinked()) {
+  } else if (light_controller.isCTRGBLinked()) {  // standard
     if (device == Light.device) {
-      // RGB
+      light_controller.changeBri(bri);
+    }
+  } else {  // unlinked
+    if (device == Light.device) {
       light_controller.changeBriRGB(bri);
-    } else {
-      // CW
+    } else if (device == Light.device + 1) {
       light_controller.changeBriCT(bri);
     }
-  } else if (device == Light.device) {
-    light_controller.changeBri(bri);
   }
 }
 
