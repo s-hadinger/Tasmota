@@ -1463,7 +1463,7 @@ void LightPreparePower(void)
 #ifdef DEBUG_LIGHT
   AddLog_P2(LOG_LEVEL_DEBUG, "LightPreparePower End power=%d Light.power=%d", power, Light.power);
 #endif
-  Light.power = power >> (Light.device - 1);  // reset next state
+  Light.power = power >> (Light.device - 1);  // reset next state, works also with unlinked RGB/CT
   LightState(0);
 }
 
@@ -1554,6 +1554,8 @@ void LightSetPower(void)
   uint32_t mask = 1;  // default mask
   if (Light.pwm_multi_channels) {
     mask = (1 << Light.subtype) - 1;   // wider mask
+  } else if (!light_controller.isCTRGBLinked()) {
+    mask = 3;   // we got 2 devices, for RGB and White
   }
   uint32_t shift = Light.device - 1;
   // If PWM multi_channels
