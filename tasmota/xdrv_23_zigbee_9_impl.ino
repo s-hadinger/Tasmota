@@ -518,15 +518,21 @@ void CmndZigbeeCmd(void) {
       x = value.as<unsigned int>();
     } else if (value.is<const char*>()) {
       // TODO replace values like On/Off, Up/Down...
-      const char *s = value.as<const char*>();
-      char *n;
-      x = strtoul(s, &n, 0);
-      if ((n != s) && (0 != *n)) {
-        s = n+1;
-        y = strtoul(s, &n, 0);
-        if ((n != s) && (0 != *n)) {
-          s = n+1;
-          z = strtoul(s, &n, 0);
+      const char *s_const = value.as<const char*>();
+      char s[strlen(s_const)+1];
+      strcpy(s, s_const);
+      if ((nullptr != s) && (0x00 != *s)) {     // ignore any null or empty string, could represent 'null' json value
+        char *sval = strtok(s, ",");
+        if (sval) {
+          x = strtoul(sval, nullptr, 0);
+          sval = strtok(nullptr, ",");
+          if (sval) {
+            y = strtoul(sval, nullptr, 0);
+            sval = strtok(nullptr, ",");
+            if (sval) {
+              z = strtoul(sval, nullptr, 0);
+            }
+          }
         }
       }
     } else {
