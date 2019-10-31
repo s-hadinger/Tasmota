@@ -258,7 +258,10 @@ uint32_t strToUInt(const JsonVariant &val) {
   return 0;   // couldn't parse anything
 }
 
-const unsigned char ZIGBEE_FACTORY_RESET[] PROGMEM = "2112000F0100";  // Z_SREQ | Z_SYS, SYS_OSAL_NV_DELETE, 0x0F00 id, 0x0001 len
+const unsigned char ZIGBEE_FACTORY_RESET[] PROGMEM = 
+  { Z_SREQ | Z_SAPI, SAPI_WRITE_CONFIGURATION, CONF_STARTUP_OPTION, 0x01 /* len */, 0x01 /* STARTOPT_CLEAR_CONFIG */};
+//"2605030101";  // Z_SREQ | Z_SAPI, SAPI_WRITE_CONFIGURATION, CONF_STARTUP_OPTION, 0x01 len, 0x01 STARTOPT_CLEAR_CONFIG
+//const unsigned char ZIGBEE_FACTORY_RESET[] PROGMEM = "2112000F0100";  // Z_SREQ | Z_SYS, SYS_OSAL_NV_DELETE, 0x0F00 id, 0x0001 len
 // Do a factory reset of the CC2530
 void CmndZigbeeReset(void) {
   if (ZigbeeSerial) {
