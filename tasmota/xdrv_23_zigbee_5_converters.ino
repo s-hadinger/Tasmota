@@ -209,12 +209,19 @@ uint32_t parseSingleAttribute(JsonObject& json, char *attrid_str, class SBuffer 
         }
       }
       break;
-    // Note: uint40, uint48, uint56, uint64 are not used in ZCL, so they are not implemented (yet)
-    case 0x24:    // int40
-    case 0x25:    // int48
-    case 0x26:    // int56
-    case 0x27:    // int64
-      i += attrtype - 0x1F;   // 5 - 8;
+    // Note: uint40, uint48, uint56, uint64 are stored as Hex
+    case 0x24:    // uint40
+    case 0x25:    // uint48
+    case 0x26:    // uint56
+    case 0x27:    // uint64
+      {
+        uint8_t len = attrtype - 0x1F;   // 5 - 8
+        // print as HEX
+        char hex[2*len+1];
+        ToHex_P(buf.buf(i), len, hex, sizeof(hex));
+        json[attrid_str] = hex;
+        i += len;
+      }
       break;
     case 0x28:      // uint8
       {
@@ -243,12 +250,19 @@ uint32_t parseSingleAttribute(JsonObject& json, char *attrid_str, class SBuffer 
         }
       }
       break;
-    // Note: int40, int48, int56, int64 are not used in ZCL, so they are not implemented (yet)
+    // Note: int40, int48, int56, int64 are not stored as Hex
     case 0x2C:    // int40
     case 0x2D:    // int48
     case 0x2E:    // int56
     case 0x2F:    // int64
-      i += attrtype - 0x27;   // 5 - 8;
+      {
+        uint8_t len = attrtype - 0x27;   // 5 - 8
+        // print as HEX
+        char hex[2*len+1];
+        ToHex_P(buf.buf(i), len, hex, sizeof(hex));
+        json[attrid_str] = hex;
+        i += len;
+      }
       break;
 
     case 0x41:      // octet string, 1 byte len
