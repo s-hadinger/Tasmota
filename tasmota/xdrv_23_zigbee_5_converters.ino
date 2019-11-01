@@ -479,50 +479,33 @@ const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
   // Cmd 0x0A - Cluster 0x0000, attribute 0xFF01 - proprietary
   { 0x0000, 0xFF01,  nullptr,                &Z_AqaraSensor },    // Occupancy (map8)
 
-  // Color Control cluster
-  { 0x0003, 0x0000,  "CurrentHue",           &Z_Copy },
-  { 0x0003, 0x0001,  "CurrentSaturation",    &Z_Copy },
-  { 0x0003, 0x0002,  "RemainingTime",        &Z_Copy },
-  { 0x0003, 0x0003,  "CurrentX",             &Z_Copy },
-  { 0x0003, 0x0004,  "CurrentY",             &Z_Copy },
-  { 0x0003, 0x0005,  "DriftCompensation",    &Z_Copy },
-  { 0x0003, 0x0006,  "CompensationText",     &Z_Copy },
-  { 0x0003, 0x0007,  "ColorTemperatureMireds",&Z_Copy },
-  { 0x0003, 0x0008,  "ColorMode",            &Z_Copy },
-  { 0x0003, 0x0010,  "NumberOfPrimaries",    &Z_Copy },
-  { 0x0003, 0x0011,  "Primary1X",            &Z_Copy },
-  { 0x0003, 0x0012,  "Primary1Y",            &Z_Copy },
-  { 0x0003, 0x0013,  "Primary1Intensity",    &Z_Copy },
-  { 0x0003, 0x0015,  "Primary2X",            &Z_Copy },
-  { 0x0003, 0x0016,  "Primary2Y",            &Z_Copy },
-  { 0x0003, 0x0017,  "Primary2Intensity",    &Z_Copy },
-  { 0x0003, 0x0019,  "Primary3X",            &Z_Copy },
-  { 0x0003, 0x001A,  "Primary3Y",            &Z_Copy },
-  { 0x0003, 0x001B,  "Primary3Intensity",    &Z_Copy },
-  { 0x0003, 0x0030,  "WhitePointX",          &Z_Copy },
-  { 0x0003, 0x0031,  "WhitePointY",          &Z_Copy },
-  { 0x0003, 0x0032,  "ColorPointRX",         &Z_Copy },
-  { 0x0003, 0x0033,  "ColorPointRY",         &Z_Copy },
-  { 0x0003, 0x0034,  "ColorPointRIntensity", &Z_Copy },
-  { 0x0003, 0x0036,  "ColorPointGX",         &Z_Copy },
-  { 0x0003, 0x0037,  "ColorPointGY",         &Z_Copy },
-  { 0x0003, 0x0038,  "ColorPointGIntensity", &Z_Copy },
-  { 0x0003, 0x003A,  "ColorPointBX",         &Z_Copy },
-  { 0x0003, 0x003B,  "ColorPointBY",         &Z_Copy },
-  { 0x0003, 0x003C,  "ColorPointBIntensity", &Z_Copy },
+  // Power Configuration cluster
+  { 0x0001, 0x0000,  "MainsVoltage",         &Z_Copy },
+  { 0x0001, 0x0001,  "MainsFrequency",       &Z_Copy },
+  { 0x0001, 0x0020,  "BatteryVoltage",       &Z_Copy },
+  { 0x0001, 0x0021,  "BatteryPercentageRemaining",&Z_Copy },
+
+  // Device Temperature Configuration cluster
+  { 0x0002, 0x0000,  "CurrentTemperature",   &Z_Copy },
+  { 0x0002, 0x0001,  "MinTempExperienced",   &Z_Copy },
+  { 0x0002, 0x0002,  "MaxTempExperienced",   &Z_Copy },
+  { 0x0002, 0x0003,  "OverTempTotalDwell",   &Z_Copy },
 
   // On/off cluster
   { 0x0006, 0x0000,  "Power",                &Z_Copy },
+
   // On/Off Switch Configuration cluster
   { 0x0007, 0x0000,  "SwitchType",           &Z_Copy },
+
   // Level Control cluster
   { 0x0008, 0x0000,  "CurrentLevel",         &Z_Copy },
-  { 0x0008, 0x0001,  "RemainingTime",        &Z_Copy },
-  { 0x0008, 0x0010,  "OnOffTransitionTime",  &Z_Copy },
-  { 0x0008, 0x0011,  "OnLevel",              &Z_Copy },
-  { 0x0008, 0x0012,  "OnTransitionTime",     &Z_Copy },
-  { 0x0008, 0x0013,  "OffTransitionTime",    &Z_Copy },
-  { 0x0008, 0x0014,  "DefaultMoveRate",      &Z_Copy },
+  // { 0x0008, 0x0001,  "RemainingTime",        &Z_Copy },
+  // { 0x0008, 0x0010,  "OnOffTransitionTime",  &Z_Copy },
+  // { 0x0008, 0x0011,  "OnLevel",              &Z_Copy },
+  // { 0x0008, 0x0012,  "OnTransitionTime",     &Z_Copy },
+  // { 0x0008, 0x0013,  "OffTransitionTime",    &Z_Copy },
+  // { 0x0008, 0x0014,  "DefaultMoveRate",      &Z_Copy },
+  
   // Alarms cluster
   { 0x0009, 0x0000,  "AlarmCount",           &Z_Copy },
   // Time cluster
@@ -664,6 +647,39 @@ const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
   { 0x0102, 0x0018,  "IntermediateSetpointsLift",&Z_Copy },
   { 0x0102, 0x0019,  "IntermediateSetpointsTilt",&Z_Copy },
 
+  // Color Control cluster
+  { 0x0300, 0x0000,  "CurrentHue",           &Z_Copy },
+  { 0x0300, 0x0001,  "CurrentSaturation",    &Z_Copy },
+  { 0x0300, 0x0002,  "RemainingTime",        &Z_Copy },
+  { 0x0300, 0x0003,  "CurrentX",             &Z_Copy },
+  { 0x0300, 0x0004,  "CurrentY",             &Z_Copy },
+  { 0x0300, 0x0005,  "DriftCompensation",    &Z_Copy },
+  { 0x0300, 0x0006,  "CompensationText",     &Z_Copy },
+  { 0x0300, 0x0007,  "ColorTemperatureMireds",&Z_Copy },
+  { 0x0300, 0x0008,  "ColorMode",            &Z_Copy },
+  { 0x0300, 0x0010,  "NumberOfPrimaries",    &Z_Copy },
+  { 0x0300, 0x0011,  "Primary1X",            &Z_Copy },
+  { 0x0300, 0x0012,  "Primary1Y",            &Z_Copy },
+  { 0x0300, 0x0013,  "Primary1Intensity",    &Z_Copy },
+  { 0x0300, 0x0015,  "Primary2X",            &Z_Copy },
+  { 0x0300, 0x0016,  "Primary2Y",            &Z_Copy },
+  { 0x0300, 0x0017,  "Primary2Intensity",    &Z_Copy },
+  { 0x0300, 0x0019,  "Primary3X",            &Z_Copy },
+  { 0x0300, 0x001A,  "Primary3Y",            &Z_Copy },
+  { 0x0300, 0x001B,  "Primary3Intensity",    &Z_Copy },
+  { 0x0300, 0x0030,  "WhitePointX",          &Z_Copy },
+  { 0x0300, 0x0031,  "WhitePointY",          &Z_Copy },
+  { 0x0300, 0x0032,  "ColorPointRX",         &Z_Copy },
+  { 0x0300, 0x0033,  "ColorPointRY",         &Z_Copy },
+  { 0x0300, 0x0034,  "ColorPointRIntensity", &Z_Copy },
+  { 0x0300, 0x0036,  "ColorPointGX",         &Z_Copy },
+  { 0x0300, 0x0037,  "ColorPointGY",         &Z_Copy },
+  { 0x0300, 0x0038,  "ColorPointGIntensity", &Z_Copy },
+  { 0x0300, 0x003A,  "ColorPointBX",         &Z_Copy },
+  { 0x0300, 0x003B,  "ColorPointBY",         &Z_Copy },
+  { 0x0300, 0x003C,  "ColorPointBIntensity", &Z_Copy },
+
+  // Illuminance Measurement cluster
   { 0x0400, 0x0000,  D_JSON_ILLUMINANCE,     &Z_Copy },    // Illuminance (in Lux)
   { 0x0400, 0x0001,  "MinMeasuredValue",     &Z_Copy },    //
   { 0x0400, 0x0002,  "MaxMeasuredValue",     &Z_Copy },    //
@@ -671,16 +687,19 @@ const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
   { 0x0400, 0x0004,  "LightSensorType",      &Z_Copy },    //
   { 0x0400, 0xFFFF,  nullptr,                &Z_Remove },    // Remove all other values
 
+  // Illuminance Level Sensing cluster
   { 0x0401, 0x0000,  "LevelStatus",          &Z_Copy },    // Illuminance (in Lux)
   { 0x0401, 0x0001,  "LightSensorType",      &Z_Copy },    // LightSensorType
   { 0x0401, 0xFFFF,  nullptr,                &Z_Remove },    // Remove all other values
 
+  // Temperature Measurement cluster
   { 0x0402, 0x0000,  D_JSON_TEMPERATURE,     &Z_FloatDiv100 },   // Temperature
   { 0x0402, 0x0001,  "MinMeasuredValue",     &Z_FloatDiv100 },    //
   { 0x0402, 0x0002,  "MaxMeasuredValue",     &Z_FloatDiv100 },    //
   { 0x0402, 0x0003,  "Tolerance",            &Z_FloatDiv100 },    //
   { 0x0402, 0xFFFF,  nullptr,                &Z_Remove },     // Remove all other values
 
+  // Pressure Measurement cluster
   { 0x0403, 0x0000,  D_JSON_PRESSURE_UNIT,   &Z_AddPressureUnit },     // Pressure Unit
   { 0x0403, 0x0000,  D_JSON_PRESSURE,        &Z_Copy },     // Pressure
   { 0x0403, 0x0001,  "MinMeasuredValue",     &Z_Copy },    //
@@ -693,21 +712,25 @@ const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
   { 0x0403, 0x0014,  "Scale",                &Z_Copy },    //
   { 0x0403, 0xFFFF,  nullptr,                &Z_Remove },     // Remove all other Pressure values
 
+  // Flow Measurement cluster
   { 0x0404, 0x0000,  D_JSON_FLOWRATE,        &Z_FloatDiv10 },    // Flow (in m3/h)
   { 0x0404, 0x0001,  "MinMeasuredValue",     &Z_Copy },    //
   { 0x0404, 0x0002,  "MaxMeasuredValue",     &Z_Copy },    //
   { 0x0404, 0x0003,  "Tolerance",            &Z_Copy },    //
   { 0x0404, 0xFFFF,  nullptr,                &Z_Remove },    // Remove all other values
 
+  // Relative Humidity Measurement cluster
   { 0x0405, 0x0000,  D_JSON_HUMIDITY,        &Z_FloatDiv100 },   // Humidity
   { 0x0405, 0x0001,  "MinMeasuredValue",     &Z_Copy },    //
   { 0x0405, 0x0002,  "MaxMeasuredValue",     &Z_Copy },    //
   { 0x0405, 0x0003,  "Tolerance",            &Z_Copy },    //
   { 0x0405, 0xFFFF,  nullptr,                &Z_Remove },     // Remove all other values
 
+  // Occupancy Sensing cluster
   { 0x0406, 0x0000,  "Occupancy",            &Z_Copy },    // Occupancy (map8)
   { 0x0406, 0x0001,  "OccupancySensorType",  &Z_Copy },    // OccupancySensorType
   { 0x0406, 0xFFFF,  nullptr,                &Z_Remove },    // Remove all other values
+
   // Meter Identification cluster
   { 0x0B01, 0x0000,  "CompanyName",          &Z_Copy },
   { 0x0B01, 0x0001,  "MeterTypeID",          &Z_Copy },
@@ -719,6 +742,7 @@ const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
   { 0x0B01, 0x000C,  "POD",                  &Z_Copy },
   { 0x0B01, 0x000D,  "AvailablePower",       &Z_Copy },
   { 0x0B01, 0x000E,  "PowerThreshold",       &Z_Copy },
+
   // Diagnostics cluster
   { 0x0B05, 0x0000,  "NumberOfResets",       &Z_Copy },
   { 0x0B05, 0x0001,  "PersistentMemoryWrites",&Z_Copy },

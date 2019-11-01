@@ -31,6 +31,9 @@ const Z_CommandConverter Z_Commands[] = {
   { "Dimmer",       "0008!04/xx0A00" },       // Move to Level with On/Off, xx=0..254 (255 is invalid)
   { "Dimmer+",      "0008!06/001902" },       // Step up by 10%, 0.2 secs
   { "Dimmer-",      "0008!06/011902" },       // Step down by 10%, 0.2 secs
+  { "DimmerStop",   "0008!03" },              // Stop any Dimmer animation
+  { "ResetAlarm",   "0009!00/xxyyyy" },       // Reset alarm (alarm code + cluster identifier)
+  { "ResetAllAlarms","0009!01" },             // Reset all alarms
   { "Hue",          "0300!00/xx000A00" },     // Move to Hue, shortest time, 1s
   { "Sat",          "0300!03/xx0A00" },       // Move to Sat
   { "HueSat",       "0300!06/xxyy0A00" },     // Hue, Sat
