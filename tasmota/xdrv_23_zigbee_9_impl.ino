@@ -492,7 +492,7 @@ void CmndZigbeeSend(void) {
 
   const JsonVariant &val_device = getCaseInsensitive(json, PSTR("device"));
   if (nullptr != &val_device) { device = strToUInt(val_device); }
-  const JsonVariant val_endpoint = getCaseInsensitive(json, PSTR("endpoint"));
+  const JsonVariant &val_endpoint = getCaseInsensitive(json, PSTR("endpoint"));
   if (nullptr != &val_endpoint) { endpoint = strToUInt(val_endpoint); }
   const JsonVariant val_cmd = getCaseInsensitive(json, PSTR("Send"));
   if (nullptr != &val_cmd) {
@@ -550,7 +550,9 @@ void CmndZigbeeSend(void) {
           }
         }
 
+        AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeSend: command_template = %s"), cmd_str.c_str());
         cmd_str = zigbeeCmdAddParams(cmd_str.c_str(), x, y, z);   // fill in parameters
+        AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeSend: command_final    = %s"), cmd_str.c_str());
       } else {
         // we have zero command, pass through until last error for missing command
       }
