@@ -521,25 +521,15 @@ void CmndZigbeeCmd(void) {
   //const char* data = "";        // empty string is valid
   String cmd_str = "";                // the actual command
 
-  const JsonVariant &val_device = getCaseInsensitive(json, ("device"));
-//Serial.printf("Checkpoint 1, %08X\n", &val_device);
-//Serial.printf("Checkpoint 1.5, %s\n", val_device.as<const char*>());
-//Serial.printf("Checkpoint 1.6, %08X\n", &val_device);
+  const JsonVariant &val_device = getCaseInsensitive(json, PSTR("device"));
   if (nullptr != &val_device) { dstAddr = strToUInt(val_device); }
-//Serial.printf("Checkpoint 2, dstAddr = 0x%04X\n", dstAddr);
-  const JsonVariant val_endpoint = getCaseInsensitive(json, ("endpoint"));
+  const JsonVariant val_endpoint = getCaseInsensitive(json, PSTR("endpoint"));
   if (nullptr != &val_endpoint) { endpoint = strToUInt(val_endpoint); }
-  const JsonVariant val_cmd = getCaseInsensitive(json, ("Send"));
+  const JsonVariant val_cmd = getCaseInsensitive(json, PSTR("Send"));
   if (nullptr != &val_cmd) {
-
-  // UpperCase_P(parm_uc, PSTR("device"));
-  // if (json.containsKey(parm_uc)) { dstAddr = strToUInt(json[parm_uc]); }
-  // UpperCase_P(parm_uc, PSTR("endpoint"));
-  // if (json.containsKey(parm_uc)) { endpoint = strToUInt(json[parm_uc]); }
-  // UpperCase_P(parm_uc, PSTR("cmd"));
-  // if (json.containsKey(parm_uc)) {
-    // we have a mandatory 'cmd' attribute
-//    const JsonVariant &cmd_json = json[parm_uc];
+    // probe the type of the argument
+    // If JSON object, it's high level commands
+    // If String, it's a low level command
     if (val_cmd.is<JsonObject>()) {
       // we have a high-level command
       JsonObject &cmd_obj = val_cmd.as<JsonObject&>();
