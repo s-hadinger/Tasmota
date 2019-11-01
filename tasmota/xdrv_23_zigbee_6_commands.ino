@@ -103,12 +103,12 @@ String zigbeeCmdAddParams(const char *zcl_cmd_P, uint32_t x, uint32_t y, uint32_
 
 const char kZ_Alias[] PROGMEM = "OFF|" D_OFF "|" D_FALSE "|" D_STOP  "|" "OPEN" "|"           // 0
                                 "ON|"  D_ON  "|" D_TRUE  "|" D_START "|" "CLOSE" "|"          // 1
-                                "TOGGLE|" D_TOGGLE "|" "STOP" "|"                             // 2
+                                "TOGGLE|" D_TOGGLE "|"                                        // 2
                                 "ALL" ;                                                       // 255
 
 const uint8_t kZ_Numbers[] PROGMEM = { 0,0,0,0,0,
                                        1,1,1,1,1,
-                                       2,2,2,
+                                       2,2,
                                        255 };
 
 uint32_t ZigbeeAliasOrNumber(const char *state_text) {
@@ -116,7 +116,7 @@ uint32_t ZigbeeAliasOrNumber(const char *state_text) {
   int state_number = GetCommandCode(command, sizeof(command), state_text, kZ_Alias);
   if (state_number >= 0) {
     // found an alias, get its value
-    return pgm_read_byte(sNumbers + state_number);
+    return pgm_read_byte(kZ_Numbers + state_number);
   } else {
     // no alias found, convert it as number
     return strtoul(state_text, nullptr, 0);
