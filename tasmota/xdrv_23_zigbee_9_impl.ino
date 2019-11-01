@@ -518,7 +518,6 @@ void CmndZigbeeSend(void) {
           x = value.as<unsigned int>();
         } else {
           // if non-bool or non-int, trying char*
-          // TODO replace values like On/Off, Up/Down...
           const char *s_const = value.as<const char*>();
           if (s_const != nullptr) {
             char s[strlen(s_const)+1];
