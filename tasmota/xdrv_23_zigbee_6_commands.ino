@@ -44,9 +44,10 @@ const Z_CommandConverter Z_Commands[] = {
 };
 
 const __FlashStringHelper* zigbeeFindCommand(const char *command) {
+  char parm_uc[16];   // used to convert JSON keys to uppercase
   for (uint32_t i = 0; i < sizeof(Z_Commands) / sizeof(Z_Commands[0]); i++) {
     const Z_CommandConverter *conv = &Z_Commands[i];
-    if (0 == strcmp_P(command, conv->tasmota_cmd)) {
+    if (caseInsensitiveEquals_P(command, conv->tasmota_cmd)) {
       return (const __FlashStringHelper*) conv->zcl_cmd;
     }
   }
