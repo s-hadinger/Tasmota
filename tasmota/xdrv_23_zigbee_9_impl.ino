@@ -438,19 +438,6 @@ void zigbeeZCLSendStr(uint16_t dstAddr, uint8_t endpoint, const char *data) {
   ResponseCmndDone();
 }
 
-bool caseInsensitiveEquals_P(const char *us1, const char *us2) {
-  // case insensitive cmp from https://stackoverflow.com/questions/5820810/case-insensitive-string-comp-in-c
-  while (tolower(*us1) == tolower(pgm_read_byte(us2))) {
-    if (*us1 == '\0') { break; }
-    us1++;
-    us2++;
-  }
-  if ((*us1 == '\0') && (pgm_read_byte(us2) == '\0')) {
-    return true;
-  }
-  return false;
-}
-
 // Get an JSON attribute, with case insensitive key search
 JsonVariant &getCaseInsensitive(const JsonObject &json, const char *needle) {
   // key can be in PROGMEM
@@ -462,7 +449,7 @@ JsonVariant &getCaseInsensitive(const JsonObject &json, const char *needle) {
     const char *key = kv.key;
     JsonVariant &value = kv.value;
 
-    if (caseInsensitiveEquals_P(key, needle)) {
+    if (0 == strcasecmp_P(key, needle)) {
       return value;
     }
   }
