@@ -469,6 +469,7 @@ void CmndZigbeeSend(void) {
   // ZigbeeSend { "devicse":"0x1234", "endpoint":"0x03", "send":{"Power":1} }
   // ZigbeeSend { "device":"0x1234", "endpoint":"0x03", "send":{"Color":"1,2"} }
   // ZigbeeSend { "device":"0x1234", "endpoint":"0x03", "send":{"Color":"0x1122,0xFFEE"} }
+  if (zigbee.init_phase) { ResponseCmndChar(D_ZIGBEE_NOT_STARTED); return; }
   DynamicJsonBuffer jsonBuf;
   JsonObject &json = jsonBuf.parseObject(XdrvMailbox.data);
   if (!json.success()) { ResponseCmndChar(D_JSON_INVALID_JSON); return; }
@@ -564,6 +565,7 @@ void CmndZigbeeSend(void) {
 
 // Probe a specific device to get its endpoints and supported clusters
 void CmndZigbeeProbe(void) {
+  if (zigbee.init_phase) { ResponseCmndChar(D_ZIGBEE_NOT_STARTED); return; }
   char dataBufUc[XdrvMailbox.data_len];
   UpperCase(dataBufUc, XdrvMailbox.data);
   RemoveSpace(dataBufUc);
@@ -580,6 +582,7 @@ void CmndZigbeeProbe(void) {
 
 // Send an attribute read command to a device, specifying cluster and list of attributes
 void CmndZigbeeRead(void) {
+  if (zigbee.init_phase) { ResponseCmndChar(D_ZIGBEE_NOT_STARTED); return; }
   char parm_uc[12];   // used to convert JSON keys to uppercase
   // ZigbeeRead {"Device":"0xF289","Cluster":0,"Endpoint":3,"Attr":5}
   // ZigbeeRead {"Device":"0xF289","Cluster":"0x0000","Endpoint":"0x0003","Attr":"0x0005"}
@@ -635,6 +638,7 @@ void CmndZigbeeRead(void) {
 // Allow or Deny pairing of new Zigbee devices
 void CmndZigbeePermitJoin(void)
 {
+  if (zigbee.init_phase) { ResponseCmndChar(D_ZIGBEE_NOT_STARTED); return; }
   uint32_t payload = XdrvMailbox.payload;
   if (payload < 0) { payload = 0; }
   if ((99 != payload) && (payload > 1)) { payload = 1; }
