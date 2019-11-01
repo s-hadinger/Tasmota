@@ -571,18 +571,20 @@ void CmndZigbeeCmd(void) {
           // if non-bool or non-int, trying char*
           // TODO replace values like On/Off, Up/Down...
           const char *s_const = value.as<const char*>();
-          char s[strlen(s_const)+1];
-          strcpy(s, s_const);
-          if ((nullptr != s) && (0x00 != *s)) {     // ignore any null or empty string, could represent 'null' json value
-            char *sval = strtok(s, ",");
-            if (sval) {
-              x = strtoul(sval, nullptr, 0);
-              sval = strtok(nullptr, ",");
+          if (s_const != nullptr) {
+            char s[strlen(s_const)+1];
+            strcpy(s, s_const);
+            if ((nullptr != s) && (0x00 != *s)) {     // ignore any null or empty string, could represent 'null' json value
+              char *sval = strtok(s, ",");
               if (sval) {
-                y = strtoul(sval, nullptr, 0);
+                x = strtoul(sval, nullptr, 0);
                 sval = strtok(nullptr, ",");
                 if (sval) {
-                  z = strtoul(sval, nullptr, 0);
+                  y = strtoul(sval, nullptr, 0);
+                  sval = strtok(nullptr, ",");
+                  if (sval) {
+                    z = strtoul(sval, nullptr, 0);
+                  }
                 }
               }
             }
