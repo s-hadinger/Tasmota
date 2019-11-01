@@ -36,6 +36,7 @@ const Z_CommandConverter Z_Commands[] = {
   { "HueSat",       "0300!06/xxyy0A00" },     // Hue, Sat
   { "Color",        "0300!07/xxxxyyyy0A00" }, // x, y (uint16)
   { "CT",           "0300!0A/xxxx0A00" },     // Color Temperature Mireds (uint16)
+  { "Shutter",      "0102!xx" },
   { "ShutterOpen",  "0102!00"},
   { "ShutterClose", "0102!01"},
   { "ShutterStop",  "0102!02"},
@@ -98,6 +99,28 @@ String zigbeeCmdAddParams(const char *zcl_cmd_P, uint32_t x, uint32_t y, uint32_
   AddLog_P2(LOG_LEVEL_DEBUG, PSTR("SendZCLCommand_P: zcl_cmd = %s"), zcl_cmd);
 
   return String(zcl_cmd);
+}
+
+const char kZ_Alias[] PROGMEM = "OFF|" D_OFF "|" D_FALSE "|" D_STOP  "|" "OPEN" "|"           // 0
+                                "ON|"  D_ON  "|" D_TRUE  "|" D_START "|" "CLOSE" "|"          // 1
+                                "TOGGLE|" D_TOGGLE "|" "STOP" "|"                             // 2
+                                "ALL" ;                                                       // 255
+
+const uint8_t kZ_Numbers[] PROGMEM = { 0,0,0,0,0,
+                                       1,1,1,1,1,
+                                       2,2,2,
+                                       255 };
+
+uint32_t ZigbeeAliasOrNumber(const char *state_text) {
+  char command[16];
+  int state_number = GetCommandCode(command, sizeof(command), state_text, kZ_Alias);
+  if (state_number >= 0) {
+    // found an alias, get its value
+    return pgm_read_byte(sNumbers + state_number);
+  } else {
+    // no alias found, convert it as number
+    return strtoul(state_text, nullptr, 0);
+  }
 }
 
 #endif // USE_ZIGBEE

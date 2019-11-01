@@ -486,6 +486,7 @@ void CmndZigbeeSend(void) {
   if (!json.success()) { ResponseCmndChar(D_JSON_INVALID_JSON); return; }
 
   // params
+  static char delim[] = ", ";     // delimiters for parameters
   uint16_t device = 0xFFFF;       // 0xFFFF is braodcast, so considered valid
   uint8_t  endpoint = 0x00;       // 0x00 is invalid for the dst endpoint
   String   cmd_str = "";          // the actual low-level command, either specified or computed
@@ -534,15 +535,15 @@ void CmndZigbeeSend(void) {
             char s[strlen(s_const)+1];
             strcpy(s, s_const);
             if ((nullptr != s) && (0x00 != *s)) {     // ignore any null or empty string, could represent 'null' json value
-              char *sval = strtok(s, ",");
+              char *sval = strtok(s, delim);
               if (sval) {
-                x = strtoul(sval, nullptr, 0);
-                sval = strtok(nullptr, ",");
+                x = ZigbeeAliasOrNumber(sval);
+                sval = strtok(nullptr, delim);
                 if (sval) {
-                  y = strtoul(sval, nullptr, 0);
-                  sval = strtok(nullptr, ",");
+                  y = ZigbeeAliasOrNumber(sval);
+                  sval = strtok(nullptr, delim);
                   if (sval) {
-                    z = strtoul(sval, nullptr, 0);
+                    z = ZigbeeAliasOrNumber(sval);
                   }
                 }
               }
