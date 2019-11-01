@@ -38,11 +38,11 @@ TasmotaSerial *ZigbeeSerial = nullptr;
 
 const char kZigbeeCommands[] PROGMEM = "|" D_CMND_ZIGBEEZNPSEND "|" D_CMND_ZIGBEE_PERMITJOIN
                                 "|" D_CMND_ZIGBEE_STATUS "|" D_CMND_ZIGBEE_RESET "|" D_CMND_ZIGBEE_ZCL_SEND
-                                "|" D_CMND_ZIGBEE_PROBE "|" D_CMND_ZIGBEE_READ "|" D_CMND_ZIGBEE_CMD;
+                                "|" D_CMND_ZIGBEE_PROBE "|" D_CMND_ZIGBEE_READ "|" D_CMND_ZIGBEE_SEND;
 
 void (* const ZigbeeCommand[])(void) PROGMEM = { &CmndZigbeeZNPSend, &CmndZigbeePermitJoin,
                                 &CmndZigbeeStatus, &CmndZigbeeReset, &CmndZigbeeZCLSend,
-                                &CmndZigbeeProbe, &CmndZigbeeRead, &CmndZigbeeCmd };
+                                &CmndZigbeeProbe, &CmndZigbeeRead, &CmndZigbeeSend };
 
 int32_t ZigbeeProcessInput(class SBuffer &buf) {
   if (!zigbee.state_machine) { return -1; }     // if state machine is stopped, send 'ignore' message
@@ -423,13 +423,13 @@ void zigbeeZCLSendStr(uint16_t dstAddr, uint8_t endpoint, const char *data) {
   if (0 == endpoint) {
     // endpoint is not specified, let's try to find it from shortAddr
     endpoint = zigbee_devices.findClusterEndpointIn(dstAddr, cluster);
-    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("CmndZigbeeZCLSend: guessing endpoint 0x%02X"), endpoint);
+    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeSend: guessing endpoint 0x%02X"), endpoint);
   }
-  AddLog_P2(LOG_LEVEL_DEBUG, PSTR("CmndZigbeeZCLSend: dstAddr 0x%04X, cluster 0x%04X, endpoint 0x%02X, cmd 0x%02X, data %s"),
+  AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeSend: dstAddr 0x%04X, cluster 0x%04X, endpoint 0x%02X, cmd 0x%02X, data %s"),
     dstAddr, cluster, endpoint, cmd, data);
 
   if (0 == endpoint) {
-    AddLog_P2(LOG_LEVEL_INFO, PSTR("CmndZigbeeZCLSend: unspecified endpoint"));
+    AddLog_P2(LOG_LEVEL_INFO, PSTR("ZigbeeSend: unspecified endpoint"));
     return;
   }
 
@@ -497,17 +497,11 @@ JsonVariant &getCaseInsensitive(const JsonObject &json, const char *needle) {
   return *(JsonVariant*)nullptr;
 }
 
-void CmndZigbeeCmd(void) {
-  char parm_uc[12];   // used to convert JSON keys to uppercase
+void CmndZigbeeSend(void) {
   // ZigbeeCmd { "dst":"0x1234", "endpoint":"0x03", "Power":1 }
   // ZigbeeCmd { "dst":"0x1234", "endpoint":"0x03", "Dimmer":100 }
   // ZigbeeCmd { "dst":"0x1234", "endpoint":"0x03", "Color":"0x0400,0x0500" }
   // ZigbeeCmd { "dst":"0x1234", "endpoint":"0x03", "ShutterOpen":null }
-
-  // TODO cleaning
-  //char dataBufUc[XdrvMailbox.data_len];
-  //UpperCase(dataBufUc, XdrvMailbox.data);
-  //RemoveSpace(dataBufUc);
 
   DynamicJsonBuffer jsonBuf;
   JsonObject &json = jsonBuf.parseObject(XdrvMailbox.data);
