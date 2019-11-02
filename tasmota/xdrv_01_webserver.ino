@@ -364,7 +364,7 @@ const char HTTP_HEAD_STYLE3[] PROGMEM =
 #ifdef FIRMWARE_MINIMAL
   "<div style='text-align:center;color:#%06x;'><h3>" D_MINIMAL_FIRMWARE_PLEASE_UPGRADE "</h3></div>"  // COLOR_TEXT_WARNING
 #endif
-  "<div style='text-align:center;'><noscript>" D_NOSCRIPT "<br></noscript>"
+  "<div style='text-align:center;color:#%06x;'><noscript>" D_NOSCRIPT "<br></noscript>" // COLOR_TITLE
 #ifdef LANGUAGE_MODULE_NAME
   "<h3>" D_MODULE " %s</h3>"
 #else
@@ -832,6 +832,7 @@ void WSContentSendStyle_P(const char* formatP, ...)
 #ifdef FIRMWARE_MINIMAL
     WebColor(COL_TEXT_WARNING),
 #endif
+    WebColor(COL_TITLE),
     ModuleName().c_str(), Settings.friendlyname[0]);
   if (Settings.flag3.gui_hostname_ip) {
     bool lip = (static_cast<uint32_t>(WiFi.localIP()) != 0);
@@ -2578,7 +2579,7 @@ bool JsonWebColor(const char* dataBuf)
   // Default (light)
   // {"WebColor":["#000000","#ffffff","#f2f2f2","#000000","#ffffff","#000000","#ffffff","#ff0000","#008000","#ffffff","#1fa3ec","#0e70a4","#d43535","#931f1f","#47c266","#5aaf6f","#ffffff","#999999","#000000"]}
   // Alternative (Dark)
-  // {"webcolor":["#eeeeee","#181818","#4f4f4f","#000000","#dddddd","#008000","#222222","#ff0000","#008000","#ffffff","#1fa3ec","#0e70a4","#d43535","#931f1f","#47c266","#5aaf6f","#ffffff","#999999","#000000"]}
+  // {"Webcolor":["#eeeeee","#181818","#4f4f4f","#000000","#dddddd","#6a9955","#1e1e1e","#ff0000","#008000","#ffffff","#1fa3ec","#0e70a4","#d43535","#931f1f","#47c266","#5aaf6f","#ffffff","#999999","#eeeeee"]}
 
   char dataBufLc[strlen(dataBuf) +1];
   LowerCase(dataBufLc, dataBuf);

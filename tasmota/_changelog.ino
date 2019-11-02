@@ -1,4 +1,8 @@
 /*********************************************************************************************\
+ * 7.0.0.2 20191102
+ * Add command WebColor19 to control color of Module and Name (#6811)
+ * Add support for Honeywell I2C HIH series Humidity and Temperetaure sensor (#6808)
+ *
  * 7.0.0.1 20191027
  * Remove references to versions before 6.0
  * Change default GUI to dark theme
@@ -8,6 +12,7 @@
  * Fix better control of RGB/White when SetOption37 >128, added Dimmer1 and Dimmer2 commands (#6714)
  * Add hide Alexa objects with friendlyname starting with '$' (#6722, #6762)
  * Add command SetOption75 0/1 to switch between grouptopic (0) using fulltopic replacing %topic% or (1) is cmnd/<grouptopic> (#6779)
+ * Change Update IRremoteESP8266 to v2.7.0
  *
  * 6.7.1.1 20191026
  * Change ArduinoSlave to TasmotaSlave (Experimental)
