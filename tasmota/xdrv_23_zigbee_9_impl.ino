@@ -278,7 +278,7 @@ void CmndZigbeeReset(void) {
 
 void CmndZigbeeStatus(void) {
   if (ZigbeeSerial) {
-    String dump = zigbee_devices.dump(XdrvMailbox.payload);
+    String dump = zigbee_devices.dump(XdrvMailbox.index, XdrvMailbox.payload);
     Response_P(PSTR("{\"%s%d\":%s}"), XdrvMailbox.command, XdrvMailbox.payload, dump.c_str());
   }
 }
