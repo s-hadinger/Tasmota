@@ -4,6 +4,7 @@
  * Change supported PCF8574 I2C address range to 0x20 - 0x26 allowing other I2C devices with address 0x27 to be used at the same time
  * Change supported PCF8574A I2C address range to 0x39 - 0x3F allowing other I2C devices with address 0x38 to be used at the same time
  * Change supported MCP230xx I2C address range to 0x20 - 0x26 allowing other I2C devices with address 0x27 to be used at the same time
+ * Add Keep last channels values when Color command end with '=' #6799
  *
  * 7.0.0.3 20191103
  * Initial support for I2C driver runtime control using command I2CDriver and document I2CDEVICES.md
@@ -615,7 +616,7 @@
  * Revert sonoff-minimal removals causing failure of wifi connection (#3177)
  *
  * 6.1.0 20180706
- * Remove version 3, 4 and pre 5.2 settings auto-upgrade. See https://github.com/arendst/Tasmota/wiki/Upgrade#migration-path
+ * Remove version 3, 4 and pre 5.2 settings auto-upgrade. See https://github.com/arendst/Tasmota/wiki/Upgrading#migration-path
  * Change default CFG_HOLDER from 0x20161209 to 4617 (=0x1209) - no impact on default upgrades
  * Change number of supported switches from 4 to 8 (#2885, #3086)
  * Change BME680 driver from Adafruit to Bosch BME680 library (#2969)
