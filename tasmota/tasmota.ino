@@ -790,6 +790,14 @@ bool MqttShowSensor(void)
   return json_data_available;
 }
 
+void MqttPublishSensor(void)
+{
+  mqtt_data[0] = '\0';
+  if (MqttShowSensor()) {
+    MqttPublishTeleSensor();
+  }
+}
+
 /********************************************************************************************/
 
 void PerformEverySecond(void)
@@ -851,6 +859,7 @@ void PerformEverySecond(void)
         RulesTeleperiod();  // Allow rule based HA messages
 #endif  // USE_RULES
       }
+
       XdrvCall(FUNC_AFTER_TELEPERIOD);
     }
   }
@@ -1260,7 +1269,7 @@ void SerialInput(void)
   if (Settings.flag.mqtt_serial && serial_in_byte_counter && (millis() > (serial_polling_window + SERIAL_POLLING))) {  // CMND_SERIALSEND and CMND_SERIALLOG
     serial_in_buffer[serial_in_byte_counter] = 0;                                // Serial data completed
     char hex_char[(serial_in_byte_counter * 2) + 2];
-    Response_P(PSTR(",\"" D_JSON_SERIALRECEIVED "\":\"%s\"}"),
+    Response_P(PSTR("{\"" D_JSON_SERIALRECEIVED "\":\"%s\"}"),
       (Settings.flag.mqtt_serial_raw) ? ToHex_P((unsigned char*)serial_in_buffer, serial_in_byte_counter, hex_char, sizeof(hex_char)) : serial_in_buffer);
     MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_SERIALRECEIVED));
     XdrvRulesProcess();
@@ -1538,7 +1547,7 @@ void setup(void)
 #endif
 #endif  // USE_EMULATION
 
-  if (Settings.param[P_BOOT_LOOP_OFFSET]) {
+  if (Settings.param[P_BOOT_LOOP_OFFSET]) {         // SetOption36
     // Disable functionality as possible cause of fast restart within BOOT_LOOP_TIME seconds (Exception, WDT or restarts)
     if (RtcReboot.fast_reboot_count > Settings.param[P_BOOT_LOOP_OFFSET]) {       // Restart twice
       Settings.flag3.user_esp8285_enable = 0;       // SetOption51 - Enable ESP8285 user GPIO's - Disable ESP8285 Generic GPIOs interfering with flash SPI
