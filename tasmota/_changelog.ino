@@ -1,11 +1,12 @@
 /*********************************************************************************************\
  * 7.0.0.4 20191108
- * Add command WifiPower 0 .. 20.5 to set Wifi Output Power which will be default set to 17dB
+ * Add command WifiPower 0 .. 20.5 to set Wifi Output Power which will be default set to 17dBm
  * Change supported PCF8574 I2C address range to 0x20 - 0x26 allowing other I2C devices with address 0x27 to be used at the same time
  * Change supported PCF8574A I2C address range to 0x39 - 0x3F allowing other I2C devices with address 0x38 to be used at the same time
  * Change supported MCP230xx I2C address range to 0x20 - 0x26 allowing other I2C devices with address 0x27 to be used at the same time
  * Add Keep last channels values when Color command end with '=' (#6799)
  * Add support for I2C sensor TLS2591 Light Intensity sensor (#6873)
+ * Change Kept only NEC/RC5/RC6/HASH IR protocols in standard Tasmota, all other protocols require Tasmota-IR, saving 4K
  *
  * 7.0.0.3 20191103
  * Add command I2cDriver for I2C driver runtime control using document I2CDEVICES.md
@@ -22,7 +23,7 @@
  * Fix Reduce flash size after change to IRremoteESP8266 v2.7.0
  *
  * 7.0.0.1 20191027
- * Remove references to versions before 6.0
+ * Remove update support for versions before 6.0
  * Change default GUI to dark theme
  * Add command SetOption73 0/1 to re-enable HTTP Cross-Origin Resource Sharing (CORS) now default disabled (#6767)
  * Add frequency to ADE7953 energy monitor as used in Shelly 2.5 by ljakob (#6778)
