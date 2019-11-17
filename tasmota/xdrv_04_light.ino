@@ -1797,6 +1797,9 @@ void LightAnimate(void)
     }
     if (Light.fade_running) {
       LightApplyFade();
+      // AddLog_P2(LOG_LEVEL_INFO, PSTR("LightApplyFade %d %d %d %d %d - %d %d %d %d %d"),
+      //   Light.fade_cur_8[0], Light.fade_cur_8[1], Light.fade_cur_8[2], Light.fade_cur_8[3], Light.fade_cur_8[4],
+      //   Light.fade_cur_10[0], Light.fade_cur_10[1], Light.fade_cur_10[2], Light.fade_cur_10[3], Light.fade_cur_10[4]);
 
       LightSetOutputs(Light.fade_cur_8, Light.fade_cur_10);
     }
