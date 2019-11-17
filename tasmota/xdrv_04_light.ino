@@ -230,6 +230,7 @@ const uint8_t _ledTable[] = {
 //867,879,887,899,907,919,931,939,951,963,971,983,995,1003,1015,1023
 
 struct LIGHT {
+  uint32_t strip_timer_counter = 0;  // Bars and Gradient
   power_t power = 0;                      // Power<x> for each channel if SetOption68, or boolean if single light
 
   uint16_t wakeup_counter = 0;
@@ -253,10 +254,15 @@ struct LIGHT {
   bool update = true;
   bool pwm_multi_channels = false;        // SetOption68, treat each PWM channel as an independant dimmer
 
-  uint32_t strip_timer_counter = 0;  // Bars and Gradient
   bool     fade_running = false;
-  uint8_t  fade_targer_8[LST_MAX];        // 8 bits resolution target channel values
-  uint16_t fade_target_10[LST_MAX];       // 10 bits resolution target channel values
+  bool     fade_initialized = false;    // take into account that at boot time there is no previous channels values
+  uint8_t  fade_start_8[LST_MAX];
+  uint8_t  fade_cur_8[LST_MAX];
+  uint8_t  fade_end_8[LST_MAX];        // 8 bits resolution target channel values
+  uint16_t fade_start_10[LST_MAX];
+  uint16_t fade_cur_10[LST_MAX];
+  uint16_t fade_end_10[LST_MAX];       // 10 bits resolution target channel values
+  uint32_t fade_counter = 0;
 } Light;
 
 power_t LightPower(void)
@@ -1690,7 +1696,7 @@ void LightAnimate(void)
     }
   }
 
-  if ((Settings.light_scheme < LS_MAX) || !Light.power) {
+  if (Settings.light_scheme < LS_MAX) {     // exclude WS281X Neopixel
 
     // Apply power modifiers to Light.new_color
     LightApplyPower(Light.new_color, Light.power);
@@ -1701,6 +1707,7 @@ void LightAnimate(void)
     if (Light.update) {
       uint16_t cur_col_10bits[LST_MAX];   // 10 bits version of cur_col for PWM
       Light.update = false;
+      Light.fade_running = false;         // cancel ongoing fade
 
       // first set 8 and 10 bits channels
       for (uint32_t i = 0; i < LST_MAX; i++) {
@@ -1768,8 +1775,23 @@ void LightAnimate(void)
         cur_col_10bits[i] = orig_col_10bits[Light.color_remap[i]];
       }
 
-      // push the final values at 8 and 10 bits resolution to the PWMs
-      LightSetOutputs(cur_col, cur_col_10bits);
+      if ((!Settings.light_fade) || (!Light.fade_initialized)) { // no fade, or fade not initialized
+        // push the final values at 8 and 10 bits resolution to the PWMs
+        LightSetOutputs(cur_col, cur_col_10bits);
+        // record the current value for a future Fade
+        memcpy(Light.fade_start_8, cur_col, sizeof(Light.fade_start_8));
+        memcpy(Light.fade_start_10, cur_col_10bits, sizeof(Light.fade_start_10));
+        Light.fade_initialized = true;
+      } else {  // fade on
+        Light.fade_running = true;
+        Light.fade_counter = 0;
+        memcpy(Light.fade_cur_8, Light.fade_start_8, sizeof(Light.fade_start_8));
+        memcpy(Light.fade_end_8, cur_col, sizeof(Light.fade_start_8));
+        memcpy(Light.fade_cur_10, Light.fade_start_10, sizeof(Light.fade_start_10));
+        memcpy(Light.fade_end_10, cur_col_10bits, sizeof(Light.fade_start_10));
+      }
+    } else if (Light.fade_running) {
+        Light.fade_counter++;
     }
   }
 }
