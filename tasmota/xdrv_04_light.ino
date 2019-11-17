@@ -959,11 +959,13 @@ public:
   }
 
   // calculate the levels for each channel
-  void calcLevels() {
+  // if no parameter, results are stored in Light.current_color
+  void calcLevels(uint8_t *current_color = nullptr) {
     uint8_t r,g,b,c,w,briRGB,briCT;
+    if (current_color == nullptr) { current_color = Light.current_color; }
 
     if (_pwm_multi_channels) { // if PWM multi channel, no more transformation required
-      _state->getChannelsRaw(Light.current_color);
+      _state->getChannelsRaw(current_color);
       return;
     }
 
@@ -971,32 +973,32 @@ public:
     briRGB = _state->getBriRGB();
     briCT = _state->getBriCT();
 
-    Light.current_color[0] = Light.current_color[1] = Light.current_color[2] = 0;
-    Light.current_color[3] = Light.current_color[4] = 0;
+    current_color[0] = current_color[1] = current_color[2] = 0;
+    current_color[3] = current_color[4] = 0;
     switch (Light.subtype) {
       case LST_NONE:
-        Light.current_color[0] = 255;
+        current_color[0] = 255;
         break;
       case LST_SINGLE:
-        Light.current_color[0] = briRGB;
+        current_color[0] = briRGB;
         break;
       case LST_COLDWARM:
-        Light.current_color[0] = c;
-        Light.current_color[1] = w;
+        current_color[0] = c;
+        current_color[1] = w;
         break;
       case LST_RGBW:
       case LST_RGBWC:
         if (LST_RGBWC == Light.subtype) {
-          Light.current_color[3] = c;
-          Light.current_color[4] = w;
+          current_color[3] = c;
+          current_color[4] = w;
         } else {
-          Light.current_color[3] = briCT;
+          current_color[3] = briCT;
         }
         // continue
       case LST_RGB:
-        Light.current_color[0] = r;
-        Light.current_color[1] = g;
-        Light.current_color[2] = b;
+        current_color[0] = r;
+        current_color[1] = g;
+        current_color[2] = b;
         break;
     }
   }
@@ -1594,22 +1596,28 @@ void LightSetPower(void)
   LightAnimate();
 }
 
+// On entry Light.new_color[5] contains the color to be displayed
+// and Light.last_color[5] the color currently displayed
+// Light.power tells which lights or channels (SetOption68) are on/off
 void LightAnimate(void)
 {
   uint8_t cur_col[LST_MAX];
   uint16_t light_still_on = 0;
 
   Light.strip_timer_counter++;
-  if (!Light.power) {                   // Power Off
-    if (Light.fade_running) {
+  if (!Light.power) {                   // All channels powered off
+    if (!Light.fade_running) {
       sleep = Settings.sleep;
-    } else {                            // All lights are really off
-      for (uint32_t i = 0; i < LST_MAX; i++) {
-        Light.new_color[i] = 0;     // make sure all channels are zero
-      }
-    sleep = Settings.sleep;
-    Light.strip_timer_counter = 0;
+      Light.strip_timer_counter = 0;
     }
+    //   sleep = 0;
+    // } else {                            // All lights are really off
+    //   for (uint32_t i = 0; i < LST_MAX; i++) {
+    //     Light.new_color[i] = 0;     // make sure all channels are zero
+    //   }
+    // sleep = Settings.sleep;
+    // Light.strip_timer_counter = 0;
+    // }
     
     // Light.strip_timer_counter = 0;
     // for (uint32_t i = 0; i < Light.subtype; i++) {
@@ -1632,14 +1640,14 @@ void LightAnimate(void)
     // }
   } else {
 #ifdef PWM_LIGHTSCHEME0_IGNORE_SLEEP
-    sleep = (LS_POWER == Settings.light_scheme) ? Settings.sleep : 0;  // If no animation then use sleep as is
+    sleep = (LS_POWER == Settings.light_scheme) && (!Light.fade_running) ? Settings.sleep : 0;  // If no animation then use sleep as is
 #else
     sleep = 0;
 #endif // PWM_LIGHTSCHEME0_IGNORE_SLEEP
     switch (Settings.light_scheme) {
       case LS_POWER:
-        light_controller.calcLevels();
-        LightFade();
+        light_controller.calcLevels(Light.new_color);
+        //LightFade();  TODO
         break;
       case LS_WAKEUP:
         if (2 == Light.wakeup_active) {
