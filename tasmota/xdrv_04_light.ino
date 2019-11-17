@@ -230,7 +230,6 @@ const uint8_t _ledTable[] = {
 //867,879,887,899,907,919,931,939,951,963,971,983,995,1003,1015,1023
 
 struct LIGHT {
-  unsigned long strip_timer_counter = 0;  // Bars and Gradient
   power_t power = 0;                      // Power<x> for each channel if SetOption68, or boolean if single light
 
   uint16_t wakeup_counter = 0;
@@ -253,6 +252,11 @@ struct LIGHT {
 
   bool update = true;
   bool pwm_multi_channels = false;        // SetOption68, treat each PWM channel as an independant dimmer
+
+  uint32_t strip_timer_counter = 0;  // Bars and Gradient
+  bool     fade_running = false;
+  uint8_t  fade_targer_8[LST_MAX];        // 8 bits resolution target channel values
+  uint16_t fade_target_10[LST_MAX];       // 10 bits resolution target channel values
 } Light;
 
 power_t LightPower(void)
@@ -1480,28 +1484,30 @@ void LightPreparePower(void)
 
 void LightFade(void)
 {
-  if (0 == Settings.light_fade) {
-    for (uint32_t i = 0; i < Light.subtype; i++) {
-      Light.new_color[i] = Light.current_color[i];
-    }
-  } else {
-    uint8_t shift = Settings.light_speed;
-    if (Settings.light_speed > 6) {
-      shift = (Light.strip_timer_counter % (Settings.light_speed -6)) ? 0 : 8;
-    }
-    if (shift) {
-      for (uint32_t i = 0; i < Light.subtype; i++) {
-        if (Light.new_color[i] != Light.current_color[i]) {
-          if (Light.new_color[i] < Light.current_color[i]) {
-            Light.new_color[i] += ((Light.current_color[i] - Light.new_color[i]) >> shift) +1;
-          }
-          if (Light.new_color[i] > Light.current_color[i]) {
-            Light.new_color[i] -= ((Light.new_color[i] - Light.current_color[i]) >> shift) +1;
-          }
-        }
-      }
-    }
-  }
+  memcpy(Light.new_color, Light.current_color, sizeof(Light.new_color));
+
+  // if (0 == Settings.light_fade) {
+  //   for (uint32_t i = 0; i < Light.subtype; i++) {
+  //     Light.new_color[i] = Light.current_color[i];
+  //   }
+  // } else {
+  //   uint8_t shift = Settings.light_speed;
+  //   if (Settings.light_speed > 6) {
+  //     shift = (Light.strip_timer_counter % (Settings.light_speed -6)) ? 0 : 8;
+  //   }
+  //   if (shift) {
+  //     for (uint32_t i = 0; i < Light.subtype; i++) {
+  //       if (Light.new_color[i] != Light.current_color[i]) {
+  //         if (Light.new_color[i] < Light.current_color[i]) {
+  //           Light.new_color[i] += ((Light.current_color[i] - Light.new_color[i]) >> shift) +1;
+  //         }
+  //         if (Light.new_color[i] > Light.current_color[i]) {
+  //           Light.new_color[i] -= ((Light.new_color[i] - Light.current_color[i]) >> shift) +1;
+  //         }
+  //       }
+  //     }
+  //   }
+  // }
 }
 
 void LightWheel(uint8_t wheel_pos)
@@ -1595,28 +1601,36 @@ void LightAnimate(void)
 
   Light.strip_timer_counter++;
   if (!Light.power) {                   // Power Off
+    if (Light.fade_running) {
+      sleep = Settings.sleep;
+    } else {                            // All lights are really off
+      for (uint32_t i = 0; i < LST_MAX; i++) {
+        Light.new_color[i] = 0;     // make sure all channels are zero
+      }
     sleep = Settings.sleep;
     Light.strip_timer_counter = 0;
-    for (uint32_t i = 0; i < Light.subtype; i++) {
-      light_still_on += Light.new_color[i];
     }
-    if (light_still_on && Settings.light_fade && (Settings.light_scheme < LS_MAX)) {
-      uint8_t speed = Settings.light_speed;
-      if (speed > 6) {
-        speed = 6;
-      }
-      for (uint32_t i = 0; i < Light.subtype; i++) {
-        if (Light.new_color[i] > 0) {
-          Light.new_color[i] -= (Light.new_color[i] >> speed) +1;
-        }
-      }
-    } else {
-      for (uint32_t i = 0; i < Light.subtype; i++) {
-        Light.new_color[i] = 0;
-      }
-    }
-  }
-  else {
+    
+    // Light.strip_timer_counter = 0;
+    // for (uint32_t i = 0; i < Light.subtype; i++) {
+    //   light_still_on += Light.new_color[i];
+    // }
+    // if (light_still_on && Settings.light_fade && (Settings.light_scheme < LS_MAX)) {
+    //   uint8_t speed = Settings.light_speed;
+    //   if (speed > 6) {
+    //     speed = 6;
+    //   }
+    //   for (uint32_t i = 0; i < Light.subtype; i++) {
+    //     if (Light.new_color[i] > 0) {
+    //       Light.new_color[i] -= (Light.new_color[i] >> speed) +1;
+    //     }
+    //   }
+    // } else {
+    //   for (uint32_t i = 0; i < Light.subtype; i++) {
+    //     Light.new_color[i] = 0;
+    //   }
+    // }
+  } else {
 #ifdef PWM_LIGHTSCHEME0_IGNORE_SLEEP
     sleep = (LS_POWER == Settings.light_scheme) ? Settings.sleep : 0;  // If no animation then use sleep as is
 #else
@@ -1670,30 +1684,8 @@ void LightAnimate(void)
 
   if ((Settings.light_scheme < LS_MAX) || !Light.power) {
 
-    // If SetOption68, multi_channels
-    if (Light.pwm_multi_channels) {
-      // if multi-channels, specifically apply the Light.power bits
-      for (uint32_t i = 0; i < LST_MAX; i++) {
-        if (0 == bitRead(Light.power,i)) {  // if power down bit is zero
-          Light.new_color[i] = 0;   // shut down this channel
-        }
-      }
-      // #ifdef DEBUG_LIGHT
-      //   AddLog_P2(LOG_LEVEL_DEBUG_MORE, "Animate>> Light.power=%d Light.new_color=[%d,%d,%d,%d,%d]",
-      //     Light.power, Light.new_color[0], Light.new_color[1], Light.new_color[2],
-      //     Light.new_color[3], Light.new_color[4]);
-      // #endif
-    } else {
-      if (!light_controller.isCTRGBLinked()) {
-        // we have 2 power bits for RGB and White
-        if (0 == (Light.power & 1)) {
-          Light.new_color[0] = Light.new_color[1] = Light.new_color[2] = 0;
-        }
-        if (0 == (Light.power & 2)) {
-          Light.new_color[3] = Light.new_color[4] = 0;
-        }
-      }
-    }
+    // Apply power modifiers to Light.new_color
+    LightApplyPower(Light.new_color, Light.power);
 
     if (memcmp(Light.last_color, Light.new_color, Light.subtype)) {
       Light.update = true;
@@ -1770,6 +1762,35 @@ void LightAnimate(void)
 
       // push the final values at 8 and 10 bits resolution to the PWMs
       LightSetOutputs(cur_col, cur_col_10bits);
+    }
+  }
+}
+
+// On entry we take the 5 channels 8 bits entry, and we apply Power modifiers
+// I.e. shut down channels that are powered down
+void LightApplyPower(uint8_t new_color[LST_MAX], power_t power) {
+  // If SetOption68, multi_channels
+  if (Light.pwm_multi_channels) {
+    // if multi-channels, specifically apply the Light.power bits
+    for (uint32_t i = 0; i < LST_MAX; i++) {
+      if (0 == bitRead(power,i)) {  // if power down bit is zero
+        new_color[i] = 0;   // shut down this channel
+      }
+    }
+    // #ifdef DEBUG_LIGHT
+    //   AddLog_P2(LOG_LEVEL_DEBUG_MORE, "Animate>> Light.power=%d Light.new_color=[%d,%d,%d,%d,%d]",
+    //     Light.power, Light.new_color[0], Light.new_color[1], Light.new_color[2],
+    //     Light.new_color[3], Light.new_color[4]);
+    // #endif
+  } else {
+    if (!light_controller.isCTRGBLinked()) {
+      // we have 2 power bits for RGB and White
+      if (0 == (power & 1)) {
+        new_color[0] = new_color[1] = new_color[2] = 0;
+      }
+      if (0 == (power & 2)) {
+        new_color[3] = new_color[4] = 0;
+      }
     }
   }
 }
