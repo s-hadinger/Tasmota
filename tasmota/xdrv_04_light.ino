@@ -1869,7 +1869,7 @@ void LightSetOutputs(const uint8_t *cur_col, const uint16_t *cur_col_10bits) {
   for (uint32_t i = 0; i < 3; i++) {
     scale_col[i] = (0 == max) ? 255 : (255 > max) ? changeUIntScale(cur_col[i], 0, max, 0, 255) : cur_col[i];
   }
-  AddLog_P2(LOG_LEVEL_DEBUMORE, PSTR("LGT: R%d(%d) G%d(%d) B%d(%d), C%d(%d) W%d(%d), D%d"),
+  AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("LGT: R%d(%d) G%d(%d) B%d(%d), C%d(%d) W%d(%d), D%d"),
     cur_col[0], scale_col[0], cur_col[1], scale_col[1], cur_col[2], scale_col[2], cur_col[3], scale_col[3], cur_col[4], scale_col[4], light_state.getDimmer());
 
   char *tmp_data = XdrvMailbox.data;
