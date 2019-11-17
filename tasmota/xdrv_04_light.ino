@@ -1768,39 +1768,41 @@ void LightAnimate(void)
         cur_col_10bits[i] = orig_col_10bits[Light.color_remap[i]];
       }
 
-      // now apply the actual PWM values, adjusted and remapped 10-bits range
-      if (light_type < LT_PWM6) {   // only for direct PWM lights, not for Tuya, Armtronix...
-        for (uint32_t i = 0; i < (Light.subtype - Light.pwm_offset); i++) {
-          if (pin[GPIO_PWM1 +i] < 99) {
-            //AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_APPLICATION "Cur_Col%d 10 bits %d, Pwm%d %d"), i, cur_col_10bits[i], i+1, cur_col[i]);
-            analogWrite(pin[GPIO_PWM1 +i], bitRead(pwm_inverted, i) ? Settings.pwm_range - cur_col_10bits[(i + Light.pwm_offset)] : cur_col_10bits[(i + Light.pwm_offset)]);
-          }
-        }
-      }
+      // push the final values at 8 and 10 bits resolution to the PWMs
+      LightSetOutputs(cur_col, cur_col_10bits);
+    }
+  }
+}
 
-      // Some devices need scaled RGB like Sonoff L1
-      uint8_t scale_col[3];
-      uint32_t max = (cur_col[0] > cur_col[1] && cur_col[0] > cur_col[2]) ? cur_col[0] : (cur_col[1] > cur_col[2]) ? cur_col[1] : cur_col[2];   // 0..255
-      for (uint32_t i = 0; i < 3; i++) {
-        scale_col[i] = (0 == max) ? 255 : (255 > max) ? changeUIntScale(cur_col[i], 0, max, 0, 255) : cur_col[i];
+void LightSetOutputs(const uint8_t *cur_col, const uint16_t *cur_col_10bits) {
+  // now apply the actual PWM values, adjusted and remapped 10-bits range
+  if (light_type < LT_PWM6) {   // only for direct PWM lights, not for Tuya, Armtronix...
+    for (uint32_t i = 0; i < (Light.subtype - Light.pwm_offset); i++) {
+      if (pin[GPIO_PWM1 +i] < 99) {
+        //AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_APPLICATION "Cur_Col%d 10 bits %d, Pwm%d %d"), i, cur_col_10bits[i], i+1, cur_col[i]);
+        analogWrite(pin[GPIO_PWM1 +i], bitRead(pwm_inverted, i) ? Settings.pwm_range - cur_col_10bits[(i + Light.pwm_offset)] : cur_col_10bits[(i + Light.pwm_offset)]);
       }
+    }
+  }
+
+  // Some devices need scaled RGB like Sonoff L1
+  // TODO, should be probably moved to the Sonoff L1 support code
+  uint8_t scale_col[3];
+  uint32_t max = (cur_col[0] > cur_col[1] && cur_col[0] > cur_col[2]) ? cur_col[0] : (cur_col[1] > cur_col[2]) ? cur_col[1] : cur_col[2];   // 0..255
+  for (uint32_t i = 0; i < 3; i++) {
+    scale_col[i] = (0 == max) ? 255 : (255 > max) ? changeUIntScale(cur_col[i], 0, max, 0, 255) : cur_col[i];
+  }
 //      AddLog_P2(LOG_LEVEL_DEBUG, PSTR("LGT: R%d(%d) G%d(%d) B%d(%d), C%d W%d, D%d"),
 //        cur_col[0], scale_col[0], cur_col[1], scale_col[1], cur_col[2], scale_col[2], cur_col[3], cur_col[4], light_state.getDimmer());
 
-      char *tmp_data = XdrvMailbox.data;
-      char *tmp_topic = XdrvMailbox.topic;
-      XdrvMailbox.data = (char*)cur_col;
-      XdrvMailbox.topic = (char*)scale_col;
-      if (XlgtCall(FUNC_SET_CHANNELS)) {
-        // Serviced
-      }
-      else if (XdrvCall(FUNC_SET_CHANNELS)) {
-        // Serviced
-      }
-      XdrvMailbox.data = tmp_data;
-      XdrvMailbox.topic = tmp_topic;
-    }
-  }
+  char *tmp_data = XdrvMailbox.data;
+  char *tmp_topic = XdrvMailbox.topic;
+  XdrvMailbox.data = (char*)cur_col;
+  XdrvMailbox.topic = (char*)scale_col;
+  if (XlgtCall(FUNC_SET_CHANNELS)) { /* Serviced */ }
+  else if (XdrvCall(FUNC_SET_CHANNELS)) { /* Serviced */ }
+  XdrvMailbox.data = tmp_data;
+  XdrvMailbox.topic = tmp_topic;
 }
 
 // Do specific computation is SetOption73 is on, Color Temp is a separate PWM channel
