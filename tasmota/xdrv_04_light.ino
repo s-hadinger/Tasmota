@@ -122,7 +122,7 @@
 \*********************************************************************************************/
 
 #define XDRV_04              4
-// #define DEBUG_LIGHT
+#define DEBUG_LIGHT
 
 enum LightSchemes { LS_POWER, LS_WAKEUP, LS_CYCLEUP, LS_CYCLEDN, LS_RANDOM, LS_MAX };
 
@@ -1848,7 +1848,7 @@ void LightApplyFade(void) {
         if (Light.fade_cur_10[i] < Light.fade_end_10[i] + shift10) {
           Light.fade_cur_10[i] = Light.fade_end_10[i];
         } else {
-          Light.fade_cur_8[i] -= shift10;
+          Light.fade_cur_10[i] -= shift10;
         fade_finished = false;
         }
       }
@@ -1890,6 +1890,8 @@ void LightApplyPower(uint8_t new_color[LST_MAX], power_t power) {
       if (0 == (power & 2)) {
         new_color[3] = new_color[4] = 0;
       }
+    } else if (!power) {
+      memset(new_color, 0, sizeof(new_color));
     }
   }
 }
@@ -2419,6 +2421,7 @@ void CmndFade(void)
     Settings.light_fade ^= 1;
     break;
   }
+  if (!Settings.light_fade) { Light.fade_running = false; }
   ResponseCmndStateText(Settings.light_fade);
 }
 
