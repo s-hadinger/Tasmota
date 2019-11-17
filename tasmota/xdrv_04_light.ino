@@ -1612,9 +1612,9 @@ void LightAnimate(void)
 
   Light.strip_timer_counter++;
   if (!Light.power) {                   // All channels powered off
+    Light.strip_timer_counter = 0;
     if (!Light.fade_running) {
       sleep = Settings.sleep;
-      Light.strip_timer_counter = 0;
     }
     //   sleep = 0;
     // } else {                            // All lights are really off
@@ -1707,7 +1707,6 @@ void LightAnimate(void)
     if (Light.update) {
       uint16_t cur_col_10bits[LST_MAX];   // 10 bits version of cur_col for PWM
       Light.update = false;
-      Light.fade_running = false;         // cancel ongoing fade
 
       // first set 8 and 10 bits channels
       for (uint32_t i = 0; i < LST_MAX; i++) {
@@ -1776,24 +1775,94 @@ void LightAnimate(void)
       }
 
       if ((!Settings.light_fade) || (!Light.fade_initialized)) { // no fade, or fade not initialized
-        // push the final values at 8 and 10 bits resolution to the PWMs
-        LightSetOutputs(cur_col, cur_col_10bits);
         // record the current value for a future Fade
         memcpy(Light.fade_start_8, cur_col, sizeof(Light.fade_start_8));
         memcpy(Light.fade_start_10, cur_col_10bits, sizeof(Light.fade_start_10));
         Light.fade_initialized = true;
+        // push the final values at 8 and 10 bits resolution to the PWMs
+        LightSetOutputs(cur_col, cur_col_10bits);
       } else {  // fade on
+        if (Light.fade_running) {
+          // we keep Light.fade_cur_8 and Light.fade_cur_10 unchanged
+        } else {
+          memcpy(Light.fade_cur_8, Light.fade_start_8, sizeof(Light.fade_start_8));
+          memcpy(Light.fade_cur_10, Light.fade_start_10, sizeof(Light.fade_start_10));
+        }
+        memcpy(Light.fade_end_8, cur_col, sizeof(Light.fade_start_8));
+        memcpy(Light.fade_end_10, cur_col_10bits, sizeof(Light.fade_start_10));
         Light.fade_running = true;
         Light.fade_counter = 0;
-        memcpy(Light.fade_cur_8, Light.fade_start_8, sizeof(Light.fade_start_8));
-        memcpy(Light.fade_end_8, cur_col, sizeof(Light.fade_start_8));
-        memcpy(Light.fade_cur_10, Light.fade_start_10, sizeof(Light.fade_start_10));
-        memcpy(Light.fade_end_10, cur_col_10bits, sizeof(Light.fade_start_10));
+        // Fade will applied immediately below
       }
-    } else if (Light.fade_running) {
-        Light.fade_counter++;
+    }
+    if (Light.fade_running) {
+      LightApplyFade();
+
+      LightSetOutputs(Light.fade_cur_8, Light.fade_cur_10);
     }
   }
+}
+
+void LightApplyFade(void) {
+
+  Light.fade_counter++;
+  uint32_t shift = 256 / (Settings.light_speed + 1);
+  uint32_t shift10 = 1024 / (Settings.light_speed + 1);
+  if (0 == shift) { shift = 1; }
+  if (0 == shift10) { shift10 = 1; }
+
+  bool fade_finished = false;
+  if (shift || shift10) {
+    fade_finished = true;
+    for (uint32_t i = 0; i < Light.subtype; i++) {
+      // below
+      if (Light.fade_cur_8[i] < Light.fade_end_8[i]) {
+        if (Light.fade_cur_8[i] > Light.fade_end_8[i] - shift) {
+          Light.fade_cur_8[i] = Light.fade_end_8[i];
+        } else {
+          Light.fade_cur_8[i] += shift;
+        fade_finished = false;
+        }
+      }
+      // above
+      if (Light.fade_cur_8[i] > Light.fade_end_8[i]) {
+        if (Light.fade_cur_8[i] < Light.fade_end_8[i] + shift) {
+          Light.fade_cur_8[i] = Light.fade_end_8[i];
+        } else {
+          Light.fade_cur_8[i] -= shift;
+        fade_finished = false;
+        }
+      }
+
+      // below
+      if (Light.fade_cur_10[i] < Light.fade_end_10[i]) {
+        if (Light.fade_cur_10[i] > Light.fade_end_10[i] - shift10) {
+          Light.fade_cur_10[i] = Light.fade_end_10[i];
+        } else {
+          Light.fade_cur_10[i] += shift10;
+        fade_finished = false;
+        }
+      }
+      // above
+      if (Light.fade_cur_10[i] > Light.fade_end_10[i]) {
+        if (Light.fade_cur_10[i] < Light.fade_end_10[i] + shift10) {
+          Light.fade_cur_10[i] = Light.fade_end_10[i];
+        } else {
+          Light.fade_cur_8[i] -= shift10;
+        fade_finished = false;
+        }
+      }
+
+    }
+  }
+
+  if (fade_finished) {
+    Light.fade_running = false;
+    Light.fade_counter = 0;
+    memcpy(Light.fade_start_8, Light.fade_end_8, sizeof(Light.fade_start_8));
+    memcpy(Light.fade_start_10, Light.fade_end_10, sizeof(Light.fade_start_10));
+  }
+
 }
 
 // On entry we take the 5 channels 8 bits entry, and we apply Power modifiers
