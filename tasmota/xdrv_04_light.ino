@@ -1490,34 +1490,6 @@ void LightPreparePower(void)
   LightState(0);
 }
 
-void LightFade(void)
-{
-  memcpy(Light.new_color, Light.current_color, sizeof(Light.new_color));
-
-  // if (0 == Settings.light_fade) {
-  //   for (uint32_t i = 0; i < Light.subtype; i++) {
-  //     Light.new_color[i] = Light.current_color[i];
-  //   }
-  // } else {
-  //   uint8_t shift = Settings.light_speed;
-  //   if (Settings.light_speed > 6) {
-  //     shift = (Light.strip_timer_counter % (Settings.light_speed -6)) ? 0 : 8;
-  //   }
-  //   if (shift) {
-  //     for (uint32_t i = 0; i < Light.subtype; i++) {
-  //       if (Light.new_color[i] != Light.current_color[i]) {
-  //         if (Light.new_color[i] < Light.current_color[i]) {
-  //           Light.new_color[i] += ((Light.current_color[i] - Light.new_color[i]) >> shift) +1;
-  //         }
-  //         if (Light.new_color[i] > Light.current_color[i]) {
-  //           Light.new_color[i] -= ((Light.new_color[i] - Light.current_color[i]) >> shift) +1;
-  //         }
-  //       }
-  //     }
-  //   }
-  // }
-}
-
 void LightWheel(uint8_t wheel_pos)
 {
   wheel_pos = 255 - wheel_pos;
@@ -1568,7 +1540,8 @@ void LightRandomColor(void)
     LightWheel(Light.wheel);
     memcpy(Light.current_color, Light.entry_color, sizeof(Light.current_color));
   }
-  LightFade();
+
+  memcpy(Light.new_color, Light.current_color, sizeof(Light.new_color));
 }
 
 void LightSetPower(void)
@@ -1616,34 +1589,6 @@ void LightAnimate(void)
     if (!Light.fade_running) {
       sleep = Settings.sleep;
     }
-    //   sleep = 0;
-    // } else {                            // All lights are really off
-    //   for (uint32_t i = 0; i < LST_MAX; i++) {
-    //     Light.new_color[i] = 0;     // make sure all channels are zero
-    //   }
-    // sleep = Settings.sleep;
-    // Light.strip_timer_counter = 0;
-    // }
-    
-    // Light.strip_timer_counter = 0;
-    // for (uint32_t i = 0; i < Light.subtype; i++) {
-    //   light_still_on += Light.new_color[i];
-    // }
-    // if (light_still_on && Settings.light_fade && (Settings.light_scheme < LS_MAX)) {
-    //   uint8_t speed = Settings.light_speed;
-    //   if (speed > 6) {
-    //     speed = 6;
-    //   }
-    //   for (uint32_t i = 0; i < Light.subtype; i++) {
-    //     if (Light.new_color[i] > 0) {
-    //       Light.new_color[i] -= (Light.new_color[i] >> speed) +1;
-    //     }
-    //   }
-    // } else {
-    //   for (uint32_t i = 0; i < Light.subtype; i++) {
-    //     Light.new_color[i] = 0;
-    //   }
-    // }
   } else {
 #ifdef PWM_LIGHTSCHEME0_IGNORE_SLEEP
     sleep = (LS_POWER == Settings.light_scheme) && (!Light.fade_running) ? Settings.sleep : 0;  // If no animation then use sleep as is
@@ -1653,7 +1598,6 @@ void LightAnimate(void)
     switch (Settings.light_scheme) {
       case LS_POWER:
         light_controller.calcLevels(Light.new_color);
-        //LightFade();  TODO
         break;
       case LS_WAKEUP:
         if (2 == Light.wakeup_active) {
@@ -1700,6 +1644,12 @@ void LightAnimate(void)
 
     // Apply power modifiers to Light.new_color
     LightApplyPower(Light.new_color, Light.power);
+
+    // AddLog_P2(LOG_LEVEL_INFO, PSTR("last_color (%02X%02X%02X%02X%02X) new_color (%02X%02X%02X%02X%02X) power %d"),
+    // Light.last_color[0], Light.last_color[1], Light.last_color[2], Light.last_color[3], Light.last_color[4], 
+    // Light.new_color[0], Light.new_color[1], Light.new_color[2], Light.new_color[3], Light.new_color[4], 
+    // Light.power
+    // );
 
     if (memcmp(Light.last_color, Light.new_color, Light.subtype)) {
       Light.update = true;
@@ -1894,7 +1844,9 @@ void LightApplyPower(uint8_t new_color[LST_MAX], power_t power) {
         new_color[3] = new_color[4] = 0;
       }
     } else if (!power) {
-      memset(new_color, 0, sizeof(new_color));
+      for (uint32_t i = 0; i < LST_MAX; i++) {
+        new_color[i] = 0;
+      }
     }
   }
 }
