@@ -1806,8 +1806,8 @@ void LightAnimate(void)
 void LightApplyFade(void) {
 
   Light.fade_counter++;
-  uint32_t shift = 256 / (Settings.light_speed + 1);
-  uint32_t shift10 = 1024 / (Settings.light_speed + 1);
+  uint32_t shift = 256 / (Settings.light_speed * 10 + 1);
+  uint32_t shift10 = 1024 / (Settings.light_speed * 10 + 1);
   if (0 == shift) { shift = 1; }
   if (0 == shift10) { shift10 = 1; }
 
