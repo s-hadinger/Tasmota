@@ -1,4 +1,14 @@
 /*********************************************************************************************\
+ * 7.0.0.6 20191122
+ * Add colorpicker to WebUI by Christian Staars (#6984)
+ *
+ * 7.0.0.5 20191118
+ * Fix boot loop regression
+ * Add command TempOffset -12.6 .. 12.6 to set global temperature sensor offset (#6958)
+ * Fix check deepsleep for valid values in Settings (#6961)
+ * Fix Wifi instability when light is on, due to sleep=0 (#6961, #6608)
+ * Add hardware detection to be overruled with SetOption51 (#6969)
+ *
  * 7.0.0.4 20191108
  * Add command WifiPower 0 .. 20.5 to set Wifi Output Power which will be default set to 17dBm
  * Change supported PCF8574 I2C address range to 0x20 - 0x26 allowing other I2C devices with address 0x27 to be used at the same time
@@ -9,6 +19,7 @@
  * Change Kept only NEC/RC5/RC6/HASH IR protocols in standard Tasmota, all other protocols require Tasmota-IR, saving 4K
  * Add command SetOption76 0/1 to enable incrementing bootcount when deepsleep is enabled (#6930)
  * Change Reset erase end address from as seen by SDK (getFlashChipSize) to full flash size (getFlashChipRealSize)
+ * Change Zigbee log verbosity reduction
  *
  * 7.0.0.3 20191103
  * Add command I2cDriver for I2C driver runtime control using document I2CDEVICES.md
