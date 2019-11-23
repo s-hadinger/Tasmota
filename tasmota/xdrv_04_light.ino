@@ -1851,8 +1851,8 @@ void LightSetOutputs(const uint8_t *cur_col, const uint16_t *cur_col_10bits) {
       }
     }
   }
-  AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("LGT: R %02X(%d) G %02X(%d) B %02X(%d), CW %02X(%d) WW %02x(%d), D %d"),
-  cur_col[0], cur_col_10bits[0], cur_col[1], cur_col_10bits[1], cur_col[2], cur_col_10bits[2], cur_col[3], cur_col_10bits[3], cur_col[4], cur_col_10bits[4], light_state.getDimmer());
+  // AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("LGT: R %02X(%d) G %02X(%d) B %02X(%d), CW %02X(%d) WW %02x(%d), D %d"),
+  // cur_col[0], cur_col_10bits[0], cur_col[1], cur_col_10bits[1], cur_col[2], cur_col_10bits[2], cur_col[3], cur_col_10bits[3], cur_col[4], cur_col_10bits[4], light_state.getDimmer());
 
   // Some devices need scaled RGB like Sonoff L1
   // TODO, should be probably moved to the Sonoff L1 support code
