@@ -2373,16 +2373,16 @@ void CmndFade(void)
 }
 
 void CmndSpeed(void)
-{  // 1 - fast, 20 - very slow
+{  // 1 - fast, 40 - very slow
   if (1 == XdrvMailbox.data_len) {
     if (('+' == XdrvMailbox.data[0]) && (Settings.light_speed > 1)) {
-      XdrvMailbox.payload = Settings.light_speed -1;
+      XdrvMailbox.payload = Settings.light_speed - 1;
     }
-    else if (('-' == XdrvMailbox.data[0]) && (Settings.light_speed < STATES)) {
-      XdrvMailbox.payload = Settings.light_speed +1;
+    else if (('-' == XdrvMailbox.data[0]) && (Settings.light_speed < 40)) {
+      XdrvMailbox.payload = Settings.light_speed + 1;
     }
   }
-  if ((XdrvMailbox.payload > 0) && (XdrvMailbox.payload <= STATES)) {
+  if ((XdrvMailbox.payload > 0) && (XdrvMailbox.payload <= 40)) {
     Settings.light_speed = XdrvMailbox.payload;
   }
   ResponseCmndNumber(Settings.light_speed);
