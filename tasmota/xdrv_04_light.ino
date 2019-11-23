@@ -1684,7 +1684,8 @@ void LightAnimate(void)
           uint8_t min_rgb = min3(cur_col[0], cur_col[1], cur_col[2]);
           for (uint32_t i=0; i<3; i++) {
             // substract white and adjust according to rgbwwTable
-            cur_col_10bits[i] = changeUIntScale(cur_col_10bits[i] - min_rgb_10, 0, 255, 0, Settings.rgbwwTable[i]);
+            uint32_t adjust10 = changeUIntScale(Settings.rgbwwTable[i], 0, 255, 0, 1023);
+            cur_col_10bits[i] = changeUIntScale(cur_col_10bits[i] - min_rgb_10, 0, 1023, 0, adjust10);
             cur_col[i] = changeUIntScale(cur_col[i] - min_rgb, 0, 255, 0, Settings.rgbwwTable[i]);
           }
           // compute the adjusted white levels for 10 and 8 bits
@@ -1728,7 +1729,7 @@ void LightAnimate(void)
         cur_col_10bits[i] = orig_col_10bits[Light.color_remap[i]];
       }
 
-      if (!Settings.light_fade) { // no fade, or fade not initialized
+      if (!Settings.light_fade) { // no fade
         // record the current value for a future Fade
         memcpy(Light.fade_start_8, cur_col, sizeof(Light.fade_start_8));
         memcpy(Light.fade_start_10, cur_col_10bits, sizeof(Light.fade_start_10));
@@ -1736,10 +1737,9 @@ void LightAnimate(void)
         LightSetOutputs(cur_col, cur_col_10bits);
       } else {  // fade on
         if (Light.fade_running) {
-          // we keep Light.fade_cur_8 and Light.fade_cur_10 unchanged
-        } else {
-          memcpy(Light.fade_cur_8, Light.fade_start_8, sizeof(Light.fade_start_8));
-          memcpy(Light.fade_cur_10, Light.fade_start_10, sizeof(Light.fade_start_10));
+          // if fade is running, we take the curring value as the start for the next fade
+          memcpy(Light.fade_start_8, Light.fade_cur_8, sizeof(Light.fade_start_8));
+          memcpy(Light.fade_start_10, Light.fade_cur_10, sizeof(Light.fade_start_10));
         }
         memcpy(Light.fade_end_8, cur_col, sizeof(Light.fade_start_8));
         memcpy(Light.fade_end_10, cur_col_10bits, sizeof(Light.fade_start_10));
@@ -1764,6 +1764,7 @@ void LightApplyFade(void) {
 
   // Check if we need to calculate the duration
   if (0 == Light.fade_duration) {
+    Light.fade_counter = 0;
     // compute the distance between start and and color (max of distance for each channel)
     uint32_t distance = 0;
     for (uint32_t i = 0; i < Light.subtype; i++) {
@@ -1784,29 +1785,12 @@ void LightApplyFade(void) {
   Light.fade_counter++;
   if (Light.fade_counter <= Light.fade_duration) {    // fade not finished
     for (uint32_t i = 0; i < Light.subtype; i++) {
-      // below
-      if (Light.fade_start_8[i] <= Light.fade_end_8[i]) {
-        Light.fade_cur_8[i] = changeUIntScale(Light.fade_counter,
+      Light.fade_cur_8[i] = changeUIntScale(Light.fade_counter,
+                                            0, Light.fade_duration,
+                                            Light.fade_start_8[i], Light.fade_end_8[i]);
+      Light.fade_cur_10[i] = changeUIntScale(Light.fade_counter,
                                               0, Light.fade_duration,
-                                              Light.fade_start_8[i], Light.fade_end_8[i]);
-      }
-      if (Light.fade_cur_10[i] <= Light.fade_end_10[i]) {
-        Light.fade_cur_10[i] = changeUIntScale(Light.fade_counter,
-                                                0, Light.fade_duration,
-                                                Light.fade_start_10[i], Light.fade_end_10[i]);
-      }
-
-      // above
-      if (Light.fade_start_8[i] > Light.fade_end_8[i]) {
-        Light.fade_cur_8[i] = changeUIntScale(Light.fade_duration - Light.fade_counter,
-                                              0, Light.fade_duration,
-                                              Light.fade_end_8[i], Light.fade_start_8[i]);
-      }
-      if (Light.fade_cur_10[i] > Light.fade_end_10[i]) {
-        Light.fade_cur_10[i] = changeUIntScale(Light.fade_duration - Light.fade_counter,
-                                                0, Light.fade_duration,
-                                                Light.fade_end_10[i], Light.fade_start_10[i]);
-      }
+                                              Light.fade_start_10[i], Light.fade_end_10[i]);
     }
   } else {
     // stop fade
@@ -1814,6 +1798,10 @@ void LightApplyFade(void) {
     Light.fade_running = false;
     Light.fade_counter = 0;
     Light.fade_duration = 0;
+    // set light to target value
+    memcpy(Light.fade_cur_8, Light.fade_end_8, sizeof(Light.fade_end_8));
+    memcpy(Light.fade_cur_10, Light.fade_end_10, sizeof(Light.fade_end_10));
+    // record the last value for next start
     memcpy(Light.fade_start_8, Light.fade_end_8, sizeof(Light.fade_start_8));
     memcpy(Light.fade_start_10, Light.fade_end_10, sizeof(Light.fade_start_10));
   }
@@ -1863,6 +1851,8 @@ void LightSetOutputs(const uint8_t *cur_col, const uint16_t *cur_col_10bits) {
       }
     }
   }
+  AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("LGT: R %02X(%d) G %02X(%d) B %02X(%d), CW %02X(%d) WW %02x(%d), D %d"),
+  cur_col[0], cur_col_10bits[0], cur_col[1], cur_col_10bits[1], cur_col[2], cur_col_10bits[2], cur_col[3], cur_col_10bits[3], cur_col[4], cur_col_10bits[4], light_state.getDimmer());
 
   // Some devices need scaled RGB like Sonoff L1
   // TODO, should be probably moved to the Sonoff L1 support code
@@ -1871,8 +1861,8 @@ void LightSetOutputs(const uint8_t *cur_col, const uint16_t *cur_col_10bits) {
   for (uint32_t i = 0; i < 3; i++) {
     scale_col[i] = (0 == max) ? 255 : (255 > max) ? changeUIntScale(cur_col[i], 0, max, 0, 255) : cur_col[i];
   }
-  AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("LGT: R%d(%d) G%d(%d) B%d(%d), C%d(%d) W%d(%d), D%d"),
-    cur_col[0], scale_col[0], cur_col[1], scale_col[1], cur_col[2], scale_col[2], cur_col[3], scale_col[3], cur_col[4], scale_col[4], light_state.getDimmer());
+  // AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("LGT: R%d(%d) G%d(%d) B%d(%d), C%d(%d) W%d(%d), D%d"),
+  //   cur_col[0], scale_col[0], cur_col[1], scale_col[1], cur_col[2], scale_col[2], cur_col[3], scale_col[3], cur_col[4], scale_col[4], light_state.getDimmer());
 
   char *tmp_data = XdrvMailbox.data;
   char *tmp_topic = XdrvMailbox.topic;
