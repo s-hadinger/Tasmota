@@ -255,14 +255,14 @@ struct LIGHT {
   bool pwm_multi_channels = false;        // SetOption68, treat each PWM channel as an independant dimmer
 
   bool     fade_running = false;
-  bool     fade_initialized = false;    // take into account that at boot time there is no previous channels values
-  uint8_t  fade_start_8[LST_MAX];
+  uint8_t  fade_start_8[LST_MAX] = {0,0,0,0,0};
   uint8_t  fade_cur_8[LST_MAX];
   uint8_t  fade_end_8[LST_MAX];        // 8 bits resolution target channel values
-  uint16_t fade_start_10[LST_MAX];
+  uint16_t fade_start_10[LST_MAX] = {0,0,0,0,0};
   uint16_t fade_cur_10[LST_MAX];
-  uint16_t fade_end_10[LST_MAX];       // 10 bits resolution target channel values
-  uint32_t fade_counter = 0;
+  uint16_t fade_end_10[LST_MAX];         // 10 bits resolution target channel values
+  uint16_t fade_counter = 0;             // fade timer in ticks (50ms)
+  uint16_t fade_duration = 0;            // duration of fade in ticks (50ms)
 } Light;
 
 power_t LightPower(void)
@@ -1728,11 +1728,10 @@ void LightAnimate(void)
         cur_col_10bits[i] = orig_col_10bits[Light.color_remap[i]];
       }
 
-      if ((!Settings.light_fade) || (!Light.fade_initialized)) { // no fade, or fade not initialized
+      if (!Settings.light_fade) { // no fade, or fade not initialized
         // record the current value for a future Fade
         memcpy(Light.fade_start_8, cur_col, sizeof(Light.fade_start_8));
         memcpy(Light.fade_start_10, cur_col_10bits, sizeof(Light.fade_start_10));
-        Light.fade_initialized = true;
         // push the final values at 8 and 10 bits resolution to the PWMs
         LightSetOutputs(cur_col, cur_col_10bits);
       } else {  // fade on
@@ -1746,6 +1745,7 @@ void LightAnimate(void)
         memcpy(Light.fade_end_10, cur_col_10bits, sizeof(Light.fade_start_10));
         Light.fade_running = true;
         Light.fade_counter = 0;
+        Light.fade_duration = 0;    // set the value to zero to force a recompute
         // Fade will applied immediately below
       }
     }
@@ -1762,60 +1762,58 @@ void LightAnimate(void)
 
 void LightApplyFade(void) {
 
-  Light.fade_counter++;
-  uint32_t shift = 256 / (Settings.light_speed * 10 + 1);
-  uint32_t shift10 = 1024 / (Settings.light_speed * 10 + 1);
-  if (0 == shift) { shift = 1; }
-  if (0 == shift10) { shift10 = 1; }
-
-  bool fade_finished = false;
-  if (shift || shift10) {
-    fade_finished = true;
+  // Check if we need to calculate the duration
+  if (0 == Light.fade_duration) {
+    // compute the distance between start and and color (max of distance for each channel)
+    uint32_t distance = 0;
     for (uint32_t i = 0; i < Light.subtype; i++) {
-      // below
-      if (Light.fade_cur_8[i] < Light.fade_end_8[i]) {
-        if (Light.fade_cur_8[i] > Light.fade_end_8[i] - shift) {
-          Light.fade_cur_8[i] = Light.fade_end_8[i];
-        } else {
-          Light.fade_cur_8[i] += shift;
-        fade_finished = false;
-        }
-      }
-      // above
-      if (Light.fade_cur_8[i] > Light.fade_end_8[i]) {
-        if (Light.fade_cur_8[i] < Light.fade_end_8[i] + shift) {
-          Light.fade_cur_8[i] = Light.fade_end_8[i];
-        } else {
-          Light.fade_cur_8[i] -= shift;
-        fade_finished = false;
-        }
-      }
-
-      // below
-      if (Light.fade_cur_10[i] < Light.fade_end_10[i]) {
-        if (Light.fade_cur_10[i] > Light.fade_end_10[i] - shift10) {
-          Light.fade_cur_10[i] = Light.fade_end_10[i];
-        } else {
-          Light.fade_cur_10[i] += shift10;
-        fade_finished = false;
-        }
-      }
-      // above
-      if (Light.fade_cur_10[i] > Light.fade_end_10[i]) {
-        if (Light.fade_cur_10[i] < Light.fade_end_10[i] + shift10) {
-          Light.fade_cur_10[i] = Light.fade_end_10[i];
-        } else {
-          Light.fade_cur_10[i] -= shift10;
-        fade_finished = false;
-        }
-      }
-
+      int32_t channel_distance = Light.fade_end_10[i] - Light.fade_start_10[i];
+      if (channel_distance < 0) { channel_distance = - channel_distance; }
+      if (channel_distance > distance) { distance = channel_distance; }
+    }
+    if (distance > 0) {
+      // compute the duration of the animation
+      // Note: Settings.light_speed is the number of half-seconds for a 100% fade,
+      // i.e. light_speed=1 means 1024 steps in 10 ticks (500ms)
+      Light.fade_duration = (distance * Settings.light_speed * 10) / 1024;
+    } else {
+      // no fade needed, we keep the duration at zero, it will fallback directly to end of fade
     }
   }
 
-  if (fade_finished) {
+  Light.fade_counter++;
+  if (Light.fade_counter <= Light.fade_duration) {    // fade not finished
+    for (uint32_t i = 0; i < Light.subtype; i++) {
+      // below
+      if (Light.fade_start_8[i] <= Light.fade_end_8[i]) {
+        Light.fade_cur_8[i] = changeUIntScale(Light.fade_counter,
+                                              0, Light.fade_duration,
+                                              Light.fade_start_8[i], Light.fade_end_8[i]);
+      }
+      if (Light.fade_cur_10[i] <= Light.fade_end_10[i]) {
+        Light.fade_cur_10[i] = changeUIntScale(Light.fade_counter,
+                                                0, Light.fade_duration,
+                                                Light.fade_start_10[i], Light.fade_end_10[i]);
+      }
+
+      // above
+      if (Light.fade_start_8[i] > Light.fade_end_8[i]) {
+        Light.fade_cur_8[i] = changeUIntScale(Light.fade_duration - Light.fade_counter,
+                                              0, Light.fade_duration,
+                                              Light.fade_end_8[i], Light.fade_start_8[i]);
+      }
+      if (Light.fade_cur_10[i] > Light.fade_end_10[i]) {
+        Light.fade_cur_10[i] = changeUIntScale(Light.fade_duration - Light.fade_counter,
+                                                0, Light.fade_duration,
+                                                Light.fade_end_10[i], Light.fade_start_10[i]);
+      }
+    }
+  } else {
+    // stop fade
+//AddLop_P2(LOG_LEVEL_DEBUG, PSTR("Stop fade"));
     Light.fade_running = false;
     Light.fade_counter = 0;
+    Light.fade_duration = 0;
     memcpy(Light.fade_start_8, Light.fade_end_8, sizeof(Light.fade_start_8));
     memcpy(Light.fade_start_10, Light.fade_end_10, sizeof(Light.fade_start_10));
   }
