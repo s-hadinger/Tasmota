@@ -1678,6 +1678,60 @@ void BacklogLoop(void)
   }
 }
 
+typedef struct time_bucket_t {
+  uint16_t low;
+  uint16_t high;
+  uint32_t count;
+} time_bucket_t;
+
+const uint32_t MAX_TIME_BUCKETS = 15;
+
+time_bucket_t time_buckets[MAX_TIME_BUCKETS + 1];   // initialized as zeros
+
+void add_time_bucket_jitter(uint16_t jitter) {
+  uint32_t jitter_window = jitter / 5;
+  if (jitter_window == 0) { jitter_window = 1; }
+
+  uint16_t jitter_high = jitter + jitter_window;
+  uint16_t jitter_low  = (jitter >= jitter_window) ? jitter - jitter_window : 0;
+
+  uint32_t i;
+  for (i = 0; i < MAX_TIME_BUCKETS; i++) {
+    time_bucket_t &bucket = time_buckets[i];
+    if (bucket.high == 0) {
+      // bucket not initialized
+      bucket.low = jitter_low;
+      bucket.high = jitter_high;
+      bucket.count = 1;
+    } else {
+      if ((jitter >= bucket.low) && (jitter <= bucket.high)) {
+        // bucket found
+        bucket.count++;
+        return;
+      }
+      // else loop
+    }
+  }
+  if (i == MAX_TIME_BUCKETS) {
+    // no bucket available
+    time_buckets[MAX_TIME_BUCKETS].count += 1;
+  }
+}
+
+void dump_time_bucket_jitter(void) {
+  String s = "Jitter buckets: ";
+  for (uint32_t i = 0; i < MAX_TIME_BUCKETS; i++) {
+    time_bucket_t &bucket = time_buckets[i];
+    s += bucket.low;
+    s += "-";
+    s += bucket.high;
+    s += "(";
+    s += bucket.count;
+    s += ") ";
+  }
+  AddLog_P(LOG_LEVEL_DEBUG, s.c_str());
+}
+
 void loop(void)
 {
   uint32_t my_sleep = millis();
@@ -1695,6 +1749,8 @@ void loop(void)
   BacklogLoop();
 
   if (TimeReached(state_50msecond)) {
+    add_time_bucket_jitter(TimePassedSince(state_50msecond));
+
     SetNextTimeInterval(state_50msecond, 50);
     XdrvCall(FUNC_EVERY_50_MSECOND);
     XsnsCall(FUNC_EVERY_50_MSECOND);
@@ -1716,6 +1772,7 @@ void loop(void)
     PerformEverySecond();
     XdrvCall(FUNC_EVERY_SECOND);
     XsnsCall(FUNC_EVERY_SECOND);
+    dump_time_bucket_jitter();
   }
 
   if (!serial_local) { SerialInput(); }
