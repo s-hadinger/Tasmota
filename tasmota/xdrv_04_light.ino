@@ -1380,15 +1380,11 @@ void LightState(uint8_t append)
     if (unlinked) {
       // RGB and W are unlinked, we display the second Power/Dimmer
 
-      ResponseAppend_P(LIGHT_POWER_DIMMER_STATUS,
+      ResponseAppend_P(PSTR("\"" D_RSLT_POWER "%d\":\"%s\",\"" D_CMND_DIMMER "%d\":%d"),
                             Light.device, GetStateText(Light.power & 1), Light.device, light_state.getDimmer(1));
       ResponseAppend_P(PSTR("\""));
-      ResponseAppend_P(LIGHT_POWER_DIMMER_STATUS,
+      ResponseAppend_P(PSTR("\"" D_RSLT_POWER "%d\":\"%s\",\"" D_CMND_DIMMER "%d\":%d"),    // same string to depuplicate
                             Light.device + 1, GetStateText(Light.power & 2 ? 1 : 0), Light.device + 1, light_state.getDimmer(2));
-      // ResponseAppend_P(PSTR("\"" D_RSLT_POWER "%d\":\"%s\",\"" D_CMND_DIMMER "%d\":%d"
-      //                      ",\"" D_RSLT_POWER "%d\":\"%s\",\"" D_CMND_DIMMER "%d\":%d"),
-      //                       Light.device, GetStateText(Light.power & 1), Light.device, light_state.getDimmer(1),
-      //                       Light.device + 1, GetStateText(Light.power & 2 ? 1 : 0), Light.device + 1, light_state.getDimmer(2));
     } else {
       GetPowerDevice(scommand, Light.device, sizeof(scommand), Settings.flag.device_index_enable);  // SetOption26 - Switch between POWER or POWER1
       ResponseAppend_P(PSTR("\"%s\":\"%s\",\"" D_CMND_DIMMER "\":%d"), scommand, GetStateText(Light.power & 1),
