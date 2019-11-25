@@ -130,7 +130,7 @@ const char HTTP_SCRIPT_ROOT[] PROGMEM =
       "clearTimeout(lt);"
       "rfsh=0;"
     "}"
-  "}"
+  "}";
 #else  // USE_SCRIPT_WEB_DISPLAY
   "function la(p){"
     "var a='';"
@@ -149,9 +149,10 @@ const char HTTP_SCRIPT_ROOT[] PROGMEM =
     "x.open('GET','.?m=1'+a,true);"       // ?m related to WebServer->hasArg("m")
     "x.send();"
     "lt=setTimeout(la,%d);"               // Settings.web_refresh
-  "}"
+  "}";
 #endif  // USE_SCRIPT_WEB_DISPLAY
 
+const char HTTP_SCRIPT_ROOT_PART2[] PROGMEM =
   "function lc(v,i,p){"
     "if(v=='h'||v=='d'){"                 // Hue or Brightness changed so change Saturation colors too
       "var sl=eb('sl4').value;"
@@ -159,7 +160,6 @@ const char HTTP_SCRIPT_ROOT[] PROGMEM =
     "}"
     "la('&'+v+i+'='+p);"
   "}"
-
   "wl(la);";
 
 const char HTTP_SCRIPT_WIFI[] PROGMEM =
@@ -766,8 +766,15 @@ void WSContentSend_P(const char* formatP, ...)     // Content send snprintf_P ch
   // This uses char strings. Be aware of sending %% if % is needed
   va_list arg;
   va_start(arg, formatP);
-  vsnprintf_P(mqtt_data, sizeof(mqtt_data), formatP, arg);
+  int len = vsnprintf_P(mqtt_data, sizeof(mqtt_data), formatP, arg);
   va_end(arg);
+
+#ifdef DEBUG_TASMOTA_CORE
+  if (len > (sizeof(mqtt_data) -1)) {
+    mqtt_data[33] = '\0';
+    DEBUG_CORE_LOG(PSTR("ERROR: WSContentSend_P size %d > mqtt_data size %d. Start of data [%s...]"), len, sizeof(mqtt_data), mqtt_data);
+  }
+#endif
 
   _WSContentSendBuffer();
 }
@@ -779,6 +786,13 @@ void WSContentSend_PD(const char* formatP, ...)    // Content send snprintf_P ch
   va_start(arg, formatP);
   int len = vsnprintf_P(mqtt_data, sizeof(mqtt_data), formatP, arg);
   va_end(arg);
+
+#ifdef DEBUG_TASMOTA_CORE
+  if (len > (sizeof(mqtt_data) -1)) {
+    mqtt_data[33] = '\0';
+    DEBUG_CORE_LOG(PSTR("ERROR: WSContentSend_PD size %d > mqtt_data size %d. Start of data [%s...]"), len, sizeof(mqtt_data), mqtt_data);
+  }
+#endif
 
   if (D_DECIMAL_SEPARATOR[0] != '.') {
     for (uint32_t i = 0; i < len; i++) {
@@ -829,8 +843,16 @@ void WSContentSendStyle_P(const char* formatP, ...)
     // This uses char strings. Be aware of sending %% if % is needed
     va_list arg;
     va_start(arg, formatP);
-    vsnprintf_P(mqtt_data, sizeof(mqtt_data), formatP, arg);
+    int len = vsnprintf_P(mqtt_data, sizeof(mqtt_data), formatP, arg);
     va_end(arg);
+
+#ifdef DEBUG_TASMOTA_CORE
+  if (len > (sizeof(mqtt_data) -1)) {
+    mqtt_data[33] = '\0';
+    DEBUG_CORE_LOG(PSTR("ERROR: WSContentSendStyle_P size %d > mqtt_data size %d. Start of data [%s...]"), len, sizeof(mqtt_data), mqtt_data);
+  }
+#endif
+
     _WSContentSendBuffer();
   }
   WSContentSend_P(HTTP_HEAD_STYLE3, WebColor(COL_TEXT),
@@ -990,6 +1012,8 @@ void HandleRoot(void)
 #else
   WSContentSend_P(HTTP_SCRIPT_ROOT, Settings.web_refresh);
 #endif
+  WSContentSend_P(HTTP_SCRIPT_ROOT_PART2);
+
   WSContentSendStyle();
 
   WSContentSend_P(PSTR("<div id='l1' name='l1'></div>"));
@@ -1046,17 +1070,17 @@ void HandleRoot(void)
           'd', 0);           // d0 - Value id is related to lc("d0", value) and WebGetArg("d0", tmp, sizeof(tmp));
       } else {  // Settings.flag3.pwm_multi_channels - SetOption68 1 - Enable multi-channels PWM instead of Color PWM
         uint32_t pwm_channels = light_subtype > LST_MAX ? LST_MAX : light_subtype;
-        stemp[0] = 'd'; stemp[1] = '0'; stemp[2] = '\0';  // d0
+        stemp[0] = 'e'; stemp[1] = '0'; stemp[2] = '\0';  // d0
         for (uint32_t i = 0; i < pwm_channels; i++) {
-          stemp[1]++;        // d1 to d5 - Make unique ids
+          stemp[1]++;        // e1 to e5 - Make unique ids
 
           WSContentSend_P(HTTP_MSG_SLIDER_GRADIENT,  // Channel brightness - Black to White
-            stemp,           // d1 to d5 - Unique HTML id
+            stemp,           // e1 to e5 - Unique HTML id
             "#000", "#fff",  // Black to White
             i+1,             // sl1 to sl5 - Unique range HTML id - Not used
             1, 100,          // Range 1 to 100%
             changeUIntScale(Settings.light_color[i], 0, 255, 0, 100),
-            'd', i+1);       // d1 to d5 - Value id
+            'e', i+1);       // e1 to e5 - Value id
         }
       }  // Settings.flag3.pwm_multi_channels
     }
@@ -1168,7 +1192,7 @@ bool HandleRootStatusRefresh(void)
   }
   uint32_t pwm_channels = (light_type & 7) > LST_MAX ? LST_MAX : (light_type & 7);
   for (uint32_t j = 1; j <= pwm_channels; j++) {
-    snprintf_P(webindex, sizeof(webindex), PSTR("d%d"), j);
+    snprintf_P(webindex, sizeof(webindex), PSTR("e%d"), j);
     WebGetArg(webindex, tmp, sizeof(tmp));  // 0 - 100 percent
     if (strlen(tmp)) {
       snprintf_P(svalue, sizeof(svalue), PSTR(D_CMND_CHANNEL "%d %s"), j, tmp);
