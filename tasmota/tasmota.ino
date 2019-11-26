@@ -1688,7 +1688,18 @@ const uint32_t MAX_TIME_BUCKETS = 15;
 
 time_bucket_t time_buckets[MAX_TIME_BUCKETS + 1];   // initialized as zeros
 
+
+
 void add_time_bucket_jitter(uint16_t jitter) {
+  static bool time_buckets_initialized = false;
+  if (!time_buckets_initialized) {
+    for (uint32_t i = 0; i < MAX_TIME_BUCKETS + 1; i++) {
+      time_bucket_t &bucket = time_buckets[i];
+      bucket.low = bucket.high = bucket.count = 0;
+    }
+    time_buckets_initialized = true;
+  }
+
   uint32_t jitter_window = jitter / 5;
   if (jitter_window == 0) { jitter_window = 1; }
 
@@ -1703,6 +1714,7 @@ void add_time_bucket_jitter(uint16_t jitter) {
       bucket.low = jitter_low;
       bucket.high = jitter_high;
       bucket.count = 1;
+      return;
     } else {
       if ((jitter >= bucket.low) && (jitter <= bucket.high)) {
         // bucket found
@@ -1749,7 +1761,7 @@ void loop(void)
   BacklogLoop();
 
   if (TimeReached(state_50msecond)) {
-    add_time_bucket_jitter(TimePassedSince(state_50msecond));
+    add_time_bucket_jitter(50 + TimePassedSince(state_50msecond));
 
     SetNextTimeInterval(state_50msecond, 50);
     XdrvCall(FUNC_EVERY_50_MSECOND);
