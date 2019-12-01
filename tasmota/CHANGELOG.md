@@ -1,13 +1,21 @@
 ## Unreleased (development)
 
+### 7.1.1.1 20191201
+
+- Change light color schemes 2, 3 and 4 from color wheel to Hue driven
+
+## Released
+
+### 7.1.1 20191201
+
+- Maintenance Release
+
 ### 7.1.0.1 20191130
 
 - Fix slider for devices with one or two channels like only white or white/yellow
 - Fix TasmotaSlave buffer overrun on Tele
 - Fix light scheme 4 speed (#7072)
 - Add support for TasmotaSlave executing commands on Tasmota
-
-## Released
 
 ### 7.1.0 20191129
 
