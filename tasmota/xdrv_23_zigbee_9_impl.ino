@@ -219,7 +219,8 @@ void ZigbeeInit(void)
     ZigbeeSerial->begin(115200);
     if (ZigbeeSerial->hardwareSerial()) {
       ClaimSerial();
-			zigbee_buffer = new PreAllocatedSBuffer(sizeof(serial_in_buffer), serial_in_buffer);
+      uint32_t aligned_buffer = ((uint32_t)serial_in_buffer + 3) & ~3;
+			zigbee_buffer = new PreAllocatedSBuffer(sizeof(serial_in_buffer) - 3, (char*) aligned_buffer);
 		} else {
 			zigbee_buffer = new SBuffer(ZIGBEE_BUFFER_SIZE);
 		}
