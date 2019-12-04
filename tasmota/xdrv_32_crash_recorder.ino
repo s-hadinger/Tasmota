@@ -21,46 +21,176 @@
 
 #define XDRV_32             32
 
-const char kIrRemoteCommands[] PROGMEM = "|" "CrashRecorder" "|" "CrashDump" ; // No prefix
+const char kCrashRecorderCommands[] PROGMEM = "|" "CrashRecorder" "|" "CrashDump" "|" "Crash"; // No prefix
 
-void (* const StacktraceCommand[])(void) PROGMEM = { &CmndCrashRecorder, &CmndCrashDump };
+void (* const CrashRecorderCommand[])(void) PROGMEM = { &CmndCrashRecorder, &CmndCrashDump, &CmndCrash };
+
+const uint32_t crash_bank = SETTINGS_LOCATION - CFG_ROTATES - 1;
+const uint32_t crash_addr = crash_bank * SPI_FLASH_SEC_SIZE;
+const uint64_t crash_sig   = 0xDEADBEEFCCAA5588L;     // arbitrary signature to check if crash was recorded
+const uint64_t crash_empty = 0xFFFFFFFFFFFFFFFFL;     // all ones means the flash was correctly erased
+const uint32_t dump_max_len = 1024;                   // dump only 1024 bytes of stack, i.e. 256 addresses
 
 static boolean stacktrace_armed = false;        // should we record the stacktrace
 
-typedef struct CrashRecorder {
+typedef struct CrashRecorder_t {
+  uint64_t crash_signature = crash_sig;
+  struct rst_info info;
   uint32_t crash_date;
-  uint32_t epc1;
-  uint32_t epc2;
-  uint32_t epc3;
-} CrashRecorder;
+  uint32_t stack_start;
+  uint32_t stack_end;
+  uint32_t stack_dump_len;
+  uint32_t stack[];
+} CrashRecorder_t;
 
-// #define SAVE_CRASH_CRASH_TIME       0x00  // 4 bytes
-// #define SAVE_CRASH_RESTART_REASON   0x04  // 1 byte
-// #define SAVE_CRASH_EXCEPTION_CAUSE  0x05  // 1 byte
-// #define SAVE_CRASH_EPC1             0x06  // 4 bytes
-// #define SAVE_CRASH_EPC2             0x0A  // 4 bytes
-// #define SAVE_CRASH_EPC3             0x0E  // 4 bytes
-// #define SAVE_CRASH_EXCVADDR         0x12  // 4 bytes
-// #define SAVE_CRASH_DEPC             0x16  // 4 bytes
-// #define SAVE_CRASH_STACK_START      0x1A  // 4 bytes
-// #define SAVE_CRASH_STACK_END        0x1E  // 4 bytes
-// #define SAVE_CRASH_STACK_TRACE      0x22  // variable
+CrashRecorder_t crash_recorder;
+
+// See: https://github.com/esp8266/Arduino/blob/master/cores/esp8266/core_esp8266_postmortem.cpp
+
+/**
+ * Save crash information in Flash
+ * This function is called automatically if ESP8266 suffers an exception
+ * It should be kept quick / consise to be able to execute before hardware wdt may kick in
+ */
+extern "C" void custom_crash_callback(struct rst_info * rst_info, uint32_t stack, uint32_t stack_end ) {
+  if (!stacktrace_armed) { return; }    // exit if nothing to do
+
+  crash_recorder.info             = *rst_info;
+  crash_recorder.crash_date       = millis();
+  crash_recorder.stack_start      = stack;
+  crash_recorder.stack_end        = stack_end;
+
+  uint64_t sig = 0;
+  ESP.flashRead(crash_addr, (uint32_t*) &sig, sizeof(sig));
+
+  if (crash_sig == sig) {
+    return;                 // we already have a crash recorded, we leave it untouched and quit
+  }
+  if (crash_empty != sig) {
+    // crash recorder zone is unknown content, we leave it untouched
+    return;
+    // if (ESP.flashEraseSector(crash_bank)) {}
+  }
+  // Flash has been erased, so we're good
+
+  ESP.flashWrite(crash_addr, (uint32_t*) &crash_recorder, sizeof(crash_recorder));
+
+  // now store the stack trace, limited to 3KB (which should be far enough)
+  crash_recorder.stack_dump_len = stack_end - stack;
+  if (crash_recorder.stack_dump_len > dump_max_len) { crash_recorder.stack_dump_len = dump_max_len; }
+
+  ESP.flashWrite(crash_addr + sizeof(crash_recorder)/sizeof(crash_addr), (uint32_t*) stack, crash_recorder.stack_dump_len);
+}
 
 /*********************************************************************************************\
  * CmndCrashRecorder - arm the crash recorder until next reboot
 \*********************************************************************************************/
 
+// Input:
+//  0 : disable crash recorcer
+//  1 : soft enable, enable if there is not already a crash record present
+//  2 : hard enable, erase any previous crash record and enable new record
+//
+// Output:
+//  0 : Ok, disabled
+//  1 : Ok, enabled
+//  2 : Ok, enabled and previous record erased
+// -1 : Abort, crash record already present
+// -2 : Flash erase failed
+// -99: Bad parameter
+int32_t SetCrashRecorder(int32_t mode) {
+  int32_t ret = 0;
+
+  switch (mode) {
+    case 1:
+    case 2:
+      {
+        uint64_t sig = 0;
+        ESP.flashRead(crash_addr, (uint32_t*) &sig, sizeof(sig));
+
+        if ((crash_sig == sig) && (1 == mode)) {
+          ret = -1;
+          break;
+        } else {
+          if (crash_empty != sig) {
+            // crash recorder zone is not clean
+            if (ESP.flashEraseSector(crash_bank)) {
+              ret = -2;
+            } else {
+              ret = 2;
+            }
+          } else {
+            ret = 1;
+          }
+        }
+      }
+      break;
+    case 0:
+      ret = 0;
+      break;
+    default:
+      ret = -99;
+  }
+
+  stacktrace_armed = (ret > 0) ? true : false;
+  return ret;
+}
+
+// Generate a crash to test the crash record
+void CmndCrash(void)
+{
+  volatile uint32_t dummy;
+
+  switch (XdrvMailbox.payload) {
+    case 1:
+      dummy = *((uint32_t*) (((uint8_t*) &dummy)+1));   // unaligned access of 32 bits
+      break;
+    default:
+    case -99:
+      dummy = *((uint32_t*) 0x00000000);                // invalid address
+      break;
+  }
+}
+
+
 void CmndCrashRecorder(void)
 {
+  int32_t mode, ret;
+
   switch (XdrvMailbox.payload) {
-  case 1:
-    stacktrace_armed = true;
-    ResponseCmndChar("Stacktrace enabled until next reboot.");
-    break;
-  default:
-    stacktrace_armed = false;
-    ResponseCmndChar("Stacktrace disabled.");
+    case -99:
+      mode = 1;
+      break;
+    case 1:
+      mode = 2;
+      break;
+    default:
+      mode = 0;
   }
+
+  ret = SetCrashRecorder(XdrvMailbox.payload);
+  const char *msg;
+
+  switch (ret) {
+    case 0:
+      msg = "Crash_recorder disabled.";
+      break;
+    case 1:
+      msg = "Crash_recorder enabled until next reboot.";
+      break;
+    case 2:
+      msg = "Crash_recorder erased and enabled until next reboot.";
+      break;
+    case -1:
+      msg = "Abort: crash record already present, use 1 to erase.";
+      break;
+    case -2:
+      msg = "Error: unable to clear Flash crash dump area.";
+      break;
+    default:
+      msg = "";
+  }
+  ResponseCmndChar(msg);
 }
 
 /*********************************************************************************************\
@@ -69,7 +199,49 @@ void CmndCrashRecorder(void)
 
 void CmndCrashDump(void)
 {
-  ResponseCmndChar("");
+  CrashRecorder_t dump;
+
+  ESP.flashRead(crash_addr, (uint32_t*) &dump, sizeof(dump));
+  if (crash_sig == dump.crash_signature) {
+    Response_P(PSTR("{\"reason\":%d,\"exccause\":%d,"
+                    "\"epc1\":\"0x%04x\",\"epc2\":\"0x%04x\",\"epc3\":\"0x%04x\","
+                    "\"excvaddr\":\"0x%04x\",\"depc\":\"0x%04x\","
+                    "\"stack_start\":\"0x%04x\",\"stack_end\":\"0x%04x\","
+                    "\"date_millis\":%d,"
+                    "}"),
+                    dump.info.reason, dump.info.exccause,
+                    dump.info.epc1, dump.info.epc2, dump.info.epc3,
+                    dump.info.excvaddr, dump.info.depc,
+                    dump.stack_start, dump.stack_end,
+                    dump.crash_date
+                    );
+    MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR("crashdump"));
+    XdrvRulesProcess();
+
+    uint32_t stack_len  = dump.stack_dump_len <= dump_max_len ? dump.stack_dump_len : dump_max_len; // we will limit to 2k
+
+    uint8_t dump_stack[stack_len];
+
+    ESP.flashRead(crash_addr + sizeof(crash_recorder)/sizeof(crash_addr), (uint32_t*) dump_stack, stack_len);
+
+    uint32_t dumped = 0;
+    Response_P(PSTR("{\"call_chain\":\""));
+    for (uint32_t i = 0; i < stack_len; i+=4) {
+      uint32_t value = *((uint32_t*) (&dump_stack[i]));
+
+      if (dumped > 0) {
+        ResponseAppend_P(PSTR(" "));
+      }
+      ResponseAppend_P(PSTR("%04x"), value);
+      dumped++;
+      if (dumped >= 64) { break; }
+    }
+    ResponseAppend_P("\"}");
+    MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR("crashdump"));
+    XdrvRulesProcess();
+  } else {
+    ResponseCmndChar("No crash dump found");
+  }
 }
 
 /*********************************************************************************************\
@@ -78,32 +250,14 @@ void CmndCrashDump(void)
 
 bool Xdrv32(uint8_t function)
 {
-  // bool result = false;
+  bool result = false;
 
-  // if ((pin[GPIO_IRSEND] < 99) || (pin[GPIO_IRRECV] < 99)) {
-  //   switch (function) {
-  //     case FUNC_PRE_INIT:
-  //       if (pin[GPIO_IRSEND] < 99) {
-  //         IrSendInit();
-  //       }
-  //       if (pin[GPIO_IRRECV] < 99) {
-  //         IrReceiveInit();
-  //       }
-  //       break;
-  //     case FUNC_EVERY_50_MSECOND:
-  //       if (pin[GPIO_IRRECV] < 99) {
-  //         IrReceiveCheck();  // check if there's anything on IR side
-  //       }
-  //       irsend_active = false;  // re-enable IR reception
-  //       break;
-  //     case FUNC_COMMAND:
-  //       if (pin[GPIO_IRSEND] < 99) {
-  //         result = DecodeCommand(kIrRemoteCommands, IrRemoteCommand);
-  //       }
-  //       break;
-  //   }
-  // }
-  // return result;
+  switch (function) {
+    case FUNC_COMMAND:
+      result = DecodeCommand(kCrashRecorderCommands, CrashRecorderCommand);
+      break;
+  }
+  return result;
 }
 
 #endif // USE_CRASH_RECORDER
