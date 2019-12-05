@@ -31,7 +31,7 @@ const uint64_t crash_sig   = 0xDEADBEEFCCAA5588L;     // arbitrary signature to 
 const uint64_t crash_empty = 0xFFFFFFFFFFFFFFFFL;     // all ones means the flash was correctly erased
 const uint32_t dump_max_len = 1024;                   // dump only 1024 bytes of stack, i.e. 256 addresses
 
-static boolean stacktrace_armed = false;        // should we record the stacktrace
+static bool stacktrace_armed = false;        // should we record the stacktrace
 
 typedef struct CrashRecorder_t {
   uint64_t crash_signature = crash_sig;
@@ -43,8 +43,6 @@ typedef struct CrashRecorder_t {
   uint32_t stack[];
 } CrashRecorder_t;
 
-CrashRecorder_t crash_recorder;
-
 // See: https://github.com/esp8266/Arduino/blob/master/cores/esp8266/core_esp8266_postmortem.cpp
 
 /**
@@ -54,6 +52,8 @@ CrashRecorder_t crash_recorder;
  */
 extern "C" void custom_crash_callback(struct rst_info * rst_info, uint32_t stack, uint32_t stack_end ) {
   if (!stacktrace_armed) { return; }    // exit if nothing to do
+
+  CrashRecorder_t crash_recorder;
 
   crash_recorder.info             = *rst_info;
   crash_recorder.crash_date       = millis();
@@ -69,7 +69,6 @@ extern "C" void custom_crash_callback(struct rst_info * rst_info, uint32_t stack
   if (crash_empty != sig) {
     // crash recorder zone is unknown content, we leave it untouched
     return;
-    // if (ESP.flashEraseSector(crash_bank)) {}
   }
   // Flash has been erased, so we're good
 
@@ -145,7 +144,7 @@ void CmndCrash(void)
       dummy = *((uint32_t*) 0x00000000);                // invalid address
       break;
     default:
-      ResponseCmndChar("Use 1 to generate a crash");
+      ResponseCmndChar_P(PSTR("Use 1 to generate a crash"));
   }
 }
 
@@ -170,24 +169,24 @@ void CmndCrashRecord(void)
 
   switch (ret) {
     case 0:
-      msg = "Crash_recorder disabled.";
+      msg = PSTR("Crash_recorder disabled.");
       break;
     case 1:
-      msg = "Crash_recorder enabled until next reboot.";
+      msg = PSTR("Crash_recorder enabled until next reboot.");
       break;
     case 2:
-      msg = "Crash_recorder erased and enabled until next reboot.";
+      msg = PSTR("Crash_recorder erased and enabled until next reboot.");
       break;
     case -1:
-      msg = "Abort: crash record already present, use 1 to erase.";
+      msg = PSTR("Abort: crash record already present, use 1 to erase.");
       break;
     case -2:
-      msg = "Error: unable to clear Flash crash dump area.";
+      msg = PSTR("Error: unable to clear Flash crash dump area.");
       break;
     default:
-      msg = "";
+      msg = PSTR("");
   }
-  ResponseCmndChar(msg);
+  ResponseCmndChar_P(msg);
 }
 
 /*********************************************************************************************\
@@ -217,7 +216,7 @@ void CmndCrashDump(void)
     uint32_t stack_len = dump.stack_dump_len <= dump_max_len ? dump.stack_dump_len : dump_max_len; // we will limit to 2k
     uint8_t dump_stack[stack_len];
 
-    ESP.flashRead(crash_addr + sizeof(crash_recorder), (uint32_t*) dump_stack, stack_len);
+    ESP.flashRead(crash_addr + sizeof(CrashRecorder_t), (uint32_t*) dump_stack, stack_len);
 
     uint32_t dumped = 0;
     Response_P(PSTR("{\"call_chain\":\""));
@@ -232,12 +231,12 @@ void CmndCrashDump(void)
         if (dumped >= 64) { break; }
       }
     }
-    ResponseAppend_P("\"}");
+    ResponseAppend_P(PSTR("\"}"));
     MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR("crashdump"));
     XdrvRulesProcess();
-    ResponseCmndChar("Ok");
+    ResponseCmndChar_P(PSTR("Ok"));
   } else {
-    ResponseCmndChar("No crash dump found");
+    ResponseCmndChar_P(PSTR("No crash dump found"));
   }
 }
 
@@ -247,14 +246,11 @@ void CmndCrashDump(void)
 
 bool Xdrv32(uint8_t function)
 {
-  bool result = false;
-
-  switch (function) {
-    case FUNC_COMMAND:
-      result = DecodeCommand(kCrashRecorderCommands, CrashRecorderCommand);
-      break;
+  if (FUNC_COMMAND == function) {
+    return DecodeCommand(kCrashRecorderCommands, CrashRecorderCommand);
+  } else {
+    return false;
   }
-  return result;
 }
 
 #endif // USE_CRASH_RECORDER
