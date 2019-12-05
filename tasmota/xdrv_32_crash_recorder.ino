@@ -93,39 +93,27 @@ extern "C" void custom_crash_callback(struct rst_info * rst_info, uint32_t stack
 //  2 : Ok, enabled and previous record erased
 // -1 : Abort, crash record already present
 // -2 : Flash erase failed
-// -99: Bad parameter
 int32_t SetCrashRecorder(int32_t mode) {
   int32_t ret = 0;
 
-  switch (mode) {
-    case 1:
-    case 2:
-      {
-        uint64_t sig = 0;
-        ESP.flashRead(crash_addr, (uint32_t*) &sig, sizeof(sig));
+  if (0 != mode) {
+    uint64_t sig = 0;
+    ESP.flashRead(crash_addr, (uint32_t*) &sig, sizeof(sig));
 
-        if ((crash_sig == sig) && (1 == mode)) {
-          ret = -1;
-          break;
+    if ((crash_sig == sig) && (1 == mode)) {
+      ret = -1;
+    } else {
+      if (crash_empty != sig) {
+        // crash recorder zone is not clean
+        if (ESP.flashEraseSector(crash_bank)) {
+          ret = 2;
         } else {
-          if (crash_empty != sig) {
-            // crash recorder zone is not clean
-            if (ESP.flashEraseSector(crash_bank)) {
-              ret = 2;
-            } else {
-              ret = -2;
-            }
-          } else {
-            ret = 1;
-          }
+          ret = -2;
         }
+      } else {
+        ret = 1;
       }
-      break;
-    case 0:
-      ret = 0;
-      break;
-    default:
-      ret = -99;
+    }
   }
 
   stacktrace_armed = (ret > 0) ? true : false;

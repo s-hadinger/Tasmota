@@ -269,7 +269,7 @@
 //#define MY_LANGUAGE            zh-TW           // Chinese (Traditional) in Taiwan
 
 // -- Crash recorder ---------------------------
-#define USE_CRASH_RECORDER                       // record the crash stack trace in Flash for further investigation
+#define USE_CRASH_RECORDER                       // record the crash stack trace in Flash for further investigation (+1.0k code, +0.03k mem)
 
 // -- Wifi Config tools ---------------------------
 #define WIFI_SOFT_AP_CHANNEL   1                 // Soft Access Point Channel number between 1 and 13 as used by Wifi Manager web GUI
