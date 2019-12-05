@@ -137,14 +137,11 @@ int32_t SetCrashRecorder(int32_t mode) {
 // Generate a crash to test the crash record
 void CmndCrash(void)
 {
-  volatile uint32_t dummy;
-
-  switch (XdrvMailbox.payload) {
-    case 1:
-      dummy = *((uint32_t*) 0x00000000);                // invalid address
-      break;
-    default:
-      ResponseCmndChar_P(PSTR("Use 1 to generate a crash"));
+  if (1 == XdrvMailbox.payload) {
+    volatile uint32_t dummy;
+    dummy = *((uint32_t*) 0x00000000);                // invalid address
+  } else {
+    ResponseCmndChar_P(PSTR("Use 1 to generate a crash"));
   }
 }
 
@@ -196,6 +193,7 @@ void CmndCrashRecord(void)
 void CmndCrashDump(void)
 {
   CrashRecorder_t dump;
+  const char *msg;
 
   ESP.flashRead(crash_addr, (uint32_t*) &dump, sizeof(dump));
   if (crash_sig == dump.crash_signature) {
@@ -211,33 +209,31 @@ void CmndCrashDump(void)
                     dump.stack_start, dump.stack_end,
                     dump.crash_date / 1000
                     );
-    MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR("crashdump"));
+    MqttPublishPrefixTopic_P(RESULT_OR_TELE, mqtt_data);
 
-    uint32_t stack_len = dump.stack_dump_len <= dump_max_len ? dump.stack_dump_len : dump_max_len; // we will limit to 2k
-    uint8_t dump_stack[stack_len];
+    uint32_t stack_len = dump.stack_dump_len <= dump_max_len ? dump.stack_dump_len : dump_max_len; // we will limit to 1k
+    uint32_t dump_stack[stack_len / 4];
 
-    ESP.flashRead(crash_addr + sizeof(CrashRecorder_t), (uint32_t*) dump_stack, stack_len);
+    ESP.flashRead(crash_addr + sizeof(CrashRecorder_t), dump_stack, stack_len);
 
     uint32_t dumped = 0;
     Response_P(PSTR("{\"call_chain\":\""));
-    for (uint32_t i = 0; i < stack_len; i+=4) {
-      uint32_t value = *((uint32_t*) (&dump_stack[i]));
+    for (uint32_t i = 0; i < stack_len / 4; i++) {
+      uint32_t value = dump_stack[i];
       if ((value >= 0x40000000) && (value < 0x40300000)) {
-        if (dumped > 0) {
-          ResponseAppend_P(PSTR(" "));
-        }
-        ResponseAppend_P(PSTR("%08x"), value);
+        ResponseAppend_P(PSTR("%08x "), value);
         dumped++;
         if (dumped >= 64) { break; }
       }
     }
     ResponseAppend_P(PSTR("\"}"));
-    MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR("crashdump"));
+    MqttPublishPrefixTopic_P(RESULT_OR_TELE, mqtt_data);
     XdrvRulesProcess();
-    ResponseCmndChar_P(PSTR("Ok"));
+    msg = PSTR("Ok");
   } else {
-    ResponseCmndChar_P(PSTR("No crash dump found"));
+    msg = PSTR("No crash dump found");
   }
+  ResponseCmndChar_P(msg);
 }
 
 /*********************************************************************************************\
