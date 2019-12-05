@@ -204,13 +204,13 @@ void CmndCrashDump(void)
                     "\"epc1\":\"0x%08x\",\"epc2\":\"0x%08x\",\"epc3\":\"0x%08x\","
                     "\"excvaddr\":\"0x%08x\",\"depc\":\"0x%08x\","
                     "\"stack_start\":\"0x%08x\",\"stack_end\":\"0x%08x\","
-                    "\"date_millis\":%d"
+                    "\"uptime\":%d"
                     "}"),
                     dump.info.reason, dump.info.exccause,
                     dump.info.epc1, dump.info.epc2, dump.info.epc3,
                     dump.info.excvaddr, dump.info.depc,
                     dump.stack_start, dump.stack_end,
-                    dump.crash_date
+                    dump.crash_date / 1000
                     );
     MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR("crashdump"));
 
