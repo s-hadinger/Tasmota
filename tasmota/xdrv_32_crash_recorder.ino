@@ -21,9 +21,9 @@
 
 #define XDRV_32             32
 
-const char kCrashRecorderCommands[] PROGMEM = "|" "CrashRecorder" "|" "CrashDump" "|" "Crash"; // No prefix
+const char kCrashRecorderCommands[] PROGMEM = "|" "CrashRecord" "|" "CrashDump" "|" "Crash"; // No prefix
 
-void (* const CrashRecorderCommand[])(void) PROGMEM = { &CmndCrashRecorder, &CmndCrashDump, &CmndCrash };
+void (* const CrashRecorderCommand[])(void) PROGMEM = { &CmndCrashRecord, &CmndCrashDump, &CmndCrash };
 
 const uint32_t crash_bank = SETTINGS_LOCATION - CFG_ROTATES - 1;
 const uint32_t crash_addr = crash_bank * SPI_FLASH_SEC_SIZE;
@@ -73,17 +73,16 @@ extern "C" void custom_crash_callback(struct rst_info * rst_info, uint32_t stack
   }
   // Flash has been erased, so we're good
 
-  ESP.flashWrite(crash_addr, (uint32_t*) &crash_recorder, sizeof(crash_recorder));
-
   // now store the stack trace, limited to 3KB (which should be far enough)
-  crash_recorder.stack_dump_len = stack_end - stack;
+  crash_recorder.stack_dump_len = stack - stack_end;
   if (crash_recorder.stack_dump_len > dump_max_len) { crash_recorder.stack_dump_len = dump_max_len; }
 
-  ESP.flashWrite(crash_addr + sizeof(crash_recorder)/sizeof(crash_addr), (uint32_t*) stack, crash_recorder.stack_dump_len);
+  ESP.flashWrite(crash_addr, (uint32_t*) &crash_recorder, sizeof(crash_recorder));
+  ESP.flashWrite(crash_addr + sizeof(crash_recorder), (uint32_t*) stack, crash_recorder.stack_dump_len);
 }
 
 /*********************************************************************************************\
- * CmndCrashRecorder - arm the crash recorder until next reboot
+ * CmndCrashRecord - arm the crash recorder until next reboot
 \*********************************************************************************************/
 
 // Input:
@@ -115,9 +114,9 @@ int32_t SetCrashRecorder(int32_t mode) {
           if (crash_empty != sig) {
             // crash recorder zone is not clean
             if (ESP.flashEraseSector(crash_bank)) {
-              ret = -2;
-            } else {
               ret = 2;
+            } else {
+              ret = -2;
             }
           } else {
             ret = 1;
@@ -143,17 +142,15 @@ void CmndCrash(void)
 
   switch (XdrvMailbox.payload) {
     case 1:
-      dummy = *((uint32_t*) (((uint8_t*) &dummy)+1));   // unaligned access of 32 bits
-      break;
-    default:
-    case -99:
       dummy = *((uint32_t*) 0x00000000);                // invalid address
       break;
+    default:
+      ResponseCmndChar("Use 1 to generate a crash");
   }
 }
 
 
-void CmndCrashRecorder(void)
+void CmndCrashRecord(void)
 {
   int32_t mode, ret;
 
@@ -168,7 +165,7 @@ void CmndCrashRecorder(void)
       mode = 0;
   }
 
-  ret = SetCrashRecorder(XdrvMailbox.payload);
+  ret = SetCrashRecorder(mode);
   const char *msg;
 
   switch (ret) {
@@ -204,10 +201,10 @@ void CmndCrashDump(void)
   ESP.flashRead(crash_addr, (uint32_t*) &dump, sizeof(dump));
   if (crash_sig == dump.crash_signature) {
     Response_P(PSTR("{\"reason\":%d,\"exccause\":%d,"
-                    "\"epc1\":\"0x%04x\",\"epc2\":\"0x%04x\",\"epc3\":\"0x%04x\","
-                    "\"excvaddr\":\"0x%04x\",\"depc\":\"0x%04x\","
-                    "\"stack_start\":\"0x%04x\",\"stack_end\":\"0x%04x\","
-                    "\"date_millis\":%d,"
+                    "\"epc1\":\"0x%08x\",\"epc2\":\"0x%08x\",\"epc3\":\"0x%08x\","
+                    "\"excvaddr\":\"0x%08x\",\"depc\":\"0x%08x\","
+                    "\"stack_start\":\"0x%08x\",\"stack_end\":\"0x%08x\","
+                    "\"date_millis\":%d"
                     "}"),
                     dump.info.reason, dump.info.exccause,
                     dump.info.epc1, dump.info.epc2, dump.info.epc3,
@@ -216,29 +213,29 @@ void CmndCrashDump(void)
                     dump.crash_date
                     );
     MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR("crashdump"));
-    XdrvRulesProcess();
 
-    uint32_t stack_len  = dump.stack_dump_len <= dump_max_len ? dump.stack_dump_len : dump_max_len; // we will limit to 2k
-
+    uint32_t stack_len = dump.stack_dump_len <= dump_max_len ? dump.stack_dump_len : dump_max_len; // we will limit to 2k
     uint8_t dump_stack[stack_len];
 
-    ESP.flashRead(crash_addr + sizeof(crash_recorder)/sizeof(crash_addr), (uint32_t*) dump_stack, stack_len);
+    ESP.flashRead(crash_addr + sizeof(crash_recorder), (uint32_t*) dump_stack, stack_len);
 
     uint32_t dumped = 0;
     Response_P(PSTR("{\"call_chain\":\""));
     for (uint32_t i = 0; i < stack_len; i+=4) {
       uint32_t value = *((uint32_t*) (&dump_stack[i]));
-
-      if (dumped > 0) {
-        ResponseAppend_P(PSTR(" "));
+      if ((value >= 0x40000000) && (value < 0x40300000)) {
+        if (dumped > 0) {
+          ResponseAppend_P(PSTR(" "));
+        }
+        ResponseAppend_P(PSTR("%08x"), value);
+        dumped++;
+        if (dumped >= 64) { break; }
       }
-      ResponseAppend_P(PSTR("%04x"), value);
-      dumped++;
-      if (dumped >= 64) { break; }
     }
     ResponseAppend_P("\"}");
     MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR("crashdump"));
     XdrvRulesProcess();
+    ResponseCmndChar("Ok");
   } else {
     ResponseCmndChar("No crash dump found");
   }
