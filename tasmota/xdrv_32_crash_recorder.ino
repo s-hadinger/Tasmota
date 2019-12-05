@@ -35,8 +35,7 @@ static bool stacktrace_armed = false;        // should we record the stacktrace
 
 typedef struct CrashRecorder_t {
   uint64_t crash_signature = crash_sig;
-  struct rst_info info;
-  uint32_t crash_date;
+  uint32_t epc1;
   uint32_t stack_start;
   uint32_t stack_end;
   uint32_t stack_dump_len;
@@ -55,8 +54,7 @@ extern "C" void custom_crash_callback(struct rst_info * rst_info, uint32_t stack
 
   CrashRecorder_t crash_recorder;
 
-  crash_recorder.info             = *rst_info;
-  crash_recorder.crash_date       = millis();
+  crash_recorder.epc1             = rst_info->epc1;
   crash_recorder.stack_start      = stack;
   crash_recorder.stack_end        = stack_end;
 
@@ -197,19 +195,19 @@ void CmndCrashDump(void)
 
   ESP.flashRead(crash_addr, (uint32_t*) &dump, sizeof(dump));
   if (crash_sig == dump.crash_signature) {
-    Response_P(PSTR("{\"reason\":%d,\"exccause\":%d,"
-                    "\"epc1\":\"0x%08x\",\"epc2\":\"0x%08x\",\"epc3\":\"0x%08x\","
-                    "\"excvaddr\":\"0x%08x\",\"depc\":\"0x%08x\","
-                    "\"stack_start\":\"0x%08x\",\"stack_end\":\"0x%08x\","
-                    "\"uptime\":%d"
-                    "}"),
-                    dump.info.reason, dump.info.exccause,
-                    dump.info.epc1, dump.info.epc2, dump.info.epc3,
-                    dump.info.excvaddr, dump.info.depc,
-                    dump.stack_start, dump.stack_end,
-                    dump.crash_date / 1000
-                    );
-    MqttPublishPrefixTopic_P(RESULT_OR_TELE, mqtt_data);
+    // Response_P(PSTR("{\"reason\":%d,\"exccause\":%d,"
+    //                 "\"epc1\":\"0x%08x\",\"epc2\":\"0x%08x\",\"epc3\":\"0x%08x\","
+    //                 "\"excvaddr\":\"0x%08x\",\"depc\":\"0x%08x\","
+    //                 "\"stack_start\":\"0x%08x\",\"stack_end\":\"0x%08x\","
+    //                 "\"uptime\":%d"
+    //                 "}"),
+    //                 dump.info.reason, dump.info.exccause,
+    //                 dump.info.epc1, dump.info.epc2, dump.info.epc3,
+    //                 dump.info.excvaddr, dump.info.depc,
+    //                 dump.stack_start, dump.stack_end,
+    //                 dump.crash_date / 1000
+    //                 );
+    // MqttPublishPrefixTopic_P(RESULT_OR_TELE, mqtt_data);
 
     uint32_t stack_len = dump.stack_dump_len <= dump_max_len ? dump.stack_dump_len : dump_max_len; // we will limit to 1k
     uint32_t dump_stack[stack_len / 4];
@@ -217,7 +215,7 @@ void CmndCrashDump(void)
     ESP.flashRead(crash_addr + sizeof(CrashRecorder_t), dump_stack, stack_len);
 
     uint32_t dumped = 0;
-    Response_P(PSTR("{\"call_chain\":\""));
+    Response_P(PSTR("{\"epc1\":\"0x%08x\",\"call_chain\":\""), dump.epc1);
     for (uint32_t i = 0; i < stack_len / 4; i++) {
       uint32_t value = dump_stack[i];
       if ((value >= 0x40000000) && (value < 0x40300000)) {
