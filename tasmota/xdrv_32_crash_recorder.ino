@@ -21,7 +21,7 @@
 
 #define XDRV_32             32
 
-const char kCrashRecorderCommands[] PROGMEM = "|" "CrashRecord" "|" "CrashDump" "|" "Crash"; // No prefix
+const char kCrashRecorderCommands[] PROGMEM = "|" D_CMND_CRASHRECORD "|" D_CMND_CRASHDUMP "|" D_CMND_CRASH; // No prefix
 
 void (* const CrashRecorderCommand[])(void) PROGMEM = { &CmndCrashRecord, &CmndCrashDump, &CmndCrash };
 

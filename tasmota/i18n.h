@@ -490,6 +490,11 @@
     #define D_JSON_MOTOR_MIS "setMIS"
   #endif
 
+// Commands xdrv_32_crash_recorder.ino
+#define D_CMND_CRASHRECORD "CrashRecord"
+#define D_CMND_CRASHDUMP "CrashDump"
+#define D_CMND_CRASH "Crash"
+
 /********************************************************************************************/
 
 // Log message prefix
