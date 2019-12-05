@@ -641,7 +641,7 @@ void CmndShutterSetClose(void)
     Shutter.real_position[XdrvMailbox.index -1] = 0;
     ShutterStartInit(XdrvMailbox.index -1, 0, 0);
     Settings.shutter_position[XdrvMailbox.index -1] = 0;
-    ResponseCmndChar(D_CONFIGURATION_RESET);
+    ResponseCmndChar_P(PSTR(D_CONFIGURATION_RESET));
   }
 }
 

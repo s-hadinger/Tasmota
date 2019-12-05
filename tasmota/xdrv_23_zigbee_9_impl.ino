@@ -257,10 +257,10 @@ void CmndZigbeeReset(void) {
     case 1:
       ZigbeeZNPSend(ZIGBEE_FACTORY_RESET, sizeof(ZIGBEE_FACTORY_RESET));
       restart_flag = 2;
-      ResponseCmndChar(D_JSON_ZIGBEE_CC2530 " " D_JSON_RESET_AND_RESTARTING);
+      ResponseCmndChar_P(PSTR(D_JSON_ZIGBEE_CC2530 " " D_JSON_RESET_AND_RESTARTING));
       break;
     default:
-      ResponseCmndChar(D_JSON_ONE_TO_RESET);
+      ResponseCmndChar_P(PSTR(D_JSON_ONE_TO_RESET));
     }
   }
 }
@@ -389,7 +389,7 @@ void zigbeeZCLSendStr(uint16_t dstAddr, uint8_t endpoint, const char *data) {
     if ('!' == *data) { clusterSpecific = true; }
     data++;
   } else {
-    ResponseCmndChar("Wrong delimiter for payload");
+    ResponseCmndChar_P(PSTR("Wrong delimiter for payload"));
     return;
   }
   // parse cmd number
@@ -456,10 +456,10 @@ void CmndZigbeeSend(void) {
   // ZigbeeSend { "devicse":"0x1234", "endpoint":"0x03", "send":{"Power":1} }
   // ZigbeeSend { "device":"0x1234", "endpoint":"0x03", "send":{"Color":"1,2"} }
   // ZigbeeSend { "device":"0x1234", "endpoint":"0x03", "send":{"Color":"0x1122,0xFFEE"} }
-  if (zigbee.init_phase) { ResponseCmndChar(D_ZIGBEE_NOT_STARTED); return; }
+  if (zigbee.init_phase) { ResponseCmndChar_P(PSTR(D_ZIGBEE_NOT_STARTED)); return; }
   DynamicJsonBuffer jsonBuf;
   JsonObject &json = jsonBuf.parseObject(XdrvMailbox.data);
-  if (!json.success()) { ResponseCmndChar(D_JSON_INVALID_JSON); return; }
+  if (!json.success()) { ResponseCmndChar_P(PSTR(D_JSON_INVALID_JSON)); return; }
 
   // params
   static char delim[] = ", ";     // delimiters for parameters
@@ -551,11 +551,11 @@ void CmndZigbeeSend(void) {
 
 // Probe a specific device to get its endpoints and supported clusters
 void CmndZigbeeProbe(void) {
-  if (zigbee.init_phase) { ResponseCmndChar(D_ZIGBEE_NOT_STARTED); return; }
+  if (zigbee.init_phase) { ResponseCmndChar_P(PSTR(D_ZIGBEE_NOT_STARTED)); return; }
   char dataBufUc[XdrvMailbox.data_len];
   UpperCase(dataBufUc, XdrvMailbox.data);
   RemoveSpace(dataBufUc);
-  if (strlen(dataBufUc) < 3) { ResponseCmndChar("Invalid destination"); return; }
+  if (strlen(dataBufUc) < 3) { ResponseCmndChar_P(PSTR("Invalid destination")); return; }
 
   // TODO, for now ignore friendly names
   uint16_t shortaddr = strtoull(dataBufUc, nullptr, 0);
@@ -571,10 +571,10 @@ void CmndZigbeeRead(void) {
   // ZigbeeRead {"Device":"0xF289","Cluster":0,"Endpoint":3,"Attr":5}
   // ZigbeeRead {"Device":"0xF289","Cluster":"0x0000","Endpoint":"0x0003","Attr":"0x0005"}
   // ZigbeeRead {"Device":"0xF289","Cluster":0,"Endpoint":3,"Attr":[5,6,7,4]}
-  if (zigbee.init_phase) { ResponseCmndChar(D_ZIGBEE_NOT_STARTED); return; }
+  if (zigbee.init_phase) { ResponseCmndChar_P(PSTR(D_ZIGBEE_NOT_STARTED)); return; }
   DynamicJsonBuffer jsonBuf;
   JsonObject &json = jsonBuf.parseObject(XdrvMailbox.data);
-  if (!json.success()) { ResponseCmndChar(D_JSON_INVALID_JSON); return; }
+  if (!json.success()) { ResponseCmndChar_P(PSTR(D_JSON_INVALID_JSON)); return; }
 
   // params
   uint16_t device = 0xFFFF;       // 0xFFFF is braodcast, so considered valid
@@ -622,7 +622,7 @@ void CmndZigbeeRead(void) {
 // Allow or Deny pairing of new Zigbee devices
 void CmndZigbeePermitJoin(void)
 {
-  if (zigbee.init_phase) { ResponseCmndChar(D_ZIGBEE_NOT_STARTED); return; }
+  if (zigbee.init_phase) { ResponseCmndChar_P(PSTR(D_ZIGBEE_NOT_STARTED)); return; }
   uint32_t payload = XdrvMailbox.payload;
   if (payload < 0) { payload = 0; }
   if ((99 != payload) && (payload > 1)) { payload = 1; }

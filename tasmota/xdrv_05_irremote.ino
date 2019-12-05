@@ -233,7 +233,7 @@ uint32_t IrRemoteCmndIrSendJson(void)
 #endif
     default:
       irsend_active = false;
-      ResponseCmndChar(D_JSON_PROTOCOL_NOT_SUPPORTED);
+      ResponseCmndChar_P(PSTR(D_JSON_PROTOCOL_NOT_SUPPORTED));
   }
 
   return IE_NO_ERROR;
@@ -258,10 +258,10 @@ void IrRemoteCmndResponse(uint32_t error)
 {
   switch (error) {
     case IE_INVALID_RAWDATA:
-      ResponseCmndChar(D_JSON_INVALID_RAWDATA);
+      ResponseCmndChar_P(PSTR(D_JSON_INVALID_RAWDATA));
       break;
     case IE_INVALID_JSON:
-      ResponseCmndChar(D_JSON_INVALID_JSON);
+      ResponseCmndChar_P(PSTR(D_JSON_INVALID_JSON));
       break;
     case IE_SYNTAX_IRSEND:
       Response_P(PSTR("{\"" D_CMND_IRSEND "\":\"" D_JSON_NO " " D_JSON_IR_PROTOCOL ", " D_JSON_IR_BITS " " D_JSON_OR " " D_JSON_IR_DATA "\"}"));

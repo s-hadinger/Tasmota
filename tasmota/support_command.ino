@@ -74,6 +74,13 @@ void ResponseCmndChar(const char* value)
   Response_P(S_JSON_COMMAND_SVALUE, XdrvMailbox.command, value);
 }
 
+void ResponseCmndChar_P(const char* value)
+{
+  char tmp[strlen_P(value) + 1];
+  strcpy_P(tmp, value);
+  ResponseCmndChar(tmp);
+}
+
 void ResponseCmndStateText(uint32_t value)
 {
   ResponseCmndChar(GetStateText(value));
@@ -81,7 +88,7 @@ void ResponseCmndStateText(uint32_t value)
 
 void ResponseCmndDone(void)
 {
-  ResponseCmndChar(D_JSON_DONE);
+  ResponseCmndChar_P(PSTR(D_JSON_DONE));
 }
 
 void ResponseCmndIdxChar(const char* value)
@@ -562,14 +569,14 @@ void CmndRestart(void)
   switch (XdrvMailbox.payload) {
   case 1:
     restart_flag = 2;
-    ResponseCmndChar(D_JSON_RESTARTING);
+    ResponseCmndChar_P(PSTR(D_JSON_RESTARTING));
     break;
   case 99:
     AddLog_P(LOG_LEVEL_INFO, PSTR(D_LOG_APPLICATION D_RESTARTING));
     EspRestart();
     break;
   default:
-    ResponseCmndChar(D_JSON_ONE_TO_RESTART);
+    ResponseCmndChar_P(PSTR(D_JSON_ONE_TO_RESTART));
   }
 }
 
@@ -944,7 +951,7 @@ void CmndGpio(void)
     if (jsflg) {
       ResponseJsonEnd();
     } else {
-      ResponseCmndChar(D_JSON_NOT_SUPPORTED);
+      ResponseCmndChar_P(PSTR(D_JSON_NOT_SUPPORTED));
     }
   }
 }
@@ -1013,7 +1020,7 @@ void CmndTemplate(void)
     if (JsonTemplate(XdrvMailbox.data)) {    // Free 336 bytes StaticJsonBuffer stack space by moving code to function
       if (USER_MODULE == Settings.module) { restart_flag = 2; }
     } else {
-      ResponseCmndChar(D_JSON_INVALID_JSON);
+      ResponseCmndChar_P(PSTR(D_JSON_INVALID_JSON));
       error = true;
     }
   }
@@ -1365,7 +1372,7 @@ void CmndReset(void)
   switch (XdrvMailbox.payload) {
   case 1:
     restart_flag = 211;
-    ResponseCmndChar(D_JSON_RESET_AND_RESTARTING);
+    ResponseCmndChar_P(PSTR(D_JSON_RESET_AND_RESTARTING));
     break;
   case 2 ... 6:
     restart_flag = 210 + XdrvMailbox.payload;
@@ -1376,7 +1383,7 @@ void CmndReset(void)
     ResponseCmndDone();
     break;
   default:
-    ResponseCmndChar(D_JSON_ONE_TO_RESET);
+    ResponseCmndChar_P(PSTR(D_JSON_ONE_TO_RESET));
   }
 }
 
