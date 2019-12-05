@@ -141,7 +141,7 @@ void CmndCrash(void)
     volatile uint32_t dummy;
     dummy = *((uint32_t*) 0x00000000);                // invalid address
   } else {
-    ResponseCmndChar_P(PSTR("Use 1 to generate a crash"));
+    ResponseCmndChar_P(PSTR(D_JSON_ONE_TO_CRASH));
   }
 }
 
@@ -166,22 +166,22 @@ void CmndCrashRecord(void)
 
   switch (ret) {
     case 0:
-      msg = PSTR("Crash_recorder disabled.");
+      msg = PSTR(D_JSON_CRASH_RECORD " " D_DISABLED);
       break;
     case 1:
-      msg = PSTR("Crash_recorder enabled until next reboot.");
+      msg = PSTR(D_JSON_CRASH_RECORD " " D_ENABLED);
       break;
     case 2:
-      msg = PSTR("Crash_recorder erased and enabled until next reboot.");
+      msg = PSTR(D_JSON_CRASH_RECORD_ERASED ", " D_ENABLED);
       break;
     case -1:
-      msg = PSTR("Abort: crash record already present, use 1 to erase.");
+      msg = PSTR(D_JSON_ABORTED ": " D_JSON_CRASH_RECORD_PRESENT);
       break;
     case -2:
-      msg = PSTR("Error: unable to clear Flash crash dump area.");
+      msg = PSTR(D_JSON_ERROR ": " D_JSON_ERR_ERASE_SECTOR);
       break;
     default:
-      msg = PSTR("");
+      msg = PSTR(D_JSON_UNKNOWN);
   }
   ResponseCmndChar_P(msg);
 }
@@ -229,9 +229,9 @@ void CmndCrashDump(void)
     ResponseAppend_P(PSTR("\"}"));
     MqttPublishPrefixTopic_P(RESULT_OR_TELE, mqtt_data);
     XdrvRulesProcess();
-    msg = PSTR("Ok");
+    msg = PSTR(D_OK);
   } else {
-    msg = PSTR("No crash dump found");
+    msg = PSTR(D_JSON_NO_DUMP);
   }
   ResponseCmndChar_P(msg);
 }
