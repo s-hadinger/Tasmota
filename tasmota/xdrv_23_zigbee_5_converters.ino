@@ -813,16 +813,24 @@ int32_t Z_AqaraSensor(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject&
     i += parseSingleAttribute(json, tmp, buf2, i, len);
     float val = json[tmp];
     json.remove(tmp);
-    if (0x64 == attrid) {
-      json[F(D_JSON_TEMPERATURE)] = val / 100.0f;
-    } else if (0x65 == attrid) {
-      json[F(D_JSON_HUMIDITY)] = val / 100.0f;
-    } else if (0x66 == attrid) {
-      json[F(D_JSON_PRESSURE)] = val / 100.0f;
-      json[F(D_JSON_PRESSURE_UNIT)] = F(D_UNIT_PRESSURE);   // hPa
-    } else if (0x01 == attrid) {
+    if (0x01 == attrid) {
       json[F(D_JSON_VOLTAGE)] = val / 1000.0f;
       json[F("Battery")] = toPercentageCR2032(val);
+    } else if (0 == zcl->getManufCode()) {
+      // onla Aqara Temp/Humidity has manuf_code of zero. If non-zero we skip the parameters
+      if (0x64 == attrid) {
+        json[F(D_JSON_TEMPERATURE)] = val / 100.0f;
+      } else if (0x65 == attrid) {
+        json[F(D_JSON_HUMIDITY)] = val / 100.0f;
+      } else if (0x66 == attrid) {
+        json[F(D_JSON_PRESSURE)] = val / 100.0f;
+        json[F(D_JSON_PRESSURE_UNIT)] = F(D_UNIT_PRESSURE);   // hPa
+      } else if (0x01 == attrid) {
+        json[F(D_JSON_VOLTAGE)] = val / 1000.0f;
+        json[F("Battery")] = toPercentageCR2032(val);
+      }
+    } else if (0x115F == zcl->getManufCode()) {
+      // Aqara Motion Sensor
     }
   }
   return 1;   // remove original key
