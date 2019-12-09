@@ -49,7 +49,7 @@ public:
     };
 
 
-  void publishMQTTReceived(uint16_t groupid, uint16_t clusterid, Z_ShortAddress srcaddr,
+  void publishMQTTReceived(uint16_t groupid, uint16_t clusterid, uint16_t srcaddr,
                            uint8_t srcendpoint, uint8_t dstendpoint, uint8_t wasbroadcast,
                            uint8_t linkquality, uint8_t securityuse, uint8_t seqnumber,
                            uint32_t timestamp) {
@@ -124,6 +124,10 @@ public:
 
   const SBuffer &getPayload(void) const {
     return _payload;
+  }
+
+  uint16_t getManufCode(void) const {
+    return _manuf_code;
   }
 
 private:
@@ -456,7 +460,7 @@ void ZCLFrame::parseClusterSpecificCommand(JsonObject& json, uint8_t offset) {
 // return value:
 // 0 = keep initial value
 // 1 = remove initial value
-typedef int32_t (*Z_AttrConverter)(uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const __FlashStringHelper* new_name);
+typedef int32_t (*Z_AttrConverter)(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const __FlashStringHelper* new_name);
 typedef struct Z_AttributeConverter {
   uint16_t cluster;
   uint16_t attribute;
@@ -753,13 +757,13 @@ const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
 
 // ======================================================================
 // Record Manuf
-int32_t Z_ManufKeep(uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const __FlashStringHelper *new_name) {
+int32_t Z_ManufKeep(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const __FlashStringHelper *new_name) {
   json[new_name] = value;
   zigbee_devices.setManufId(shortaddr, value.as<const char*>());
   return 1;
 }
 //
-int32_t Z_ModelKeep(uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const __FlashStringHelper *new_name) {
+int32_t Z_ModelKeep(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const __FlashStringHelper *new_name) {
   json[new_name] = value;
   zigbee_devices.setModelId(shortaddr, value.as<const char*>());
   return 1;
@@ -767,34 +771,34 @@ int32_t Z_ModelKeep(uint16_t shortaddr, JsonObject& json, const char *name, Json
 
 // ======================================================================
 // Remove attribute
-int32_t Z_Remove(uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const __FlashStringHelper *new_name) {
+int32_t Z_Remove(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const __FlashStringHelper *new_name) {
   return 1;   // remove original key
 }
 
 // Copy value as-is
-int32_t Z_Copy(uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const __FlashStringHelper *new_name) {
+int32_t Z_Copy(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const __FlashStringHelper *new_name) {
   json[new_name] = value;
   return 1;   // remove original key
 }
 
 // Add pressure unit
-int32_t Z_AddPressureUnit(uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const __FlashStringHelper *new_name) {
+int32_t Z_AddPressureUnit(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const __FlashStringHelper *new_name) {
   json[new_name] = F(D_UNIT_PRESSURE);
   return 0;   // keep original key
 }
 
 // Convert int to float and divide by 100
-int32_t Z_FloatDiv100(uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const __FlashStringHelper *new_name) {
+int32_t Z_FloatDiv100(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const __FlashStringHelper *new_name) {
   json[new_name] = ((float)value) / 100.0f;
   return 1;   // remove original key
 }
 // Convert int to float and divide by 10
-int32_t Z_FloatDiv10(uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const __FlashStringHelper *new_name) {
+int32_t Z_FloatDiv10(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const __FlashStringHelper *new_name) {
   json[new_name] = ((float)value) / 10.0f;
   return 1;   // remove original key
 }
 
-int32_t Z_AqaraSensor(uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const __FlashStringHelper *new_name) {
+int32_t Z_AqaraSensor(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const __FlashStringHelper *new_name) {
   String hex = value;
   SBuffer buf2 = SBuffer::SBufferFromHex(hex.c_str(), hex.length());
   uint32_t i = 0;
@@ -859,7 +863,7 @@ void ZCLFrame::postProcessAttributes(uint16_t shortaddr, JsonObject& json) {
 
         if ((conv_cluster == cluster) &&
             ((conv_attribute == attribute) || (conv_attribute == 0xFFFF)) ) {
-          int32_t drop = (*converter->func)(shortaddr, json, key, value, (const __FlashStringHelper*) converter->name);
+          int32_t drop = (*converter->func)(this, shortaddr, json, key, value, (const __FlashStringHelper*) converter->name);
           if (drop) {
             json.remove(key);
           }
