@@ -3,13 +3,16 @@
 ### 7.1.2.4 20191209
 
 - Change HTTP CORS from command ``SetOption73 0/1`` to ``Cors <cors_domain>`` allowing user control of specific CORS domain by Shantur Rathore (#7066)
+- Change GUI Shutter button text to Up and Down Arrows based on PR by Xavier Muller (#7166)
+- Change amount of supported DHT sensors from 3 to 4 by Xavier Muller (#7167)
 - Revert removal of exception details from MQTT info on restart
 - Add Wifi Signal Strength in dBm in addition to RSSI Wifi Experience by Andreas Schultz (#7145)
 - Add Yaw, Pitch and Roll support for MPU6050 by Philip Barclay (#7058)
+- Add reporting of raw weight to JSON from HX711 to overcome auto-tare functionality by @tobox (#7171)
 
 ### 7.1.2.3 20191208
 
-- Redesign Exception reporting removing exception details from both MQTT info and Status 1. Now consolidated in Status 12 if available.
+- Change Exception reporting removing exception details from both MQTT info and ``Status 1``. Now consolidated in ``Status 12`` if available.
 
 ### 7.1.2.2 20191206
 
