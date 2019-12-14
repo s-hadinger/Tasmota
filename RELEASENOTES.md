@@ -47,13 +47,18 @@ The following binary downloads have been compiled with ESP8266/Arduino library c
 
 ## Changelog
 
-### Version 7.1.2.4
+### Version 7.1.2.5
 
 - Change Exception reporting removing exception details from ``Status 1`` and consolidated in ``Status 12`` if available
 - Change HTTP CORS from command ``SetOption73 0/1`` to ``Cors <cors_domain>`` allowing user control of specific CORS domain by Shantur Rathore (#7066)
 - Change GUI Shutter button text to Up and Down Arrows based on PR by Xavier Muller (#7166)
 - Change amount of supported DHT sensors from 3 to 4 by Xavier Muller (#7167)
+- Change some Settings locations freeing up space for future single char allowing variable length text
+- Fix flashing H801 led at boot by Stefan Hadinger (#7165, #649)
+- Fix duplicated ``Backlog`` when using Event inside a Backlog by Adrian Scillato (#7178, #7147)
+- Fix Gui Timer when using a negative zero offset of -00:00 by Peter Ooms (#7174)
 - Add command ``SerialConfig 0..23`` or ``SerialConfig 8N1`` to select Serial Config based in PR by Luis Teixeira (#7108)
+- Add command ``Sensor34 9 <weight code>`` to set minimum delta to trigger JSON message by @tobox (#7188)
 - Add rule var ``%topic%`` by Adrian Scillato (#5522)
 - Add rule triggers ``tele-wifi1#xxx`` by Adrian Scillato (#7093)
 - Add SML bus decoder syntax support for byte order by Gerhard Mutz (#7112)
