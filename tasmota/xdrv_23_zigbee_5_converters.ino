@@ -56,24 +56,19 @@ public:
 #ifdef ZIGBEE_VERBOSE
     char hex_char[_payload.len()*2+2];
 		ToHex_P((unsigned char*)_payload.getBuffer(), _payload.len(), hex_char, sizeof(hex_char));
-    Response_P(PSTR("{\"" D_JSON_ZIGBEEZCL_RECEIVED "\":{"
+    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("{\"" D_JSON_ZIGBEEZCL_RECEIVED "\":{"
                     "\"groupid\":%d," "\"clusterid\":%d," "\"srcaddr\":\"0x%04X\","
                     "\"srcendpoint\":%d," "\"dstendpoint\":%d," "\"wasbroadcast\":%d,"
                     "\"" D_CMND_ZIGBEE_LINKQUALITY "\":%d," "\"securityuse\":%d," "\"seqnumber\":%d,"
                     "\"timestamp\":%d,"
                     "\"fc\":\"0x%02X\",\"manuf\":\"0x%04X\",\"transact\":%d,"
-                    "\"cmdid\":\"0x%02X\",\"payload\":\"%s\""),
+                    "\"cmdid\":\"0x%02X\",\"payload\":\"%s\"}}"),
                     groupid, clusterid, srcaddr,
                     srcendpoint, dstendpoint, wasbroadcast,
                     linkquality, securityuse, seqnumber,
                     timestamp,
                     _frame_control, _manuf_code, _transact_seq, _cmd_id,
                     hex_char);
-
-    ResponseJsonEnd();      // append '}'
-    ResponseJsonEnd();      // append '}'
-  	MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCL_RECEIVED));
-  	XdrvRulesProcess();
 #endif
   }
 
