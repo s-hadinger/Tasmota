@@ -539,7 +539,7 @@ void CmndZigbeeSend(void) {
       // we have an unsupported command type, just ignore it and fallback to missing command
     }
 
-    AddLog_P2(LOG_LEVEL_INFO, PSTR("ZigbeeCmd_actual: ZigbeeZCLSend {\"device\":\"0x%04X\",\"endpoint\":%d,\"send\":\"%s\"}"),
+    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeCmd_actual: ZigbeeZCLSend {\"device\":\"0x%04X\",\"endpoint\":%d,\"send\":\"%s\"}"),
               device, endpoint, cmd_str.c_str());
     zigbeeZCLSendStr(device, endpoint, cmd_str.c_str());
   } else {
