@@ -423,6 +423,10 @@ void zigbeeZCLSendStr(uint16_t dstAddr, uint8_t endpoint, const char *data) {
 
   // everything is good, we can send the command
   ZigbeeZCLSend(dstAddr, cluster, endpoint, cmd, clusterSpecific, buf.getBuffer(), buf.len());
+  // now set the timer, if any, to read back the state later
+  if (clusterSpecific) {
+    zigbeeSetCommandTimer(dstAddr, cluster, endpoint);
+  }
   ResponseCmndDone();
 }
 
