@@ -648,6 +648,11 @@ bool Xdrv23(uint8_t function)
 
   if (zigbee.active) {
     switch (function) {
+      case FUNC_EVERY_50_MSECOND:
+        if (!zigbee.init_phase) {
+          zigbee_devices.runTimer();
+        }
+        break;
       case FUNC_LOOP:
         if (ZigbeeSerial) { ZigbeeInput(); }
 				if (zigbee.state_machine) {
