@@ -55,8 +55,6 @@ const uint8_t CLUSTER_0008[] = { ZLE(0x0000) };    // CurrentLevel
 const uint8_t CLUSTER_0009[] = { ZLE(0x0000) };    // AlarmCount
 const uint8_t CLUSTER_0300[] = { ZLE(0x0000), ZLE(0x0001), ZLE(0x0003), ZLE(0x0004), ZLE(0x0007) };    // Hue, Sat, X, Y, CT
 
-void ZigbeeZCLSend(uint16_t dtsAddr, uint16_t clusterId, uint8_t endpoint, uint8_t cmdId, bool clusterSpecific, const uint8_t *msg, size_t len, bool disableDefResp = true, uint8_t transacId = 1);
-
 int32_t Z_ReadAttrCallback(uint16_t shortaddr, uint16_t cluster, uint16_t endpoint, uint32_t value) {
   size_t         attrs_len = 0;
   const uint8_t* attrs = nullptr;
