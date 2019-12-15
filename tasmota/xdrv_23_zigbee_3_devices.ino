@@ -381,6 +381,7 @@ void Z_Devices::setTimer(uint32_t shortaddr, uint32_t wait_ms, uint16_t cluster,
   device.endpoint = endpoint;
   device.value = value;
   device.func = func;
+  device.timer = wait_ms + millis();
 }
 
 // Run timer at each tick
@@ -392,7 +393,7 @@ void Z_Devices::runTimer(void) {
     uint16_t shortaddr = device.shortaddr;
 
     uint32_t timer = device.timer;
-    if ((timer) && (timer >= now)) {
+    if ((timer) && (timer <= now)) {
       // trigger the timer
       (*device.func)(device.shortaddr, device.cluster, device.endpoint, device.value);
 

@@ -47,8 +47,41 @@ const Z_CommandConverter Z_Commands[] = {
   { "ShutterTilt",  "0102!08xx"},           // Tilt percentage
 };
 
-int32_t Z_ReadAttrCallback(uint16_t shortaddr, uint16_t cluster, uint16_t endpoint, uint32_t value) {
+#define ZLE(x) ((x) & 0xFF), ((x) >> 8)     // Little Endian
 
+// Below are the attributes we wand to read from each cluster
+const uint8_t CLUSTER_0006[] = { ZLE(0x0000) };    // Power
+const uint8_t CLUSTER_0008[] = { ZLE(0x0000) };    // CurrentLevel
+const uint8_t CLUSTER_0009[] = { ZLE(0x0000) };    // AlarmCount
+const uint8_t CLUSTER_0300[] = { ZLE(0x0000), ZLE(0x0001), ZLE(0x0003), ZLE(0x0004), ZLE(0x0007) };    // Hue, Sat, X, Y, CT
+
+void ZigbeeZCLSend(uint16_t dtsAddr, uint16_t clusterId, uint8_t endpoint, uint8_t cmdId, bool clusterSpecific, const uint8_t *msg, size_t len, bool disableDefResp = true, uint8_t transacId = 1);
+
+int32_t Z_ReadAttrCallback(uint16_t shortaddr, uint16_t cluster, uint16_t endpoint, uint32_t value) {
+  size_t         attrs_len = 0;
+  const uint8_t* attrs = nullptr;
+
+  switch (cluster) {
+    case 0x0006:                              // for On/Off
+      attrs = CLUSTER_0006;
+      attrs_len = sizeof(CLUSTER_0006);
+      break;
+    case 0x0008:                              // for Dimmer
+      attrs = CLUSTER_0008;
+      attrs_len = sizeof(CLUSTER_0008);
+      break;
+    case 0x0009:                              // for Alarms
+      attrs = CLUSTER_0009;
+      attrs_len = sizeof(CLUSTER_0009);
+      break;
+    case 0x0300:                              // for Lights
+      attrs = CLUSTER_0300;
+      attrs_len = sizeof(CLUSTER_0300);
+      break;
+  }
+  if (attrs) {
+    ZigbeeZCLSend(shortaddr, cluster, endpoint, ZCL_READ_ATTRIBUTES, false, attrs, attrs_len, false /* we do want a response */);
+  }
 }
 
 
