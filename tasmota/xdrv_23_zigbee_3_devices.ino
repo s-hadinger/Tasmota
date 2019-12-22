@@ -433,6 +433,8 @@ void Z_Devices::jsonAppend(uint16_t shortaddr, JsonObject &values) {
     const char * key = key_string.c_str();
     JsonVariant &val = kv.value;
 
+    device.json->remove(key_string);    // force remove to have metadata like LinkQuality at the end
+
     if (val.is<char*>()) {
       String sval = val.as<String>();       // force a copy of the String value
       device.json->set(key_string, sval);
