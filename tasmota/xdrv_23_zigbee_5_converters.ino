@@ -290,17 +290,20 @@ uint32_t parseSingleAttribute(JsonObject& json, char *attrid_str, class SBuffer 
         bool parse_as_string = true;
         uint32_t len = (attrtype <= 0x42) ? buf.get8(i) : buf.get16(i);    // len is 8 or 16 bits
         i += (attrtype <= 0x42) ? 1 : 2;                                   // increment pointer
+        if (i + len > buf.len()) {        // make sure we don't get past the buffer
+          len = buf.len() - i;
+        }
 
         // check if we can safely use a string
         if ((0x41 == attrtype) || (0x43 == attrtype)) { parse_as_string = false; }
-        else {
-          for (uint32_t j = 0; j < len; j++) {
-            if (0x00 == buf.get8(i+j)) {
-              parse_as_string = false;
-              break;
-            }
-          }
-        }
+        // else {
+        //   for (uint32_t j = 0; j < len; j++) {
+        //     if (0x00 == buf.get8(i+j)) {
+        //       parse_as_string = false;
+        //       break;
+        //     }
+        //   }
+        // }
 
         if (parse_as_string) {
           char str[len+1];
@@ -415,7 +418,7 @@ void ZCLFrame::parseRawAttributes(JsonObject& json, uint8_t offset) {
   uint32_t i = offset;
   uint32_t len = _payload.len();
 
-  while (len - i >= 3) {
+  while (len >= i + 3) {
     uint16_t attrid = _payload.get16(i);
     i += 2;
 
@@ -472,7 +475,7 @@ void ZCLFrame::parseClusterSpecificCommand(JsonObject& json, uint8_t offset) {
 // return value:
 // 0 = keep initial value
 // 1 = remove initial value
-typedef int32_t (*Z_AttrConverter)(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const __FlashStringHelper* new_name, uint16_t cluster, uint16_t attr);
+typedef int32_t (*Z_AttrConverter)(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const String &new_name, uint16_t cluster, uint16_t attr);
 typedef struct Z_AttributeConverter {
   uint16_t cluster;
   uint16_t attribute;
@@ -777,13 +780,13 @@ const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
 
 // ======================================================================
 // Record Manuf
-int32_t Z_ManufKeep(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const __FlashStringHelper *new_name, uint16_t cluster, uint16_t attr) {
+int32_t Z_ManufKeep(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const String &new_name, uint16_t cluster, uint16_t attr) {
   json[new_name] = value;
   zigbee_devices.setManufId(shortaddr, value.as<const char*>());
   return 1;
 }
 //
-int32_t Z_ModelKeep(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const __FlashStringHelper *new_name, uint16_t cluster, uint16_t attr) {
+int32_t Z_ModelKeep(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const String &new_name, uint16_t cluster, uint16_t attr) {
   json[new_name] = value;
   zigbee_devices.setModelId(shortaddr, value.as<const char*>());
   return 1;
@@ -791,29 +794,29 @@ int32_t Z_ModelKeep(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& j
 
 // ======================================================================
 // Remove attribute
-int32_t Z_Remove(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const __FlashStringHelper *new_name, uint16_t cluster, uint16_t attr) {
+int32_t Z_Remove(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const String &new_name, uint16_t cluster, uint16_t attr) {
   return 1;   // remove original key
 }
 
 // Copy value as-is
-int32_t Z_Copy(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const __FlashStringHelper *new_name, uint16_t cluster, uint16_t attr) {
+int32_t Z_Copy(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const String &new_name, uint16_t cluster, uint16_t attr) {
   json[new_name] = value;
   return 1;   // remove original key
 }
 
 // Add pressure unit
-int32_t Z_AddPressureUnit(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const __FlashStringHelper *new_name, uint16_t cluster, uint16_t attr) {
+int32_t Z_AddPressureUnit(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const String &new_name, uint16_t cluster, uint16_t attr) {
   json[new_name] = F(D_UNIT_PRESSURE);
   return 0;   // keep original key
 }
 
 // Convert int to float and divide by 100
-int32_t Z_FloatDiv100(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const __FlashStringHelper *new_name, uint16_t cluster, uint16_t attr) {
+int32_t Z_FloatDiv100(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const String &new_name, uint16_t cluster, uint16_t attr) {
   json[new_name] = ((float)value) / 100.0f;
   return 1;   // remove original key
 }
 // Convert int to float and divide by 10
-int32_t Z_FloatDiv10(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const __FlashStringHelper *new_name, uint16_t cluster, uint16_t attr) {
+int32_t Z_FloatDiv10(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const String &new_name, uint16_t cluster, uint16_t attr) {
   json[new_name] = ((float)value) / 10.0f;
   return 1;   // remove original key
 }
@@ -830,7 +833,7 @@ int32_t Z_OccupancyCallback(uint16_t shortaddr, uint16_t cluster, uint16_t endpo
   XdrvRulesProcess();
 }
 
-int32_t Z_AqaraOccupancy(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const __FlashStringHelper *new_name, uint16_t cluster, uint16_t attr) {
+int32_t Z_AqaraOccupancy(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const String &new_name, uint16_t cluster, uint16_t attr) {
   json[new_name] = value;
   uint32_t occupancy = value;
 
@@ -843,7 +846,7 @@ int32_t Z_AqaraOccupancy(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObje
 }
 
 // Aqara Vibration Sensor - special proprietary attributes
-int32_t Z_AqaraVibration(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const __FlashStringHelper *new_name, uint16_t cluster, uint16_t attr) {
+int32_t Z_AqaraVibration(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const String &new_name, uint16_t cluster, uint16_t attr) {
   //json[new_name] = value;
   switch (attr) {
     case 0x0055:
@@ -897,7 +900,7 @@ int32_t Z_AqaraVibration(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObje
   return 1;   // remove original key
 }
 
-int32_t Z_AqaraSensor(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const __FlashStringHelper *new_name, uint16_t cluster, uint16_t attr) {
+int32_t Z_AqaraSensor(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const String &new_name, uint16_t cluster, uint16_t attr) {
   String hex = value;
   SBuffer buf2 = SBuffer::SBufferFromHex(hex.c_str(), hex.length());
   uint32_t i = 0;
@@ -957,7 +960,8 @@ void ZCLFrame::postProcessAttributes(uint16_t shortaddr, JsonObject& json) {
 
         if ((conv_cluster == cluster) &&
             ((conv_attribute == attribute) || (conv_attribute == 0xFFFF)) ) {
-          int32_t drop = (*converter->func)(this, shortaddr, json, key, value, (const __FlashStringHelper*) converter->name, conv_cluster, conv_attribute);
+          String new_name_str = converter->name;
+          int32_t drop = (*converter->func)(this, shortaddr, json, key, value, new_name_str, conv_cluster, conv_attribute);
           if (drop) {
             json.remove(key);
           }
