@@ -9,6 +9,7 @@
 - Add support for GPS as NTP server by Christian Baars and Adrian Scillato
 - Add Zigbee coalesce sensor attributes into a single message
 - Add Deepsleep start delay based on Teleperiod if ``Teleperiod`` differs from 10 or 300
+- Add Zigbee better support for Xiaomi Double Switch and Xiaomi Vibration sensor
 
 ## Released
 
