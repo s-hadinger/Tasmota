@@ -378,16 +378,11 @@ void Z_AqaraOccupancy(uint16_t shortaddr, uint16_t cluster, uint16_t endpoint, c
 int32_t Z_PublishAttributes(uint16_t shortaddr, uint16_t cluster, uint16_t endpoint, uint32_t value) {
   const JsonObject *json = zigbee_devices.jsonGet(shortaddr);
   if (json == nullptr) { return 0; }                 // don't crash if not found
-
   // Post-provess for Aqara Presence Senson
   Z_AqaraOccupancy(shortaddr, cluster, endpoint, json);
 
-  String msg = "";
-  json->printTo(msg);
-  zigbee_devices.jsonClear(shortaddr);
-  Response_P(PSTR("{\"" D_CMND_ZIGBEE_RECEIVED "\":{\"0x%04X\":%s}}"), shortaddr, msg.c_str());
-  MqttPublishPrefixTopic_P(TELE, PSTR(D_RSLT_SENSOR));
-  XdrvRulesProcess();
+  zigbee_devices.jsonPublish(shortaddr);
+  return 1;
 }
 
 int32_t Z_ReceiveAfIncomingMessage(int32_t res, const class SBuffer &buf) {
@@ -438,8 +433,13 @@ int32_t Z_ReceiveAfIncomingMessage(int32_t res, const class SBuffer &buf) {
 
   if (defer_attributes) {
     // Prepare for publish
-    zigbee_devices.jsonAppend(srcaddr, json);
-    zigbee_devices.setTimer(srcaddr, USE_ZIGBEE_COALESCE_ATTR_TIMER, clusterid, srcendpoint, 0, &Z_PublishAttributes);
+    if (zigbee_devices.jsonIsConflict(srcaddr, json)) {
+      // there is conflicting values, force a publish of the previous message now and don't coalesce
+      zigbee_devices.jsonPublish(srcaddr);
+    } else {
+      zigbee_devices.jsonAppend(srcaddr, json);
+      zigbee_devices.setTimer(srcaddr, USE_ZIGBEE_COALESCE_ATTR_TIMER, clusterid, srcendpoint, 0, &Z_PublishAttributes);
+    }
   } else {
     // Publish immediately
     msg = "";

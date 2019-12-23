@@ -91,6 +91,8 @@ public:
   void jsonClear(uint16_t shortaddr);
   void jsonAppend(uint16_t shortaddr, JsonObject &values);
   const JsonObject *jsonGet(uint16_t shortaddr);
+  const void jsonPublish(uint16_t shortaddr);    // publish the json message and clear buffer
+  bool jsonIsConflict(uint16_t shortaddr, const JsonObject &values);
 
 private:
   std::vector<Z_Device> _devices = {};
@@ -458,6 +460,28 @@ void CopyJsonObject(JsonObject &to, const JsonObject &from) {
   }
 }
 
+// does the new payload conflicts with the existing payload, i.e. values would be overwritten
+bool Z_Devices::jsonIsConflict(uint16_t shortaddr, const JsonObject &values) {
+  Z_Device & device = getShortAddr(shortaddr);
+  if (&device == nullptr) { return false; }                 // don't crash if not found
+  if (&values == nullptr) { return false; }
+
+  if (nullptr == device.json) {
+    return false;                                           // if no previous value, no conflict
+  }
+
+  for (auto kv : values) {
+    String key_string = kv.key;
+
+    if (strcasecmp_P(kv.key, PSTR(D_CMND_ZIGBEE_LINKQUALITY))) {  // exception = ignore duplicates for LinkQuality
+      if (device.json->containsKey(kv.key)) {
+        return true;          // conflict!
+      }
+    }
+  }
+  return false;
+}
+
 void Z_Devices::jsonAppend(uint16_t shortaddr, JsonObject &values) {
   Z_Device & device = getShortAddr(shortaddr);
   if (&device == nullptr) { return; }                 // don't crash if not found
@@ -475,6 +499,19 @@ const JsonObject *Z_Devices::jsonGet(uint16_t shortaddr) {
   if (&device == nullptr) { return nullptr; }                 // don't crash if not found
   return device.json;
 }
+
+const void Z_Devices::jsonPublish(uint16_t shortaddr) {
+  const JsonObject *json = zigbee_devices.jsonGet(shortaddr);
+  if (json == nullptr) { return; }                 // don't crash if not found
+
+  String msg = "";
+  json->printTo(msg);
+  zigbee_devices.jsonClear(shortaddr);
+  Response_P(PSTR("{\"" D_CMND_ZIGBEE_RECEIVED "\":{\"0x%04X\":%s}}"), shortaddr, msg.c_str());
+  MqttPublishPrefixTopic_P(TELE, PSTR(D_RSLT_SENSOR));
+  XdrvRulesProcess();
+}
+
 
 // Dump the internal memory of Zigbee devices
 // Mode = 1: simple dump of devices addresses and names
