@@ -419,6 +419,45 @@ void Z_Devices::jsonClear(uint16_t shortaddr) {
   device.json_buffer->clear();
 }
 
+void CopyJsonVariant(JsonObject &to, const String &key, const JsonVariant &val) {
+  to.remove(key);    // force remove to have metadata like LinkQuality at the end
+
+  if (val.is<char*>()) {
+    String sval = val.as<String>();       // force a copy of the String value
+    to.set(key, sval);
+  } else if (val.is<JsonArray>()) {
+    JsonArray &nested_arr = to.createNestedArray(key);
+    CopyJsonArray(nested_arr, val.as<JsonArray>());
+  } else if (val.is<JsonObject>()) {
+    JsonObject &nested_obj = to.createNestedObject(key);
+    CopyJsonObject(nested_obj, val.as<JsonObject>());
+  } else {
+    to.set(key, val);
+  }
+}
+
+void CopyJsonArray(JsonArray &to, const JsonArray &arr) {
+  for (auto v : arr) {
+    if (v.is<char*>()) {
+      String sval = v.as<String>();       // force a copy of the String value
+      to.add(sval);
+    } else if (v.is<JsonArray>()) {
+    } else if (v.is<JsonObject>()) {
+    } else {
+      to.add(v);
+    }
+  }
+}
+
+void CopyJsonObject(JsonObject &to, const JsonObject &from) {
+  for (auto kv : from) {
+    String key_string = kv.key;
+    JsonVariant &val = kv.value;
+
+    CopyJsonVariant(to, key_string, val);
+  }
+}
+
 void Z_Devices::jsonAppend(uint16_t shortaddr, JsonObject &values) {
   Z_Device & device = getShortAddr(shortaddr);
   if (&device == nullptr) { return; }                 // don't crash if not found
@@ -428,24 +467,7 @@ void Z_Devices::jsonAppend(uint16_t shortaddr, JsonObject &values) {
     device.json = &(device.json_buffer->createObject());
   }
   // copy all values from 'values' to 'json'
-  for (auto kv : values) {
-    String key_string = kv.key;
-    const char * key = key_string.c_str();
-    JsonVariant &val = kv.value;
-
-    device.json->remove(key_string);    // force remove to have metadata like LinkQuality at the end
-
-    if (val.is<char*>()) {
-      String sval = val.as<String>();       // force a copy of the String value
-      device.json->set(key_string, sval);
-    } else if (val.is<JsonArray>()) {
-      // todo
-    } else if (val.is<JsonObject>()) {
-      // todo
-    } else {
-      device.json->set(key_string, kv.value);
-    }
-  }
+  CopyJsonObject(*device.json, values);
 }
 
 const JsonObject *Z_Devices::jsonGet(uint16_t shortaddr) {
