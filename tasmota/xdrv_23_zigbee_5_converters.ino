@@ -100,6 +100,7 @@ public:
     return _frame_control.b.frame_type & 1;
   }
 
+  static void generateAttributeName(const JsonObject& json, uint16_t cluster, uint16_t attr, char *key, size_t key_len);
   void parseRawAttributes(JsonObject& json, uint8_t offset = 0);
   void parseReadAttributes(JsonObject& json, uint8_t offset = 0);
   void parseClusterSpecificCommand(JsonObject& json, uint8_t offset = 0);
@@ -412,6 +413,16 @@ uint32_t parseSingleAttribute(JsonObject& json, char *attrid_str, class SBuffer 
   return i - offset;    // how much have we increased the index
 }
 
+// Generate an attribute name based on cluster number, attribute, and suffix if duplicates
+void ZCLFrame::generateAttributeName(const JsonObject& json, uint16_t cluster, uint16_t attr, char *key, size_t key_len) {
+  uint32_t suffix = 1;
+
+  snprintf_P(key, key_len, PSTR("%04X/%04X"), cluster, attr);
+  while (json.containsKey(key)) {
+    suffix++;
+    snprintf_P(key, key_len, PSTR("%04X/%04X+%d"), cluster, attr, suffix);    // add "0008/0001+2" suffix if duplicate
+  }
+}
 
 // First pass, parse all attributes in their native format
 void ZCLFrame::parseRawAttributes(JsonObject& json, uint8_t offset) {
@@ -423,8 +434,7 @@ void ZCLFrame::parseRawAttributes(JsonObject& json, uint8_t offset) {
     i += 2;
 
     char key[16];
-    snprintf_P(key, sizeof(key), PSTR("%04X/%04X"),
-                _cluster_id, attrid);
+    generateAttributeName(json, _cluster_id, attrid, key, sizeof(key));
 
     // exception for Xiaomi lumi.weather - specific field to be treated as octet and not char
     if ((0x0000 == _cluster_id) && (0xFF01 == attrid)) {
@@ -448,8 +458,7 @@ void ZCLFrame::parseReadAttributes(JsonObject& json, uint8_t offset) {
 
     if (0 == status) {
       char key[16];
-      snprintf_P(key, sizeof(key), PSTR("%04X/%04X"),
-                  _cluster_id, attrid);
+      generateAttributeName(json, _cluster_id, attrid, key, sizeof(key));
 
       i += parseSingleAttribute(json, key, _payload, i, len);
     }
@@ -928,11 +937,19 @@ void ZCLFrame::postProcessAttributes(uint16_t shortaddr, JsonObject& json) {
     String key_string = kv.key;
     const char * key = key_string.c_str();
     JsonVariant& value = kv.value;
-    // Check that format looks like "CCCC/AAAA"
+    // Check that format looks like "CCCC/AAAA" or "CCCC/AAAA+d"
     char * delimiter = strchr(key, '/');
+    char * delimiter2 = strchr(key, '+');
     if (delimiter) {
+      uint16_t attribute;
+      uint16_t suffix = 1;
       uint16_t cluster = strtoul(key, &delimiter, 16);
-      uint16_t attribute = strtoul(delimiter+1, nullptr, 16);
+      if (!delimiter2) {
+        attribute = strtoul(delimiter+1, nullptr, 16);
+      } else {
+        attribute = strtoul(delimiter+1, &delimiter2, 16);
+        suffix = strtoul(delimiter2+1, nullptr, 10);
+      }
 
       // Iterate on filter
       for (uint32_t i = 0; i < sizeof(Z_PostProcess) / sizeof(Z_PostProcess[0]); i++) {
@@ -943,6 +960,7 @@ void ZCLFrame::postProcessAttributes(uint16_t shortaddr, JsonObject& json) {
         if ((conv_cluster == cluster) &&
             ((conv_attribute == attribute) || (conv_attribute == 0xFFFF)) ) {
           String new_name_str = converter->name;
+          if (suffix > 1) { new_name_str += suffix; }   // append suffix number
           int32_t drop = (*converter->func)(this, shortaddr, json, key, value, new_name_str, conv_cluster, conv_attribute);
           if (drop) {
             json.remove(key);
