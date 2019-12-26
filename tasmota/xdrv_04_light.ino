@@ -1065,6 +1065,18 @@ LightStateClass light_state = LightStateClass();
 LightControllerClass light_controller = LightControllerClass(light_state);
 
 /*********************************************************************************************\
+ * Change scales from 8 bits to 10 bits and vice versa
+\*********************************************************************************************/
+// 8 to 10 to 8 is garanteed to give the same result
+uint16_t change8to10(uint8_t v) {
+  return changeUIntScale(v, 0, 255, 0, 1023);
+}
+// change from 10 bits to 8 bits, but any non-zero input will be non-zero
+uint8_t change10to8(uint16_t v) {
+  return (0 == v) ? 0 : changeUIntScale(v, 4, 1023, 1, 255);
+}
+
+/*********************************************************************************************\
  * Gamma correction
 \*********************************************************************************************/
 // Calculate the gamma corrected value for LEDS
@@ -1073,10 +1085,10 @@ uint16_t ledGamma10(uint8_t v) {
   uint32_t vg;  // internal representation on 10 bits 0..1023
 
   for (const gamma_table_t *gt = gamma_table; ; gt++) {
-    const uint16_t from8 = pgm_read_dword_aligned(&gt->from8);
-    const uint16_t to8 = pgm_read_dword_aligned(&gt->to8);
-    const uint16_t to10 = pgm_read_dword_aligned(&gt->to10);
-    const uint16_t from10 = pgm_read_dword_aligned(&gt->from10);
+    const uint16_t from8 = pgm_read_dword(&gt->from8);
+    const uint16_t to8 = pgm_read_dword(&gt->to8);
+    const uint16_t to10 = pgm_read_dword(&gt->to10);
+    const uint16_t from10 = pgm_read_dword(&gt->from10);
     if (v <= to8) {
       return changeUIntScale(v, from8, to8, from10, to10);
     }
@@ -1084,11 +1096,11 @@ uint16_t ledGamma10(uint8_t v) {
 }
 // 8 bits resolution
 uint16_t ledGamma8(uint8_t v) {
-  if (0 == v) {
-    return 0;
-  } else {
-    return changeUIntScale(ledGamma10(v), 1, 1023, 1, 255);
-  }
+  return change10to8(ledGamma10(v));
+}
+// 10 bits in, 10 bits out
+uint16_t ledGamma10_10(uint16_t v) {
+  return ledGamma10(change10to8(v));
 }
 
 /********************************************************************************************/
@@ -1647,7 +1659,7 @@ void LightAnimate(void)
       for (uint32_t i = 0; i < LST_MAX; i++) {
         cur_col[i] = Light.last_color[i] = Light.new_color[i];
         // Extend from 8 to 10 bits if no correction (in case no gamma correction is required)
-        cur_col_10bits[i] = changeUIntScale(cur_col[i], 0, 255, 0, 1023);
+        cur_col_10bits[i] = change8to10(cur_col[i]);
       }
 
       if (Light.pwm_multi_channels) {
@@ -1665,7 +1677,7 @@ void LightAnimate(void)
           uint8_t min_rgb = min3(cur_col[0], cur_col[1], cur_col[2]);
           for (uint32_t i=0; i<3; i++) {
             // substract white and adjust according to rgbwwTable
-            uint32_t adjust10 = changeUIntScale(Settings.rgbwwTable[i], 0, 255, 0, 1023);
+            uint32_t adjust10 = change8to10(Settings.rgbwwTable[i]);
             cur_col_10bits[i] = changeUIntScale(cur_col_10bits[i] - min_rgb_10, 0, 1023, 0, adjust10);
             cur_col[i] = changeUIntScale(cur_col[i] - min_rgb, 0, 255, 0, Settings.rgbwwTable[i]);
           }
@@ -1850,8 +1862,6 @@ void LightSetOutputs(const uint8_t *cur_col, const uint16_t *cur_col_10bits) {
       }
     }
   }
-  // AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("LGT: R %02X(%d) G %02X(%d) B %02X(%d), CW %02X(%d) WW %02x(%d), D %d"),
-  // cur_col[0], cur_col_10bits[0], cur_col[1], cur_col_10bits[1], cur_col[2], cur_col_10bits[2], cur_col[3], cur_col_10bits[3], cur_col[4], cur_col_10bits[4], light_state.getDimmer());
 
   // Some devices need scaled RGB like Sonoff L1
   // TODO, should be probably moved to the Sonoff L1 support code
@@ -1885,14 +1895,14 @@ void calcGammaCTPwm(uint8_t cur_col[5], uint16_t cur_col_10bits[5]) {
   uint16_t pxBri = cur_col[cw0] + cur_col[cw1];
   if (pxBri > 255) { pxBri = 255; }
   cur_col[cw1] = changeUIntScale(cold, 0, cold + warm, 0, 255);   //
-  cur_col_10bits[cw1] = changeUIntScale(cur_col[cw1], 0, 255, 0, 1023);
+  cur_col_10bits[cw1] = change8to10(cur_col[cw1]);
   // channel 0=intensity, channel1=temperature
   if (Settings.light_correction) { // gamma correction
     cur_col[cw0] = ledGamma8(pxBri);
     cur_col_10bits[cw0] = ledGamma10(pxBri);    // 10 bits gamma correction
   } else {
     cur_col[cw0] = pxBri;
-    cur_col_10bits[cw0] = changeUIntScale(pxBri, 0, 255, 0, 1023);  // no gamma, extend to 10 bits
+    cur_col_10bits[cw0] = change8to10(pxBri);  // no gamma, extend to 10 bits
   }
 }
 
