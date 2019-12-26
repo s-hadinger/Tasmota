@@ -1077,7 +1077,84 @@ LightControllerClass light_controller = LightControllerClass(light_state);
 \*********************************************************************************************/
 // Calculate the gamma corrected value for LEDS
 // You can request 11, 10, 9 or 8 bits resolution via 'bits_out' parameter
-uint16_t ledGamma(uint8_t v, uint16_t bits_out = 8) {
+// This method uses a linear approximation, which is smoother at low levels
+typedef struct gamma_table_t {
+  uint16_t from8;
+  uint16_t to8;
+  uint16_t from10;
+  uint16_t to10;
+} gamma_table_t;
+
+const gamma_table_t gamma_table[] PROGMEM {
+  {   0,   0,    0,    0 },
+  {   1,  63,    1,   32 },
+  {  64, 127,   33,  128 },
+  { 128, 191,  132,  447 },
+  { 192, 223,  455,  703 },
+  { 224, 255,  713, 1023}
+};
+
+uint16_t ledGamma10(uint8_t v) {
+  uint32_t vg;  // internal representation on 10 bits 0..1023
+
+  for (const gamma_table_t *gt = gamma_table; ; gt++) {
+    const uint16_t from8 = pgm_read_dword_aligned(&gt->from8);
+    const uint16_t to8 = pgm_read_dword_aligned(&gt->to8);
+    const uint16_t to10 = pgm_read_dword_aligned(&gt->to10);
+    const uint16_t from10 = pgm_read_dword_aligned(&gt->from10);
+    if (v <= to8) {
+      return changeUIntScale(v, from8, to8, from10, to10);
+    }
+  }
+}
+uint16_t ledGamma10Alt(uint8_t v) {
+  uint32_t vg;  // internal representation on 10 bits 0..1023
+  
+  if (v <= 63) {
+    vg = (v+1) / 2;         // 
+  } else if (v <= 127) {
+    vg = changeUIntScale(v, 64, 127, 33, 128);
+    //vg = (v - 63) + (v - 63) / 2 + 32;
+  } else if (v <= 191) {
+    vg = changeUIntScale(v, 128, 191, 132, 447);
+    //vg = (v - 127) * 5 + 127;
+  } else if (v <= 223) {
+    vg = changeUIntScale(v, 192, 223, 455, 703);
+    //vg = (v - 191) * 8 + 447;
+  } else {
+    vg = changeUIntScale(v, 224, 255, 713, 1023);
+    //vg = (v - 223) * 10 + 703;    // max is 1023: (255-223)*10+703 = 1023
+  }
+  return vg;
+}
+
+uint16_t ledGamma8(uint8_t v) {
+  if (0 == v) {
+    return 0;
+  } else {
+    return changeUIntScale(ledGamma10(v), 1, 1023, 1, 255);
+  }
+}
+
+// do a reverse Gamma lookup for 10 bits value
+uint16_t ledReverseGamma(uint16_t v) {
+  uint16_t vng;
+  if (v <= 32) {
+    vng = v * 2;
+  } else if (v <= 130) {
+    vng = changeUIntScale(v, 33, 128, 64, 127);
+    //vng = ((v - 32) * 2 + 1) / 3 + 63;
+  } else if (v <= 450) {
+    vng = changeUIntScale(v, 132, 447, 128, 191);
+    //vng = ((v - 127) + 4)/5
+  } else if (v <= 708) {
+    vng = changeUIntScale(v, 455, 703, 192, 223);
+  } else {
+    vng = changeUIntScale(v, 713, 1023, 224, 255);
+  }
+}
+
+uint16_t ledGammaAlt(uint8_t v, uint16_t bits_out = 8) {
   uint16_t result;
   // bits_resolution: the resolution of _ledTable[v], between 8 and 11
   uint32_t bits_resolution = 11 - (v / 64);                     // 8..11
@@ -1901,8 +1978,8 @@ void calcGammaCTPwm(uint8_t cur_col[5], uint16_t cur_col_10bits[5]) {
   cur_col_10bits[cw1] = changeUIntScale(cur_col[cw1], 0, 255, 0, 1023);
   // channel 0=intensity, channel1=temperature
   if (Settings.light_correction) { // gamma correction
-    cur_col[cw0] = ledGamma(pxBri);
-    cur_col_10bits[cw0] = ledGamma(pxBri, 10);    // 10 bits gamma correction
+    cur_col[cw0] = ledGamma8(pxBri);
+    cur_col_10bits[cw0] = ledGamma10(pxBri);    // 10 bits gamma correction
   } else {
     cur_col[cw0] = pxBri;
     cur_col_10bits[cw0] = changeUIntScale(pxBri, 0, 255, 0, 1023);  // no gamma, extend to 10 bits
@@ -1914,8 +1991,8 @@ void calcGammaMultiChannels(uint8_t cur_col[5], uint16_t cur_col_10bits[5]) {
   // Apply gamma correction for 8 and 10 bits resolutions, if needed
   if (Settings.light_correction) {
     for (uint32_t i = 0; i < LST_MAX; i++) {
-      cur_col_10bits[i] = ledGamma(cur_col[i], 10);
-      cur_col[i] = ledGamma(cur_col[i]);
+      cur_col_10bits[i] = ledGamma10(cur_col[i]);
+      cur_col[i] = ledGamma8(cur_col[i]);
     }
   }
 }
@@ -1934,31 +2011,31 @@ void calcGammaBulbs(uint8_t cur_col[5], uint16_t cur_col_10bits[5]) {
       // if sum of both channels is > 255, then channels are probablu uncorrelated
       if (white_bri <= 255) {
         // we calculate the gamma corrected sum of CW + WW
-        uint16_t white_bri_10bits = ledGamma(white_bri, 10);
-        uint8_t white_bri_8bits = ledGamma(white_bri);
+        uint16_t white_bri_10bits = ledGamma10(white_bri);
+        uint8_t white_bri_8bits = ledGamma8(white_bri);
         // then we split the total energy among the cold and warm leds
         cur_col_10bits[w_idx[0]] = changeUIntScale(cur_col[w_idx[0]], 0, white_bri, 0, white_bri_10bits);
         cur_col_10bits[w_idx[1]] = changeUIntScale(cur_col[w_idx[1]], 0, white_bri, 0, white_bri_10bits);
         cur_col[w_idx[0]] = changeUIntScale(cur_col[w_idx[0]], 0, white_bri, 0, white_bri_8bits);
         cur_col[w_idx[1]] = changeUIntScale(cur_col[w_idx[1]], 0, white_bri, 0, white_bri_8bits);
       } else {
-        cur_col_10bits[w_idx[0]] = ledGamma(cur_col[w_idx[0]], 10);
-        cur_col_10bits[w_idx[1]] = ledGamma(cur_col[w_idx[1]], 10);
-        cur_col[w_idx[0]] = ledGamma(cur_col[w_idx[0]]);
-        cur_col[w_idx[1]] = ledGamma(cur_col[w_idx[1]]);
+        cur_col_10bits[w_idx[0]] = ledGamma10(cur_col[w_idx[0]]);
+        cur_col_10bits[w_idx[1]] = ledGamma10(cur_col[w_idx[1]]);
+        cur_col[w_idx[0]] = ledGamma8(cur_col[w_idx[0]]);
+        cur_col[w_idx[1]] = ledGamma8(cur_col[w_idx[1]]);
       }
     }
     // then apply gamma correction to RGB channels
     if (LST_RGB <= Light.subtype) {
       for (uint32_t i = 0; i < 3; i++) {
-        cur_col_10bits[i] = ledGamma(cur_col[i], 10);
-        cur_col[i] = ledGamma(cur_col[i]);
+        cur_col_10bits[i] = ledGamma10(cur_col[i]);
+        cur_col[i] = ledGamma8(cur_col[i]);
       }
     }
     // If RGBW or Single channel, also adjust White channel
     if ((LST_COLDWARM != Light.subtype) && (LST_RGBWC != Light.subtype)) {
-      cur_col_10bits[3] = ledGamma(cur_col[3], 10);
-      cur_col[3] = ledGamma(cur_col[3]);
+      cur_col_10bits[3] = ledGamma10(cur_col[3]);
+      cur_col[3] = ledGamma8(cur_col[3]);
     }
   }
 }
