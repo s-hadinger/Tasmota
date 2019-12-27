@@ -1580,7 +1580,6 @@ void LightSetPower(void)
 // Light.power tells which lights or channels (SetOption68) are on/off
 void LightAnimate(void)
 {
-  uint8_t cur_col[LST_MAX];
   uint16_t light_still_on = 0;
   bool power_off = false;
 
@@ -1664,14 +1663,14 @@ void LightAnimate(void)
       Light.update = true;
     }
     if (Light.update) {
-      uint16_t cur_col_10[LST_MAX];   // 10 bits version of cur_col for PWM
+      uint16_t cur_col_10[LST_MAX];   // 10 bits resolution
       Light.update = false;
 
       // first set 8 and 10 bits channels
       for (uint32_t i = 0; i < LST_MAX; i++) {
-        cur_col[i] = Light.last_color[i] = Light.new_color[i];
+        Light.last_color[i] = Light.new_color[i];
         // Extend from 8 to 10 bits if no correction (in case no gamma correction is required)
-        cur_col_10[i] = change8to10(cur_col[i]);
+        cur_col_10[i] = change8to10(Light.new_color[i]);
       }
 
       if (Light.pwm_multi_channels) {
@@ -1684,31 +1683,25 @@ void LightAnimate(void)
 
         // Now see if we need to mix RGB and True White
         // Valid only for LST_RGBW, LST_RGBWC, rgbwwTable[4] is zero, and white is zero (see doc)
-        if ((LST_RGBW <= Light.subtype) && (0 == Settings.rgbwwTable[4]) && (0 == cur_col[3]+cur_col[4])) {
+        if ((LST_RGBW <= Light.subtype) && (0 == Settings.rgbwwTable[4]) && (0 == cur_col_10[3]+cur_col_10[4])) {
           uint32_t min_rgb_10 = min3(cur_col_10[0], cur_col_10[1], cur_col_10[2]);
-          uint8_t min_rgb = min3(cur_col[0], cur_col[1], cur_col[2]);
           for (uint32_t i=0; i<3; i++) {
             // substract white and adjust according to rgbwwTable
             uint32_t adjust10 = change8to10(Settings.rgbwwTable[i]);
             cur_col_10[i] = changeUIntScale(cur_col_10[i] - min_rgb_10, 0, 1023, 0, adjust10);
-            cur_col[i] = changeUIntScale(cur_col[i] - min_rgb, 0, 255, 0, Settings.rgbwwTable[i]);
           }
 
           // compute the adjusted white levels for 10 and 8 bits
           uint32_t adjust_w_10 = changeUIntScale(Settings.rgbwwTable[3], 0, 255, 0, 1023);
           uint32_t white_10 = changeUIntScale(min_rgb_10, 0, 1023, 0, adjust_w_10);  // set white power down corrected with rgbwwTable[3]
-          uint32_t white = changeUIntScale(min_rgb, 0, 255, 0, Settings.rgbwwTable[3]);  // set white power down corrected with rgbwwTable[3]
           if (LST_RGBW == Light.subtype) {
             // we simply set the white channel
             cur_col_10[3] = white_10;
-            cur_col[3] = white;
           } else {  // LST_RGBWC
             // we distribute white between cold and warm according to CT value
             uint32_t ct = light_state.getCT();
             cur_col_10[4] = changeUIntScale(ct, 153, 500, 0, white_10);
             cur_col_10[3] = white_10 - cur_col_10[4];
-            cur_col[4] = changeUIntScale(ct, 153, 500, 0, white);
-            cur_col[3] = white - cur_col[4];
           }
         }
       }
@@ -1720,12 +1713,9 @@ void LightAnimate(void)
       }
 
       // apply port remapping on both 8 bits and 10 bits versions
-      uint8_t  orig_col[LST_MAX];
       uint16_t orig_col_10bits[LST_MAX];
-      memcpy(orig_col, cur_col, sizeof(orig_col));
       memcpy(orig_col_10bits, cur_col_10, sizeof(orig_col_10bits));
       for (uint32_t i = 0; i < LST_MAX; i++) {
-        cur_col[i] = orig_col[Light.color_remap[i]];
         cur_col_10[i] = orig_col_10bits[Light.color_remap[i]];
       }
 
@@ -1855,7 +1845,7 @@ void LightSetOutputs(const uint16_t *cur_col_10) {
   if (light_type < LT_PWM6) {   // only for direct PWM lights, not for Tuya, Armtronix...
     for (uint32_t i = 0; i < (Light.subtype - Light.pwm_offset); i++) {
       if (pin[GPIO_PWM1 +i] < 99) {
-        //AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_APPLICATION "Cur_Col%d 10 bits %d, Pwm%d %d"), i, cur_col_10[i], i+1, cur_col[i]);
+        //AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_APPLICATION "Cur_Col%d 10 bits %d"), i, cur_col_10[i]);
         analogWrite(pin[GPIO_PWM1 +i], bitRead(pwm_inverted, i) ? Settings.pwm_range - cur_col_10[(i + Light.pwm_offset)] : cur_col_10[(i + Light.pwm_offset)]);
       }
     }
