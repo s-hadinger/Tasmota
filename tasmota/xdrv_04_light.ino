@@ -180,7 +180,7 @@ const gamma_table_t gamma_table[] = {   // don't put in PROGMEM for performance 
   {  190,    450 },
   {  223,    703 },
   {  255,   1023 },
-//  {  255, 0xFFFF }          // fail-safe if out of range, for reverse
+  { 0xFFFF, 0xFFFF }          // fail-safe if out of range
 };
 
 // simplified Gamma table for Fade, cheating a little at low brightness
@@ -189,7 +189,7 @@ const gamma_table_t gamma_table_fast_10[] = {
   {   384,     67 },
   {   768,    467 },
   {  1023,   1023 },
-//  {  255, 0xFFFF }          // fail-safe if out of range, for reverse
+  { 0xFFFF, 0xFFFF }          // fail-safe if out of range
 };
 
 // For reference, below are the computed gamma tables, via ledGamma()
@@ -1088,12 +1088,11 @@ uint8_t change10to8(uint16_t v) {
  * Gamma correction
 \*********************************************************************************************/
 // Calculate the gamma corrected value for LEDS
-// 10 bits resolution
-uint16_t ledGamma10(uint8_t v) {
+uint16_t ledGamma_internal(uint16_t v, const struct gamma_table_t *gt_ptr) {
   uint16_t from_src = 0;
   uint16_t from_gamma = 0;
 
-  for (const gamma_table_t *gt = gamma_table; ; gt++) {
+  for (const gamma_table_t *gt = gt_ptr; ; gt++) {
     uint16_t to_src = gt->to_src;
     uint16_t to_gamma = gt->to_gamma;
     if (v <= to_src) {
@@ -1102,6 +1101,14 @@ uint16_t ledGamma10(uint8_t v) {
     from_src = to_src + 1;
     from_gamma = to_gamma + 1;
   }
+}
+// 10 bits resolution
+uint16_t ledGamma10(uint8_t v) {
+  return ledGamma_internal(v, gamma_table);
+}
+// 10_10 bits, fast fade mode
+uint16_t ledGamma10_10_fast(uint8_t v) {
+  return ledGamma_internal(v, gamma_table_fast_10);
 }
 // 8 bits resolution
 uint16_t ledGamma8(uint8_t v) {
