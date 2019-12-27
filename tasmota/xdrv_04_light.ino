@@ -183,6 +183,15 @@ const gamma_table_t gamma_table[] = {   // don't put in PROGMEM for performance 
 //  {  255, 0xFFFF }          // fail-safe if out of range, for reverse
 };
 
+// simplified Gamma table for Fade, cheating a little at low brightness
+const gamma_table_t gamma_table_fast_10[] = {
+  {     0,      0 },
+  {   384,     67 },
+  {   768,    467 },
+  {  1023,   1023 },
+//  {  255, 0xFFFF }          // fail-safe if out of range, for reverse
+};
+
 // For reference, below are the computed gamma tables, via ledGamma()
 // for 8 bits output:
 //   0,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,
