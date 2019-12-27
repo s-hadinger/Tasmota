@@ -1675,7 +1675,7 @@ void LightAnimate(void)
       }
 
       if (Light.pwm_multi_channels) {
-        calcGammaMultiChannels(cur_col, cur_col_10);
+        calcGammaMultiChannels(cur_col_10);
       } else {
         calcGammaBulbs(cur_col_10);
         if (PHILIPS == my_module_type) {
@@ -1907,12 +1907,11 @@ void calcGammaCTPwm(uint16_t cur_col_10[5]) {
 }
 
 // Just apply basic Gamma to each channel
-void calcGammaMultiChannels(uint8_t cur_col[5], uint16_t cur_col_10[5]) {
+void calcGammaMultiChannels(uint16_t cur_col_10[5]) {
   // Apply gamma correction for 8 and 10 bits resolutions, if needed
   if (Settings.light_correction) {
     for (uint32_t i = 0; i < LST_MAX; i++) {
-      cur_col_10[i] = ledGamma10(cur_col[i]);
-      cur_col[i] = ledGamma8(cur_col[i]);
+      cur_col_10[i] = ledGamma10_10(cur_col_10[i]);
     }
   }
 }
@@ -1933,8 +1932,8 @@ void calcGammaBulbs(uint16_t cur_col_10[5]) {
         // we calculate the gamma corrected sum of CW + WW
         uint16_t white_bri_10bits = ledGamma10_10(white_bri10);
         // then we split the total energy among the cold and warm leds
-        cur_col_10[w_idx[0]] = changeUIntScale(cur_col[w_idx[0]], 0, white_bri10, 0, white_bri_10bits);
-        cur_col_10[w_idx[1]] = changeUIntScale(cur_col[w_idx[1]], 0, white_bri10, 0, white_bri_10bits);
+        cur_col_10[w_idx[0]] = changeUIntScale(cur_col_10[w_idx[0]], 0, white_bri10, 0, white_bri_10bits);
+        cur_col_10[w_idx[1]] = changeUIntScale(cur_col_10[w_idx[1]], 0, white_bri10, 0, white_bri_10bits);
       } else {
         cur_col_10[w_idx[0]] = ledGamma10_10(cur_col_10[w_idx[0]]);
         cur_col_10[w_idx[1]] = ledGamma10_10(cur_col_10[w_idx[1]]);
