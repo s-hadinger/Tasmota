@@ -2,7 +2,10 @@
 
 ### 8.1.0.1 20191225
 
+- Fix Sonoff Bridge, Sc, L1, iFan03 and CSE7766 serial interface to forced speed, config and disable logging
 - Fix commands ``Display`` and ``Counter`` from overruling command processing (#7322)
+- Add SerialConfig to ``Status 1``
+- Add WifiPower to ``Status 5``
 - Change Gamma correction for smoother changes at low brightness
 
 ## Released
