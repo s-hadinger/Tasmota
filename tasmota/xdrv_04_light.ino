@@ -173,9 +173,10 @@ typedef struct gamma_table_t {
 
 const gamma_table_t gamma_table[] = {   // don't put in PROGMEM for performance reasons
   {    0,      0 },
-  {   63,     32 },
-  {  127,    128 },
-  {  191,    447 },
+  {   63,     22 },
+  {  114,    106 },
+  {  156,    261 },
+  {  190,    450 },
   {  223,    703 },
   {  255,   1023 },
 //  {  255, 0xFFFF }          // fail-safe if out of range, for reverse
