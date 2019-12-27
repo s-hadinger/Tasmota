@@ -255,9 +255,6 @@ struct LIGHT {
   bool pwm_multi_channels = false;        // SetOption68, treat each PWM channel as an independant dimmer
 
   bool     fade_running = false;
-  uint8_t  fade_start_8[LST_MAX] = {0,0,0,0,0};
-  uint8_t  fade_cur_8[LST_MAX];
-  uint8_t  fade_end_8[LST_MAX];        // 8 bits resolution target channel values
   uint16_t fade_start_10[LST_MAX] = {0,0,0,0,0};
   uint16_t fade_cur_10[LST_MAX];
   uint16_t fade_end_10[LST_MAX];         // 10 bits resolution target channel values
@@ -1734,17 +1731,14 @@ void LightAnimate(void)
 
       if (!Settings.light_fade || power_off) { // no fade
         // record the current value for a future Fade
-        memcpy(Light.fade_start_8, cur_col, sizeof(Light.fade_start_8));
         memcpy(Light.fade_start_10, cur_col_10, sizeof(Light.fade_start_10));
         // push the final values at 8 and 10 bits resolution to the PWMs
         LightSetOutputs(cur_col_10);
       } else {  // fade on
         if (Light.fade_running) {
           // if fade is running, we take the curring value as the start for the next fade
-          memcpy(Light.fade_start_8, Light.fade_cur_8, sizeof(Light.fade_start_8));
           memcpy(Light.fade_start_10, Light.fade_cur_10, sizeof(Light.fade_start_10));
         }
-        memcpy(Light.fade_end_8, cur_col, sizeof(Light.fade_start_8));
         memcpy(Light.fade_end_10, cur_col_10, sizeof(Light.fade_start_10));
         Light.fade_running = true;
         Light.fade_duration = 0;    // set the value to zero to force a recompute
@@ -1754,8 +1748,7 @@ void LightAnimate(void)
     }
     if (Light.fade_running) {
       if (LightApplyFade()) {
-        // AddLog_P2(LOG_LEVEL_INFO, PSTR("LightApplyFade %d %d %d %d %d - %d %d %d %d %d"),
-        //   Light.fade_cur_8[0], Light.fade_cur_8[1], Light.fade_cur_8[2], Light.fade_cur_8[3], Light.fade_cur_8[4],
+        // AddLog_P2(LOG_LEVEL_INFO, PSTR("LightApplyFade %d %d %d %d %d"),
         //   Light.fade_cur_10[0], Light.fade_cur_10[1], Light.fade_cur_10[2], Light.fade_cur_10[3], Light.fade_cur_10[4]);
 
         LightSetOutputs(Light.fade_cur_10);
@@ -1806,9 +1799,6 @@ bool LightApplyFade(void) {   // did the value chanegd and needs to be applied
   if (fade_current <= Light.fade_duration) {    // fade not finished
     //Serial.printf("Fade: %d / %d - ", fade_current, Light.fade_duration);
     for (uint32_t i = 0; i < Light.subtype; i++) {
-      Light.fade_cur_8[i] = changeUIntScale(fade_current,
-                                            0, Light.fade_duration,
-                                            Light.fade_start_8[i], Light.fade_end_8[i]);
       Light.fade_cur_10[i] = changeUIntScale(fade_current,
                                               0, Light.fade_duration,
                                               Light.fade_start_10[i], Light.fade_end_10[i]);
@@ -1820,10 +1810,8 @@ bool LightApplyFade(void) {   // did the value chanegd and needs to be applied
     Light.fade_start = 0;
     Light.fade_duration = 0;
     // set light to target value
-    memcpy(Light.fade_cur_8, Light.fade_end_8, sizeof(Light.fade_end_8));
     memcpy(Light.fade_cur_10, Light.fade_end_10, sizeof(Light.fade_end_10));
     // record the last value for next start
-    memcpy(Light.fade_start_8, Light.fade_end_8, sizeof(Light.fade_start_8));
     memcpy(Light.fade_start_10, Light.fade_end_10, sizeof(Light.fade_start_10));
   }
   return true;
