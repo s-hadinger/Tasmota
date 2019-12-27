@@ -1679,7 +1679,7 @@ void LightAnimate(void)
       } else {
         calcGammaBulbs(cur_col, cur_col_10);
         if (PHILIPS == my_module_type) {
-          calcGammaCTPwm(cur_col, cur_col_10);
+          calcGammaCTPwm(cur_col_10);
         }
 
         // Now see if we need to mix RGB and True White
@@ -1887,7 +1887,7 @@ void LightSetOutputs(const uint16_t *cur_col_10) {
 }
 
 // Do specific computation is SetOption73 is on, Color Temp is a separate PWM channel
-void calcGammaCTPwm(uint8_t cur_col[5], uint16_t cur_col_10[5]) {
+void calcGammaCTPwm(uint16_t cur_col_10[5]) {
   // Xiaomi Philips bulbs follow a different scheme:
   uint8_t cold, warm;   // channel 1 is the color tone, mapped to cold channel (0..255)
   light_state.getCW(&cold, &warm);
@@ -1895,17 +1895,14 @@ void calcGammaCTPwm(uint8_t cur_col[5], uint16_t cur_col_10[5]) {
   uint32_t cw1 = Light.subtype - 1;       // address for the ColorTone PWM
   uint32_t cw0 = Light.subtype - 2;       // address for the White Brightness PWM
   // overall brightness
-  uint16_t pxBri = cur_col[cw0] + cur_col[cw1];
-  if (pxBri > 255) { pxBri = 255; }
-  cur_col[cw1] = changeUIntScale(cold, 0, cold + warm, 0, 255);   //
-  cur_col_10[cw1] = change8to10(cur_col[cw1]);
+  uint16_t pxBri10 = cur_col_10[cw0] + cur_col_10[cw1];
+  if (pxBri10 > 1023) { pxBri10 = 1023; }
+  cur_col_10[cw1] = changeUIntScale(cold, 0, cold + warm, 0, 1023);   //
   // channel 0=intensity, channel1=temperature
   if (Settings.light_correction) { // gamma correction
-    cur_col[cw0] = ledGamma8(pxBri);
-    cur_col_10[cw0] = ledGamma10(pxBri);    // 10 bits gamma correction
+    cur_col_10[cw0] = ledGamma10_10(pxBri10);    // 10 bits gamma correction
   } else {
-    cur_col[cw0] = pxBri;
-    cur_col_10[cw0] = change8to10(pxBri);  // no gamma, extend to 10 bits
+    cur_col_10[cw0] = pxBri10;  // no gamma, extend to 10 bits
   }
 }
 
