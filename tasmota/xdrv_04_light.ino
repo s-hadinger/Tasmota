@@ -1677,7 +1677,7 @@ void LightAnimate(void)
       if (Light.pwm_multi_channels) {
         calcGammaMultiChannels(cur_col, cur_col_10);
       } else {
-        calcGammaBulbs(cur_col, cur_col_10);
+        calcGammaBulbs(cur_col_10);
         if (PHILIPS == my_module_type) {
           calcGammaCTPwm(cur_col_10);
         }
@@ -1917,7 +1917,7 @@ void calcGammaMultiChannels(uint8_t cur_col[5], uint16_t cur_col_10[5]) {
   }
 }
 
-void calcGammaBulbs(uint8_t cur_col[5], uint16_t cur_col_10[5]) {
+void calcGammaBulbs(uint16_t cur_col_10[5]) {
   // Apply gamma correction for 8 and 10 bits resolutions, if needed
   if (Settings.light_correction) {
     // First apply combined correction to the overall white power
@@ -1927,35 +1927,28 @@ void calcGammaBulbs(uint8_t cur_col[5], uint16_t cur_col_10[5]) {
         w_idx[0] = 3;
         w_idx[1] = 4;
       }
-      uint16_t white_bri = cur_col[w_idx[0]] + cur_col[w_idx[1]];
+      uint16_t white_bri10 = cur_col_10[w_idx[0]] + cur_col_10[w_idx[1]];
       // if sum of both channels is > 255, then channels are probablu uncorrelated
-      if (white_bri <= 255) {
+      if (white_bri10 <= 1023) {
         // we calculate the gamma corrected sum of CW + WW
-        uint16_t white_bri_10bits = ledGamma10(white_bri);
-        uint8_t white_bri_8bits = ledGamma8(white_bri);
+        uint16_t white_bri_10bits = ledGamma10_10(white_bri10);
         // then we split the total energy among the cold and warm leds
-        cur_col_10[w_idx[0]] = changeUIntScale(cur_col[w_idx[0]], 0, white_bri, 0, white_bri_10bits);
-        cur_col_10[w_idx[1]] = changeUIntScale(cur_col[w_idx[1]], 0, white_bri, 0, white_bri_10bits);
-        cur_col[w_idx[0]] = changeUIntScale(cur_col[w_idx[0]], 0, white_bri, 0, white_bri_8bits);
-        cur_col[w_idx[1]] = changeUIntScale(cur_col[w_idx[1]], 0, white_bri, 0, white_bri_8bits);
+        cur_col_10[w_idx[0]] = changeUIntScale(cur_col[w_idx[0]], 0, white_bri10, 0, white_bri_10bits);
+        cur_col_10[w_idx[1]] = changeUIntScale(cur_col[w_idx[1]], 0, white_bri10, 0, white_bri_10bits);
       } else {
-        cur_col_10[w_idx[0]] = ledGamma10(cur_col[w_idx[0]]);
-        cur_col_10[w_idx[1]] = ledGamma10(cur_col[w_idx[1]]);
-        cur_col[w_idx[0]] = ledGamma8(cur_col[w_idx[0]]);
-        cur_col[w_idx[1]] = ledGamma8(cur_col[w_idx[1]]);
+        cur_col_10[w_idx[0]] = ledGamma10_10(cur_col_10[w_idx[0]]);
+        cur_col_10[w_idx[1]] = ledGamma10_10(cur_col_10[w_idx[1]]);
       }
     }
     // then apply gamma correction to RGB channels
     if (LST_RGB <= Light.subtype) {
       for (uint32_t i = 0; i < 3; i++) {
-        cur_col_10[i] = ledGamma10(cur_col[i]);
-        cur_col[i] = ledGamma8(cur_col[i]);
+        cur_col_10[i] = ledGamma10_10(cur_col_10[i]);
       }
     }
     // If RGBW or Single channel, also adjust White channel
     if ((LST_COLDWARM != Light.subtype) && (LST_RGBWC != Light.subtype)) {
-      cur_col_10[3] = ledGamma10(cur_col[3]);
-      cur_col[3] = ledGamma8(cur_col[3]);
+      cur_col_10[3] = ledGamma10_10(cur_col_10[3]);
     }
   }
 }
