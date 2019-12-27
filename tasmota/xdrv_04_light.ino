@@ -167,19 +167,18 @@ const LCwColor kFixedColdWarm[MAX_FIXED_COLD_WARM] PROGMEM = { 0,0, 255,0, 0,255
 // Internal resolution is 10 bits.
 
 typedef struct gamma_table_t {
-  uint16_t from8;
-  uint16_t to8;
-  uint16_t from10;
-  uint16_t to10;
+  uint16_t to_src;
+  uint16_t to_gamma;
 } gamma_table_t;
 
-const gamma_table_t gamma_table[] PROGMEM {
-  {   0,   0,    0,    0 },
-  {   1,  63,    1,   32 },
-  {  64, 127,   33,  128 },
-  { 128, 191,  132,  447 },
-  { 192, 223,  455,  703 },
-  { 224, 255,  713, 1023}
+const gamma_table_t gamma_table[] = {   // don't put in PROGMEM for performance reasons
+  {    0,      0 },
+  {   63,     32 },
+  {  127,    128 },
+  {  191,    447 },
+  {  223,    703 },
+  {  255,   1023 },
+//  {  255, 0xFFFF }          // fail-safe if out of range, for reverse
 };
 
 // For reference, below are the computed gamma tables, via ledGamma()
@@ -1082,16 +1081,17 @@ uint8_t change10to8(uint16_t v) {
 // Calculate the gamma corrected value for LEDS
 // 10 bits resolution
 uint16_t ledGamma10(uint8_t v) {
-  uint32_t vg;  // internal representation on 10 bits 0..1023
+  uint16_t from_src = 0;
+  uint16_t from_gamma = 0;
 
   for (const gamma_table_t *gt = gamma_table; ; gt++) {
-    const uint16_t from8 = pgm_read_dword(&gt->from8);
-    const uint16_t to8 = pgm_read_dword(&gt->to8);
-    const uint16_t to10 = pgm_read_dword(&gt->to10);
-    const uint16_t from10 = pgm_read_dword(&gt->from10);
-    if (v <= to8) {
-      return changeUIntScale(v, from8, to8, from10, to10);
+    uint16_t to_src = gt->to_src;
+    uint16_t to_gamma = gt->to_gamma;
+    if (v <= to_src) {
+      return changeUIntScale(v, from_src, to_src, from_gamma, to_gamma);
     }
+    from_src = to_src + 1;
+    from_gamma = to_gamma + 1;
   }
 }
 // 8 bits resolution
