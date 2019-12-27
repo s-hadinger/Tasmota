@@ -112,12 +112,11 @@
  *     to adjust leds with different power
  *  .g If rgbwwTable[4] is zero, blend RGB with White and adjust the level of
  *     White channel according to rgbwwTable[3]
- *  .h Avoid PMW values between 1008 and 1022, issue #1146
- *  .i Scale ranges from 10 bits to 0..PWMRange (by default 1023) so no change
+ *  .h Scale ranges from 10 bits to 0..PWMRange (by default 1023) so no change
  *     by default.
- *  .j Apply port remapping from Option37
- *  .k Invert PWM value if port is of type PMWxi instead of PMWx
- *  .l Apply PWM value with analogWrite() - if pin is configured
+ *  .i Apply port remapping from Option37
+ *  .j Invert PWM value if port is of type PMWxi instead of PMWx
+ *  .k Apply PWM value with analogWrite() - if pin is configured
  *
 \*********************************************************************************************/
 
@@ -1719,13 +1718,6 @@ void LightAnimate(void)
 
       // final adjusments for PMW, post-gamma correction
       for (uint32_t i = 0; i < LST_MAX; i++) {
-#if defined(ARDUINO_ESP8266_RELEASE_2_3_0) || defined(ARDUINO_ESP8266_RELEASE_2_4_0) || defined(ARDUINO_ESP8266_RELEASE_2_4_1) || defined(ARDUINO_ESP8266_RELEASE_2_4_2)
-        // Fix unwanted blinking and PWM watchdog errors for values close to pwm_range (H801, Arilux and BN-SZ01)
-        // but keep value 1023 if full range (PWM will be deactivated in this case)
-        if ((cur_col_10bits[i] > 1008) && (cur_col_10bits[i] < 1023)) {
-          cur_col_10bits[i] = 1008;
-        }
-#endif
         // scale from 0..1023 to 0..pwm_range, but keep any non-zero value to at least 1
         cur_col_10bits[i] = (cur_col_10bits[i] > 0) ? changeUIntScale(cur_col_10bits[i], 1, 1023, 1, Settings.pwm_range) : 0;
       }
@@ -1870,20 +1862,24 @@ void LightApplyPower(uint8_t new_color[LST_MAX], power_t power) {
   }
 }
 
-void LightSetOutputs(const uint8_t *cur_col, const uint16_t *cur_col_10bits) {
+void LightSetOutputs(const uint8_t *cur_col_, const uint16_t *cur_col_10) {
   // now apply the actual PWM values, adjusted and remapped 10-bits range
   if (light_type < LT_PWM6) {   // only for direct PWM lights, not for Tuya, Armtronix...
     for (uint32_t i = 0; i < (Light.subtype - Light.pwm_offset); i++) {
       if (pin[GPIO_PWM1 +i] < 99) {
         //AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_APPLICATION "Cur_Col%d 10 bits %d, Pwm%d %d"), i, cur_col_10bits[i], i+1, cur_col[i]);
-        analogWrite(pin[GPIO_PWM1 +i], bitRead(pwm_inverted, i) ? Settings.pwm_range - cur_col_10bits[(i + Light.pwm_offset)] : cur_col_10bits[(i + Light.pwm_offset)]);
+        analogWrite(pin[GPIO_PWM1 +i], bitRead(pwm_inverted, i) ? Settings.pwm_range - cur_col_10[(i + Light.pwm_offset)] : cur_col_10[(i + Light.pwm_offset)]);
       }
     }
   }
   char msg[24];
   AddLog_P2(LOG_LEVEL_DEBUG, PSTR("LGT: Channels %s"),
-            ToHex_P((const unsigned char *)cur_col_10bits, 10, msg, sizeof(msg)));
-
+            ToHex_P((const unsigned char *)cur_col_10, 10, msg, sizeof(msg)));
+  
+  uint8_t cur_col[LST_MAX];
+  for (uint32_t i = 0; i < LST_MAX; i++) {
+    cur_col[i] = change10to8(cur_col_10[i]);
+  }
   // Some devices need scaled RGB like Sonoff L1
   // TODO, should be probably moved to the Sonoff L1 support code
   uint8_t scale_col[3];
