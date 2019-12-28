@@ -2095,7 +2095,7 @@ void CmndColor(void)
 void CmndWhite(void)
 {
   if (Light.pwm_multi_channels) { return; }
-  if ((Light.subtype >= LST_RGBW) && (XdrvMailbox.index == 1)) {
+  if ( ((Light.subtype >= LST_RGBW) || (LST_COLDWARM == Light.subtype)) && (XdrvMailbox.index == 1)) {
     if ((XdrvMailbox.payload >= 0) && (XdrvMailbox.payload <= 100)) {
       light_controller.changeDimmer(XdrvMailbox.payload, 2);
       LightPreparePower(2);
