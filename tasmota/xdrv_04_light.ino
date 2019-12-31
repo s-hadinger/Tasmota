@@ -185,9 +185,9 @@ const gamma_table_t gamma_table[] = {   // don't put in PROGMEM for performance 
 
 // simplified Gamma table for Fade, cheating a little at low brightness
 const gamma_table_t gamma_table_fast[] = {
-  {     0,      0 },
-  {   384,     67 },
-  {   768,    467 },
+ // {     0,      0 },
+  // {   384,     67 },
+  // {   768,    467 },
   {  1023,   1023 },
   { 0xFFFF, 0xFFFF }          // fail-safe if out of range
 };
@@ -1110,9 +1110,28 @@ uint16_t ledGamma_internal(uint16_t v, const struct gamma_table_t *gt_ptr) {
     from_gamma = to_gamma;
   }
 }
+// Calculate the reverse gamma value for LEDS
+uint16_t ledGammaReverse_internal(uint16_t vg, const struct gamma_table_t *gt_ptr) {
+  uint16_t from_src = 0;
+  uint16_t from_gamma = 0;
+
+  for (const gamma_table_t *gt = gt_ptr; ; gt++) {
+    uint16_t to_src = gt->to_src;
+    uint16_t to_gamma = gt->to_gamma;
+    if (vg <= to_gamma) {
+      return changeUIntScale(vg, from_gamma, to_gamma, from_src, to_src);
+    }
+    from_src = to_src;
+    from_gamma = to_gamma;
+  }
+}
 // 10_10 bits, fast fade mode
 uint16_t ledGamma10_10_fast(uint16_t v) {
   return ledGamma_internal(v, gamma_table_fast);
+}
+// 10_10 bits, reverse, fast fade mode
+uint16_t ledGammareverse10_10_fast(uint16_t v) {
+  return ledGammaReverse_internal(v, gamma_table_fast);
 }
 
 // 10 bits in, 10 bits out
@@ -1766,6 +1785,17 @@ void LightAnimate(void)
       }
     }
   }
+}
+
+bool isChannelGammaCorrected(uint32_t channel) {
+  if (!Settings.light_correction) { return false; }   // Gamma correction not activated
+  if (channel >= Light.subtype) { return false; }     // Out of range
+
+  if (PHILIPS == my_module_type) {
+    if ((LST_COLDWARM == Light.subtype) && (1 == channel)) { return false; }   // PMW reserved for CT
+    if ((LST_RGBWC == Light.subtype) && (4 == channel)) { return false; }   // PMW reserved for CT
+  }
+  return true;
 }
 
 bool LightApplyFade(void) {   // did the value chanegd and needs to be applied
