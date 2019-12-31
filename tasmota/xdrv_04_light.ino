@@ -186,6 +186,8 @@ const gamma_table_t gamma_table[] = {   // don't put in PROGMEM for performance 
 // simplified Gamma table for Fade, cheating a little at low brightness
 const gamma_table_t gamma_table_fast[] = {
  // {     0,      0 },
+  {   384,    192 },
+  {   768,    576 },
   // {   384,     67 },
   // {   768,    467 },
   {  1023,   1023 },
@@ -1125,14 +1127,6 @@ uint16_t ledGammaReverse_internal(uint16_t vg, const struct gamma_table_t *gt_pt
     from_gamma = to_gamma;
   }
 }
-// 10_10 bits, fast fade mode
-uint16_t ledGamma10_10_fast(uint16_t v) {
-  return ledGamma_internal(v, gamma_table_fast);
-}
-// 10_10 bits, reverse, fast fade mode
-uint16_t ledGammareverse10_10_fast(uint16_t v) {
-  return ledGammaReverse_internal(v, gamma_table_fast);
-}
 
 // 10 bits in, 10 bits out
 uint16_t ledGamma10_10(uint16_t v) {
@@ -1798,6 +1792,22 @@ bool isChannelGammaCorrected(uint32_t channel) {
   return true;
 }
 
+// Calculate the Gamma correction, if any, for fading, using the fast Gamma curve (10 bits in+out)
+uint16_t fadeGamma(uint32_t channel, uint16_t v) {
+  if (isChannelGammaCorrected(channel)) {
+    return ledGamma_internal(v, gamma_table_fast);
+  } else {
+    return v;
+  }
+}
+uint16_t fadeGammaReverse(uint32_t channel, uint16_t vg) {
+  if (isChannelGammaCorrected(channel)) {
+    return ledGammaReverse_internal(vg, gamma_table_fast);
+  } else {
+    return vg;
+  }
+}
+
 bool LightApplyFade(void) {   // did the value chanegd and needs to be applied
   static uint32_t last_millis = 0;
   uint32_t now = millis();
@@ -1813,7 +1823,7 @@ bool LightApplyFade(void) {   // did the value chanegd and needs to be applied
     // compute the distance between start and and color (max of distance for each channel)
     uint32_t distance = 0;
     for (uint32_t i = 0; i < Light.subtype; i++) {
-      int32_t channel_distance = Light.fade_end_10[i] - Light.fade_start_10[i];
+      int32_t channel_distance = fadeGammaReverse(i, Light.fade_end_10[i]) - fadeGammaReverse(i, Light.fade_start_10[i]);
       if (channel_distance < 0) { channel_distance = - channel_distance; }
       if (channel_distance > distance) { distance = channel_distance; }
     }
@@ -1840,9 +1850,14 @@ bool LightApplyFade(void) {   // did the value chanegd and needs to be applied
   if (fade_current <= Light.fade_duration) {    // fade not finished
     //Serial.printf("Fade: %d / %d - ", fade_current, Light.fade_duration);
     for (uint32_t i = 0; i < Light.subtype; i++) {
-      Light.fade_cur_10[i] = changeUIntScale(fade_current,
-                                              0, Light.fade_duration,
-                                              Light.fade_start_10[i], Light.fade_end_10[i]);
+      Light.fade_cur_10[i] = fadeGamma(i,
+                                changeUIntScale(fadeGammaReverse(i, fade_current),
+                                             0, Light.fade_duration,
+                                             fadeGammaReverse(i, Light.fade_start_10[i]),
+                                             fadeGammaReverse(i, Light.fade_end_10[i])));
+      // Light.fade_cur_10[i] = changeUIntScale(fade_current,
+      //                                        0, Light.fade_duration,
+      //                                        Light.fade_start_10[i], Light.fade_end_10[i]);
     }
   } else {
     // stop fade
