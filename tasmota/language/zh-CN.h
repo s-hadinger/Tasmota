@@ -1,7 +1,7 @@
 /*
   zh-CN.h - localization for Chinese (Simplified) - China for Tasmota
 
-  Copyright (C) 2019  Theo Arends (translated by killadm)
+  Copyright (C) 2020  Theo Arends (translated by killadm)
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -84,7 +84,7 @@
 #define D_DNS_SERVER "DNS服务器"
 #define D_DONE "完成"
 #define D_DST_TIME "DST"
-#define D_ECO2 "eCO2"
+#define D_ECO2 "eCO₂"
 #define D_EMULATION "设备模拟"
 #define D_ENABLED "启用"
 #define D_ERASE "擦除"

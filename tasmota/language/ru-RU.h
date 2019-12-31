@@ -1,7 +1,7 @@
 /*
   ru-RU.h - localization for Russian - Rissia for Tasmota
 
-  Copyright (C) 2019  Theo Arends / roman-vn
+  Copyright (C) 2020  Theo Arends / roman-vn
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -84,7 +84,7 @@
 #define D_DNS_SERVER "DNS Сервер"
 #define D_DONE "Выполнено"
 #define D_DST_TIME "DST"
-#define D_ECO2 "eCO2"
+#define D_ECO2 "eCO₂"
 #define D_EMULATION "Эмуляция"
 #define D_ENABLED "Активно"
 #define D_ERASE "Стирать"
@@ -648,7 +648,7 @@
 #define D_UNIT_KILOOHM "кОм"
 #define D_UNIT_KILOWATTHOUR "кВт"
 #define D_UNIT_LUX "лк"
-#define D_UNIT_MICROGRAM_PER_CUBIC_METER "мкг/м3"
+#define D_UNIT_MICROGRAM_PER_CUBIC_METER "мкг/м³"
 #define D_UNIT_MICROMETER "мкм"
 #define D_UNIT_MICROSECOND "мкс"
 #define D_UNIT_MILLIAMPERE "мА"
