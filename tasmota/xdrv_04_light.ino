@@ -185,11 +185,8 @@ const gamma_table_t gamma_table[] = {   // don't put in PROGMEM for performance 
 
 // simplified Gamma table for Fade, cheating a little at low brightness
 const gamma_table_t gamma_table_fast[] = {
- // {     0,      0 },
   {   384,    192 },
   {   768,    576 },
-  // {   384,     67 },
-  // {   768,    467 },
   {  1023,   1023 },
   { 0xFFFF, 0xFFFF }          // fail-safe if out of range
 };
