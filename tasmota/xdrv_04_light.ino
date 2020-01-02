@@ -357,7 +357,7 @@ class LightStateClass {
     //   LST_COLDWARM:  LCM_CT
     //   LST_RGB:       LCM_RGB
     //   LST_RGBW:      LCM_RGB, LCM_CT or LCM_BOTH
-    //   LST_RGBWC:     LCM_RGB, LCM_CT or LCM_BOTH
+    //   LST_RGBCW:     LCM_RGB, LCM_CT or LCM_BOTH
     uint8_t setColorMode(uint8_t cm) {
       uint8_t prev_cm = _color_mode;
       if (cm < LCM_RGB) { cm = LCM_RGB; }
@@ -377,7 +377,7 @@ class LightStateClass {
           break;
 
         case LST_RGBW:
-        case LST_RGBWC:
+        case LST_RGBCW:
           _color_mode = cm;
           break;
       }
@@ -1002,8 +1002,8 @@ public:
         current_color[1] = w;
         break;
       case LST_RGBW:
-      case LST_RGBWC:
-        if (LST_RGBWC == Light.subtype) {
+      case LST_RGBCW:
+        if (LST_RGBCW == Light.subtype) {
           current_color[3] = c;
           current_color[4] = w;
         } else {
@@ -1347,7 +1347,7 @@ void LightSetColorTemp(uint16_t ct)
  * ct = 500 = 6500K = Cold = CCWW = FF00
  */
   // don't set CT if not supported
-  if ((LST_COLDWARM != Light.subtype) && (LST_RGBWC != Light.subtype)) {
+  if ((LST_COLDWARM != Light.subtype) && (LST_RGBCW != Light.subtype)) {
     return;
   }
   light_controller.changeCTB(ct, light_state.getBriCT());
@@ -1356,7 +1356,7 @@ void LightSetColorTemp(uint16_t ct)
 uint16_t LightGetColorTemp(void)
 {
   // don't calculate CT for unsupported devices
-  if ((LST_COLDWARM != Light.subtype) && (LST_RGBWC != Light.subtype)) {
+  if ((LST_COLDWARM != Light.subtype) && (LST_RGBCW != Light.subtype)) {
     return 0;
   }
   return (light_state.getColorMode() & LCM_CT) ? light_state.getCT() : 0;
@@ -1441,7 +1441,7 @@ void LightState(uint8_t append)
         ResponseAppend_P(PSTR(",\"" D_CMND_WHITE "\":%d"), light_state.getDimmer(2));
       }
       // Add CT
-      if ((LST_COLDWARM == Light.subtype) || (LST_RGBWC == Light.subtype)) {
+      if ((LST_COLDWARM == Light.subtype) || (LST_RGBCW == Light.subtype)) {
         ResponseAppend_P(PSTR(",\"" D_CMND_COLORTEMPERATURE "\":%d"), light_state.getCT());
       }
       // Add status for each channel
@@ -1714,7 +1714,7 @@ void LightAnimate(void)
         }
 
         // Now see if we need to mix RGB and True White
-        // Valid only for LST_RGBW, LST_RGBWC, rgbwwTable[4] is zero, and white is zero (see doc)
+        // Valid only for LST_RGBW, LST_RGBCW, rgbwwTable[4] is zero, and white is zero (see doc)
         if ((LST_RGBW <= Light.subtype) && (0 == Settings.rgbwwTable[4]) && (0 == cur_col_10[3]+cur_col_10[4])) {
           uint32_t min_rgb_10 = min3(cur_col_10[0], cur_col_10[1], cur_col_10[2]);
           for (uint32_t i=0; i<3; i++) {
@@ -1729,7 +1729,7 @@ void LightAnimate(void)
           if (LST_RGBW == Light.subtype) {
             // we simply set the white channel
             cur_col_10[3] = white_10;
-          } else {  // LST_RGBWC
+          } else {  // LST_RGBCW
             // we distribute white between cold and warm according to CT value
             uint32_t ct = light_state.getCT();
             cur_col_10[4] = changeUIntScale(ct, 153, 500, 0, white_10);
@@ -1786,7 +1786,7 @@ bool isChannelGammaCorrected(uint32_t channel) {
 
   if (PHILIPS == my_module_type) {
     if ((LST_COLDWARM == Light.subtype) && (1 == channel)) { return false; }   // PMW reserved for CT
-    if ((LST_RGBWC == Light.subtype) && (4 == channel)) { return false; }   // PMW reserved for CT
+    if ((LST_RGBCW == Light.subtype) && (4 == channel)) { return false; }   // PMW reserved for CT
   }
   return true;
 }
@@ -1975,9 +1975,9 @@ void calcGammaBulbs(uint16_t cur_col_10[5]) {
   // Apply gamma correction for 8 and 10 bits resolutions, if needed
   if (Settings.light_correction) {
     // First apply combined correction to the overall white power
-    if ((LST_COLDWARM == Light.subtype) || (LST_RGBWC == Light.subtype)) {
+    if ((LST_COLDWARM == Light.subtype) || (LST_RGBCW == Light.subtype)) {
       uint8_t w_idx[2] = {0, 1};        // if LST_COLDWARM, channels 0 and 1
-      if (LST_RGBWC == Light.subtype) { // if LST_RGBWC, channels 3 and 4
+      if (LST_RGBCW == Light.subtype) { // if LST_RGBCW, channels 3 and 4
         w_idx[0] = 3;
         w_idx[1] = 4;
       }
@@ -2001,7 +2001,7 @@ void calcGammaBulbs(uint16_t cur_col_10[5]) {
       }
     }
     // If RGBW or Single channel, also adjust White channel
-    if ((LST_COLDWARM != Light.subtype) && (LST_RGBWC != Light.subtype)) {
+    if ((LST_COLDWARM != Light.subtype) && (LST_RGBCW != Light.subtype)) {
       cur_col_10[3] = ledGamma10_10(cur_col_10[3]);
     }
   }
@@ -2072,7 +2072,7 @@ bool LightColorEntry(char *buffer, uint32_t buffer_length)
       memcpy_P(&Light.entry_color, &kFixedColdWarm[value -200], 2);
       entry_type = 1;                               // Hexadecimal
     }
-    else if (LST_RGBWC == Light.subtype) {
+    else if (LST_RGBCW == Light.subtype) {
       memcpy_P(&Light.entry_color[3], &kFixedColdWarm[value -200], 2);
       entry_type = 1;                               // Hexadecimal
     }
@@ -2288,7 +2288,7 @@ void CmndWakeup(void)
 void CmndColorTemperature(void)
 {
   if (Light.pwm_multi_channels) { return; }
-  if ((LST_COLDWARM == Light.subtype) || (LST_RGBWC == Light.subtype)) { // ColorTemp
+  if ((LST_COLDWARM == Light.subtype) || (LST_RGBCW == Light.subtype)) { // ColorTemp
     uint32_t ct = light_state.getCT();
     if (1 == XdrvMailbox.data_len) {
       if ('+' == XdrvMailbox.data[0]) {
@@ -2394,7 +2394,7 @@ void CmndRgbwwTable(void)
 {
   if ((XdrvMailbox.data_len > 0)) {
     if (strstr(XdrvMailbox.data, ",") != nullptr) {  // Command with up to 5 comma separated parameters
-      for (uint32_t i = 0; i < LST_RGBWC; i++) {
+      for (uint32_t i = 0; i < LST_RGBCW; i++) {
         char *substr;
 
         if (0 == i) {
@@ -2411,7 +2411,7 @@ void CmndRgbwwTable(void)
   }
   char scolor[LIGHT_COLOR_SIZE];
   scolor[0] = '\0';
-  for (uint32_t i = 0; i < LST_RGBWC; i++) {
+  for (uint32_t i = 0; i < LST_RGBCW; i++) {
     snprintf_P(scolor, sizeof(scolor), PSTR("%s%s%d"), scolor, (i > 0) ? "," : "", Settings.rgbwwTable[i]);
   }
   ResponseCmndIdxChar(scolor);
