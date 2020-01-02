@@ -511,6 +511,7 @@
 #define D_CMND_SHUTTER_CLIBRATION "Calibration"
 #define D_CMND_SHUTTER_MOTORDELAY "MotorDelay"
 #define D_CMND_SHUTTER_FREQUENCY "Frequency"
+#define D_CMND_SHUTTER_BUTTON "Button"
 
 // Commands xdrv_32_hotplug.ino
 #define D_CMND_HOTPLUG "HotPlug"
