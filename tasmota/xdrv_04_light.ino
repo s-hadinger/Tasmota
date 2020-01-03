@@ -567,7 +567,7 @@ class LightStateClass {
         setColorMode(LCM_RGB);  // try deactivating CT mode, setColorMode() will check which is legal
       } else {
         ct = (ct < CT_MIN ? CT_MIN : (ct > CT_MAX ? CT_MAX : ct));
-        _ww = changeUIntScale(ct, CT_MIN, CT_MAX, 0, 255);
+        _ww = changeUIntScale(ct, _ct_min_range, _ct_max_range, 0, 255);
         _wc = 255 - _ww;
         _ct = ct;
         addCTMode();
@@ -1264,6 +1264,7 @@ void LightInit(void)
 
   light_controller.setSubType(Light.subtype);
   light_controller.loadSettings();
+  light_controller.setAlexaCTRange(Settings.flag4.alexa_ct_range);
 
   if (LST_SINGLE == Light.subtype) {
     Settings.light_color[0] = 255;      // One channel only supports Dimmer but needs max color
@@ -1654,6 +1655,8 @@ void LightAnimate(void)
   uint16_t light_still_on = 0;
   bool power_off = false;
 
+  // make sure we update CT range in case SetOption82 was changed
+  light_controller.setAlexaCTRange(Settings.flag4.alexa_ct_range);
   Light.strip_timer_counter++;
 
   // set sleep parameter: either settings,
@@ -1991,7 +1994,7 @@ void calcGammaBulbs(uint16_t cur_col_10[5]) {
   // Apply gamma correction for 8 and 10 bits resolutions, if needed
   if (Settings.light_correction) {
     // First apply combined correction to the overall white power
-    if ((LST_COLDWARM == Light.subtype) || (LST_RGBWC == Light.subtype)) {
+    if ((LST_COLDWARM == Light.subtype) || (LST_RGBCW == Light.subtype)) {
       // channels for white are always the last two channels
       uint32_t cw1 = Light.subtype - 1;       // address for the ColorTone PWM
       uint32_t cw0 = Light.subtype - 2;       // address for the White Brightness PWM
@@ -2000,9 +2003,7 @@ void calcGammaBulbs(uint16_t cur_col_10[5]) {
 
       if (PHILIPS == my_module_type) {   // channel 1 is the color tone, mapped to cold channel (0..255)
         // Xiaomi Philips bulbs follow a different scheme:
-        uint8_t cold, warm;
-        light_state.getCW(&cold, &warm);
-        cur_col_10[cw1] = changeUIntScale(cold, 0, cold + warm, 0, 1023);   //
+        cur_col_10[cw1] = light_state.getCT10bits();
         // channel 0=intensity, channel1=temperature
         if (Settings.light_correction) { // gamma correction
           cur_col_10[cw0] = ledGamma10_10(white_bri10_1023);    // 10 bits gamma correction
