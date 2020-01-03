@@ -79,6 +79,7 @@
  *  .b For white bulbs with Cold/Warm colortone, use changeCW() or changeCT()
  *     to change color-tone. Set overall brightness separately.
  *     Color-tone temperature can range from 153 (Cold) to 500 (Warm).
+ *     SetOption82 can expand the rendering from 200-380 due to Alexa reduced range.
  *     CW channels are stored at full brightness to avoid rounding errors.
  *  .c Alternatively, you can set all 5 channels at once with changeChannels(),
  *     in this case it will also set the corresponding brightness.
@@ -159,6 +160,13 @@ struct LCwColor {
 };
 const uint8_t MAX_FIXED_COLD_WARM = 4;
 const LCwColor kFixedColdWarm[MAX_FIXED_COLD_WARM] PROGMEM = { 0,0, 255,0, 0,255, 128,128 };
+
+// CT min and max
+const uint16_t CT_MIN = 153;          // 6500K
+const uint16_t CT_MAX = 500;          // 2000K
+// Ranges used for Alexa
+const uint16_t CT_MIN_ALEXA = 200;    // also 5000K
+const uint16_t CT_MAX_ALEXA = 380;    // also 2600K
 
 // New version of Gamma correction compute
 // Instead of a table, we do a multi-linear approximation, which is close enough
@@ -334,12 +342,19 @@ class LightStateClass {
     uint8_t  _b = 255;  // 0..255
 
     uint8_t  _subtype = 0;  // local copy of Light.subtype, if we need multiple lights
-    uint16_t _ct = 153;  // 153..500, default to 153 (cold white)
+    uint16_t _ct = CT_MIN;  // 153..500, default to 153 (cold white)
     uint8_t  _wc = 255;  // white cold channel
     uint8_t  _ww = 0;    // white warm channel
     uint8_t  _briCT = 255;
 
     uint8_t  _color_mode = LCM_RGB; // RGB by default
+    // the CT range below represents the rendered range,
+    // This is due to Alexa whose CT range is 199..383
+    // Hence setting Min=200 and Max=380 makes Alexa use the full range
+    // Please note that you can still set CT to 153..500, but any
+    // value below _ct_min_range or above _ct_max_range not change the CT
+    uint16_t _ct_min_range = CT_MIN;   // the minimum CT rendered range
+    uint16_t _ct_max_range = CT_MAX;   // the maximum CT rendered range
 
   public:
     LightStateClass() {
@@ -488,8 +503,23 @@ class LightStateClass {
       return BriToDimmer(bri);
     }
 
-    inline uint16_t getCT() {
-      return _ct; // 153..500
+    inline uint16_t getCT() const {
+      return _ct; // 153..500, or CT_MIN..CT_MAX
+    }
+
+    // get the CT value within the range into a 10 bits 0..1023 value
+    uint16_t getCT10bits() const {
+      return changeUIntScale(_ct, _ct_min_range, _ct_max_range, 0, 1023);
+    }
+
+    inline void setCTRange(uint16_t ct_min_range, uint16_t ct_max_range) {
+      _ct_min_range = ct_min_range;
+      _ct_max_range = ct_max_range;
+    }
+
+    inline void getCTRange(uint16_t *ct_min_range, uint16_t *ct_max_range) const {
+      if (ct_min_range) { *ct_min_range = _ct_min_range; }
+      if (ct_max_range) { *ct_max_range = _ct_max_range; }
     }
 
     // get current color in XY format
@@ -536,8 +566,8 @@ class LightStateClass {
         // disable ct mode
         setColorMode(LCM_RGB);  // try deactivating CT mode, setColorMode() will check which is legal
       } else {
-        ct = (ct < 153 ? 153 : (ct > 500 ? 500 : ct));
-        _ww = changeUIntScale(ct, 153, 500, 0, 255);
+        ct = (ct < CT_MIN ? CT_MIN : (ct > CT_MAX ? CT_MAX : ct));
+        _ww = changeUIntScale(ct, CT_MIN, CT_MAX, 0, 255);
         _wc = 255 - _ww;
         _ct = ct;
         addCTMode();
@@ -577,7 +607,7 @@ class LightStateClass {
           _ww = changeUIntScale(w, 0, max, 0, 255);
           _wc = changeUIntScale(c, 0, max, 0, 255);
         }
-        _ct = changeUIntScale(w, 0, sum, 153, 500);
+        _ct = changeUIntScale(w, 0, sum, _ct_min_range, _ct_max_range);
         addCTMode();   // activate CT mode if needed
         if (_color_mode & LCM_CT) { _briCT = free_range ? max : (sum > 255 ? 255 : sum); }
       }
@@ -850,6 +880,15 @@ public:
     return prev;
   }
 
+  void setAlexaCTRange(bool alexa_ct_range) {
+    // depending on SetOption82, full or limited CT range
+    if (alexa_ct_range) {
+      _state->setCTRange(CT_MIN_ALEXA, CT_MAX_ALEXA);   // 200..380
+    } else {
+      _state->setCTRange(CT_MIN, CT_MAX);               // 153..500
+    }
+  }
+
   inline bool isCTRGBLinked() {
     return _ct_rgb_linked;
   }
@@ -916,8 +955,8 @@ public:
   void changeCTB(uint16_t new_ct, uint8_t briCT) {
     /* Color Temperature (https://developers.meethue.com/documentation/core-concepts)
      *
-     * ct = 153 = 2000K = Warm = CCWW = 00FF
-     * ct = 500 = 6500K = Cold = CCWW = FF00
+     * ct = 153 = 6500K = Cold = CCWW = FF00
+     * ct = 500 = 2000K = Warm = CCWW = 00FF
      */
     // don't set CT if not supported
     if ((LST_COLDWARM != Light.subtype) && (LST_RGBW > Light.subtype)) {
@@ -1343,8 +1382,8 @@ void LightSetColorTemp(uint16_t ct)
 {
 /* Color Temperature (https://developers.meethue.com/documentation/core-concepts)
  *
- * ct = 153 = 2000K = Warm = CCWW = 00FF
- * ct = 500 = 6500K = Cold = CCWW = FF00
+ * ct = 153 = 6500K = Cold = CCWW = FF00
+ * ct = 600 = 2000K = Warm = CCWW = 00FF
  */
   // don't set CT if not supported
   if ((LST_COLDWARM != Light.subtype) && (LST_RGBCW != Light.subtype)) {
@@ -1731,8 +1770,8 @@ void LightAnimate(void)
             cur_col_10[3] = white_10;
           } else {  // LST_RGBCW
             // we distribute white between cold and warm according to CT value
-            uint32_t ct = light_state.getCT();
-            cur_col_10[4] = changeUIntScale(ct, 153, 500, 0, white_10);
+            uint32_t ct = light_state.getCT10bits();
+            cur_col_10[4] = changeUIntScale(ct, 0, 1023, 0, white_10);
             cur_col_10[3] = white_10 - cur_col_10[4];
           }
         }
@@ -2292,13 +2331,13 @@ void CmndColorTemperature(void)
     uint32_t ct = light_state.getCT();
     if (1 == XdrvMailbox.data_len) {
       if ('+' == XdrvMailbox.data[0]) {
-        XdrvMailbox.payload = (ct > (500-34)) ? 500 : ct + 34;
+        XdrvMailbox.payload = (ct > (CT_MAX-34)) ? CT_MAX : ct + 34;
       }
       else if ('-' == XdrvMailbox.data[0]) {
-        XdrvMailbox.payload = (ct < (153+34)) ? 153 : ct - 34;
+        XdrvMailbox.payload = (ct < (CT_MIN+34)) ? CT_MIN : ct - 34;
       }
     }
-    if ((XdrvMailbox.payload >= 153) && (XdrvMailbox.payload <= 500)) {  // https://developers.meethue.com/documentation/core-concepts
+    if ((XdrvMailbox.payload >= CT_MIN) && (XdrvMailbox.payload <= CT_MAX)) {  // https://developers.meethue.com/documentation/core-concepts
       light_controller.changeCTB(XdrvMailbox.payload, light_state.getBri());
       LightPreparePower(2);
     } else {
