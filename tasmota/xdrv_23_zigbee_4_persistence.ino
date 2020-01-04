@@ -40,6 +40,7 @@
 // uint16 - profileID of the endpoint
 // Array of uint8 - clusters In  codes, 0xFF end marker
 // Array of uint8 - clusters Out codes, 0xFF end marker
+//
 // str    - ModelID (null terminated C string, 32 chars max)
 // str    - Manuf   (null terminated C string, 32 chars max)
 // reserved for extensions
@@ -131,6 +132,14 @@ class SBuffer hibernateDevice(const struct Z_Device &device) {
   buf.addBuffer(device.manufacturerId.c_str(), manuf_len);
   buf.add8(0x00);     // end of string marker
 
+  // FriendlyName
+  size_t frname_len = device.friendlyName.length();
+  if (frname_len > 32) {frname_len = 32; }       // max 32 chars
+  buf.addBuffer(device.friendlyName.c_str(), frname_len);
+  buf.add8(0x00);     // end of string marker
+
+  // update overll length
+  buf.set8(0, buf.len());
 }
 
 #endif // USE_ZIGBEE
