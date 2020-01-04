@@ -142,4 +142,19 @@ class SBuffer hibernateDevice(const struct Z_Device &device) {
   buf.set8(0, buf.len());
 }
 
+class SBuffer hibernateDevices(void) {
+  SBuffer buf(2048);
+
+  size_t devices_size = zigbee_devices.devicesSize();
+  if (devices_size > 32) { devices_size = 32; }         // arbitrarily limit to 32 devices, for now
+  buf.add8(devices_size);    // number of devices
+
+  for (uint32_t i = 0; i < devices_size; i++) {
+    const Z_Device & device = zigbee_devices.devicesAt(i);
+    const SBuffer buf_device = hibernateDevice(device);
+    buf.addBuffer(buf_device);
+  }
+
+}
+
 #endif // USE_ZIGBEE

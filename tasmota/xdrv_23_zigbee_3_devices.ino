@@ -94,6 +94,14 @@ public:
   const void jsonPublish(uint16_t shortaddr);    // publish the json message and clear buffer
   bool jsonIsConflict(uint16_t shortaddr, const JsonObject &values);
 
+  // Iterator
+  size_t devicesSize(void) const {
+    return _devices.size();
+  }
+  const Z_Device &devicesAt(size_t i) const {
+    return _devices.at(i);
+  }
+
 private:
   std::vector<Z_Device> _devices = {};
 
