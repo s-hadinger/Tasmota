@@ -155,6 +155,20 @@ class SBuffer hibernateDevices(void) {
     buf.addBuffer(buf_device);
   }
 
+  size_t buf_len = buf.len();
+  if (buf_len > 2040) {
+    AddLog_P2(LOG_LEVEL_ERROR, PSTR(D_LOG_ZIGBEE "Devices list too big to fit in Flash (%d)"), buf_len);
+  }
+
+  // Log
+  char *hex_char = (char*) malloc((buf_len * 2) + 2);
+  if (hex_char) {
+    AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_ZIGBEE "ZigbeeFlashStore %s"),
+                                    ToHex_P(buf.getBuffer(), buf_len, hex_char, (buf_len * 2) + 2));
+    free(hex_char);
+  }
+
+  return buf;
 }
 
 #endif // USE_ZIGBEE
