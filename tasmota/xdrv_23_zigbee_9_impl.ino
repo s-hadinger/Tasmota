@@ -31,13 +31,15 @@ TasmotaSerial *ZigbeeSerial = nullptr;
 const char kZigbeeCommands[] PROGMEM = "|"
   D_CMND_ZIGBEEZNPSEND "|" D_CMND_ZIGBEE_PERMITJOIN "|"
   D_CMND_ZIGBEE_STATUS "|" D_CMND_ZIGBEE_RESET "|" D_CMND_ZIGBEE_SEND "|"
-  D_CMND_ZIGBEE_PROBE "|" D_CMND_ZIGBEE_READ "|" D_CMND_ZIGBEEZNPRECEIVE
+  D_CMND_ZIGBEE_PROBE "|" D_CMND_ZIGBEE_READ "|" D_CMND_ZIGBEEZNPRECEIVE "|"
+  D_CMND_ZIGBEE_FORGET
   ;
 
 void (* const ZigbeeCommand[])(void) PROGMEM = {
   &CmndZigbeeZNPSend, &CmndZigbeePermitJoin,
   &CmndZigbeeStatus, &CmndZigbeeReset, &CmndZigbeeSend,
-  &CmndZigbeeProbe, &CmndZigbeeRead, &CmndZigbeeZNPReceive
+  &CmndZigbeeProbe, &CmndZigbeeRead, &CmndZigbeeZNPReceive,
+  &CmndZigbeeForget
   };
 
 int32_t ZigbeeProcessInput(class SBuffer &buf) {
@@ -555,11 +557,30 @@ void CmndZigbeeProbe(void) {
 
   // TODO, for now ignore friendly names
   uint16_t shortaddr = strtoull(dataBufUc, nullptr, 0);
-  AddLog_P2(LOG_LEVEL_DEBUG, PSTR("CmndZigbeeScan: short addr 0x%04X"), shortaddr);
 
   // everything is good, we can send the command
   Z_SendActiveEpReq(shortaddr);
   ResponseCmndDone();
+}
+
+// Remove an old Zigbee device from the list of known devices, use ZigbeeStatus to know all registered devices
+void CmndZigbeeForget(void) {
+  if (zigbee.init_phase) { ResponseCmndChar(D_ZIGBEE_NOT_STARTED); return; }
+  char dataBufUc[XdrvMailbox.data_len];
+  UpperCase(dataBufUc, XdrvMailbox.data);
+  RemoveSpace(dataBufUc);
+  if (strlen(dataBufUc) < 3) { ResponseCmndChar("Invalid destination"); return; }
+
+  // TODO, for now ignore friendly names
+  uint16_t shortaddr = strtoull(dataBufUc, nullptr, 0);
+
+  // everything is good, we can send the command
+  if (zigbee_devices.removeDevice(shortaddr)) {
+    ResponseCmndDone();
+  } else {
+    ResponseCmndChar("Unknown device");
+  }
+  
 }
 
 // Send an attribute read command to a device, specifying cluster and list of attributes

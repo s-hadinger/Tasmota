@@ -102,6 +102,9 @@ public:
     return _devices.at(i);
   }
 
+  // Remove device from list
+  bool removeDevice(uint16_t shortaddr);
+
 private:
   std::vector<Z_Device> _devices = {};
 
@@ -258,6 +261,16 @@ Z_Device & Z_Devices::getLongAddr(uint64_t longaddr) {
     return _devices[found];
   }
   return createDeviceEntry(0, longaddr);
+}
+
+// Remove device from list, return true if it was known, false if it was not recorded
+bool Z_Devices::removeDevice(uint16_t shortaddr) {
+  int32_t found = findShortAddr(shortaddr);
+  if (found >= 0) {
+    _devices.erase(_devices.begin() + found);
+    return true;
+  }
+  return false;
 }
 
 //

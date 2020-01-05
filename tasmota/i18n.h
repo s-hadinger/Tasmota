@@ -481,6 +481,7 @@
   #define D_JSON_ZIGBEE_DEVICE "Device"
   #define D_JSON_ZIGBEE_NAME "Name"
 #define D_CMND_ZIGBEE_PROBE "ZigbeeProbe"
+#define D_CMND_ZIGBEE_FORGET "ZigbeeForget"
 #define D_CMND_ZIGBEE_RECEIVED "ZigbeeReceived"
   #define D_CMND_ZIGBEE_LINKQUALITY "LinkQuality"
 #define D_CMND_ZIGBEE_READ "ZigbeeRead"
