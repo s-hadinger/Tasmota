@@ -173,4 +173,67 @@ class SBuffer hibernateDevices(void) {
   return buf;
 }
 
+void hidrateDevices(const SBuffer &buf) {
+  uint32_t buf_len = buf.len();
+  if (buf_len <= 10) { return; }
+
+  uint32_t k = 0;
+  uint32_t num_devices = buf.get8(k++);
+
+  for (uint32_t i = 0; (i < num_devices) && (k < buf_len); i++) {
+    uint32_t dev_record_len = buf.get8(k++);
+
+    SBuffer buf_d = buf.subBuffer(k, dev_record_len);
+
+    uint32_t d = 0;   // index in device buffer
+    uint16_t shortaddr = buf_d.get16(d);  d += 2;
+    uint64_t longaddr  = buf_d.get64(d);  d += 8;
+    zigbee_devices.updateDevice(shortaddr, longaddr);   // update device's addresses
+
+    uint32_t endpoints = buf_d.get8(d++);
+    for (uint32_t j = 0; j < endpoints; j++) {
+      uint8_t ep = buf_d.get8(d++);
+      uint16_t ep_profile = buf_d.get16(d);  d += 2;
+      zigbee_devices.addEndointProfile(shortaddr, ep, ep_profile);
+
+      // in clusters
+      while (d < dev_record_len) {      // safe guard against overflow
+        uint8_t ep_cluster = buf_d.get8(d++);
+        if (0xFF == ep_cluster) { break; }   // end of block
+        zigbee_devices.addCluster(shortaddr, ep, fromClusterCode(ep_cluster), false);
+      }
+      // out clusters
+      while (d < dev_record_len) {      // safe guard against overflow
+        uint8_t ep_cluster = buf_d.get8(d++);
+        if (0xFF == ep_cluster) { break; }   // end of block
+        zigbee_devices.addCluster(shortaddr, ep, fromClusterCode(ep_cluster), true);
+      }
+    }
+    
+    // parse 3 strings
+    char empty[] = "";
+
+    // ManufID
+    uint32_t s_len = buf_d.strlen_s(d);
+    char *ptr = s_len ? buf_d.charptr(d) : empty;
+    zigbee_devices.setModelId(shortaddr, ptr);
+    d += s_len + 1;
+
+    // ManufID
+    s_len = buf_d.strlen_s(d);
+    ptr = s_len ? buf_d.charptr(d) : empty;
+    zigbee_devices.setManufId(shortaddr, ptr);
+    d += s_len + 1;
+
+    // FriendlyName
+    s_len = buf_d.strlen_s(d);
+    ptr = s_len ? buf_d.charptr(d) : empty;
+    zigbee_devices.setFriendlyNameId(shortaddr, ptr);
+    d += s_len + 1;
+
+    // next iteration
+    k += dev_record_len;
+  }
+}
+
 #endif // USE_ZIGBEE

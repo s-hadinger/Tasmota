@@ -165,6 +165,20 @@ public:
     return 0;
   }
 
+  // if no NULL is found, returns length until the end of the buffer
+  inline size_t strlen(const size_t offset) const {
+    return strnlen((const char*) &_buf->buf[offset], len() - offset);
+  }
+
+  size_t strlen_s(const size_t offset) const {
+    size_t slen = this->strlen(offset);
+    if (slen == len() - offset) {
+      return 0;   // we didn't find a NULL char
+    } else {
+      return slen;
+    }
+  }
+
   SBuffer subBuffer(const size_t start, size_t len) const {
     if (start >= _buf->len) {
       len = 0;
