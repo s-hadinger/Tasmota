@@ -140,6 +140,8 @@ class SBuffer hibernateDevice(const struct Z_Device &device) {
 
   // update overll length
   buf.set8(0, buf.len());
+
+  return buf;
 }
 
 class SBuffer hibernateDevices(void) {

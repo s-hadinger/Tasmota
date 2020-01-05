@@ -32,14 +32,14 @@ const char kZigbeeCommands[] PROGMEM = "|"
   D_CMND_ZIGBEEZNPSEND "|" D_CMND_ZIGBEE_PERMITJOIN "|"
   D_CMND_ZIGBEE_STATUS "|" D_CMND_ZIGBEE_RESET "|" D_CMND_ZIGBEE_SEND "|"
   D_CMND_ZIGBEE_PROBE "|" D_CMND_ZIGBEE_READ "|" D_CMND_ZIGBEEZNPRECEIVE "|"
-  D_CMND_ZIGBEE_FORGET
+  D_CMND_ZIGBEE_FORGET "|" D_CMND_ZIGBEE_SAVE
   ;
 
 void (* const ZigbeeCommand[])(void) PROGMEM = {
   &CmndZigbeeZNPSend, &CmndZigbeePermitJoin,
   &CmndZigbeeStatus, &CmndZigbeeReset, &CmndZigbeeSend,
   &CmndZigbeeProbe, &CmndZigbeeRead, &CmndZigbeeZNPReceive,
-  &CmndZigbeeForget
+  &CmndZigbeeForget, &CmndZigbeeSave
   };
 
 int32_t ZigbeeProcessInput(class SBuffer &buf) {
@@ -580,7 +580,15 @@ void CmndZigbeeForget(void) {
   } else {
     ResponseCmndChar("Unknown device");
   }
-  
+}
+
+// Save Zigbee information to flash
+void CmndZigbeeSave(void) {
+  if (zigbee.init_phase) { ResponseCmndChar(D_ZIGBEE_NOT_STARTED); return; }
+
+  SBuffer buf = hibernateDevices();
+
+  ResponseCmndDone();
 }
 
 // Send an attribute read command to a device, specifying cluster and list of attributes
