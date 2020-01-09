@@ -1120,20 +1120,12 @@ void HandleRoot(void)
       for (uint32_t idx = 1; idx <= devices_present; idx++) {
         bool set_button = ((idx <= MAX_BUTTON_TEXT) && strlen(SettingsText(SET_BUTTON1 + idx -1)));
 #ifdef USE_SHUTTER
-        if (Settings.flag3.shutter_mode) {  // SetOption80 - Enable shutter support
-          bool shutter_used = false;
-          for (uint32_t i = 0; i < MAX_SHUTTERS; i++) {
-            if (Settings.shutter_startrelay[i] == (((idx -1) & 0xFFFFFFFE) +1)) {
-              shutter_used = true;
-              break;
-            }
-          }
-          if (shutter_used) {
-            WSContentSend_P(HTTP_DEVICE_CONTROL, 100 / devices_present, idx,
-              (set_button) ? SettingsText(SET_BUTTON1 + idx -1) : (idx % 2) ? "▲" : "▼",
-              "");
-            continue;
-          }
+        int32_t ShutterWebButton;
+        if (ShutterWebButton = IsShutterWebButton(idx)) {
+          WSContentSend_P(HTTP_DEVICE_CONTROL, 100 / devices_present, idx,
+            (set_button) ? SettingsText(SET_BUTTON1 + idx -1) : (ShutterWebButton>0) ? "▲" : "▼",
+            "");
+          continue;
         }
 #endif  // USE_SHUTTER
         snprintf_P(stemp, sizeof(stemp), PSTR(" %d"), idx);
@@ -1216,7 +1208,18 @@ bool HandleRootStatusRefresh(void)
       }
     } else {
 #endif  // USE_SONOFF_IFAN
-      ExecuteCommandPower(device, POWER_TOGGLE, SRC_IGNORE);
+#ifdef USE_SHUTTER
+      int32_t ShutterWebButton;
+      if (ShutterWebButton = IsShutterWebButton(device)) {
+        snprintf_P(svalue, sizeof(svalue), PSTR("ShutterPosition%d %s"), abs(ShutterWebButton), (ShutterWebButton>0) ? PSTR(D_CMND_SHUTTER_TOGGLEUP) : PSTR(D_CMND_SHUTTER_TOGGLEDOWN));
+        AddLog_P2(LOG_LEVEL_INFO, PSTR("SHT: WebButton %d, %s"), ShutterWebButton, svalue);
+        ExecuteWebCommand(svalue, SRC_WEBGUI);
+      } else {
+#endif  // USE_SHUTTER
+        ExecuteCommandPower(device, POWER_TOGGLE, SRC_IGNORE);
+#ifdef USE_SHUTTER
+      }
+#endif  // USE_SHUTTER
 #ifdef USE_SONOFF_IFAN
     }
 #endif  // USE_SONOFF_IFAN
@@ -1300,6 +1303,22 @@ bool HandleRootStatusRefresh(void)
 
   return true;
 }
+
+#ifdef USE_SHUTTER
+int32_t IsShutterWebButton(uint32_t idx) {
+  /* 0: Not a shutter, 1..4: shutter up idx, -1..-4: shutter down idx */
+  int32_t ShutterWebButton = 0;
+  if (Settings.flag3.shutter_mode) {  // SetOption80 - Enable shutter support
+    for (uint32_t i = 0; i < MAX_SHUTTERS; i++) {
+      if (Settings.shutter_startrelay[i] && ((Settings.shutter_startrelay[i] == idx) || (Settings.shutter_startrelay[i] == (idx-1)))) {
+        ShutterWebButton = (Settings.shutter_startrelay[i] == idx) ? (i+1): (-1-i);
+        break;
+      }
+    }
+  }
+  return ShutterWebButton;
+}
+#endif // USE_SHUTTER
 
 /*-------------------------------------------------------------------------------------------*/
 
@@ -1656,8 +1675,9 @@ void HandleWifiConfiguration(void)
         for (uint32_t i = 0; i < n; i++) {
           if (-1 == indices[i]) { continue; }
           cssid = WiFi.SSID(indices[i]);
+          uint32_t cschn = WiFi.channel(indices[i]);
           for (uint32_t j = i + 1; j < n; j++) {
-            if (cssid == WiFi.SSID(indices[j])) {
+            if ((cssid == WiFi.SSID(indices[j])) && (cschn == WiFi.channel(indices[j]))) {
               DEBUG_CORE_LOG(PSTR(D_LOG_WIFI D_DUPLICATE_ACCESSPOINT " %s"), WiFi.SSID(indices[j]).c_str());
               indices[j] = -1;  // set dup aps to index -1
             }
@@ -1676,7 +1696,7 @@ void HandleWifiConfiguration(void)
             HtmlEscape(WiFi.SSID(indices[i])).c_str(),
             WiFi.channel(indices[i]),
             GetTextIndexed(encryption, sizeof(encryption), auth +1, kEncryptionType),
-            quality, WiFi.RSSI()
+            quality, WiFi.RSSI(indices[i])
           );
           delay(0);
 
@@ -2398,8 +2418,7 @@ void HandleUploadLoop(void)
         Web.upload_error = 6;  // Upload failed. Enable logging 3
         return;
       }
-      if (OtaVersion() < VERSION_COMPATIBLE) {
-        AbandonOta();
+      if (!VersionCompatible()) {
         Web.upload_error = 14;  // Not compatible
         return;
       }
