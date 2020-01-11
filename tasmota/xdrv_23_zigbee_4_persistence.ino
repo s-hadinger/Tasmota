@@ -78,6 +78,7 @@ const uint16_t Z_ClusterNumber[] PROGMEM = {
   0x0700, 0x0701, 0x0702,
   0x0B00, 0x0B01, 0x0B02, 0x0B03, 0x0B04, 0x0B05,
   0x1000,
+  0xFC0F,
 };
 
 // convert a 1 byte cluster code to the actual cluster number
@@ -156,7 +157,7 @@ class SBuffer hibernateDevice(const struct Z_Device &device) {
   buf.addBuffer(device.friendlyName.c_str(), frname_len);
   buf.add8(0x00);     // end of string marker
 
-  // update overll length
+  // update overall length
   buf.set8(0, buf.len());
 
   return buf;
@@ -199,11 +200,11 @@ void hidrateDevices(const SBuffer &buf) {
   uint32_t num_devices = buf.get8(k++);
 
   for (uint32_t i = 0; (i < num_devices) && (k < buf_len); i++) {
-    uint32_t dev_record_len = buf.get8(k++);
+    uint32_t dev_record_len = buf.get8(k);
 
     SBuffer buf_d = buf.subBuffer(k, dev_record_len);
 
-    uint32_t d = 0;   // index in device buffer
+    uint32_t d = 1;   // index in device buffer
     uint16_t shortaddr = buf_d.get16(d);  d += 2;
     uint64_t longaddr  = buf_d.get64(d);  d += 8;
     zigbee_devices.updateDevice(shortaddr, longaddr);   // update device's addresses
@@ -301,7 +302,7 @@ void saveZigbeeDevices(void) {
   }
 
   free(spi_buffer);
-  AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_ZIGBEE "Zigbee Devices Data store in Flash (0x%08X - %d bytes"), z_dev_start, buf_len);
+  AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_ZIGBEE "Zigbee Devices Data store in Flash (0x%08X - %d bytes)"), z_dev_start, buf_len);
 }
 
 #endif // USE_ZIGBEE
