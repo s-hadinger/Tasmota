@@ -511,6 +511,12 @@ int32_t Z_Recv_Default(int32_t res, const class SBuffer &buf) {
   }
 }
 
+int32_t Z_Load_Devices(uint8_t value) {
+  // try to hidrate from known devices
+  loadZigbeeDevices();
+  return 0;                              // continue
+}
+
 int32_t Z_State_Ready(uint8_t value) {
   zigbee.init_phase = false;             // initialization phase complete
   return 0;                              // continue
