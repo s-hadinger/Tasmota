@@ -110,6 +110,8 @@ enum Zigbee_StateMachine_Instruction_Set {
 const uint8_t  ZIGBEE_LABEL_START = 10;   // Start ZNP
 const uint8_t  ZIGBEE_LABEL_READY = 20;   // goto label 20 for main loop
 const uint8_t  ZIGBEE_LABEL_MAIN_LOOP = 21;   // main loop
+const uint8_t  ZIGBEE_LABEL_SAVE_LATER = 25;  // trigger a future save in Flash
+  const uint16_t ZIGBEE_SAVE_DELAY = 5000;    // wait for 2s
 const uint8_t  ZIGBEE_LABEL_PERMIT_JOIN_CLOSE = 30;   // disable permit join
 const uint8_t  ZIGBEE_LABEL_PERMIT_JOIN_OPEN_60 = 31;    // enable permit join for 60 seconds
 const uint8_t  ZIGBEE_LABEL_PERMIT_JOIN_OPEN_XX = 32;    // enable permit join for 60 seconds
@@ -389,6 +391,11 @@ ZI_SEND(ZBS_STARTUPFROMAPP)                       // start coordinator
     ZI_CALL(&Z_Load_Devices, 0)
   ZI_LABEL(ZIGBEE_LABEL_MAIN_LOOP)
     ZI_WAIT_FOREVER()
+    ZI_GOTO(ZIGBEE_LABEL_READY)
+
+  ZI_LABEL(ZIGBEE_LABEL_SAVE_LATER)               // trigger a future save in Flash
+    ZI_WAIT(ZIGBEE_SAVE_DELAY)                    // Now accept incoming messages
+    ZI_CALL(&Z_Save_Devices, 0)
     ZI_GOTO(ZIGBEE_LABEL_READY)
 
   ZI_LABEL(ZIGBEE_LABEL_PERMIT_JOIN_CLOSE)
