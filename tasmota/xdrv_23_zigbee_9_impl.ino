@@ -586,7 +586,7 @@ void CmndZigbeeForget(void) {
 void CmndZigbeeSave(void) {
   if (zigbee.init_phase) { ResponseCmndChar(D_ZIGBEE_NOT_STARTED); return; }
 
-  SBuffer buf = hibernateDevices();
+  saveZigbeeDevices();
 
   ResponseCmndDone();
 }

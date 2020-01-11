@@ -47,17 +47,21 @@
 
 // Memory footprint
 const static uint16_t z_spi_start_sector = 0xFF;  // Force last bank of first MB
-const static uint8_t* z_spi_start    = 0x402FF000;  // 0x402FF000
+const static uint8_t* z_spi_start    = (uint8_t*) 0x402FF000;  // 0x402FF000
 const static uint8_t* z_dev_start    = z_spi_start + 0x0800;  // 0x402FF800 - 2KB
+const static size_t   z_spi_len      = 0x1000;  // 4kb blocs
+const static size_t   z_block_offset = 0x0800;
+const static size_t   z_block_len    = 0x0800;   // 2kb
 
 class z_flashdata_t {
 public:
   uint32_t name;    // simple 4 letters name. Currently 'skey', 'crt ', 'crt1', 'crt2'
   uint16_t len;     // len of object
-  uint16_t reserverd; // align on 4 bytes boundary
+  uint16_t reserved; // align on 4 bytes boundary
 }; 
 
 const static uint32_t ZIGB_NAME = 0x6267697A; // 'zigb' little endian
+const static size_t   Z_MAX_FLASH = z_block_len - sizeof(z_flashdata_t);  // 2040
 
 // encoding for the most commonly 32 clusters, used for binary encoding
 const uint16_t Z_ClusterNumber[] PROGMEM = {
@@ -258,13 +262,46 @@ void loadZigbeeDevices(void) {
   if ((flashdata.name == ZIGB_NAME) && (flashdata.len > 0)) {
     uint16_t buf_len = flashdata.len;
     // parse what seems to be a valid entry
-    SBuffer buf = new SBuffer(buf_len);
+    SBuffer buf(buf_len);
     buf.addBuffer(z_dev_start + sizeof(z_flashdata_t), buf_len);
     AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "Zigbee devices data in Flash (%d bytes)"), buf_len);
     hidrateDevices(buf);
   } else {
     AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "No zigbee devices data in Flash"));
   }
+}
+
+void saveZigbeeDevices(void) {
+  SBuffer buf = hibernateDevices();
+  size_t buf_len = buf.len();
+  if (buf_len > Z_MAX_FLASH) {
+    AddLog_P2(LOG_LEVEL_ERROR, PSTR(D_LOG_ZIGBEE "Buffer too big to fit in Flash (%d bytes)"), buf_len);
+    return;
+  }
+
+  // first copy SPI buffer into ram
+  uint8_t *spi_buffer = (uint8_t*) malloc(z_spi_len);
+  if (!spi_buffer) {
+    AddLog_P2(LOG_LEVEL_ERROR, PSTR(D_LOG_ZIGBEE "Cannot allocate 4KB buffer"));
+    return;
+  }
+  // copy the flash into RAM to make local change, and write back the whole buffer
+  memcpy_P(spi_buffer, z_spi_start, z_spi_len);
+
+  z_flashdata_t *flashdata = (z_flashdata_t*)(spi_buffer + z_block_offset);
+  flashdata->name = ZIGB_NAME;
+  flashdata->len = buf_len;
+  flashdata->reserved = 0;
+
+  memcpy(spi_buffer + z_block_offset + sizeof(z_flashdata_t), buf.getBuffer(), buf_len);
+
+  // buffer is now ready, write it back
+  if (ESP.flashEraseSector(z_spi_start_sector)) {
+    ESP.flashWrite(z_spi_start_sector * SPI_FLASH_SEC_SIZE, (uint32_t*) spi_buffer, SPI_FLASH_SEC_SIZE);
+  }
+
+  free(spi_buffer);
+  AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_ZIGBEE "Zigbee Devices Data store in Flash (0x%08X - %d bytes"), z_dev_start, buf_len);
 }
 
 #endif // USE_ZIGBEE
