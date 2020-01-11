@@ -45,6 +45,20 @@
 // str    - Manuf   (null terminated C string, 32 chars max)
 // reserved for extensions
 
+// Memory footprint
+const static uint16_t z_spi_start_sector = 0xFF;  // Force last bank of first MB
+const static uint8_t* z_spi_start    = 0x402FF000;  // 0x402FF000
+const static uint8_t* z_dev_start    = z_spi_start + 0x0800;  // 0x402FF800 - 2KB
+
+class z_flashdata_t {
+public:
+  uint32_t name;    // simple 4 letters name. Currently 'skey', 'crt ', 'crt1', 'crt2'
+  uint16_t len;     // len of object
+  uint16_t reserverd; // align on 4 bytes boundary
+}; 
+
+const static uint32_t ZIGB_NAME = 0x6267697A; // 'zigb' little endian
+
 // encoding for the most commonly 32 clusters, used for binary encoding
 const uint16_t Z_ClusterNumber[] PROGMEM = {
   0x0000, 0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x0007,
@@ -233,6 +247,23 @@ void hidrateDevices(const SBuffer &buf) {
 
     // next iteration
     k += dev_record_len;
+  }
+}
+
+void loadZigbeeDevices(void) {
+  z_flashdata_t flashdata;
+  memcpy_P(&flashdata, z_dev_start, sizeof(z_flashdata_t));
+
+  // Check the signature
+  if ((flashdata.name == ZIGB_NAME) && (flashdata.len > 0)) {
+    uint16_t buf_len = flashdata.len;
+    // parse what seems to be a valid entry
+    SBuffer buf = new SBuffer(buf_len);
+    buf.addBuffer(z_dev_start + sizeof(z_flashdata_t), buf_len);
+    AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "Zigbee devices data in Flash (%d bytes)"), buf_len);
+    hidrateDevices(buf);
+  } else {
+    AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "No zigbee devices data in Flash"));
   }
 }
 
