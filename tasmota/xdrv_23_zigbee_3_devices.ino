@@ -105,6 +105,9 @@ public:
   // Remove device from list
   bool removeDevice(uint16_t shortaddr);
 
+  // Mark data as 'dirty' and requiring to save in Flash
+  void dirty(void);
+
 private:
   std::vector<Z_Device> _devices = {};
 
@@ -198,6 +201,7 @@ Z_Device & Z_Devices::createDeviceEntry(uint16_t shortaddr, uint64_t longaddr) {
                       nullptr, nullptr };
   device.json_buffer = new DynamicJsonBuffer();
   _devices.push_back(device);
+  dirty();
   return _devices.back();
 }
 
@@ -268,6 +272,7 @@ bool Z_Devices::removeDevice(uint16_t shortaddr) {
   int32_t found = findShortAddr(shortaddr);
   if (found >= 0) {
     _devices.erase(_devices.begin() + found);
+    dirty();
     return true;
   }
   return false;
@@ -291,15 +296,18 @@ void Z_Devices::updateDevice(uint16_t shortaddr, uint64_t longaddr) {
       // erase the previous shortaddr
       _devices.erase(_devices.begin() + s_found);
       updateLastSeen(shortaddr);
+      dirty();
     }
   } else if (s_found >= 0) {
     // shortaddr already exists but longaddr not
     // add the longaddr to the entry
     _devices[s_found].longaddr = longaddr;
     updateLastSeen(shortaddr);
+    dirty();
   } else if (l_found >= 0) {
     // longaddr entry exists, update shortaddr
     _devices[l_found].shortaddr = shortaddr;
+    dirty();
   } else {
     // neither short/lonf addr are found.
     if (shortaddr || longaddr) {
@@ -319,6 +327,7 @@ void Z_Devices::addEndoint(uint16_t shortaddr, uint8_t endpoint) {
   _updateLastSeen(device);
   if (findEndpointInVector(device.endpoints, ep_profile) < 0) {
     device.endpoints.push_back(ep_profile);
+    dirty();
   }
 }
 
@@ -331,8 +340,12 @@ void Z_Devices::addEndointProfile(uint16_t shortaddr, uint8_t endpoint, uint16_t
   int32_t found = findEndpointInVector(device.endpoints, ep_profile);
   if (found < 0) {
     device.endpoints.push_back(ep_profile);
+    dirty();
   } else {
-    device.endpoints[found] = ep_profile;
+    if (device.endpoints[found] != ep_profile) {
+      device.endpoints[found] = ep_profile;
+      dirty();
+    }
   }
 }
 
@@ -345,10 +358,12 @@ void Z_Devices::addCluster(uint16_t shortaddr, uint8_t endpoint, uint16_t cluste
   if (!out) {
     if (!findInVector(device.clusters_in, ep_cluster)) {
       device.clusters_in.push_back(ep_cluster);
+      dirty();
     }
   } else { // out
     if (!findInVector(device.clusters_out, ep_cluster)) {
       device.clusters_out.push_back(ep_cluster);
+      dirty();
     }
   }
 }
@@ -374,18 +389,21 @@ void Z_Devices::setManufId(uint16_t shortaddr, const char * str) {
   if (&device == nullptr) { return; }                 // don't crash if not found
   _updateLastSeen(device);
   device.manufacturerId = str;
+  dirty();
 }
 void Z_Devices::setModelId(uint16_t shortaddr, const char * str) {
   Z_Device & device = getShortAddr(shortaddr);
   if (&device == nullptr) { return; }                 // don't crash if not found
   _updateLastSeen(device);
   device.modelId = str;
+  dirty();
 }
 void Z_Devices::setFriendlyNameId(uint16_t shortaddr, const char * str) {
   Z_Device & device = getShortAddr(shortaddr);
   if (&device == nullptr) { return; }                 // don't crash if not found
   _updateLastSeen(device);
   device.friendlyName = str;
+  dirty();
 }
 
 // device just seen on the network, update the lastSeen field
@@ -533,6 +551,9 @@ const void Z_Devices::jsonPublish(uint16_t shortaddr) {
   XdrvRulesProcess();
 }
 
+void Z_Devices::dirty(void) {
+  scheduleZigbeeSave();
+}
 
 // Dump the internal memory of Zigbee devices
 // Mode = 1: simple dump of devices addresses and names

@@ -648,4 +648,8 @@ void ZigbeeStateMachine_Run(void) {
   }
 }
 
+void scheduleZigbeeSave(void) {
+  ZigbeeGotoLabel(ZIGBEE_LABEL_SAVE_LATER);     // trigger a future Flash save
+}
+
 #endif // USE_ZIGBEE
