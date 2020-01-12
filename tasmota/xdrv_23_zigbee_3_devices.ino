@@ -62,6 +62,10 @@ public:
   Z_Devices() {};
 
   // Probe the existence of device keys
+  // Results:
+  // - 0x0000 = not found
+  // - 0xFFFF = bad parameter
+  // - 0x<shortaddr> = the device's short address
   uint16_t isKnownShortAddr(uint16_t shortaddr) const;
   uint16_t isKnownLongAddr(uint64_t  longaddr) const;
   uint16_t isKnownIndex(uint32_t index) const;

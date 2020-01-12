@@ -552,29 +552,31 @@ void CmndZigbeeSend(void) {
 // - a long address starting with "0x", example: 0x7CB03EBB0A0292DD
 // - a number 0..99, the index number in ZigbeeStatus
 // - a friendly name, between quotes, example: "Room_Temp"
-uint32_t parseDeviceParam(void) {
+uint16_t parseDeviceParam(void) {
   char dataBuf[XdrvMailbox.data_len];
   memcpy(dataBuf, XdrvMailbox.data, XdrvMailbox.data_len);
   RemoveSpace(dataBuf);
+  uint16_t shortaddr = 0;
+
   if (strlen(dataBuf) < 3) {
     // simple number 0..99
+    shortaddr = zigbee_devices.isKnownIndex(XdrvMailbox.payload);
   } else if ((dataBuf[0] == '0') && (dataBuf[1] == 'x')) {
     // starts with 0x
     if (strlen(dataBuf) < 18) {
       // expect a short address
-      uint16_t shortaddr = strtoull(dataBuf, nullptr, 0);
-      return shortaddr;
+      shortaddr = strtoull(dataBuf, nullptr, 0);
     } else {
       // expect a long address
       uint64_t longaddr = strtoull(dataBuf, nullptr, 0);
-      
+      shortaddr = zigbee_devices.isKnownLongAddr(longaddr);
     }
   } else {
     // expect a Friendly Name
+    shortaddr = zigbee_devices.isKnownFriendlyName(dataBuf);
   }
 
-  // TODO, for now ignore friendly names
-
+  return shortaddr;
 }
 
 // Probe a specific device to get its endpoints and supported clusters
