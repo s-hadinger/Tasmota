@@ -547,6 +547,36 @@ void CmndZigbeeSend(void) {
 
 }
 
+// Parse the command parameters for either:
+// - a short address starting with "0x", example: 0x1234
+// - a long address starting with "0x", example: 0x7CB03EBB0A0292DD
+// - a number 0..99, the index number in ZigbeeStatus
+// - a friendly name, between quotes, example: "Room_Temp"
+uint32_t parseDeviceParam(void) {
+  char dataBuf[XdrvMailbox.data_len];
+  memcpy(dataBuf, XdrvMailbox.data, XdrvMailbox.data_len);
+  RemoveSpace(dataBuf);
+  if (strlen(dataBuf) < 3) {
+    // simple number 0..99
+  } else if ((dataBuf[0] == '0') && (dataBuf[1] == 'x')) {
+    // starts with 0x
+    if (strlen(dataBuf) < 18) {
+      // expect a short address
+      uint16_t shortaddr = strtoull(dataBuf, nullptr, 0);
+      return shortaddr;
+    } else {
+      // expect a long address
+      uint64_t longaddr = strtoull(dataBuf, nullptr, 0);
+      
+    }
+  } else {
+    // expect a Friendly Name
+  }
+
+  // TODO, for now ignore friendly names
+
+}
+
 // Probe a specific device to get its endpoints and supported clusters
 void CmndZigbeeProbe(void) {
   if (zigbee.init_phase) { ResponseCmndChar(D_ZIGBEE_NOT_STARTED); return; }

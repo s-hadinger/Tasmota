@@ -61,6 +61,12 @@ class Z_Devices {
 public:
   Z_Devices() {};
 
+  // Probe the existence of device keys
+  uint16_t isKnownShortAddr(uint16_t shortaddr) const;
+  uint16_t isKnownLongAddr(uint64_t  longaddr) const;
+  uint16_t isKnownIndex(uint32_t index) const;
+  uint16_t isKnownFriendlyName(const char * name) const;
+
   // Add new device, provide ShortAddr and optional longAddr
   // If it is already registered, update information, otherwise create the entry
   void updateDevice(uint16_t shortaddr, uint64_t longaddr = 0);
@@ -128,8 +134,9 @@ private:
   Z_Device & getShortAddr(uint16_t shortaddr);   // find Device from shortAddr, creates it if does not exist
   Z_Device & getLongAddr(uint64_t longaddr);     // find Device from shortAddr, creates it if does not exist
 
-  int32_t findShortAddr(uint16_t shortaddr);
-  int32_t findLongAddr(uint64_t longaddr);
+  int32_t findShortAddr(uint16_t shortaddr) const;
+  int32_t findLongAddr(uint64_t longaddr) const;
+  int32_t findFriendlyName(const char * name) const;
 
   void _updateLastSeen(Z_Device &device) {
     if (&device != nullptr) {
@@ -218,7 +225,7 @@ Z_Device & Z_Devices::createDeviceEntry(uint16_t shortaddr, uint64_t longaddr) {
 // Out:
 //    index in _devices of entry, -1 if not found
 //
-int32_t Z_Devices::findShortAddr(uint16_t shortaddr) {
+int32_t Z_Devices::findShortAddr(uint16_t shortaddr) const {
   if (!shortaddr) { return -1; }              // does not make sense to look for 0x0000 shortaddr (localhost)
   int32_t found = 0;
   if (shortaddr) {
@@ -237,7 +244,7 @@ int32_t Z_Devices::findShortAddr(uint16_t shortaddr) {
 // Out:
 //    index in _devices of entry, -1 if not found
 //
-int32_t Z_Devices::findLongAddr(uint64_t longaddr) {
+int32_t Z_Devices::findLongAddr(uint64_t longaddr) const {
   if (!longaddr) { return -1; }
   int32_t found = 0;
   if (longaddr) {
@@ -247,6 +254,66 @@ int32_t Z_Devices::findLongAddr(uint64_t longaddr) {
     }
   }
   return -1;
+}
+//
+// Scan all devices to find a corresponding friendlyNme
+// Looks info device.friendlyName entry
+// In:
+//    friendlyName (null terminated, should not be empty)
+// Out:
+//    index in _devices of entry, -1 if not found
+//
+int32_t Z_Devices::findFriendlyName(const char * name) const {
+  if (!name) { return -1; }              // if pointer is null
+  size_t name_len = strlen(name);
+  int32_t found = 0;
+  if (name_len) {
+    for (auto &elem : _devices) {
+      if (elem.friendlyName == name) { return found; }
+      found++;
+    }
+  }
+  return -1;
+}
+
+// Probe if device is already known but don't create any entry
+uint16_t Z_Devices::isKnownShortAddr(uint16_t shortaddr) const {
+  int32_t found = findShortAddr(shortaddr);
+  if (found >= 0) {
+    return shortaddr;
+  } else {
+    return 0;   // unknown
+  }
+}
+
+uint16_t Z_Devices::isKnownLongAddr(uint64_t longaddr) const {
+  int32_t found = findLongAddr(longaddr);
+  if (found >= 0) {
+    const Z_Device & device = devicesAt(found);
+    return device.shortaddr;    // can be zero, if not yet registered
+  } else {
+    return 0;
+  }
+}
+
+uint16_t Z_Devices::isKnownIndex(uint32_t index) const {
+  if (index < devicesSize()) {
+    const Z_Device & device = devicesAt(index);
+    return device.shortaddr;
+  } else {
+    return 0;
+  }
+}
+
+uint16_t Z_Devices::isKnownFriendlyName(const char * name) const {
+  if ((!name) || (0 == strlen(name))) { return 0xFFFF; }         // Error
+  int32_t found = findFriendlyName(name);
+  if (found >= 0) {
+    const Z_Device & device = devicesAt(found);
+    return device.shortaddr;    // can be zero, if not yet registered
+  } else {
+    return 0;
+  }
 }
 
 //
