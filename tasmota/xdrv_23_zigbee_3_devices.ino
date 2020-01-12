@@ -22,6 +22,10 @@
 #include <vector>
 #include <map>
 
+#ifndef ZIGBEE_SAVE_DELAY_SECONDS
+#define ZIGBEE_SAVE_DELAY_SECONDS 10;               // wait for 10s before saving Zigbee info
+#endif
+const uint16_t kZigbeeSaveDelaySeconds = ZIGBEE_SAVE_DELAY_SECONDS;    // wait for x seconds
 
 typedef int32_t (*Z_DeviceTimer)(uint16_t shortaddr, uint16_t cluster, uint16_t endpoint, uint32_t value);
 
@@ -110,6 +114,7 @@ public:
 
 private:
   std::vector<Z_Device> _devices = {};
+  uint32_t              _saveTimer = 0;   
 
   template < typename T>
   static bool findInVector(const std::vector<T>  & vecOfElements, const T  & element);
@@ -450,6 +455,11 @@ void Z_Devices::runTimer(void) {
       (*device.func)(device.shortaddr, device.cluster, device.endpoint, device.value);
     }
   }
+  // save timer
+  if ((_saveTimer) && (_saveTimer <= now)) {
+    saveZigbeeDevices();
+    _saveTimer = 0;
+  }
 }
 
 void Z_Devices::jsonClear(uint16_t shortaddr) {
@@ -552,7 +562,7 @@ const void Z_Devices::jsonPublish(uint16_t shortaddr) {
 }
 
 void Z_Devices::dirty(void) {
-  scheduleZigbeeSave();
+  _saveTimer = kZigbeeSaveDelaySeconds * 1000 + millis();
 }
 
 // Dump the internal memory of Zigbee devices
