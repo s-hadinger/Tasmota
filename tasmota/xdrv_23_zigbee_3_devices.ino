@@ -94,7 +94,7 @@ public:
   void updateLastSeen(uint16_t shortaddr);
 
   // Dump json
-  String dump(uint32_t dump_mode, int32_t device_num = 0) const;
+  String dump(uint32_t dump_mode, uint16_t status_shortaddr = 0) const;
 
   // Timers
   void resetTimer(uint32_t shortaddr);
@@ -637,26 +637,21 @@ void Z_Devices::dirty(void) {
 }
 
 // Dump the internal memory of Zigbee devices
-// Mode = 1: simple dump of devices addresses and names
-// Mode = 2: Mode 1 + also dump the endpoints, profiles and clusters
-String Z_Devices::dump(uint32_t dump_mode, int32_t device_num) const {
+// Mode = 1: simple dump of devices addresses
+// Mode = 2: simple dump of devices addresses and names
+// Mode = 3: Mode 2 + also dump the endpoints, profiles and clusters
+String Z_Devices::dump(uint32_t dump_mode, uint16_t status_shortaddr) const {
   DynamicJsonBuffer jsonBuffer;
   JsonArray& json = jsonBuffer.createArray();
   JsonArray& devices = json;
-  //JsonArray& devices = json.createNestedArray(F("ZigbeeDevices"));
 
-  // if device_num == 0, then we show all devices.
-  // When no payload, the default is -99. In this case change it to 0.
-  if (device_num < 0) { device_num = 0; }
-
-  uint32_t device_current = 1;
-  for (std::vector<Z_Device>::const_iterator it = _devices.begin(); it != _devices.end(); ++it, ++device_current) {
-    // ignore non-current device, if specified device is non-zero
-    if ((device_num > 0) && (device_num != device_current)) { continue; }
-
+  for (std::vector<Z_Device>::const_iterator it = _devices.begin(); it != _devices.end(); ++it) {
     const Z_Device& device = *it;
     uint16_t shortaddr = device.shortaddr;
     char hex[20];
+
+    // ignore non-current device, if specified device is non-zero
+    if ((status_shortaddr) && (status_shortaddr != shortaddr)) { continue; }
 
     JsonObject& dev = devices.createNestedObject();
 
