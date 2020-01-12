@@ -562,7 +562,6 @@ void CmndZigbeeSend(void) {
 uint16_t parseDeviceParam(void) {
   char dataBuf[XdrvMailbox.data_len+1];
   strcpy(dataBuf, XdrvMailbox.data);
-//  memcpy(dataBuf, XdrvMailbox.data, XdrvMailbox.data_len);
   RemoveSpace(dataBuf);
   uint16_t shortaddr = 0;
 
