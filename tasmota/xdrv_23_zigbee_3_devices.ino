@@ -513,21 +513,19 @@ void Z_Devices::setTimer(uint32_t shortaddr, uint32_t wait_ms, uint16_t cluster,
 
 // Run timer at each tick
 void Z_Devices::runTimer(void) {
-  uint32_t now = millis();
-
   for (std::vector<Z_Device>::iterator it = _devices.begin(); it != _devices.end(); ++it) {
     Z_Device &device = *it;
     uint16_t shortaddr = device.shortaddr;
 
     uint32_t timer = device.timer;
-    if ((timer) && (timer <= now)) {
+    if ((timer) && TimeReached(timer)) {
       device.timer = 0;       // cancel the timer before calling, so the callback can set another timer
       // trigger the timer
       (*device.func)(device.shortaddr, device.cluster, device.endpoint, device.value);
     }
   }
   // save timer
-  if ((_saveTimer) && (_saveTimer <= now)) {
+  if ((_saveTimer) && TimeReached(_saveTimer)) {
     saveZigbeeDevices();
     _saveTimer = 0;
   }
