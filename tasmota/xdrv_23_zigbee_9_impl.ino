@@ -614,10 +614,9 @@ void CmndZigbeeName(void) {
     String friendlyName = zigbee_devices.getFriendlyName(shortaddr);
     Response_P(PSTR("{\"0x%04X\":{\"name\":\"%s\"}}"), shortaddr, friendlyName.c_str());
   } else {
-
-    ResponseCmndDone();
+    zigbee_devices.setFriendlyName(shortaddr, p);
+    Response_P(PSTR("{\"0x%04X\":{\"name\":\"%s\"}}"), shortaddr, p);
   }
-
 }
 
 // Remove an old Zigbee device from the list of known devices, use ZigbeeStatus to know all registered devices
