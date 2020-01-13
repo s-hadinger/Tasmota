@@ -480,6 +480,7 @@
   #define D_JSON_ZIGBEEZCL_RAW_RECEIVED "ZigbeeZCLRawReceived"
   #define D_JSON_ZIGBEE_DEVICE "Device"
   #define D_JSON_ZIGBEE_NAME "Name"
+#define D_CMND_ZIGBEE_NAME "ZigbeeName"
 #define D_CMND_ZIGBEE_PROBE "ZigbeeProbe"
 #define D_CMND_ZIGBEE_FORGET "ZigbeeForget"
 #define D_CMND_ZIGBEE_SAVE "ZigbeeSave"

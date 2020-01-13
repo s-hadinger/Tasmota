@@ -247,7 +247,7 @@ void hidrateDevices(const SBuffer &buf) {
     // FriendlyName
     s_len = buf_d.strlen_s(d);
     ptr = s_len ? buf_d.charptr(d) : empty;
-    zigbee_devices.setFriendlyNameId(shortaddr, ptr);
+    zigbee_devices.setFriendlyName(shortaddr, ptr);
     d += s_len + 1;
 
     // next iteration
