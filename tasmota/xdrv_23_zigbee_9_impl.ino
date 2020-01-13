@@ -560,7 +560,7 @@ void CmndZigbeeSend(void) {
 // - a number 0..99, the index number in ZigbeeStatus
 // - a friendly name, between quotes, example: "Room_Temp"
 uint16_t parseDeviceParam(void) {
-  char dataBuf[XdrvMailbox.data_len+1];
+  char dataBuf[XdrvMailbox.data_len + 1];
   strcpy(dataBuf, XdrvMailbox.data);
   RemoveSpace(dataBuf);
   uint16_t shortaddr = 0;
