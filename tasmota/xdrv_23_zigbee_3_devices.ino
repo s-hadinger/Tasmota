@@ -657,7 +657,7 @@ String Z_Devices::dump(uint32_t dump_mode, uint16_t status_shortaddr) const {
   for (std::vector<Z_Device>::const_iterator it = _devices.begin(); it != _devices.end(); ++it) {
     const Z_Device& device = *it;
     uint16_t shortaddr = device.shortaddr;
-    char hex[20];
+    char hex[22];
 
     // ignore non-current device, if specified device is non-zero
     if ((status_shortaddr) && (status_shortaddr != shortaddr)) { continue; }
@@ -672,7 +672,9 @@ String Z_Devices::dump(uint32_t dump_mode, uint16_t status_shortaddr) const {
     }
 
     if (2 <= dump_mode) {
-      Uint64toHex(device.longaddr, hex, 64);
+      hex[0] = '0';   // prefix with '0x'
+      hex[1] = 'x';
+      Uint64toHex(device.longaddr, &hex[2], 64);
       dev[F("IEEEAddr")] = hex;
       if (device.modelId.length() > 0) {
         dev[F(D_JSON_MODEL D_JSON_ID)] = device.modelId;

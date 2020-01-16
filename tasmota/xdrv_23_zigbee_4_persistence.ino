@@ -60,7 +60,7 @@ public:
   uint16_t reserved; // align on 4 bytes boundary
 }; 
 
-const static uint32_t ZIGB_NAME = 0x6267697A; // 'zigb' little endian
+const static uint32_t ZIGB_NAME = 0x3167697A; // 'zig1' little endian
 const static size_t   Z_MAX_FLASH = z_block_len - sizeof(z_flashdata_t);  // 2040
 
 // encoding for the most commonly 32 clusters, used for binary encoding
@@ -302,7 +302,7 @@ void saveZigbeeDevices(void) {
   }
 
   free(spi_buffer);
-  AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_ZIGBEE "Zigbee Devices Data store in Flash (0x%08X - %d bytes)"), z_dev_start, buf_len);
+  AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "Zigbee Devices Data store in Flash (0x%08X - %d bytes)"), z_dev_start, buf_len);
 }
 
 #endif // USE_ZIGBEE
