@@ -89,7 +89,7 @@ public:
   void setManufId(uint16_t shortaddr, const char * str);
   void setModelId(uint16_t shortaddr, const char * str);
   void setFriendlyName(uint16_t shortaddr, const char * str);
-  String getFriendlyName(uint16_t) const;
+  const String * getFriendlyName(uint16_t) const;
 
   // device just seen on the network, update the lastSeen field
   void updateLastSeen(uint16_t shortaddr);
@@ -104,10 +104,11 @@ public:
 
   // Append or clear attributes Json structure
   void jsonClear(uint16_t shortaddr);
-  void jsonAppend(uint16_t shortaddr, JsonObject &values);
+  void jsonAppend(uint16_t shortaddr, const JsonObject &values);
   const JsonObject *jsonGet(uint16_t shortaddr);
-  const void jsonPublish(uint16_t shortaddr);    // publish the json message and clear buffer
+  void jsonPublishFlush(uint16_t shortaddr);    // publish the json message and clear buffer
   bool jsonIsConflict(uint16_t shortaddr, const JsonObject &values);
+  void jsonPublishNow(uint16_t shortaddr, JsonObject &values);
 
   // Iterator
   size_t devicesSize(void) const {
@@ -486,14 +487,15 @@ void Z_Devices::setFriendlyName(uint16_t shortaddr, const char * str) {
   dirty();
 }
 
-String Z_Devices::getFriendlyName(uint16_t shortaddr) const {
+const String * Z_Devices::getFriendlyName(uint16_t shortaddr) const {
   int32_t found = findShortAddr(shortaddr);
-  String s = "";
   if (found >= 0) {
     const Z_Device & device = devicesAt(found);
-    s = device.friendlyName;
+    if (device.friendlyName.length() > 0) {
+      return &device.friendlyName;
+    }
   }
-  return s;
+  return nullptr;
 }
 
 // device just seen on the network, update the lastSeen field
@@ -614,7 +616,7 @@ bool Z_Devices::jsonIsConflict(uint16_t shortaddr, const JsonObject &values) {
   return false;
 }
 
-void Z_Devices::jsonAppend(uint16_t shortaddr, JsonObject &values) {
+void Z_Devices::jsonAppend(uint16_t shortaddr, const JsonObject &values) {
   Z_Device & device = getShortAddr(shortaddr);
   if (&device == nullptr) { return; }                 // don't crash if not found
   if (&values == nullptr) { return; }
@@ -632,16 +634,40 @@ const JsonObject *Z_Devices::jsonGet(uint16_t shortaddr) {
   return device.json;
 }
 
-const void Z_Devices::jsonPublish(uint16_t shortaddr) {
-  const JsonObject *json = zigbee_devices.jsonGet(shortaddr);
-  if (json == nullptr) { return; }                 // don't crash if not found
+void Z_Devices::jsonPublishFlush(uint16_t shortaddr) {
+  Z_Device & device = getShortAddr(shortaddr);
+  if (&device == nullptr) { return; }                 // don't crash if not found
+  JsonObject * json = device.json;
+  if (json == nullptr) { return; }                    // abort if nothing in buffer
+
+  const String * fname = zigbee_devices.getFriendlyName(shortaddr);
+  bool use_fname = (Settings.flag4.zigbee_use_names) && (fname);    // should we replace shortaddr with friendlyname?
+
+  if (use_fname) {
+    // we need to add the Device short_addr inside the JSON
+    char sa[8];
+    snprintf_P(sa, sizeof(sa), PSTR("0x%04X"), shortaddr);
+    json->set(F(D_JSON_ZIGBEE_DEVICE), sa);
+  } else if (fname) {
+    json->set(F(D_JSON_NAME), (char*) fname);
+  }
 
   String msg = "";
   json->printTo(msg);
   zigbee_devices.jsonClear(shortaddr);
-  Response_P(PSTR("{\"" D_CMND_ZIGBEE_RECEIVED "\":{\"0x%04X\":%s}}"), shortaddr, msg.c_str());
+
+  if (use_fname) {
+    Response_P(PSTR("{\"" D_CMND_ZIGBEE_RECEIVED "\":{\"%s\":%s}}"), fname->c_str(), msg.c_str());
+  } else {
+    Response_P(PSTR("{\"" D_CMND_ZIGBEE_RECEIVED "\":{\"0x%04X\":%s}}"), shortaddr, msg.c_str());
+  }
   MqttPublishPrefixTopic_P(TELE, PSTR(D_RSLT_SENSOR));
   XdrvRulesProcess();
+}
+
+void Z_Devices::jsonPublishNow(uint16_t shortaddr, JsonObject & values) {
+  jsonAppend(shortaddr, values);
+  jsonPublishFlush(shortaddr);
 }
 
 void Z_Devices::dirty(void) {

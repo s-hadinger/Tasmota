@@ -574,8 +574,8 @@ void CmndZigbeeName(void) {
   if (0xFFFF == shortaddr) { ResponseCmndChar("Invalid parameter"); return; }
 
   if (p == nullptr) {
-    String friendlyName = zigbee_devices.getFriendlyName(shortaddr);
-    Response_P(PSTR("{\"0x%04X\":{\"name\":\"%s\"}}"), shortaddr, friendlyName.c_str());
+    const String * friendlyName = zigbee_devices.getFriendlyName(shortaddr);
+    Response_P(PSTR("{\"0x%04X\":{\"name\":\"%s\"}}"), shortaddr, friendlyName ? friendlyName->c_str() : "");
   } else {
     zigbee_devices.setFriendlyName(shortaddr, p);
     Response_P(PSTR("{\"0x%04X\":{\"name\":\"%s\"}}"), shortaddr, p);
