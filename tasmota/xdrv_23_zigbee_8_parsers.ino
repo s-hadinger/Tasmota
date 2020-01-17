@@ -449,6 +449,12 @@ int32_t Z_ReceiveAfIncomingMessage(int32_t res, const class SBuffer &buf) {
   json_root.printTo(msg);
   AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeZCLRawReceived: %s"), msg.c_str());
 
+  // Add friendly name
+  String friendlyName = zigbee_devices.getFriendlyName(srcaddr);
+  if (friendlyName.length() > 0) {
+    json[F(D_JSON_ZIGBEE_NAME)] = friendlyName;
+  }
+
   zcl_received.postProcessAttributes(srcaddr, json);
   // Add linkquality
   json[F(D_CMND_ZIGBEE_LINKQUALITY)] = linkquality;
