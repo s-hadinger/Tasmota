@@ -830,16 +830,10 @@ int32_t Z_FloatDiv10(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& 
 
 // Publish a message for `"Occupancy":0` when the timer expired
 int32_t Z_OccupancyCallback(uint16_t shortaddr, uint16_t cluster, uint16_t endpoint, uint32_t value) {
-  // send Occupancy:false message
-  const String * name = zigbee_devices.getFriendlyName(shortaddr);
-  if ((Settings.flag4.zigbee_use_names) && (name)) {
-    // TODO
-    Response_P(PSTR("{\"" D_CMND_ZIGBEE_RECEIVED "\":{\"%s\":{\"" D_JSON_ZIGBEE_DEVICE "\":\"0x%04X\",\"" OCCUPANCY "\":0}}}"), shortaddr, name->c_str());
-  } else {
-    Response_P(PSTR("{\"" D_CMND_ZIGBEE_RECEIVED "\":{\"0x%04X\":{\"" OCCUPANCY "\":0}}}"), shortaddr);
-  }
-  MqttPublishPrefixTopic_P(TELE, PSTR(D_RSLT_SENSOR));
-  XdrvRulesProcess();
+  DynamicJsonBuffer jsonBuffer;
+  JsonObject& json = jsonBuffer.createObject();
+  json[F(OCCUPANCY)] = 0;
+  zigbee_devices.jsonPublishNow(shortaddr, json);
 }
 
 // Aqara Cube

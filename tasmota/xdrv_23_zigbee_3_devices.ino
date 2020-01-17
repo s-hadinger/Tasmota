@@ -666,8 +666,9 @@ void Z_Devices::jsonPublishFlush(uint16_t shortaddr) {
 }
 
 void Z_Devices::jsonPublishNow(uint16_t shortaddr, JsonObject & values) {
+  jsonPublishFlush(shortaddr);    // flush any previous buffer
   jsonAppend(shortaddr, values);
-  jsonPublishFlush(shortaddr);
+  jsonPublishFlush(shortaddr);    // publish now
 }
 
 void Z_Devices::dirty(void) {
