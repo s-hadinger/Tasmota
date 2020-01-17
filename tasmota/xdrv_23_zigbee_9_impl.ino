@@ -541,48 +541,10 @@ void CmndZigbeeSend(void) {
 
 }
 
-// Parse the command parameters for either:
-// - a short address starting with "0x", example: 0x1234
-// - a long address starting with "0x", example: 0x7CB03EBB0A0292DD
-// - a number 0..99, the index number in ZigbeeStatus
-// - a friendly name, between quotes, example: "Room_Temp"
-uint16_t parseDeviceParam(bool short_must_be_known = false) {
-  char dataBuf[XdrvMailbox.data_len + 1];
-  strcpy(dataBuf, XdrvMailbox.data);
-  RemoveSpace(dataBuf);
-  uint16_t shortaddr = 0;
-
-  if (strlen(dataBuf) < 4) {
-    // simple number 0..99
-    if ((XdrvMailbox.payload > 0) && (XdrvMailbox.payload <= 99)) {
-      shortaddr = zigbee_devices.isKnownIndex(XdrvMailbox.payload - 1);
-    }
-  } else if ((dataBuf[0] == '0') && (dataBuf[1] == 'x')) {
-    // starts with 0x
-    if (strlen(dataBuf) < 18) {
-      // expect a short address
-      shortaddr = strtoull(dataBuf, nullptr, 0);
-      if (short_must_be_known) {
-        shortaddr = zigbee_devices.isKnownShortAddr(shortaddr);
-      }
-      // else we don't check if it's already registered to force unregistered devices
-    } else {
-      // expect a long address
-      uint64_t longaddr = strtoull(dataBuf, nullptr, 0);
-      shortaddr = zigbee_devices.isKnownLongAddr(longaddr);
-    }
-  } else {
-    // expect a Friendly Name
-    shortaddr = zigbee_devices.isKnownFriendlyName(dataBuf);
-  }
-
-  return shortaddr;
-}
-
 // Probe a specific device to get its endpoints and supported clusters
 void CmndZigbeeProbe(void) {
   if (zigbee.init_phase) { ResponseCmndChar(D_ZIGBEE_NOT_STARTED); return; }
-  uint16_t shortaddr = parseDeviceParam();
+  uint16_t shortaddr = zigbee_devices.parseDeviceParam(XdrvMailbox.data);
   if (0x0000 == shortaddr) { ResponseCmndChar("Unknown device"); return; }
   if (0xFFFF == shortaddr) { ResponseCmndChar("Invalid parameter"); return; }
 
@@ -607,7 +569,7 @@ void CmndZigbeeName(void) {
   char *str = strtok_r(XdrvMailbox.data, ", ", &p);
 
   // parse first part, <device_id>
-  uint16_t shortaddr = parseDeviceParam(true);    // in case of short_addr, it must be already registered
+  uint16_t shortaddr = zigbee_devices.parseDeviceParam(XdrvMailbox.data, true);  // in case of short_addr, it must be already registered
   if (0x0000 == shortaddr) { ResponseCmndChar("Unknown device"); return; }
   if (0xFFFF == shortaddr) { ResponseCmndChar("Invalid parameter"); return; }
 
@@ -623,7 +585,7 @@ void CmndZigbeeName(void) {
 // Remove an old Zigbee device from the list of known devices, use ZigbeeStatus to know all registered devices
 void CmndZigbeeForget(void) {
   if (zigbee.init_phase) { ResponseCmndChar(D_ZIGBEE_NOT_STARTED); return; }
-  uint16_t shortaddr = parseDeviceParam();
+  uint16_t shortaddr = zigbee_devices.parseDeviceParam(XdrvMailbox.data);
   if (0x0000 == shortaddr) { ResponseCmndChar("Unknown device"); return; }
   if (0xFFFF == shortaddr) { ResponseCmndChar("Invalid parameter"); return; }
 
@@ -718,7 +680,7 @@ void CmndZigbeePermitJoin(void)
 void CmndZigbeeStatus(void) {
   if (ZigbeeSerial) {
     if (zigbee.init_phase) { ResponseCmndChar(D_ZIGBEE_NOT_STARTED); return; }
-    uint16_t shortaddr = parseDeviceParam();
+    uint16_t shortaddr = zigbee_devices.parseDeviceParam(XdrvMailbox.data);
     if (0xFFFF == shortaddr) { ResponseCmndChar("Invalid parameter"); return; }
     if (XdrvMailbox.payload > 0) {
       if (0x0000 == shortaddr) { ResponseCmndChar("Unknown device"); return; }

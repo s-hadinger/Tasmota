@@ -123,6 +123,9 @@ public:
   // Mark data as 'dirty' and requiring to save in Flash
   void dirty(void);
 
+  // Find device by name, can be short_addr, long_addr, number_in_array or name
+  uint16_t parseDeviceParam(const char * param, bool short_must_be_known = false) const;
+
 private:
   std::vector<Z_Device> _devices = {};
   uint32_t              _saveTimer = 0;   
@@ -643,6 +646,46 @@ const void Z_Devices::jsonPublish(uint16_t shortaddr) {
 
 void Z_Devices::dirty(void) {
   _saveTimer = kZigbeeSaveDelaySeconds * 1000 + millis();
+}
+
+// Parse the command parameters for either:
+// - a short address starting with "0x", example: 0x1234
+// - a long address starting with "0x", example: 0x7CB03EBB0A0292DD
+// - a number 0..99, the index number in ZigbeeStatus
+// - a friendly name, between quotes, example: "Room_Temp"
+uint16_t Z_Devices::parseDeviceParam(const char * param, bool short_must_be_known) const {
+  if (nullptr == param) { return 0; }
+  size_t param_len = strlen(param);
+  char dataBuf[param_len + 1];
+  strcpy(dataBuf, param);
+  RemoveSpace(dataBuf);
+  uint16_t shortaddr = 0;
+
+  if (strlen(dataBuf) < 4) {
+    // simple number 0..99
+    if ((XdrvMailbox.payload > 0) && (XdrvMailbox.payload <= 99)) {
+      shortaddr = zigbee_devices.isKnownIndex(XdrvMailbox.payload - 1);
+    }
+  } else if ((dataBuf[0] == '0') && (dataBuf[1] == 'x')) {
+    // starts with 0x
+    if (strlen(dataBuf) < 18) {
+      // expect a short address
+      shortaddr = strtoull(dataBuf, nullptr, 0);
+      if (short_must_be_known) {
+        shortaddr = zigbee_devices.isKnownShortAddr(shortaddr);
+      }
+      // else we don't check if it's already registered to force unregistered devices
+    } else {
+      // expect a long address
+      uint64_t longaddr = strtoull(dataBuf, nullptr, 0);
+      shortaddr = zigbee_devices.isKnownLongAddr(longaddr);
+    }
+  } else {
+    // expect a Friendly Name
+    shortaddr = zigbee_devices.isKnownFriendlyName(dataBuf);
+  }
+
+  return shortaddr;
 }
 
 // Dump the internal memory of Zigbee devices
