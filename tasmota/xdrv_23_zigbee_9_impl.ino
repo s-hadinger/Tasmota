@@ -256,6 +256,7 @@ void CmndZigbeeReset(void) {
     switch (XdrvMailbox.payload) {
     case 1:
       ZigbeeZNPSend(ZIGBEE_FACTORY_RESET, sizeof(ZIGBEE_FACTORY_RESET));
+      eraseZigbeeDevices();
       restart_flag = 2;
       ResponseCmndChar(D_JSON_ZIGBEE_CC2530 " " D_JSON_RESET_AND_RESTARTING);
       break;
