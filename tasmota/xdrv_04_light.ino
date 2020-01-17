@@ -1336,11 +1336,15 @@ void LightUpdateColorMapping(void)
   //AddLog_P2(LOG_LEVEL_DEBUG, PSTR("%d colors: %d %d %d %d %d") ,Settings.param[P_RGB_REMAP], Light.color_remap[0],Light.color_remap[1],Light.color_remap[2],Light.color_remap[3],Light.color_remap[4]);
 }
 
+uint8_t LightGetDimmer(uint8_t dimmer) {
+  return light_state.getDimmer(dimmer);
+}
+
 void LightSetDimmer(uint8_t dimmer) {
   light_controller.changeDimmer(dimmer);
 }
 
-uint32_t LightGetHSB(uint16_t *hue,uint8_t  *sat, uint8_t *bri) {
+void LightGetHSB(uint16_t *hue, uint8_t *sat, uint8_t *bri) {
   light_state.getHSB(hue, sat, bri);
 }
 
@@ -2249,31 +2253,31 @@ void CmndHsbColor(void)
     bool validHSB = (XdrvMailbox.data_len > 0);
     if (validHSB) {
       uint16_t HSB[3];
-      if (strstr(XdrvMailbox.data, ",") != nullptr) {  // Command with 3 comma separated parameters, Hue (0<H<360), Saturation (0<S<100) AND Brightness (0<B<100)
-        for (uint32_t i = 0; i < 3; i++) {
-          char *substr;
+      uint16_t c_hue;
+      uint8_t  c_sat;
 
-          if (0 == i) {
-            substr = strtok(XdrvMailbox.data, ",");
-          } else {
-            substr = strtok(nullptr, ",");
-          }
-          if (substr != nullptr) {
-            HSB[i] = atoi(substr);
-            if (0 < i) {
-              HSB[i] = changeUIntScale(HSB[i], 0, 100, 0, 255); // change sat and bri to 0..255
-            }
-          } else {
-            validHSB = false;
+      light_state.getHSB(&c_hue, &c_sat, nullptr);
+      HSB[0] = c_hue;
+      HSB[1] = c_sat;
+      HSB[2] = light_state.getBriRGB();
+
+      char *substr = strstr(XdrvMailbox.data, ",");
+      if (substr != nullptr) { // Command with comma separated parameters, Hue (0<H<360), Saturation (0<S<100) AND optional Brightness (0<B<100)
+        HSB[0] = atoi(XdrvMailbox.data);
+
+        for (uint32_t i = 1; i < 3; i++) {
+          substr++;
+          HSB[i] = atoi(substr);
+          HSB[i] = changeUIntScale(HSB[i], 0, 100, 0, 255); // change sat and bri to 0..255
+          substr = strstr(substr, ",");
+          if (substr == nullptr) {
+            break;
           }
         }
+        if (substr != nullptr) {
+          validHSB = false;
+        }
       } else {  // Command with only 1 parameter, Hue (0<H<360), Saturation (0<S<100) OR Brightness (0<B<100)
-        uint16_t c_hue;
-        uint8_t  c_sat;
-        light_state.getHSB(&c_hue, &c_sat, nullptr);
-        HSB[0] = c_hue;
-        HSB[1] = c_sat;
-        HSB[2] = light_state.getBri();
 
         if (1 == XdrvMailbox.index) {
           HSB[0] = XdrvMailbox.payload;
@@ -2347,7 +2351,7 @@ void CmndColorTemperature(void)
       }
     }
     if ((XdrvMailbox.payload >= CT_MIN) && (XdrvMailbox.payload <= CT_MAX)) {  // https://developers.meethue.com/documentation/core-concepts
-      light_controller.changeCTB(XdrvMailbox.payload, light_state.getBri());
+      light_controller.changeCTB(XdrvMailbox.payload, light_state.getBriCT());
       LightPreparePower(2);
     } else {
       ResponseCmndNumber(ct);
