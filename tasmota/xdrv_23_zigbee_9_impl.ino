@@ -28,12 +28,18 @@ const uint8_t  ZIGBEE_SOF_ALT = 0xFF;
 #include <TasmotaSerial.h>
 TasmotaSerial *ZigbeeSerial = nullptr;
 
-const char kZigbeeCommands[] PROGMEM = "|"
+
+const char kZbCommands[] PROGMEM = D_PRFX_ZB "|"    // prefix
   D_CMND_ZIGBEEZNPSEND "|" D_CMND_ZIGBEE_PERMITJOIN "|"
   D_CMND_ZIGBEE_STATUS "|" D_CMND_ZIGBEE_RESET "|" D_CMND_ZIGBEE_SEND "|"
   D_CMND_ZIGBEE_PROBE "|" D_CMND_ZIGBEE_READ "|" D_CMND_ZIGBEEZNPRECEIVE "|"
-  D_CMND_ZIGBEE_FORGET "|" D_CMND_ZIGBEE_SAVE "|" D_CMND_ZIGBEE_NAME
-  ;
+  D_CMND_ZIGBEE_FORGET "|" D_CMND_ZIGBEE_SAVE "|" D_CMND_ZIGBEE_NAME ;
+
+const char kZigbeeCommands[] PROGMEM = D_PRFX_ZIGBEE "|"    // legacy prefix -- deprecated
+  D_CMND_ZIGBEEZNPSEND "|" D_CMND_ZIGBEE_PERMITJOIN "|"
+  D_CMND_ZIGBEE_STATUS "|" D_CMND_ZIGBEE_RESET "|" D_CMND_ZIGBEE_SEND "|"
+  D_CMND_ZIGBEE_PROBE "|" D_CMND_ZIGBEE_READ "|" D_CMND_ZIGBEEZNPRECEIVE "|"
+  D_CMND_ZIGBEE_FORGET "|" D_CMND_ZIGBEE_SAVE "|" D_CMND_ZIGBEE_NAME ;
 
 void (* const ZigbeeCommand[])(void) PROGMEM = {
   &CmndZigbeeZNPSend, &CmndZigbeePermitJoin,
@@ -717,7 +723,8 @@ bool Xdrv23(uint8_t function)
         ZigbeeInit();
         break;
       case FUNC_COMMAND:
-        result = DecodeCommand(kZigbeeCommands, ZigbeeCommand);
+        result = DecodeCommand(kZbCommands, ZigbeeCommand);
+        result = result || DecodeCommand(kZigbeeCommands, ZigbeeCommand);   // deprecated
         break;
     }
   }

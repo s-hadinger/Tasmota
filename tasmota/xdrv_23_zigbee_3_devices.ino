@@ -681,9 +681,9 @@ void Z_Devices::jsonPublishFlush(uint16_t shortaddr) {
   zigbee_devices.jsonClear(shortaddr);
 
   if (use_fname) {
-    Response_P(PSTR("{\"" D_CMND_ZIGBEE_RECEIVED "\":{\"%s\":%s}}"), fname->c_str(), msg.c_str());
+    Response_P(PSTR("{\"" D_JSON_ZIGBEE_RECEIVED "\":{\"%s\":%s}}"), fname->c_str(), msg.c_str());
   } else {
-    Response_P(PSTR("{\"" D_CMND_ZIGBEE_RECEIVED "\":{\"0x%04X\":%s}}"), shortaddr, msg.c_str());
+    Response_P(PSTR("{\"" D_JSON_ZIGBEE_RECEIVED "\":{\"0x%04X\":%s}}"), shortaddr, msg.c_str());
   }
   MqttPublishPrefixTopic_P(TELE, PSTR(D_RSLT_SENSOR));
   XdrvRulesProcess();
