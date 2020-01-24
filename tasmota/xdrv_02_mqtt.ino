@@ -362,8 +362,11 @@ void MqttPublishPrefixTopic_P(uint32_t prefix, const char* subtopic, bool retain
  * prefix 5 = stat using subtopic or RESULT
  * prefix 6 = tele using subtopic or RESULT
  */
-  char romram[33];
+  char romram[64];
   char stopic[TOPSZ];
+
+  char save_mqtt[strlen(mqtt_data) + 1];
+  strcpy(save_mqtt, mqtt_data);
 
   snprintf_P(romram, sizeof(romram), ((prefix > 3) && !Settings.flag.mqtt_response) ? S_RSLT_RESULT : subtopic);  // SetOption4 - Switch between MQTT RESULT or COMMAND
   for (uint32_t i = 0; i < strlen(romram); i++) {
@@ -372,6 +375,19 @@ void MqttPublishPrefixTopic_P(uint32_t prefix, const char* subtopic, bool retain
   prefix &= 3;
   GetTopic_P(stopic, prefix, mqtt_topic, romram);
   MqttPublish(stopic, retained);
+
+#ifdef USE_MQTT_AWS_IOT
+  if (1) {    // placeholder for SetOptionXX
+    // update topic is "$aws/things/<topic>/shadow/update"
+    snprintf_P(romram, sizeof(romram), PSTR("$aws/things/%s/shadow/update"), "TestDevice");
+    // TODO put device id instead
+    snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"state\":{\"reported\":%s}}"), save_mqtt);
+    bool result = MqttClient.publish(romram, mqtt_data, retained);
+// Serial.printf(">> Shadow topic = %s\n", romram);
+// Serial.printf(">> Shadow msg   = %s\n", mqtt_data);
+    yield();  // #3313
+  }
+#endif // USE_MQTT_AWS_IOT
 }
 
 void MqttPublishPrefixTopic_P(uint32_t prefix, const char* subtopic)
