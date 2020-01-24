@@ -476,11 +476,11 @@
   #define D_JSON_ZIGBEE_CC2530 "CC2530"
 #define D_CMND_ZIGBEEZNPRECEIVE "ZNPReceive"      // only for debug
 #define D_CMND_ZIGBEEZNPSEND "ZNPSend"
-  #define D_JSON_ZIGBEE_STATE "ZigbeeState"
-  #define D_JSON_ZIGBEEZNPRECEIVED "ZigbeeZNPReceived"
-  #define D_JSON_ZIGBEEZNPSENT "ZigbeeZNPSent"
-  #define D_JSON_ZIGBEEZCL_RECEIVED "ZigbeeZCLReceived"
-  #define D_JSON_ZIGBEEZCL_RAW_RECEIVED "ZigbeeZCLRawReceived"
+  #define D_JSON_ZIGBEE_STATE "ZbState"
+  #define D_JSON_ZIGBEEZNPRECEIVED "ZbZNPReceived"
+  #define D_JSON_ZIGBEEZNPSENT "ZbZNPSent"
+  #define D_JSON_ZIGBEEZCL_RECEIVED "ZbZCLReceived"
+  #define D_JSON_ZIGBEEZCL_RAW_RECEIVED "ZbZCLRawReceived"
   #define D_JSON_ZIGBEE_DEVICE "Device"
   #define D_JSON_ZIGBEE_NAME "Name"
 #define D_CMND_ZIGBEE_NAME "Name"
@@ -490,8 +490,9 @@
   #define D_CMND_ZIGBEE_LINKQUALITY "LinkQuality"
 #define D_CMND_ZIGBEE_READ "Read"
 #define D_CMND_ZIGBEE_SEND "Send"
-  #define D_JSON_ZIGBEE_ZCL_SENT "ZigbeeZCLSent"
-#define D_JSON_ZIGBEE_RECEIVED "ZigbeeReceived"
+  #define D_JSON_ZIGBEE_ZCL_SENT "ZbZCLSent"
+#define D_JSON_ZIGBEE_RECEIVED "ZbReceived"
+#define D_JSON_ZIGBEE_RECEIVED_LEGACY "ZigbeeReceived"
 
 // Commands xdrv_25_A4988_Stepper.ino
 #define D_CMND_MOTOR "MOTOR"

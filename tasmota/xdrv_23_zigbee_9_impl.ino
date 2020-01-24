@@ -70,7 +70,7 @@ int32_t ZigbeeProcessInput(class SBuffer &buf) {
       }
     }
 
-    AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR(D_LOG_ZIGBEE "ZigbeeProcessInput: recv_prefix_match = %d, recv_filter_match = %d"), recv_prefix_match, recv_filter_match);
+    AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR(D_LOG_ZIGBEE "ZbProcessInput: recv_prefix_match = %d, recv_filter_match = %d"), recv_prefix_match, recv_filter_match);
   }
 
   // if there is a recv_callback, call it now
@@ -109,7 +109,7 @@ int32_t ZigbeeProcessInput(class SBuffer &buf) {
       res = (*zigbee.recv_unexpected)(res, buf);
     }
   }
-  AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR(D_LOG_ZIGBEE "ZigbeeProcessInput: res = %d"), res);
+  AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR(D_LOG_ZIGBEE "ZbProcessInput: res = %d"), res);
 
   // change state accordingly
   if (0 == res) {
@@ -142,7 +142,7 @@ void ZigbeeInput(void)
   while (ZigbeeSerial->available()) {
     yield();
     uint8_t zigbee_in_byte = ZigbeeSerial->read();
-		AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZigbeeInput byte=%d len=%d"), zigbee_in_byte, zigbee_buffer->len());
+		AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZbInput byte=%d len=%d"), zigbee_in_byte, zigbee_buffer->len());
 
 		if (0 == zigbee_buffer->len()) {  // make sure all variables are correctly initialized
 			zigbee_frame_len = 5;
@@ -151,14 +151,14 @@ void ZigbeeInput(void)
       // in this case the first bit (lsb) is missed and Tasmota receives 0xFF instead of 0xFE
       // We forgive this mistake, and next bytes are automatically resynchronized
       if (ZIGBEE_SOF_ALT == zigbee_in_byte) {
-        AddLog_P2(LOG_LEVEL_INFO, PSTR("ZigbeeInput forgiven first byte %02X (only for statistics)"), zigbee_in_byte);
+        AddLog_P2(LOG_LEVEL_INFO, PSTR("ZbInput forgiven first byte %02X (only for statistics)"), zigbee_in_byte);
         zigbee_in_byte = ZIGBEE_SOF;
       }
 		}
 
     if ((0 == zigbee_buffer->len()) && (ZIGBEE_SOF != zigbee_in_byte)) {
       // waiting for SOF (Start Of Frame) byte, discard anything else
-      AddLog_P2(LOG_LEVEL_INFO, PSTR("ZigbeeInput discarding byte %02X"), zigbee_in_byte);
+      AddLog_P2(LOG_LEVEL_INFO, PSTR("ZbInput discarding byte %02X"), zigbee_in_byte);
       continue;     // discard
     }
 
@@ -218,7 +218,7 @@ void ZigbeeInit(void)
 {
   zigbee.active = false;
   if ((pin[GPIO_ZIGBEE_RX] < 99) && (pin[GPIO_ZIGBEE_TX] < 99)) {
-		AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("Zigbee: GPIOs Rx:%d Tx:%d"), pin[GPIO_ZIGBEE_RX], pin[GPIO_ZIGBEE_TX]);
+		AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR(D_LOG_ZIGBEE "GPIOs Rx:%d Tx:%d"), pin[GPIO_ZIGBEE_RX], pin[GPIO_ZIGBEE_TX]);
     // if seriallog_level is 0, we allow GPIO 13/15 to switch to Hardware Serial
     ZigbeeSerial = new TasmotaSerial(pin[GPIO_ZIGBEE_RX], pin[GPIO_ZIGBEE_TX], seriallog_level ? 1 : 2, 0, 256);   // set a receive buffer of 256 bytes
     ZigbeeSerial->begin(115200);
@@ -423,13 +423,13 @@ void zigbeeZCLSendStr(uint16_t dstAddr, uint8_t endpoint, const char *data) {
   if (0 == endpoint) {
     // endpoint is not specified, let's try to find it from shortAddr
     endpoint = zigbee_devices.findClusterEndpointIn(dstAddr, cluster);
-    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeSend: guessing endpoint 0x%02X"), endpoint);
+    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZbSend: guessing endpoint 0x%02X"), endpoint);
   }
-  AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeSend: dstAddr 0x%04X, cluster 0x%04X, endpoint 0x%02X, cmd 0x%02X, data %s"),
+  AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZbSend: dstAddr 0x%04X, cluster 0x%04X, endpoint 0x%02X, cmd 0x%02X, data %s"),
     dstAddr, cluster, endpoint, cmd, data);
 
   if (0 == endpoint) {
-    AddLog_P2(LOG_LEVEL_INFO, PSTR("ZigbeeSend: unspecified endpoint"));
+    AddLog_P2(LOG_LEVEL_INFO, PSTR("ZbSend: unspecified endpoint"));
     return;
   }
 
@@ -524,9 +524,9 @@ void CmndZigbeeSend(void) {
           }
         }
 
-        AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeSend: command_template = %s"), cmd_str.c_str());
+        AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZbSend: command_template = %s"), cmd_str.c_str());
         cmd_str = zigbeeCmdAddParams(cmd_str.c_str(), x, y, z);   // fill in parameters
-        AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeSend: command_final    = %s"), cmd_str.c_str());
+        AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZbSend: command_final    = %s"), cmd_str.c_str());
       } else {
         // we have zero command, pass through until last error for missing command
       }
@@ -537,7 +537,7 @@ void CmndZigbeeSend(void) {
       // we have an unsupported command type, just ignore it and fallback to missing command
     }
 
-    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeCmd_actual: ZigbeeZCLSend {\"device\":\"0x%04X\",\"endpoint\":%d,\"send\":\"%s\"}"),
+    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZbCmd_actual: ZigbeeZCLSend {\"device\":\"0x%04X\",\"endpoint\":%d,\"send\":\"%s\"}"),
               device, endpoint, cmd_str.c_str());
     zigbeeZCLSendStr(device, endpoint, cmd_str.c_str());
   } else {

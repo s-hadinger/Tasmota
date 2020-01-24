@@ -272,7 +272,7 @@ bool RulesRuleMatch(uint8_t rule_set, String &event, String &rule)
   else if ((pos = rule_name.indexOf("#")) > 0) {       // "VIBRATION_SENSOR#AQARACUBESIDE"
     rule_subfield = rule_name.substring(pos +1);       // "AQARACUBESIDE"
     rule_name = rule_name.substring(0, pos);           // "VIBRATION_SENSOR"
-    str_value = root[rule_task][rule_name][rule_subfield];  // "ZIGBEERECEIVED", "VIBRATION_SENSOR" and "AQARACUBESIDE"
+    str_value = root[rule_task][rule_name][rule_subfield];  // "ZBRECEIVED", "VIBRATION_SENSOR" and "AQARACUBESIDE"
   } else {
     str_value = root[rule_task][rule_name];            // "INA219" and "CURRENT"
   }
