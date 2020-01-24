@@ -70,7 +70,7 @@ int32_t ZigbeeProcessInput(class SBuffer &buf) {
       }
     }
 
-    AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR(D_LOG_ZIGBEE "ZbProcessInput: recv_prefix_match = %d, recv_filter_match = %d"), recv_prefix_match, recv_filter_match);
+    //AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR(D_LOG_ZIGBEE "ZbProcessInput: recv_prefix_match = %d, recv_filter_match = %d"), recv_prefix_match, recv_filter_match);
   }
 
   // if there is a recv_callback, call it now
@@ -142,7 +142,7 @@ void ZigbeeInput(void)
   while (ZigbeeSerial->available()) {
     yield();
     uint8_t zigbee_in_byte = ZigbeeSerial->read();
-		AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZbInput byte=%d len=%d"), zigbee_in_byte, zigbee_buffer->len());
+		//AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZbInput byte=%d len=%d"), zigbee_in_byte, zigbee_buffer->len());
 
 		if (0 == zigbee_buffer->len()) {  // make sure all variables are correctly initialized
 			zigbee_frame_len = 5;
@@ -322,17 +322,17 @@ void ZigbeeZNPSend(const uint8_t *msg, size_t len) {
 		uint8_t fcs = data_len;
 
 		ZigbeeSerial->write(ZIGBEE_SOF);		// 0xFE
-		AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZNPSend SOF %02X"), ZIGBEE_SOF);
+		//AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZNPSend SOF %02X"), ZIGBEE_SOF);
 		ZigbeeSerial->write(data_len);
-		AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZNPSend LEN %02X"), data_len);
+		//AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZNPSend LEN %02X"), data_len);
 		for (uint32_t i = 0; i < len; i++) {
 			uint8_t b = pgm_read_byte(msg + i);
 			ZigbeeSerial->write(b);
 			fcs ^= b;
-			AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZNPSend byt %02X"), b);
+			//AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZNPSend byt %02X"), b);
 		}
 		ZigbeeSerial->write(fcs);			// finally send fcs checksum byte
-		AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZNPSend FCS %02X"), fcs);
+		//AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZNPSend FCS %02X"), fcs);
   }
 	// Now send a MQTT message to report the sent message
 	char hex_char[(len * 2) + 2];
