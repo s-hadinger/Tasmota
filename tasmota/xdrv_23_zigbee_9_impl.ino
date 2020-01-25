@@ -547,8 +547,20 @@ void CmndZigbeeSend(void) {
 
 }
 
+ZBM(ZBS_BIND_REQ, Z_SREQ | Z_ZDO, ZDO_BIND_REQ,
+      0,0,                // dstAddr - 16 bits, device to send the bind to
+      0,0,0,0,0,0,0,0,    // srcAddr - 64 bits, IEEE binding source
+      0x00,               // source endpoint
+      0x00, 0x00,         // cluster
+      0x03,               // DstAddrMode - 0x03 = ADDRESS_64_BIT
+      0,0,0,0,0,0,0,0,    // dstAddr - 64 bits, IEEE binding destination, i.e. coordinator
+      0x01                // dstEndpoint - 0x01 for coordinator
+)
+
 void CmndZigbeeBind(void) {
-  // ZbBind { "device":"" }
+  // ZbBind { "device":"0x1234", "endpoint":1, "cluster":6 }
+
+  // local endpoint is always 1, IEEE addresses are calculated
   if (zigbee.init_phase) { ResponseCmndChar(D_ZIGBEE_NOT_STARTED); return; }
   DynamicJsonBuffer jsonBuf;
   JsonObject &json = jsonBuf.parseObject(XdrvMailbox.data);
@@ -556,20 +568,40 @@ void CmndZigbeeBind(void) {
 
   // params
   // static char delim[] = ", ";     // delimiters for parameters
-  // uint16_t device = 0xFFFF;       // 0xFFFF is broadcast, so considered valid
-  // uint8_t  endpoint = 0x00;       // 0x00 is invalid for the dst endpoint
-  // String   cmd_str = "";          // the actual low-level command, either specified or computed
+  uint16_t device = 0xFFFF;       // 0xFFFF is broadcast, so considered valid
+  uint8_t  endpoint = 0x00;       // 0x00 is invalid for the dst endpoint
+  uint16_t cluster  = 0;     // 0xFFFF is invalid
 
-  // const JsonVariant &val_device = getCaseInsensitive(json, PSTR("device"));
-  // if (nullptr != &val_device) { device = strToUInt(val_device); }
-  // const JsonVariant &val_endpoint = getCaseInsensitive(json, PSTR("endpoint"));
-  // if (nullptr != &val_endpoint) { endpoint = strToUInt(val_endpoint); }
-  // const JsonVariant &val_cmd = getCaseInsensitive(json, PSTR("Send"));
-  // if (nullptr != &val_cmd) {} else {
-  //   Response_P(PSTR("Missing zigbee 'Send'"));
-  //   return;
-  // }
+  const JsonVariant &val_device = getCaseInsensitive(json, PSTR("device"));
+  if (nullptr != &val_device) {
+    //device = strToUInt(val_device); }
+    device = zigbee_devices.parseDeviceParam(val_device, true);  // in case of short_addr, it must be already registered
+    if (0x0000 == device) { ResponseCmndChar("Unknown device"); return; }
+    if (0xFFFF == device) { ResponseCmndChar("Invalid parameter"); return; }
+  }
 
+
+  const JsonVariant &val_endpoint = getCaseInsensitive(json, PSTR("endpoint"));
+  if (nullptr != &val_endpoint) { endpoint = strToUInt(val_endpoint); }
+  const JsonVariant &val_cluster = getCaseInsensitive(json, PSTR("cluster"));
+  if (nullptr != &val_cluster) { cluster = strToUInt(val_cluster); }
+
+  // TODO compute endpoint from cluster
+
+  SBuffer buf(sizeof(ZBS_BIND_REQ));
+  buf.add8(Z_SREQ | Z_ZDO);
+  buf.add8(ZDO_BIND_REQ);
+  buf.add16(device);
+  buf.add64(zigbee_devices.getDeviceLongAddr(device));
+  buf.add8(endpoint);
+  buf.add16(cluster);
+  buf.add8(0x03);             // DstAddrMode - 0x03 = ADDRESS_64_BIT
+  buf.add64(localIEEEAddr);   // coordinatore IEEE address
+  buf.add8(0x01);             // local endpoint = 1
+
+  ZigbeeZNPSend(buf.getBuffer(), buf.len());
+
+  ResponseCmndDone();
 }
 
 // Probe a specific device to get its endpoints and supported clusters
