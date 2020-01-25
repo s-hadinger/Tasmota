@@ -33,19 +33,19 @@ const char kZbCommands[] PROGMEM = D_PRFX_ZB "|"    // prefix
   D_CMND_ZIGBEEZNPSEND "|" D_CMND_ZIGBEE_PERMITJOIN "|"
   D_CMND_ZIGBEE_STATUS "|" D_CMND_ZIGBEE_RESET "|" D_CMND_ZIGBEE_SEND "|"
   D_CMND_ZIGBEE_PROBE "|" D_CMND_ZIGBEE_READ "|" D_CMND_ZIGBEEZNPRECEIVE "|"
-  D_CMND_ZIGBEE_FORGET "|" D_CMND_ZIGBEE_SAVE "|" D_CMND_ZIGBEE_NAME ;
+  D_CMND_ZIGBEE_FORGET "|" D_CMND_ZIGBEE_SAVE "|" D_CMND_ZIGBEE_NAME "|" D_CMND_ZIGBEE_BIND ;
 
 const char kZigbeeCommands[] PROGMEM = D_PRFX_ZIGBEE "|"    // legacy prefix -- deprecated
   D_CMND_ZIGBEEZNPSEND "|" D_CMND_ZIGBEE_PERMITJOIN "|"
   D_CMND_ZIGBEE_STATUS "|" D_CMND_ZIGBEE_RESET "|" D_CMND_ZIGBEE_SEND "|"
   D_CMND_ZIGBEE_PROBE "|" D_CMND_ZIGBEE_READ "|" D_CMND_ZIGBEEZNPRECEIVE "|"
-  D_CMND_ZIGBEE_FORGET "|" D_CMND_ZIGBEE_SAVE "|" D_CMND_ZIGBEE_NAME ;
+  D_CMND_ZIGBEE_FORGET "|" D_CMND_ZIGBEE_SAVE "|" D_CMND_ZIGBEE_NAME "|" D_CMND_ZIGBEE_BIND ;
 
 void (* const ZigbeeCommand[])(void) PROGMEM = {
   &CmndZigbeeZNPSend, &CmndZigbeePermitJoin,
   &CmndZigbeeStatus, &CmndZigbeeReset, &CmndZigbeeSend,
   &CmndZigbeeProbe, &CmndZigbeeRead, &CmndZigbeeZNPReceive,
-  &CmndZigbeeForget, &CmndZigbeeSave, &CmndZigbeeName
+  &CmndZigbeeForget, &CmndZigbeeSave, &CmndZigbeeName, &CmndZigbeeBind
   };
 
 int32_t ZigbeeProcessInput(class SBuffer &buf) {
@@ -544,6 +544,31 @@ void CmndZigbeeSend(void) {
     Response_P(PSTR("Missing zigbee 'Send'"));
     return;
   }
+
+}
+
+void CmndZigbeeBind(void) {
+  // ZbBind { "device":"" }
+  if (zigbee.init_phase) { ResponseCmndChar(D_ZIGBEE_NOT_STARTED); return; }
+  DynamicJsonBuffer jsonBuf;
+  JsonObject &json = jsonBuf.parseObject(XdrvMailbox.data);
+  if (!json.success()) { ResponseCmndChar(D_JSON_INVALID_JSON); return; }
+
+  // params
+  // static char delim[] = ", ";     // delimiters for parameters
+  // uint16_t device = 0xFFFF;       // 0xFFFF is broadcast, so considered valid
+  // uint8_t  endpoint = 0x00;       // 0x00 is invalid for the dst endpoint
+  // String   cmd_str = "";          // the actual low-level command, either specified or computed
+
+  // const JsonVariant &val_device = getCaseInsensitive(json, PSTR("device"));
+  // if (nullptr != &val_device) { device = strToUInt(val_device); }
+  // const JsonVariant &val_endpoint = getCaseInsensitive(json, PSTR("endpoint"));
+  // if (nullptr != &val_endpoint) { endpoint = strToUInt(val_endpoint); }
+  // const JsonVariant &val_cmd = getCaseInsensitive(json, PSTR("Send"));
+  // if (nullptr != &val_cmd) {} else {
+  //   Response_P(PSTR("Missing zigbee 'Send'"));
+  //   return;
+  // }
 
 }
 
