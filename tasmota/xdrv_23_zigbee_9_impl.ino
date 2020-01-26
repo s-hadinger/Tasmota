@@ -567,10 +567,11 @@ void CmndZigbeeBind(void) {
   if (!json.success()) { ResponseCmndChar(D_JSON_INVALID_JSON); return; }
 
   // params
-  // static char delim[] = ", ";     // delimiters for parameters
-  uint16_t device = 0xFFFF;       // 0xFFFF is broadcast, so considered valid
-  uint8_t  endpoint = 0x00;       // 0x00 is invalid for the dst endpoint
-  uint16_t cluster  = 0;     // 0xFFFF is invalid
+  // static char delim[] = ", ";    // delimiters for parameters
+  uint16_t device = 0xFFFF;         // 0xFFFF is broadcast, so considered valid
+  uint8_t  endpoint = 0x00;         // 0x00 is invalid for the dst endpoint
+  uint16_t cluster  = 0;            // 0xFFFF is invalid
+  uint32_t group = 0xFFFFFFFF;      // 16 bits values, otherwise 0xFFFFFFFF is unspecified
 
   const JsonVariant &val_device = getCaseInsensitive(json, PSTR("device"));
   if (nullptr != &val_device) {
