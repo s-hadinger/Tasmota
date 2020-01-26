@@ -1,7 +1,12 @@
 ## Unreleased (development)
 
+### 8.1.0.5 20200126
+
+- Change wifi connectivity stability (#7602)
+
 ### 8.1.0.4 20200116
 
+- Change Zigbee command prefix from ``Zigbee*`` to ``Zb*``
 - Fix ``PowerDelta`` zero power detection (#7515)
 - Fix OTA minimal gzipped detection regression from 8.1.0.3
 - Fix ``RGBWWTable`` ignored (#7572)

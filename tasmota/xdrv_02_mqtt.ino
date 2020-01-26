@@ -683,11 +683,6 @@ void MqttCheck(void)
     if (!MqttIsConnected()) {
       global_state.mqtt_down = 1;
       if (!Mqtt.retry_counter) {
-#ifdef USE_DISCOVERY
-#ifdef MQTT_HOST_DISCOVERY
-        if (!strlen(SettingsText(SET_MQTT_HOST)) && !Wifi.mdns_begun) { return; }
-#endif  // MQTT_HOST_DISCOVERY
-#endif  // USE_DISCOVERY
         MqttReconnect();
       } else {
         Mqtt.retry_counter--;
@@ -697,7 +692,9 @@ void MqttCheck(void)
     }
   } else {
     global_state.mqtt_down = 0;
-    if (Mqtt.initial_connection_state) MqttReconnect();
+    if (Mqtt.initial_connection_state) {
+      MqttReconnect();
+    }
   }
 }
 
@@ -1137,8 +1134,12 @@ void CmndTlsDump(void) {
   uint32_t start = (uint32_t)tls_spi_start + tls_block_offset;
   uint32_t end   = start + tls_block_len -1;
   for (uint32_t pos = start; pos < end; pos += 0x10) {
-      uint32_t* values = (uint32_t*)(pos);
-      Serial.printf_P(PSTR("%08x:  %08x %08x %08x %08x\n"), pos, bswap32(values[0]), bswap32(values[1]), bswap32(values[2]), bswap32(values[3]));
+    uint32_t* values = (uint32_t*)(pos);
+#ifdef ARDUINO_ESP8266_RELEASE_2_3_0
+    Serial.printf("%08x:  %08x %08x %08x %08x\n", pos, bswap32(values[0]), bswap32(values[1]), bswap32(values[2]), bswap32(values[3]));
+#else
+    Serial.printf_P(PSTR("%08x:  %08x %08x %08x %08x\n"), pos, bswap32(values[0]), bswap32(values[1]), bswap32(values[2]), bswap32(values[3]));
+#endif
   }
 }
 #endif  // DEBUG_DUMP_TLS
