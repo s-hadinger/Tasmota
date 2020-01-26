@@ -365,9 +365,6 @@ void MqttPublishPrefixTopic_P(uint32_t prefix, const char* subtopic, bool retain
   char romram[64];
   char stopic[TOPSZ];
 
-//   char save_mqtt[strlen(mqtt_data) + 1];
-//   strcpy(save_mqtt, mqtt_data);
-
   snprintf_P(romram, sizeof(romram), ((prefix > 3) && !Settings.flag.mqtt_response) ? S_RSLT_RESULT : subtopic);  // SetOption4 - Switch between MQTT RESULT or COMMAND
   for (uint32_t i = 0; i < strlen(romram); i++) {
     romram[i] = toupper(romram[i]);
@@ -401,8 +398,6 @@ void MqttPublishPrefixTopic_P(uint32_t prefix, const char* subtopic, bool retain
     free(mqtt_save);
 
     bool result = MqttClient.publish(romram, mqtt_data, retained);
-Serial.printf(">> Shadow topic = %s\n", romram);
-Serial.printf(">> Shadow msg   = %s\n", mqtt_data);
     yield();  // #3313
   }
 #endif // USE_MQTT_AWS_IOT
