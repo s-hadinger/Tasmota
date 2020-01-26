@@ -365,8 +365,8 @@ void MqttPublishPrefixTopic_P(uint32_t prefix, const char* subtopic, bool retain
   char romram[64];
   char stopic[TOPSZ];
 
-  char save_mqtt[strlen(mqtt_data) + 1];
-  strcpy(save_mqtt, mqtt_data);
+//   char save_mqtt[strlen(mqtt_data) + 1];
+//   strcpy(save_mqtt, mqtt_data);
 
   snprintf_P(romram, sizeof(romram), ((prefix > 3) && !Settings.flag.mqtt_response) ? S_RSLT_RESULT : subtopic);  // SetOption4 - Switch between MQTT RESULT or COMMAND
   for (uint32_t i = 0; i < strlen(romram); i++) {
@@ -377,14 +377,32 @@ void MqttPublishPrefixTopic_P(uint32_t prefix, const char* subtopic, bool retain
   MqttPublish(stopic, retained);
 
 #ifdef USE_MQTT_AWS_IOT
-  if (1) {    // placeholder for SetOptionXX
+  if (Settings.flag4.awsiot_shadow) {    // placeholder for SetOptionXX
+    // compute the target topic
+    char *topic = SettingsText(SET_MQTT_TOPIC);
+    char topic2[strlen(topic)+1];       // save buffer onto stack
+    strcpy(topic2, topic);
+    // replace any '/' with '_'
+    char *s = topic2;
+    while (*s) {
+      if ('/' == *s) {
+        *s = '_';
+      }
+      s++;
+    }
     // update topic is "$aws/things/<topic>/shadow/update"
-    snprintf_P(romram, sizeof(romram), PSTR("$aws/things/%s/shadow/update"), "TestDevice");
-    // TODO put device id instead
-    snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"state\":{\"reported\":%s}}"), save_mqtt);
+    snprintf_P(romram, sizeof(romram), PSTR("$aws/things/%s/shadow/update"), topic2);
+    
+    // copy buffer
+    char *mqtt_save = (char*) malloc(strlen(mqtt_data)+1);
+    if (!mqtt_save) { return; }    // abort
+    strcpy(mqtt_save, mqtt_data);
+    snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"state\":{\"reported\":%s}}"), mqtt_save);
+    free(mqtt_save);
+
     bool result = MqttClient.publish(romram, mqtt_data, retained);
-// Serial.printf(">> Shadow topic = %s\n", romram);
-// Serial.printf(">> Shadow msg   = %s\n", mqtt_data);
+Serial.printf(">> Shadow topic = %s\n", romram);
+Serial.printf(">> Shadow msg   = %s\n", mqtt_data);
     yield();  // #3313
   }
 #endif // USE_MQTT_AWS_IOT
