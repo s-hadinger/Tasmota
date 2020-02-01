@@ -2071,7 +2071,7 @@ void calcGammaBulbs(uint16_t cur_col_10[5]) {
       }
     }
     // If RGBW or Single channel, also adjust White channel
-    if ((LST_COLDWARM != Light.subtype) && (LST_RGBCW != Light.subtype)) {
+    if ((LST_SINGLE == Light.subtype) || (LST_RGBW == Light.subtype)) {
       cur_col_10[Light.subtype - 1] = ledGamma10_10(cur_col_10[Light.subtype - 1]);
     }
   }
