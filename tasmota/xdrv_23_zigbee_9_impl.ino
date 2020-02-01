@@ -578,18 +578,16 @@ void CmndZbBind(void) {
   uint16_t cluster  = 0;            // 0xFFFF is invalid
   uint32_t group = 0xFFFFFFFF;      // 16 bits values, otherwise 0xFFFFFFFF is unspecified
 
-  const JsonVariant &val_device = getCaseInsensitive(json, PSTR("device"));
+  const JsonVariant &val_device = getCaseInsensitive(json, PSTR("Device"));
   if (nullptr != &val_device) {
-    //device = strToUInt(val_device); }
-    device = zigbee_devices.parseDeviceParam(val_device, true);  // in case of short_addr, it must be already registered
-    if (0x0000 == device) { ResponseCmndChar("Unknown device"); return; }
+    device = zigbee_devices.parseDeviceParam(val_device.as<char*>());
     if (0xFFFF == device) { ResponseCmndChar("Invalid parameter"); return; }
   }
+  if ((nullptr == &val_device) || (0x000 == device)) { ResponseCmndChar("Unknown device"); return; }
 
-
-  const JsonVariant &val_endpoint = getCaseInsensitive(json, PSTR("endpoint"));
+  const JsonVariant &val_endpoint = getCaseInsensitive(json, PSTR("Endpoint"));
   if (nullptr != &val_endpoint) { endpoint = strToUInt(val_endpoint); }
-  const JsonVariant &val_cluster = getCaseInsensitive(json, PSTR("cluster"));
+  const JsonVariant &val_cluster = getCaseInsensitive(json, PSTR("Cluster"));
   if (nullptr != &val_cluster) { cluster = strToUInt(val_cluster); }
 
   // TODO compute endpoint from cluster
