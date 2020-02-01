@@ -690,7 +690,7 @@ void CmndZbRead(void) {
 
   const JsonVariant &val_device = getCaseInsensitive(json, PSTR("Device"));
   if (nullptr != &val_device) { device = strToUInt(val_device); }
-  const JsonVariant val_cluster = getCaseInsensitive(json, PSTR("Cluster"));
+  const JsonVariant &val_cluster = getCaseInsensitive(json, PSTR("Cluster"));
   if (nullptr != &val_cluster) { cluster = strToUInt(val_cluster); }
   const JsonVariant &val_endpoint = getCaseInsensitive(json, PSTR("Endpoint"));
   if (nullptr != &val_endpoint) { endpoint = strToUInt(val_endpoint); }
