@@ -717,10 +717,14 @@ void CmndZbRead(void) {
     }
   }
 
-  ZigbeeZCLSend(device, cluster, endpoint, ZCL_READ_ATTRIBUTES, false, attrs, attrs_len, false /* we do want a response */);
+  if ((0 != endpoint) && (attrs_len > 0)) {
+    ZigbeeZCLSend(device, cluster, endpoint, ZCL_READ_ATTRIBUTES, false, attrs, attrs_len, false /* we do want a response */);
+    ResponseCmndDone();
+  } else {
+    ResponseCmndChar("Missing parameters");
+  }
 
   if (attrs) { delete[] attrs; }
-  ResponseCmndDone();
 }
 
 // Allow or Deny pairing of new Zigbee devices
