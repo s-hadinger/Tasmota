@@ -465,9 +465,14 @@ void CmndZbSend(void) {
   uint8_t  endpoint = 0x00;       // 0x00 is invalid for the dst endpoint
   String   cmd_str = "";          // the actual low-level command, either specified or computed
 
-  const JsonVariant &val_device = getCaseInsensitive(json, PSTR("device"));
-  if (nullptr != &val_device) { device = strToUInt(val_device); }
-  const JsonVariant &val_endpoint = getCaseInsensitive(json, PSTR("endpoint"));
+  const JsonVariant &val_device = getCaseInsensitive(json, PSTR("Device"));
+  if (nullptr != &val_device) {
+    device = zigbee_devices.parseDeviceParam(val_device.as<char*>());
+    if (0xFFFF == device) { ResponseCmndChar("Invalid parameter"); return; }
+  }
+  if ((nullptr == &val_device) || (0x000 == device)) { ResponseCmndChar("Unknown device"); return; }
+
+  const JsonVariant &val_endpoint = getCaseInsensitive(json, PSTR("Endpoint"));
   if (nullptr != &val_endpoint) { endpoint = strToUInt(val_endpoint); }
   const JsonVariant &val_cmd = getCaseInsensitive(json, PSTR("Send"));
   if (nullptr != &val_cmd) {
@@ -687,9 +692,13 @@ void CmndZbRead(void) {
   size_t   attrs_len = 0;
   uint8_t* attrs = nullptr;       // empty string is valid
 
-
   const JsonVariant &val_device = getCaseInsensitive(json, PSTR("Device"));
-  if (nullptr != &val_device) { device = strToUInt(val_device); }
+  if (nullptr != &val_device) {
+    device = zigbee_devices.parseDeviceParam(val_device.as<char*>());
+    if (0xFFFF == device) { ResponseCmndChar("Invalid parameter"); return; }
+  }
+  if ((nullptr == &val_device) || (0x000 == device)) { ResponseCmndChar("Unknown device"); return; }
+
   const JsonVariant &val_cluster = getCaseInsensitive(json, PSTR("Cluster"));
   if (nullptr != &val_cluster) { cluster = strToUInt(val_cluster); }
   const JsonVariant &val_endpoint = getCaseInsensitive(json, PSTR("Endpoint"));
