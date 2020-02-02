@@ -269,16 +269,16 @@ static ICACHE_RAM_ATTR void timer1Interrupt() {
             } else {
               SetGPIO(mask);
             }
-            wave->nextServiceCycle = now + wave->nextTimeHighCycles;
-            nextEventCycles = min_u32(nextEventCycles, wave->nextTimeHighCycles);
+            wave->nextServiceCycle = now + wave->nextTimeHighCycles + cyclesToGo;
+            nextEventCycles = min_u32(nextEventCycles, wave->nextTimeHighCycles + cyclesToGo);
           } else {
             if (i == 16) {
               GP16O &= ~1; // GPIO16 write slow as it's RMW
             } else {
               ClearGPIO(mask);
             }
-            wave->nextServiceCycle = now + wave->nextTimeLowCycles;
-            nextEventCycles = min_u32(nextEventCycles, wave->nextTimeLowCycles);
+            wave->nextServiceCycle = now + wave->nextTimeLowCycles + cyclesToGo;
+            nextEventCycles = min_u32(nextEventCycles, wave->nextTimeLowCycles + cyclesToGo);
           }
         } else {
           uint32_t deltaCycles = wave->nextServiceCycle - now;
