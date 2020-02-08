@@ -25,6 +25,50 @@ typedef struct Z_CommandConverter {
   const char * zcl_cmd;
 } Z_CommandConverter;
 
+typedef struct Z_CommandConverter2 {
+  const char * tasmota_cmd;
+  uint16_t     cluster;
+  uint16_t     cmd;       // normally 8 bits, 0xFFFF means it's a parameter
+  const char * param;
+} Z_CommandConverter2;
+
+// list of post-processing directives
+const Z_CommandConverter2 Z_Commands2[] = {
+  { "Power",          0x0006, 0xFFFF, "" },              // 0=Off, 1=On, 2=Toggle
+  { "Dimmer",         0x0008, 0x04,   "xx0A00" },       // Move to Level with On/Off, xx=0..254 (255 is invalid)
+  { "Dimmer+",        0x0008, 0x06,   "001902" },       // Step up by 10%, 0.2 secs
+  { "Dimmer-",        0x0008, 0x06,   "011902" },       // Step down by 10%, 0.2 secs
+  { "DimmerStop",     0x0008, 0x03,   "" },              // Stop any Dimmer animation
+  { "ResetAlarm",     0x0009, 0x00,   "xxyyyy" },       // Reset alarm (alarm code + cluster identifier)
+  { "ResetAllAlarms", 0x0009, 0x01,   "" },             // Reset all alarms
+  { "Hue",            0x0300, 0x00,   "xx000A00" },     // Move to Hue, shortest time, 1s
+  { "Sat",            0x0300, 0x03,   "xx0A00" },       // Move to Sat
+  { "HueSat",         0x0300, 0x06,   "xxyy0A00" },     // Hue, Sat
+  { "Color",          0x0300, 0x07,   "xxxxyyyy0A00" }, // x, y (uint16)
+  { "CT",             0x0300, 0x0A,   "xxxx0A00" },     // Color Temperature Mireds (uint16)
+  { "ShutterOpen",    0x0102, 0x00,   "" },
+  { "ShutterClose",   0x0102, 0x01,   "" },
+  { "ShutterStop",    0x0102, 0x02,   "" },
+  { "ShutterLift",    0x0102, 0x05,   "xx" },            // Lift percentage, 0%=open, 100%=closed
+  { "ShutterTilt",    0x0102, 0x08,   "xx" },            // Tilt percentage
+  { "Shutter",        0x0102, 0xFFFF, "" },
+  // Blitzwolf PIR
+  { "",               0xEF00, 0x01,   ""},                // Specific decoder for Blitzwolf PIR, empty name means special treatment
+  // Decoders only - normally not used to send, and names may be masked by previous definitions
+  { "Dimmer",         0x0008, 0x00,   "xx" },
+  { "DimmerMove",     0x0008, 0x01,   "xx0A" },
+  { "DimmerStep",     0x0008, 0x02,   "xx190A00" },
+  { "DimmerMove",     0x0008, 0x05,   "xx0A" },
+  { "Dimmer+",        0x0008, 0x06,   "00" },
+  { "Dimmer-",        0x0008, 0x06,   "01" },
+  { "DimmerStop",     0x0300, 0x01,   "xx19" },
+  { "HueStep",        0x0300, 0x02,   "xx190A00" },
+  { "SatMove",        0x0300, 0x04,   "xx19" },
+  { "SatStep",        0x0300, 0x05,   "xx190A" },
+  { "ColorMove",      0x0300, 0x08,   "xxxxyyyy" },
+  { "ColorStep",      0x0300, 0x09,   "xxxxyyyy0A00" },
+};
+
 // list of post-processing directives
 const Z_CommandConverter Z_Commands[] = {
   { "Power",        "0006!xx" },              // 0=Off, 1=On, 2=Toggle
