@@ -43,8 +43,8 @@ const Z_CommandConverter Z_Commands[] = {
   { "ShutterOpen",  "0102!00" },
   { "ShutterClose", "0102!01" },
   { "ShutterStop",  "0102!02" },
-  { "ShutterLift",  "0102!05xx" },            // Lift percentage, 0%=open, 100%=closed
-  { "ShutterTilt",  "0102!08xx" },            // Tilt percentage
+  { "ShutterLift",  "0102!05/xx" },            // Lift percentage, 0%=open, 100%=closed
+  { "ShutterTilt",  "0102!08/xx" },            // Tilt percentage
 };
 
 #define ZLE(x) ((x) & 0xFF), ((x) >> 8)     // Little Endian
@@ -109,6 +109,25 @@ inline bool isXYZ(char c) {
   return (c >= 'x') && (c <= 'z');
 }
 
+// truncate at first 'x', 'y' or 'z'
+void truncateAtXYZ(char *p) {
+  while (*p) {
+    if (isXYZ(*p)) {
+      *p = 0;
+      break;
+    }
+    p++;
+  }
+}
+
+// https://stackoverflow.com/questions/4770985/how-to-check-if-a-string-starts-with-another-string-in-c
+bool startsWith(const char *pre, const char *str)
+{
+  size_t lenpre = strlen(pre),
+         lenstr = strlen(str);
+  return lenstr < lenpre ? false : memcmp_P(pre, str, lenpre) == 0;
+}
+
 void convertClusterSpecific(JsonObject& json, const char *attrid_str, const SBuffer &payload) {
   char hex_char[payload.len()*2+2];
   ToHex_P((unsigned char*)payload.getBuffer(), payload.len(), hex_char, sizeof(hex_char));
@@ -118,16 +137,9 @@ void convertClusterSpecific(JsonObject& json, const char *attrid_str, const SBuf
     char command_prefix[32];
     const Z_CommandConverter *conv = &Z_Commands[i];
     strcpy_P(command, conv->zcl_cmd);
-    // copy to prefix and truncate at first 'x', 'y' or 'z'
+    // 
     strcpy_P(command_prefix, conv->zcl_cmd);
-    char *p = command_prefix;
-    while (*p) {
-      if (isXYZ(*p)) {
-        *p = 0;
-        break;
-      }
-      p++;
-    }
+    truncateAtXYZ(command_prefix);
     
   }
   json[attrid_str] = hex_char;
