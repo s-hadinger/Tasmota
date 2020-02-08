@@ -105,6 +105,34 @@ void zigbeeSetCommandTimer(uint16_t shortaddr, uint16_t cluster, uint16_t endpoi
   }
 }
 
+inline bool isXYZ(char c) {
+  return (c >= 'x') && (c <= 'z');
+}
+
+void convertClusterSpecific(JsonObject& json, const char *attrid_str, const SBuffer &payload) {
+  char hex_char[payload.len()*2+2];
+  ToHex_P((unsigned char*)payload.getBuffer(), payload.len(), hex_char, sizeof(hex_char));
+
+  for (uint32_t i = 0; i < sizeof(Z_Commands) / sizeof(Z_Commands[0]); i++) {
+    char command[32];
+    char command_prefix[32];
+    const Z_CommandConverter *conv = &Z_Commands[i];
+    strcpy_P(command, conv->zcl_cmd);
+    // copy to prefix and truncate at first 'x', 'y' or 'z'
+    strcpy_P(command_prefix, conv->zcl_cmd);
+    char *p = command_prefix;
+    while (*p) {
+      if (isXYZ(*p)) {
+        *p = 0;
+        break;
+      }
+      p++;
+    }
+    
+  }
+  json[attrid_str] = hex_char;
+}
+
 const __FlashStringHelper* zigbeeFindCommand(const char *command) {
   char parm_uc[16];   // used to convert JSON keys to uppercase
   for (uint32_t i = 0; i < sizeof(Z_Commands) / sizeof(Z_Commands[0]); i++) {
@@ -115,10 +143,6 @@ const __FlashStringHelper* zigbeeFindCommand(const char *command) {
   }
 
   return nullptr;
-}
-
-inline bool isXYZ(char c) {
-  return (c >= 'x') && (c <= 'z');
 }
 
 // take the lower 4 bits and turn it to an hex char
