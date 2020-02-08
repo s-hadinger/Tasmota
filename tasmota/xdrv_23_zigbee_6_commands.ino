@@ -45,6 +45,22 @@ const Z_CommandConverter Z_Commands[] = {
   { "ShutterStop",  "0102!02" },
   { "ShutterLift",  "0102!05/xx" },            // Lift percentage, 0%=open, 100%=closed
   { "ShutterTilt",  "0102!08/xx" },            // Tilt percentage
+  // Blitzwolf PIR
+  { "",             "EF00!01"},                // Specific decoder for Blitzwolf PIR, empty name means special treatment
+  // Decoders only - normally not used to send, and names may be masked by previous definitions
+  { "Dimmer",       "0008!00/xx" },
+  { "DimmerMove",   "0008!01/xxFF" },
+  { "DimmerStep",   "0008!02/xx19FFFF" },
+  { "DimmerMove",   "0008!05/xxFF" },
+  { "Dimmer+",      "0008!06/00" },
+  { "Dimmer-",      "0008!06/01" },
+  { "DimmerStop",   "0008!07" },
+  { "HueMove",      "0300!01/xx19" },
+  { "HueStep",      "0300!02/xx190A00" },
+  { "SatMove",      "0300!04/xx19" },
+  { "SatStep",      "0300!05/xx190A" },
+  { "ColorMove",    "0300!08/xxxxyyyy" },
+  { "ColorStep",    "0300!09/xxxxyyyy0A00" },
 };
 
 #define ZLE(x) ((x) & 0xFF), ((x) >> 8)     // Little Endian
