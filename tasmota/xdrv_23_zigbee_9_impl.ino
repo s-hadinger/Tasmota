@@ -391,6 +391,40 @@ uint32_t parseHex(const char **data, size_t max_len = 8) {
   return ret;
 }
 
+void zigbeeZCLSendStr2(uint16_t dstAddr, uint8_t endpoint, bool clusterSpecific,
+                       uint16_t cluster, uint8_t cmd, const char *param) {
+  size_t size = param ? strlen(param) : 0;
+  SBuffer buf((size+2)/2);    // actual bytes buffer for data
+
+  if (param) {
+    while (*param) {
+      uint8_t code = parseHex(&param, 2);
+      buf.add8(code);
+    }
+  }
+
+  if (0 == endpoint) {
+    // endpoint is not specified, let's try to find it from shortAddr
+    endpoint = zigbee_devices.findClusterEndpointIn(dstAddr, cluster);
+    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZbSend: guessing endpoint 0x%02X"), endpoint);
+  }
+  AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZbSend: dstAddr 0x%04X, cluster 0x%04X, endpoint 0x%02X, cmd 0x%02X, data %s"),
+    dstAddr, cluster, endpoint, cmd, param);
+
+  if (0 == endpoint) {
+    AddLog_P2(LOG_LEVEL_INFO, PSTR("ZbSend: unspecified endpoint"));
+    return;
+  }
+
+  // everything is good, we can send the command
+  ZigbeeZCLSend(dstAddr, cluster, endpoint, cmd, clusterSpecific, buf.getBuffer(), buf.len());
+  // now set the timer, if any, to read back the state later
+  if (clusterSpecific) {
+    zigbeeSetCommandTimer(dstAddr, cluster, endpoint);
+  }
+  ResponseCmndDone();
+}
+
 void zigbeeZCLSendStr(uint16_t dstAddr, uint8_t endpoint, const char *data) {
 
   uint16_t cluster = 0x0000;    // 0x0000 is a valid default value
@@ -559,7 +593,7 @@ void CmndZbSend(void) {
 
     AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZbCmd_actual: ZigbeeZCLSend {\"device\":\"0x%04X\",\"endpoint\":%d,\"send\":\"%04X!%02X/%s\"}"),
               device, endpoint, cluster, cmd, cmd_str.c_str());
-    zigbeeZCLSendStr(device, endpoint, cmd_str.c_str());
+    zigbeeZCLSendStr2(device, endpoint, true, cluster, cmd, cmd_str.c_str());
   } else {
     Response_P(PSTR("Missing zigbee 'Send'"));
     return;
