@@ -773,6 +773,11 @@ void CmndZbRead(void) {
     }
   }
 
+  if (0 == endpoint) {    // try to compute the endpoint
+    endpoint = zigbee_devices.findClusterEndpointIn(device, cluster);
+    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZbSend: guessing endpoint 0x%02X"), endpoint);
+  }
+
   if ((0 != endpoint) && (attrs_len > 0)) {
     ZigbeeZCLSend(device, cluster, endpoint, ZCL_READ_ATTRIBUTES, false, attrs, attrs_len, false /* we do want a response */);
     ResponseCmndDone();

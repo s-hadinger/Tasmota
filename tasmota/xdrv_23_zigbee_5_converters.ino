@@ -490,10 +490,7 @@ void ZCLFrame::parseClusterSpecificCommand(JsonObject& json, uint8_t offset) {
   uint32_t i = offset;
   uint32_t len = _payload.len();
 
-  char attrid_str[12];
-  snprintf_P(attrid_str, sizeof(attrid_str), PSTR("%04X!%02X"), _cluster_id, _cmd_id);
-
-  convertClusterSpecific(json, attrid_str, _payload);
+  convertClusterSpecific(json, _cluster_id, _cmd_id, _payload);
 }
 
 // return value:

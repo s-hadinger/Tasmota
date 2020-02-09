@@ -188,7 +188,7 @@ bool startsWith(const char *pre, const char *str)
   return lenstr < lenpre ? false : memcmp_P(pre, str, lenpre) == 0;
 }
 
-void convertClusterSpecific(JsonObject& json, const char *attrid_str, const SBuffer &payload) {
+void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, const SBuffer &payload) {
   char hex_char[payload.len()*2+2];
   ToHex_P((unsigned char*)payload.getBuffer(), payload.len(), hex_char, sizeof(hex_char));
 
@@ -202,6 +202,10 @@ void convertClusterSpecific(JsonObject& json, const char *attrid_str, const SBuf
     truncateAtXYZ(command_prefix);
     
   }
+
+  char attrid_str[12];
+  snprintf_P(attrid_str, sizeof(attrid_str), PSTR("%04X!%02X"), cluster, cmd);
+
   json[attrid_str] = hex_char;
 }
 
