@@ -28,11 +28,11 @@ typedef struct Z_CommandConverter {
 
 // list of post-processing directives
 const Z_CommandConverter Z_Commands[] = {
-  { "Power",          0x0006, 0xFFFF, "" },              // 0=Off, 1=On, 2=Toggle
+  { "Power",          0x0006, 0xFFFF, "" },             // 0=Off, 1=On, 2=Toggle
   { "Dimmer",         0x0008, 0x04,   "xx0A00" },       // Move to Level with On/Off, xx=0..254 (255 is invalid)
   { "Dimmer+",        0x0008, 0x06,   "001902" },       // Step up by 10%, 0.2 secs
   { "Dimmer-",        0x0008, 0x06,   "011902" },       // Step down by 10%, 0.2 secs
-  { "DimmerStop",     0x0008, 0x03,   "" },              // Stop any Dimmer animation
+  { "DimmerStop",     0x0008, 0x03,   "" },             // Stop any Dimmer animation
   { "ResetAlarm",     0x0009, 0x00,   "xxyyyy" },       // Reset alarm (alarm code + cluster identifier)
   { "ResetAllAlarms", 0x0009, 0x01,   "" },             // Reset all alarms
   { "Hue",            0x0300, 0x00,   "xx000A00" },     // Move to Hue, shortest time, 1s
@@ -55,12 +55,17 @@ const Z_CommandConverter Z_Commands[] = {
   { "DimmerMove",     0x0008, 0x05,   "xx0A" },
   { "Dimmer+",        0x0008, 0x06,   "00" },
   { "Dimmer-",        0x0008, 0x06,   "01" },
-  { "DimmerStop",     0x0300, 0x01,   "xx19" },
+  { "DimmerStop",     0x0008, 0x07,   "" },
+  { "HueMove",        0x0300, 0x01,   "xx19" },
   { "HueStep",        0x0300, 0x02,   "xx190A00" },
   { "SatMove",        0x0300, 0x04,   "xx19" },
   { "SatStep",        0x0300, 0x05,   "xx190A" },
   { "ColorMove",      0x0300, 0x08,   "xxxxyyyy" },
   { "ColorStep",      0x0300, 0x09,   "xxxxyyyy0A00" },
+  // Tradfri
+  { "ArrowClick",    0x0005, 0x07,   "xx" },         // xx == 0x01 = left, 0x00 = right
+  { "ArrowHold",     0x0005, 0x08,   "xx" },         // xx == 0x01 = left, 0x00 = right
+  { "ArrowRelease",  0x0005, 0x09,   "" },
 };
 
 
@@ -157,6 +162,7 @@ void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, con
 
   const __FlashStringHelper* command_name = nullptr;
 
+//AddLog_P2(LOG_LEVEL_INFO, PSTR(">>> len = %d - %02X%02X%02X"), payload.len(), payload.get8(0), payload.get8(1), payload.get8(2));
   for (uint32_t i = 0; i < sizeof(Z_Commands) / sizeof(Z_Commands[0]); i++) {
     const Z_CommandConverter *conv = &Z_Commands[i];
     if (conv->cluster == cluster) {
@@ -168,18 +174,23 @@ void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, con
         //  - payload exactly matches conv->param (conv->param may be longer)
         //  - payload matches conv->param until 'x', 'y' or 'z'
         const char * p = conv->param;
+//AddLog_P2(LOG_LEVEL_INFO, PSTR(">>>++1 param = %s"), p);
         bool match = true;
         for (uint8_t i = 0; i < payload.len(); i++) {
           const char c1 = pgm_read_byte(p);
           const char c2 = pgm_read_byte(p+1);
+//AddLog_P2(LOG_LEVEL_INFO, PSTR(">>>++2 c1 = %c, c2 = %c"), c1, c2);
           if ((0x00 == c1) || isXYZ(c1)) {
             break;
           }
           const char * p2 = p;
-          if (parseHex_P(&p2, 2) != payload.get8(i)) {
+          uint32_t nextbyte = parseHex_P(&p2, 2);
+//AddLog_P2(LOG_LEVEL_INFO, PSTR(">>>++3 parseHex_P = %02X"), nextbyte);
+          if (nextbyte != payload.get8(i)) {
             match = false;
             break;
           }
+          p += 2;
         }
         if (match) {
           // parse xyz
@@ -199,10 +210,14 @@ void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, con
     
   }
 
-  char attrid_str[12];
-  snprintf_P(attrid_str, sizeof(attrid_str), PSTR("%04X!%02X"), cluster, cmd);
+  if (command_name) {
+    json[command_name] = true;
+  } else {
+    char attrid_str[12];
+    snprintf_P(attrid_str, sizeof(attrid_str), PSTR("%04X!%02X"), cluster, cmd);
 
-  json[attrid_str] = hex_char;
+    json[attrid_str] = hex_char;
+  }
 }
 
 // Find the command details by command name
