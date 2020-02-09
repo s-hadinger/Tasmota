@@ -535,7 +535,7 @@ void CmndZbSend(void) {
         uint32_t x = 0, y = 0, z = 0;
         uint16_t cmd_var;
 
-        const __FlashStringHelper* tasmota_cmd = zigbeeFindCommand2(key.c_str(), &cluster, &cmd_var);
+        const __FlashStringHelper* tasmota_cmd = zigbeeFindCommand(key.c_str(), &cluster, &cmd_var);
         if (tasmota_cmd) {
           cmd_str = tasmota_cmd;
         } else {

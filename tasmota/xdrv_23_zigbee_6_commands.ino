@@ -216,23 +216,13 @@ void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, con
 //  - the payload in the form of a HEX string with x/y/z variables
 // If not found:
 //  - returns nullptr
-const __FlashStringHelper* zigbeeFindCommand2(const char *command, uint16_t *cluster, uint16_t *cmd) {
+const __FlashStringHelper* zigbeeFindCommand(const char *command, uint16_t *cluster, uint16_t *cmd) {
   for (uint32_t i = 0; i < sizeof(Z_Commands2) / sizeof(Z_Commands2[0]); i++) {
     const Z_CommandConverter2 *conv = &Z_Commands2[i];
     if (0 == strcasecmp_P(command, conv->tasmota_cmd)) {
       *cluster = conv->cluster;
       *cmd = conv->cmd;
       return (const __FlashStringHelper*) conv->param;
-    }
-  }
-
-  return nullptr;
-}
-const __FlashStringHelper* zigbeeFindCommand(const char *command) {
-  for (uint32_t i = 0; i < sizeof(Z_Commands) / sizeof(Z_Commands[0]); i++) {
-    const Z_CommandConverter *conv = &Z_Commands[i];
-    if (0 == strcasecmp_P(command, conv->tasmota_cmd)) {
-      return (const __FlashStringHelper*) conv->zcl_cmd;
     }
   }
 
