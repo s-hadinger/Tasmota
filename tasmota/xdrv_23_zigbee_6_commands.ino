@@ -19,21 +19,15 @@
 
 #ifdef USE_ZIGBEE
 
-//typedef int32_t (*Z_AttrConverter)(uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const char *new_name, void * param);
 typedef struct Z_CommandConverter {
-  const char * tasmota_cmd;
-  const char * zcl_cmd;
-} Z_CommandConverter;
-
-typedef struct Z_CommandConverter2 {
   const char * tasmota_cmd;
   uint16_t     cluster;
   uint16_t     cmd;       // normally 8 bits, 0xFFFF means it's a parameter
   const char * param;
-} Z_CommandConverter2;
+} Z_CommandConverter;
 
 // list of post-processing directives
-const Z_CommandConverter2 Z_Commands2[] = {
+const Z_CommandConverter Z_Commands[] = {
   { "Power",          0x0006, 0xFFFF, "" },              // 0=Off, 1=On, 2=Toggle
   { "Dimmer",         0x0008, 0x04,   "xx0A00" },       // Move to Level with On/Off, xx=0..254 (255 is invalid)
   { "Dimmer+",        0x0008, 0x06,   "001902" },       // Step up by 10%, 0.2 secs
@@ -69,43 +63,6 @@ const Z_CommandConverter2 Z_Commands2[] = {
   { "ColorStep",      0x0300, 0x09,   "xxxxyyyy0A00" },
 };
 
-// list of post-processing directives
-const Z_CommandConverter Z_Commands[] = {
-  { "Power",        "0006!xx" },              // 0=Off, 1=On, 2=Toggle
-  { "Dimmer",       "0008!04/xx0A00" },       // Move to Level with On/Off, xx=0..254 (255 is invalid)
-  { "Dimmer+",      "0008!06/001902" },       // Step up by 10%, 0.2 secs
-  { "Dimmer-",      "0008!06/011902" },       // Step down by 10%, 0.2 secs
-  { "DimmerStop",   "0008!03" },              // Stop any Dimmer animation
-  { "ResetAlarm",   "0009!00/xxyyyy" },       // Reset alarm (alarm code + cluster identifier)
-  { "ResetAllAlarms","0009!01" },             // Reset all alarms
-  { "Hue",          "0300!00/xx000A00" },     // Move to Hue, shortest time, 1s
-  { "Sat",          "0300!03/xx0A00" },       // Move to Sat
-  { "HueSat",       "0300!06/xxyy0A00" },     // Hue, Sat
-  { "Color",        "0300!07/xxxxyyyy0A00" }, // x, y (uint16)
-  { "CT",           "0300!0A/xxxx0A00" },     // Color Temperature Mireds (uint16)
-  { "Shutter",      "0102!xx" },
-  { "ShutterOpen",  "0102!00" },
-  { "ShutterClose", "0102!01" },
-  { "ShutterStop",  "0102!02" },
-  { "ShutterLift",  "0102!05/xx" },            // Lift percentage, 0%=open, 100%=closed
-  { "ShutterTilt",  "0102!08/xx" },            // Tilt percentage
-  // Blitzwolf PIR
-  { "",             "EF00!01"},                // Specific decoder for Blitzwolf PIR, empty name means special treatment
-  // Decoders only - normally not used to send, and names may be masked by previous definitions
-  { "Dimmer",       "0008!00/xx" },
-  { "DimmerMove",   "0008!01/xxFF" },
-  { "DimmerStep",   "0008!02/xx19FFFF" },
-  { "DimmerMove",   "0008!05/xxFF" },
-  { "Dimmer+",      "0008!06/00" },
-  { "Dimmer-",      "0008!06/01" },
-  { "DimmerStop",   "0008!07" },
-  { "HueMove",      "0300!01/xx19" },
-  { "HueStep",      "0300!02/xx190A00" },
-  { "SatMove",      "0300!04/xx19" },
-  { "SatStep",      "0300!05/xx190A" },
-  { "ColorMove",    "0300!08/xxxxyyyy" },
-  { "ColorStep",    "0300!09/xxxxyyyy0A00" },
-};
 
 #define ZLE(x) ((x) & 0xFF), ((x) >> 8)     // Little Endian
 
@@ -192,16 +149,16 @@ void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, con
   char hex_char[payload.len()*2+2];
   ToHex_P((unsigned char*)payload.getBuffer(), payload.len(), hex_char, sizeof(hex_char));
 
-  for (uint32_t i = 0; i < sizeof(Z_Commands) / sizeof(Z_Commands[0]); i++) {
-    char command[32];
-    char command_prefix[32];
-    const Z_CommandConverter *conv = &Z_Commands[i];
-    strcpy_P(command, conv->zcl_cmd);
-    // 
-    strcpy_P(command_prefix, conv->zcl_cmd);
-    truncateAtXYZ(command_prefix);
+  // for (uint32_t i = 0; i < sizeof(Z_Commands) / sizeof(Z_Commands[0]); i++) {
+  //   char command[32];
+  //   char command_prefix[32];
+  //   const Z_CommandConverter *conv = &Z_Commands[i];
+  //   strcpy_P(command, conv->zcl_cmd);
+  //   // 
+  //   strcpy_P(command_prefix, conv->zcl_cmd);
+  //   truncateAtXYZ(command_prefix);
     
-  }
+  // }
 
   char attrid_str[12];
   snprintf_P(attrid_str, sizeof(attrid_str), PSTR("%04X!%02X"), cluster, cmd);
@@ -217,8 +174,8 @@ void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, con
 // If not found:
 //  - returns nullptr
 const __FlashStringHelper* zigbeeFindCommand(const char *command, uint16_t *cluster, uint16_t *cmd) {
-  for (uint32_t i = 0; i < sizeof(Z_Commands2) / sizeof(Z_Commands2[0]); i++) {
-    const Z_CommandConverter2 *conv = &Z_Commands2[i];
+  for (uint32_t i = 0; i < sizeof(Z_Commands) / sizeof(Z_Commands[0]); i++) {
+    const Z_CommandConverter *conv = &Z_Commands[i];
     if (0 == strcasecmp_P(command, conv->tasmota_cmd)) {
       *cluster = conv->cluster;
       *cmd = conv->cmd;
