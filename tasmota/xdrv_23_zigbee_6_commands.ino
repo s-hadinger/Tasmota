@@ -115,6 +115,7 @@ const uint8_t CLUSTER_0008[] = { ZLE(0x0000) };    // CurrentLevel
 const uint8_t CLUSTER_0009[] = { ZLE(0x0000) };    // AlarmCount
 const uint8_t CLUSTER_0300[] = { ZLE(0x0000), ZLE(0x0001), ZLE(0x0003), ZLE(0x0004), ZLE(0x0007) };    // Hue, Sat, X, Y, CT
 
+// This callback is registered after a cluster specific command and sends a read command for the same cluster
 int32_t Z_ReadAttrCallback(uint16_t shortaddr, uint16_t cluster, uint16_t endpoint, uint32_t value) {
   size_t         attrs_len = 0;
   const uint8_t* attrs = nullptr;
@@ -141,7 +142,6 @@ int32_t Z_ReadAttrCallback(uint16_t shortaddr, uint16_t cluster, uint16_t endpoi
     ZigbeeZCLSend(shortaddr, cluster, endpoint, ZCL_READ_ATTRIBUTES, false, attrs, attrs_len, false /* we do want a response */);
   }
 }
-
 
 // set a timer to read back the value in the future
 void zigbeeSetCommandTimer(uint16_t shortaddr, uint16_t cluster, uint16_t endpoint) {
@@ -205,8 +205,26 @@ void convertClusterSpecific(JsonObject& json, const char *attrid_str, const SBuf
   json[attrid_str] = hex_char;
 }
 
+// Find the command details by command name
+// Returns if found:
+//  - cluster number
+//  - command number or 0xFFFF if command is part of the variable part
+//  - the payload in the form of a HEX string with x/y/z variables
+// If not found:
+//  - returns nullptr
+const __FlashStringHelper* zigbeeFindCommand2(const char *command, uint16_t *cluster, uint16_t *cmd) {
+  for (uint32_t i = 0; i < sizeof(Z_Commands2) / sizeof(Z_Commands2[0]); i++) {
+    const Z_CommandConverter2 *conv = &Z_Commands2[i];
+    if (0 == strcasecmp_P(command, conv->tasmota_cmd)) {
+      *cluster = conv->cluster;
+      *cmd = conv->cmd;
+      return (const __FlashStringHelper*) conv->param;
+    }
+  }
+
+  return nullptr;
+}
 const __FlashStringHelper* zigbeeFindCommand(const char *command) {
-  char parm_uc[16];   // used to convert JSON keys to uppercase
   for (uint32_t i = 0; i < sizeof(Z_Commands) / sizeof(Z_Commands[0]); i++) {
     const Z_CommandConverter *conv = &Z_Commands[i];
     if (0 == strcasecmp_P(command, conv->tasmota_cmd)) {
