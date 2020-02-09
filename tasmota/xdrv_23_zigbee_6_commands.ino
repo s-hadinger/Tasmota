@@ -126,39 +126,78 @@ inline bool isXYZ(char c) {
   return (c >= 'x') && (c <= 'z');
 }
 
-// truncate at first 'x', 'y' or 'z'
-void truncateAtXYZ(char *p) {
-  while (*p) {
-    if (isXYZ(*p)) {
-      *p = 0;
-      break;
-    }
-    p++;
+inline int8_t hexValue(char c) {
+  if ((c >= '0') && (c <= '9')) {
+    return c - '0';
   }
+  if ((c >= 'A') && (c <= 'F')) {
+    return 10 + c - 'A';
+  }
+  if ((c >= 'a') && (c <= 'f')) {
+    return 10 + c - 'a';
+  }
+  return -1;
 }
 
-// https://stackoverflow.com/questions/4770985/how-to-check-if-a-string-starts-with-another-string-in-c
-bool startsWith(const char *pre, const char *str)
-{
-  size_t lenpre = strlen(pre),
-         lenstr = strlen(str);
-  return lenstr < lenpre ? false : memcmp_P(pre, str, lenpre) == 0;
+// works on big endiand hex only
+uint32_t parseHex_P(const char **data, size_t max_len = 8) {
+  uint32_t ret = 0;
+  for (uint32_t i = 0; i < max_len; i++) {
+    int8_t v = hexValue(pgm_read_byte(*data));
+    if (v < 0) { break; }     // non hex digit, we stop parsing
+    ret = (ret << 4) | v;
+    *data += 1;
+  }
+  return ret;
 }
 
 void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, const SBuffer &payload) {
   char hex_char[payload.len()*2+2];
   ToHex_P((unsigned char*)payload.getBuffer(), payload.len(), hex_char, sizeof(hex_char));
 
-  // for (uint32_t i = 0; i < sizeof(Z_Commands) / sizeof(Z_Commands[0]); i++) {
-  //   char command[32];
-  //   char command_prefix[32];
-  //   const Z_CommandConverter *conv = &Z_Commands[i];
-  //   strcpy_P(command, conv->zcl_cmd);
-  //   // 
-  //   strcpy_P(command_prefix, conv->zcl_cmd);
-  //   truncateAtXYZ(command_prefix);
+  const __FlashStringHelper* command_name = nullptr;
+
+  for (uint32_t i = 0; i < sizeof(Z_Commands) / sizeof(Z_Commands[0]); i++) {
+    const Z_CommandConverter *conv = &Z_Commands[i];
+    if (conv->cluster == cluster) {
+      // cluster match
+      if ((0xFFFF == conv->cmd) || (cmd == conv->cmd)) {
+        // cmd match
+        // check if we have a match for params too
+        // Match if:
+        //  - payload exactly matches conv->param (conv->param may be longer)
+        //  - payload matches conv->param until 'x', 'y' or 'z'
+        const char * p = conv->param;
+        bool match = true;
+        for (uint8_t i = 0; i < payload.len(); i++) {
+          const char c1 = pgm_read_byte(p);
+          const char c2 = pgm_read_byte(p+1);
+          if ((0x00 == c1) || isXYZ(c1)) {
+            break;
+          }
+          const char * p2 = p;
+          if (parseHex_P(&p2, 2) != payload.get8(i)) {
+            match = false;
+            break;
+          }
+        }
+        if (match) {
+          // parse xyz
+          command_name = (const __FlashStringHelper*) conv->tasmota_cmd;
+          break;
+        }
+      }
+    }
+
+
+    // char command[32];
+    // char command_prefix[32];
+    // strcpy_P(command, conv->zcl_cmd);
+    // // 
+    // strcpy_P(command_prefix, conv->zcl_cmd);
+    // truncateAtXYZ(command_prefix);
     
-  // }
+  }
 
   char attrid_str[12];
   snprintf_P(attrid_str, sizeof(attrid_str), PSTR("%04X!%02X"), cluster, cmd);

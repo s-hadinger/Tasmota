@@ -367,30 +367,6 @@ void ZigbeeZCLSend(uint16_t dtsAddr, uint16_t clusterId, uint8_t endpoint, uint8
   ZigbeeZNPSend(buf.getBuffer(), buf.len());
 }
 
-inline int8_t hexValue(char c) {
-  if ((c >= '0') && (c <= '9')) {
-    return c - '0';
-  }
-  if ((c >= 'A') && (c <= 'F')) {
-    return 10 + c - 'A';
-  }
-  if ((c >= 'a') && (c <= 'f')) {
-    return 10 + c - 'a';
-  }
-  return -1;
-}
-
-uint32_t parseHex(const char **data, size_t max_len = 8) {
-  uint32_t ret = 0;
-  for (uint32_t i = 0; i < max_len; i++) {
-    int8_t v = hexValue(**data);
-    if (v < 0) { break; }     // non hex digit, we stop parsing
-    ret = (ret << 4) | v;
-    *data += 1;
-  }
-  return ret;
-}
-
 void zigbeeZCLSendStr2(uint16_t dstAddr, uint8_t endpoint, bool clusterSpecific,
                        uint16_t cluster, uint8_t cmd, const char *param) {
   size_t size = param ? strlen(param) : 0;
@@ -398,7 +374,7 @@ void zigbeeZCLSendStr2(uint16_t dstAddr, uint8_t endpoint, bool clusterSpecific,
 
   if (param) {
     while (*param) {
-      uint8_t code = parseHex(&param, 2);
+      uint8_t code = parseHex_P(&param, 2);
       buf.add8(code);
     }
   }
@@ -433,7 +409,7 @@ void zigbeeZCLSendStr(uint16_t dstAddr, uint8_t endpoint, const char *data) {
   // Parse 'cmd' in the form "AAAA_BB/CCCCCCCC" or "AAAA!BB/CCCCCCCC"
   // where AA is the cluster number, BBBB the command number, CCCC... the payload
   // First delimiter is '_' for a global command, or '!' for a cluster specific commanc
-  cluster = parseHex(&data, 4);
+  cluster = parseHex_P(&data, 4);
 
   // delimiter
   if (('_' == *data) || ('!' == *data)) {
@@ -444,7 +420,7 @@ void zigbeeZCLSendStr(uint16_t dstAddr, uint8_t endpoint, const char *data) {
     return;
   }
   // parse cmd number
-  cmd = parseHex(&data, 2);
+  cmd = parseHex_P(&data, 2);
 
   // move to end of payload
   // delimiter is optional
@@ -454,7 +430,7 @@ void zigbeeZCLSendStr(uint16_t dstAddr, uint8_t endpoint, const char *data) {
   SBuffer buf((size+2)/2);    // actual bytes buffer for data
 
   while (*data) {
-    uint8_t code = parseHex(&data, 2);
+    uint8_t code = parseHex_P(&data, 2);
     buf.add8(code);
   }
 
