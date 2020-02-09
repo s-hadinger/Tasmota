@@ -467,6 +467,9 @@ void CmndZbSend(void) {
   static char delim[] = ", ";     // delimiters for parameters
   uint16_t device = 0xFFFF;       // 0xFFFF is broadcast, so considered valid
   uint8_t  endpoint = 0x00;       // 0x00 is invalid for the dst endpoint
+  // Command elements
+  uint16_t cluster = 0;
+  uint8_t  cmd = 0;
   String   cmd_str = "";          // the actual low-level command, either specified or computed
 
   const JsonVariant &val_device = getCaseInsensitive(json, PSTR("Device"));
@@ -496,8 +499,9 @@ void CmndZbSend(void) {
         String key = it->key;
         JsonVariant& value = it->value;
         uint32_t x = 0, y = 0, z = 0;
+        uint16_t cmd_var;
 
-        const __FlashStringHelper* tasmota_cmd = zigbeeFindCommand(key.c_str());
+        const __FlashStringHelper* tasmota_cmd = zigbeeFindCommand2(key.c_str(), &cluster, &cmd_var);
         if (tasmota_cmd) {
           cmd_str = tasmota_cmd;
         } else {
@@ -533,9 +537,16 @@ void CmndZbSend(void) {
           }
         }
 
-        AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZbSend: command_template = %s"), cmd_str.c_str());
+        //AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZbSend: command_template = %s"), cmd_str.c_str());
+        if (0xFFFF == cmd) {      // if command number is a variable, replace it with x
+          cmd = x;
+          x = y;                  // and shift other variables
+          y = z;
+        } else {
+          cmd = cmd_var;          // or simply copy the cmd number
+        }
         cmd_str = zigbeeCmdAddParams(cmd_str.c_str(), x, y, z);   // fill in parameters
-        AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZbSend: command_final    = %s"), cmd_str.c_str());
+        //AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZbSend: command_final    = %s"), cmd_str.c_str());
       } else {
         // we have zero command, pass through until last error for missing command
       }
@@ -546,8 +557,8 @@ void CmndZbSend(void) {
       // we have an unsupported command type, just ignore it and fallback to missing command
     }
 
-    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZbCmd_actual: ZigbeeZCLSend {\"device\":\"0x%04X\",\"endpoint\":%d,\"send\":\"%s\"}"),
-              device, endpoint, cmd_str.c_str());
+    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZbCmd_actual: ZigbeeZCLSend {\"device\":\"0x%04X\",\"endpoint\":%d,\"send\":\"%04X!%02X/%s\"}"),
+              device, endpoint, cluster, cmd, cmd_str.c_str());
     zigbeeZCLSendStr(device, endpoint, cmd_str.c_str());
   } else {
     Response_P(PSTR("Missing zigbee 'Send'"));
