@@ -26,6 +26,15 @@ typedef struct Z_CommandConverter {
   const char * param;
 } Z_CommandConverter;
 
+typedef struct Z_XYZ_Var {    // Holds values for vairables X, Y and Z
+  uint32_t    x = 0;
+  uint32_t    y = 0;
+  uint32_t    z = 0;
+  uint8_t     x_type = 0;     // 0 = no value, 1 = 1 bytes, 2 = 2 bytes
+  uint8_t     y_type = 0;
+  uint8_t     z_type = 0;
+} Z_XYZ_Var;
+
 // list of post-processing directives
 const Z_CommandConverter Z_Commands[] = {
   { "Power",          0x0006, 0xFFFF, "" },             // 0=Off, 1=On, 2=Toggle
@@ -201,13 +210,6 @@ void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, con
     }
 
 
-    // char command[32];
-    // char command_prefix[32];
-    // strcpy_P(command, conv->zcl_cmd);
-    // // 
-    // strcpy_P(command_prefix, conv->zcl_cmd);
-    // truncateAtXYZ(command_prefix);
-    
   }
 
   if (command_name) {
