@@ -52,7 +52,7 @@ The following binary downloads have been compiled with ESP8266/Arduino library c
 
 ## Changelog
 
-### Version 8.1.0.5
+### Version 8.1.0.7
 
 - Change Lights: simplified gamma correction and 10 bits internal computation
 - Change commands ``Prefix``, ``Ssid``, ``StateText``, ``NTPServer``, and ``FriendlyName`` displaying all items
@@ -97,3 +97,6 @@ The following binary downloads have been compiled with ESP8266/Arduino library c
 - Add support for MI-BLE sensors using HM-10 Bluetooth 4.0 module by Christian Staars (#7683)
 - Add BootCount Reset Time as BCResetTime to ``Status 1``
 - Add ``ZbZNPReceived``and ``ZbZCLReceived`` being published to MQTT when ``SetOption66 1``
+- Add optional Wifi AccessPoint passphrase define WIFI_AP_PASSPHRASE in my_user_config.h (#7690)
+- Add support for FiF LE-01MR energy meter by saper-2 (#7584)
+- Add new DHT driver. The old driver can still be used using define USE_DHT_OLD (#7468)
