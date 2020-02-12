@@ -106,6 +106,7 @@ class SBuffer hibernateDevice(const struct Z_Device &device) {
   buf.add16(device.shortaddr);
   buf.add64(device.longaddr);
   uint32_t endpoints = device.endpoints.size();
+AddLog_P2(LOG_LEVEL_DEBUG, PSTR(">>> hibernateDevice 0x%02X endpoints %d"), device.shortaddr, endpoints);
   if (endpoints > 254) { endpoints = 254; }
   buf.add8(endpoints);
   // iterate on endpoints
