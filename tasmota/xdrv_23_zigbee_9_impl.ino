@@ -586,6 +586,7 @@ void CmndZbProbe(void) {
   if (0xFFFF == shortaddr) { ResponseCmndChar("Invalid parameter"); return; }
 
   // everything is good, we can send the command
+  Z_SendIEEEAddrReq(shortaddr);
   Z_SendActiveEpReq(shortaddr);
   ResponseCmndDone();
 }
