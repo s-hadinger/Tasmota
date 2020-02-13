@@ -187,15 +187,11 @@ void WifiBegin(uint8_t flag, uint8_t channel)
 //  if (WiFi.getPhyMode() != WIFI_PHY_MODE_11N) { WiFi.setPhyMode(WIFI_PHY_MODE_11N); }  // B/G/N
 //  if (WiFi.getPhyMode() != WIFI_PHY_MODE_11G) { WiFi.setPhyMode(WIFI_PHY_MODE_11G); }  // B/G
   if (!WiFi.getAutoConnect()) { WiFi.setAutoConnect(true); }
+
   // Handle the reconnection in WifiCheckIp() since the autoreconnect keeps sending deauthentication messages which causes the AP to block traffic as it looks like an DoS attack
   // This needs to be explicitly called as "false" otherwise the default is enabled
-#ifdef USE_DEEPSLEEP 
-  if (!(DeepSleepEnabled())) { // #7621
-#endif
-    WiFi.setAutoReconnect(false);
-#ifdef USE_DEEPSLEEP
-  }
-#endif
+//    WiFi.setAutoReconnect(false);  // See #7621
+
   switch (flag) {
   case 0:  // AP1
   case 1:  // AP2
@@ -433,6 +429,10 @@ void WifiCheckIp(void)
     WifiSetState(1);
     Wifi.counter = WIFI_CHECK_SEC;
     Wifi.retry = Wifi.retry_init;
+    if (Wifi.status != WL_CONNECTED) {
+      AddLog_P(LOG_LEVEL_INFO, S_LOG_WIFI, PSTR(D_CONNECTED));
+    }
+    Wifi.status = WL_CONNECTED;
 #ifdef USE_DISCOVERY
 #ifdef WEBSERVER_ADVERTISE
     if (2 == Wifi.mdns_begun) {
@@ -454,9 +454,29 @@ void WifiCheckIp(void)
         break;
       case WL_NO_SSID_AVAIL:
         AddLog_P(LOG_LEVEL_INFO, S_LOG_WIFI, PSTR(D_CONNECT_FAILED_AP_NOT_REACHED));
+
+        if (WIFI_WAIT == Settings.sta_config) {
+          Wifi.retry = Wifi.retry_init;
+        } else {
+          if (Wifi.retry > (Wifi.retry_init / 2)) {
+            Wifi.retry = Wifi.retry_init / 2;
+          }
+          else if (Wifi.retry) {
+            Wifi.retry = 0;
+          }
+        }
+
         break;
       case WL_CONNECT_FAILED:
         AddLog_P(LOG_LEVEL_INFO, S_LOG_WIFI, PSTR(D_CONNECT_FAILED_WRONG_PASSWORD));
+
+        if (Wifi.retry > (Wifi.retry_init / 2)) {
+          Wifi.retry = Wifi.retry_init / 2;
+        }
+        else if (Wifi.retry) {
+          Wifi.retry = 0;
+        }
+
         break;
       default:  // WL_IDLE_STATUS and WL_DISCONNECTED
         // log on the 1/2 or full interval
