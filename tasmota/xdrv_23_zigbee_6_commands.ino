@@ -65,7 +65,7 @@ const Z_CommandConverter Z_Commands[] = {
   { "ShutterTilt",    0x0102, 0x08, 0x01,   "xx" },            // Tilt percentage
   { "Shutter",        0x0102, 0xFF, 0x01,   "" },
   // Blitzwolf PIR
-  { "Occupancy",      0xEF00, 0x01, 0x01,   "xx"},                // Specific decoder for Blitzwolf PIR, empty name means special treatment
+  { "Occupancy",      0xEF00, 0x01, 0x02,   "xx"},                // Specific decoder for Blitzwolf PIR, empty name means special treatment
   // Decoders only - normally not used to send, and names may be masked by previous definitions
   { "Dimmer",         0x0008, 0x00, 0x01,   "xx" },
   { "DimmerMove",     0x0008, 0x01, 0x01,   "xx0A" },
@@ -311,12 +311,13 @@ void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, boo
 }
 
 // Find the command details by command name
+// Only take commands outgoing, i.e. direction == 0
 // If not found:
 //  - returns nullptr
 const __FlashStringHelper* zigbeeFindCommand(const char *command, uint16_t *cluster, uint16_t *cmd) {
   for (uint32_t i = 0; i < sizeof(Z_Commands) / sizeof(Z_Commands[0]); i++) {
     const Z_CommandConverter *conv = &Z_Commands[i];
-    if (0 == strcasecmp_P(command, conv->tasmota_cmd)) {
+    if ((conv->direction & 0x01) && (0 == strcasecmp_P(command, conv->tasmota_cmd))) {
       *cluster = conv->cluster;
       *cmd = conv->cmd;
       return (const __FlashStringHelper*) conv->param;
