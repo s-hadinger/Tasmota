@@ -363,6 +363,17 @@ int32_t Z_ReceiveIEEEAddr(int32_t res, const class SBuffer &buf) {
 
     MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCL_RECEIVED));
     XdrvRulesProcess();
+    // Ping response
+    const String * friendlyName = zigbee_devices.getFriendlyName(nwkAddr);
+    if (friendlyName) {
+      Response_P(PSTR("{\"" D_JSON_ZIGBEE_PING "\":{\"" D_JSON_ZIGBEE_DEVICE "\":\"0x%04X\""
+                      ",\"" D_JSON_ZIGBEE_NAME "\":\"%s\"}}"), nwkAddr, friendlyName->c_str());
+    } else {
+      Response_P(PSTR("{\"" D_JSON_ZIGBEE_PING "\":{\"" D_JSON_ZIGBEE_DEVICE "\":\"0x%04X\"}}"), nwkAddr);
+    }
+
+    MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCL_RECEIVED));
+    XdrvRulesProcess();
   }
   return -1;
 }

@@ -194,7 +194,7 @@ void parseXYZ(const char *model, const SBuffer &payload, struct Z_XYZ_Var *xyz) 
   while (c) {
     char c1 = pgm_read_byte(p+1);   // next char
     if (!c1) { break; }   // unexpected end of model
-    if (isXYZ(c) && (c == c1) && (v <= payload.len())) {    // if char is [x-z] and followed by same char
+    if (isXYZ(c) && (c == c1) && (v < payload.len())) {    // if char is [x-z] and followed by same char
       uint8_t val = payload.get8(v);
       switch (c) {
         case 'x':
@@ -206,7 +206,7 @@ void parseXYZ(const char *model, const SBuffer &payload, struct Z_XYZ_Var *xyz) 
           xyz->y_type++;
           break;
         case 'z':
-          xyz->z = xyz->x | (val << (xyz->z_type * 8));
+          xyz->z = xyz->z | (val << (xyz->z_type * 8));
           xyz->z_type++;
           break;
       }

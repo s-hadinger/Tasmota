@@ -33,19 +33,22 @@ const char kZbCommands[] PROGMEM = D_PRFX_ZB "|"    // prefix
   D_CMND_ZIGBEEZNPSEND "|" D_CMND_ZIGBEE_PERMITJOIN "|"
   D_CMND_ZIGBEE_STATUS "|" D_CMND_ZIGBEE_RESET "|" D_CMND_ZIGBEE_SEND "|"
   D_CMND_ZIGBEE_PROBE "|" D_CMND_ZIGBEE_READ "|" D_CMND_ZIGBEEZNPRECEIVE "|"
-  D_CMND_ZIGBEE_FORGET "|" D_CMND_ZIGBEE_SAVE "|" D_CMND_ZIGBEE_NAME "|" D_CMND_ZIGBEE_BIND ;
+  D_CMND_ZIGBEE_FORGET "|" D_CMND_ZIGBEE_SAVE "|" D_CMND_ZIGBEE_NAME "|" D_CMND_ZIGBEE_BIND "|"
+  D_CMND_ZIGBEE_PING ;
 
 const char kZigbeeCommands[] PROGMEM = D_PRFX_ZIGBEE "|"    // legacy prefix -- deprecated
   D_CMND_ZIGBEEZNPSEND "|" D_CMND_ZIGBEE_PERMITJOIN "|"
   D_CMND_ZIGBEE_STATUS "|" D_CMND_ZIGBEE_RESET "|" D_CMND_ZIGBEE_SEND "|"
   D_CMND_ZIGBEE_PROBE "|" D_CMND_ZIGBEE_READ "|" D_CMND_ZIGBEEZNPRECEIVE "|"
-  D_CMND_ZIGBEE_FORGET "|" D_CMND_ZIGBEE_SAVE "|" D_CMND_ZIGBEE_NAME "|" D_CMND_ZIGBEE_BIND ;
+  D_CMND_ZIGBEE_FORGET "|" D_CMND_ZIGBEE_SAVE "|" D_CMND_ZIGBEE_NAME "|" D_CMND_ZIGBEE_BIND "|"
+  D_CMND_ZIGBEE_PING ;
 
 void (* const ZigbeeCommand[])(void) PROGMEM = {
   &CmndZbZNPSend, &CmndZbPermitJoin,
   &CmndZbStatus, &CmndZbReset, &CmndZbSend,
   &CmndZbProbe, &CmndZbRead, &CmndZbZNPReceive,
-  &CmndZbForget, &CmndZbSave, &CmndZbName, &CmndZbBind
+  &CmndZbForget, &CmndZbSave, &CmndZbName, &CmndZbBind,
+  &CmndZbPing,
   };
 
 int32_t ZigbeeProcessInput(class SBuffer &buf) {
@@ -581,6 +584,10 @@ void CmndZbBind(void) {
 
 // Probe a specific device to get its endpoints and supported clusters
 void CmndZbProbe(void) {
+  CmndZbProbeOrPing(true);
+}
+
+void CmndZbProbeOrPing(boolean probe) {
   if (zigbee.init_phase) { ResponseCmndChar(D_ZIGBEE_NOT_STARTED); return; }
   uint16_t shortaddr = zigbee_devices.parseDeviceParam(XdrvMailbox.data);
   if (0x0000 == shortaddr) { ResponseCmndChar("Unknown device"); return; }
@@ -588,8 +595,15 @@ void CmndZbProbe(void) {
 
   // everything is good, we can send the command
   Z_SendIEEEAddrReq(shortaddr);
-  Z_SendActiveEpReq(shortaddr);
+  if (probe) {
+    Z_SendActiveEpReq(shortaddr);
+  }
   ResponseCmndDone();
+}
+
+// Ping a device, actually a simplified version of ZbProbe
+void CmndZbPing(void) {
+  CmndZbProbeOrPing(false);
 }
 
 // Specify, read or erase a Friendly Name
