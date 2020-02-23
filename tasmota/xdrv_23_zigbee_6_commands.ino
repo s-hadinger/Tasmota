@@ -22,7 +22,8 @@
 typedef struct Z_CommandConverter {
   const char * tasmota_cmd;
   uint16_t     cluster;
-  uint16_t     cmd;       // normally 8 bits, 0xFFFF means it's a parameter
+  uint8_t      cmd;         // normally 8 bits, 0xFF means it's a parameter
+  uint8_t      direction;   // direction of the command. 0x01 client->server, 0x02 server->client, 0x03 both
   const char * param;
 } Z_CommandConverter;
 
@@ -38,51 +39,51 @@ typedef struct Z_XYZ_Var {    // Holds values for vairables X, Y and Z
 // list of post-processing directives
 const Z_CommandConverter Z_Commands[] = {
   // Group adress commands
-  { "AddGroup",       0x0004, 0x00,   "xxxx00" },       // Add group id, group name is not supported
-  { "ViewGroup",      0x0004, 0x01,   "xxxx" },         // Ask for the group name
-  { "GetGroup",       0x0004, 0x02,   "01xxxx" },       // Get one group membership
-  { "GetAllGroups",   0x0004, 0x02,   "00" },           // Get all groups membership
-  { "RemoveGroup",    0x0004, 0x03,   "xxxx" },         // Remove one group
-  { "RemoveAllGroups",0x0004, 0x04,   "" },             // Remove all groups
+  { "AddGroup",       0x0004, 0x00, 0x01,   "xxxx00" },       // Add group id, group name is not supported
+  { "ViewGroup",      0x0004, 0x01, 0x01,   "xxxx" },         // Ask for the group name
+  { "GetGroup",       0x0004, 0x02, 0x01,   "01xxxx" },       // Get one group membership
+  { "GetAllGroups",   0x0004, 0x02, 0x01,   "00" },           // Get all groups membership
+  { "RemoveGroup",    0x0004, 0x03, 0x01,   "xxxx" },         // Remove one group
+  { "RemoveAllGroups",0x0004, 0x04, 0x01,   "" },             // Remove all groups
   // Light & Shutter commands
-  { "Power",          0x0006, 0xFFFF, "" },             // 0=Off, 1=On, 2=Toggle
-  { "Dimmer",         0x0008, 0x04,   "xx0A00" },       // Move to Level with On/Off, xx=0..254 (255 is invalid)
-  { "Dimmer+",        0x0008, 0x06,   "001902" },       // Step up by 10%, 0.2 secs
-  { "Dimmer-",        0x0008, 0x06,   "011902" },       // Step down by 10%, 0.2 secs
-  { "DimmerStop",     0x0008, 0x03,   "" },             // Stop any Dimmer animation
-  { "ResetAlarm",     0x0009, 0x00,   "xxyyyy" },       // Reset alarm (alarm code + cluster identifier)
-  { "ResetAllAlarms", 0x0009, 0x01,   "" },             // Reset all alarms
-  { "Hue",            0x0300, 0x00,   "xx000A00" },     // Move to Hue, shortest time, 1s
-  { "Sat",            0x0300, 0x03,   "xx0A00" },       // Move to Sat
-  { "HueSat",         0x0300, 0x06,   "xxyy0A00" },     // Hue, Sat
-  { "Color",          0x0300, 0x07,   "xxxxyyyy0A00" }, // x, y (uint16)
-  { "CT",             0x0300, 0x0A,   "xxxx0A00" },     // Color Temperature Mireds (uint16)
-  { "ShutterOpen",    0x0102, 0x00,   "" },
-  { "ShutterClose",   0x0102, 0x01,   "" },
-  { "ShutterStop",    0x0102, 0x02,   "" },
-  { "ShutterLift",    0x0102, 0x05,   "xx" },            // Lift percentage, 0%=open, 100%=closed
-  { "ShutterTilt",    0x0102, 0x08,   "xx" },            // Tilt percentage
-  { "Shutter",        0x0102, 0xFFFF, "" },
+  { "Power",          0x0006, 0xFF, 0x01,   "" },             // 0=Off, 1=On, 2=Toggle
+  { "Dimmer",         0x0008, 0x04, 0x01,   "xx0A00" },       // Move to Level with On/Off, xx=0..254 (255 is invalid)
+  { "Dimmer+",        0x0008, 0x06, 0x01,   "001902" },       // Step up by 10%, 0.2 secs
+  { "Dimmer-",        0x0008, 0x06, 0x01,   "011902" },       // Step down by 10%, 0.2 secs
+  { "DimmerStop",     0x0008, 0x03, 0x01,   "" },             // Stop any Dimmer animation
+  { "ResetAlarm",     0x0009, 0x00, 0x01,   "xxyyyy" },       // Reset alarm (alarm code + cluster identifier)
+  { "ResetAllAlarms", 0x0009, 0x01, 0x01,   "" },             // Reset all alarms
+  { "Hue",            0x0300, 0x00, 0x01,   "xx000A00" },     // Move to Hue, shortest time, 1s
+  { "Sat",            0x0300, 0x03, 0x01,   "xx0A00" },       // Move to Sat
+  { "HueSat",         0x0300, 0x06, 0x01,   "xxyy0A00" },     // Hue, Sat
+  { "Color",          0x0300, 0x07, 0x01,   "xxxxyyyy0A00" }, // x, y (uint16)
+  { "CT",             0x0300, 0x0A, 0x01,   "xxxx0A00" },     // Color Temperature Mireds (uint16)
+  { "ShutterOpen",    0x0102, 0x00, 0x01,   "" },
+  { "ShutterClose",   0x0102, 0x01, 0x01,   "" },
+  { "ShutterStop",    0x0102, 0x02, 0x01,   "" },
+  { "ShutterLift",    0x0102, 0x05, 0x01,   "xx" },            // Lift percentage, 0%=open, 100%=closed
+  { "ShutterTilt",    0x0102, 0x08, 0x01,   "xx" },            // Tilt percentage
+  { "Shutter",        0x0102, 0xFF, 0x01,   "" },
   // Blitzwolf PIR
-  { "",               0xEF00, 0x01,   ""},                // Specific decoder for Blitzwolf PIR, empty name means special treatment
+  { "Occupancy",      0xEF00, 0x01, 0x01,   "xx"},                // Specific decoder for Blitzwolf PIR, empty name means special treatment
   // Decoders only - normally not used to send, and names may be masked by previous definitions
-  { "Dimmer",         0x0008, 0x00,   "xx" },
-  { "DimmerMove",     0x0008, 0x01,   "xx0A" },
-  { "DimmerStep",     0x0008, 0x02,   "xx190A00" },
-  { "DimmerMove",     0x0008, 0x05,   "xx0A" },
-  { "Dimmer+",        0x0008, 0x06,   "00" },
-  { "Dimmer-",        0x0008, 0x06,   "01" },
-  { "DimmerStop",     0x0008, 0x07,   "" },
-  { "HueMove",        0x0300, 0x01,   "xx19" },
-  { "HueStep",        0x0300, 0x02,   "xx190A00" },
-  { "SatMove",        0x0300, 0x04,   "xx19" },
-  { "SatStep",        0x0300, 0x05,   "xx190A" },
-  { "ColorMove",      0x0300, 0x08,   "xxxxyyyy" },
-  { "ColorStep",      0x0300, 0x09,   "xxxxyyyy0A00" },
+  { "Dimmer",         0x0008, 0x00, 0x01,   "xx" },
+  { "DimmerMove",     0x0008, 0x01, 0x01,   "xx0A" },
+  { "DimmerStep",     0x0008, 0x02, 0x01,   "xx190A00" },
+  { "DimmerMove",     0x0008, 0x05, 0x01,   "xx0A" },
+  { "Dimmer+",        0x0008, 0x06, 0x01,   "00" },
+  { "Dimmer-",        0x0008, 0x06, 0x01,   "01" },
+  { "DimmerStop",     0x0008, 0x07, 0x01,   "" },
+  { "HueMove",        0x0300, 0x01, 0x01,   "xx19" },
+  { "HueStep",        0x0300, 0x02, 0x01,   "xx190A00" },
+  { "SatMove",        0x0300, 0x04, 0x01,   "xx19" },
+  { "SatStep",        0x0300, 0x05, 0x01,   "xx190A" },
+  { "ColorMove",      0x0300, 0x08, 0x01,   "xxxxyyyy" },
+  { "ColorStep",      0x0300, 0x09, 0x01,   "xxxxyyyy0A00" },
   // Tradfri
-  { "ArrowClick",    0x0005, 0x07,   "xx" },         // xx == 0x01 = left, 0x00 = right
-  { "ArrowHold",     0x0005, 0x08,   "xx" },         // xx == 0x01 = left, 0x00 = right
-  { "ArrowRelease",  0x0005, 0x09,   "" },
+  { "ArrowClick",    0x0005, 0x07, 0x01,   "xx" },         // xx == 0x01 = left, 0x00 = right
+  { "ArrowHold",     0x0005, 0x08, 0x01,   "xx" },         // xx == 0x01 = left, 0x00 = right
+  { "ArrowRelease",  0x0005, 0x09, 0x01,   "" },
 };
 
 
@@ -173,6 +174,7 @@ uint32_t parseHex_P(const char **data, size_t max_len = 8) {
   return ret;
 }
 
+// Parse a cluster specific command, and try to convert into human readable
 void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, bool direction, const SBuffer &payload) {
   char hex_char[payload.len()*2+2];
   ToHex_P((unsigned char*)payload.getBuffer(), payload.len(), hex_char, sizeof(hex_char));
@@ -184,35 +186,37 @@ void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, boo
     const Z_CommandConverter *conv = &Z_Commands[i];
     if (conv->cluster == cluster) {
       // cluster match
-      if ((0xFFFF == conv->cmd) || (cmd == conv->cmd)) {
-        // cmd match
-        // check if we have a match for params too
-        // Match if:
-        //  - payload exactly matches conv->param (conv->param may be longer)
-        //  - payload matches conv->param until 'x', 'y' or 'z'
-        const char * p = conv->param;
-//AddLog_P2(LOG_LEVEL_INFO, PSTR(">>>++1 param = %s"), p);
-        bool match = true;
-        for (uint8_t i = 0; i < payload.len(); i++) {
-          const char c1 = pgm_read_byte(p);
-          const char c2 = pgm_read_byte(p+1);
-//AddLog_P2(LOG_LEVEL_INFO, PSTR(">>>++2 c1 = %c, c2 = %c"), c1, c2);
-          if ((0x00 == c1) || isXYZ(c1)) {
+      if ((0xFF == conv->cmd) || (cmd == conv->cmd)) {
+          // cmd match
+        if ((direction && (conv->direction & 0x02)) || (!direction && (conv->direction & 0x01))) {
+          // check if we have a match for params too
+          // Match if:
+          //  - payload exactly matches conv->param (conv->param may be longer)
+          //  - payload matches conv->param until 'x', 'y' or 'z'
+          const char * p = conv->param;
+  //AddLog_P2(LOG_LEVEL_INFO, PSTR(">>>++1 param = %s"), p);
+          bool match = true;
+          for (uint8_t i = 0; i < payload.len(); i++) {
+            const char c1 = pgm_read_byte(p);
+            const char c2 = pgm_read_byte(p+1);
+  //AddLog_P2(LOG_LEVEL_INFO, PSTR(">>>++2 c1 = %c, c2 = %c"), c1, c2);
+            if ((0x00 == c1) || isXYZ(c1)) {
+              break;
+            }
+            const char * p2 = p;
+            uint32_t nextbyte = parseHex_P(&p2, 2);
+  //AddLog_P2(LOG_LEVEL_INFO, PSTR(">>>++3 parseHex_P = %02X"), nextbyte);
+            if (nextbyte != payload.get8(i)) {
+              match = false;
+              break;
+            }
+            p += 2;
+          }
+          if (match) {
+            // parse xyz
+            command_name = (const __FlashStringHelper*) conv->tasmota_cmd;
             break;
           }
-          const char * p2 = p;
-          uint32_t nextbyte = parseHex_P(&p2, 2);
-//AddLog_P2(LOG_LEVEL_INFO, PSTR(">>>++3 parseHex_P = %02X"), nextbyte);
-          if (nextbyte != payload.get8(i)) {
-            match = false;
-            break;
-          }
-          p += 2;
-        }
-        if (match) {
-          // parse xyz
-          command_name = (const __FlashStringHelper*) conv->tasmota_cmd;
-          break;
         }
       }
     }
@@ -220,20 +224,25 @@ void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, boo
 
   }
 
+  char attrid_str[12];
+  snprintf_P(attrid_str, sizeof(attrid_str), PSTR("%04X!%02X"), cluster, cmd);
+
+  json[attrid_str] = hex_char;
+
   if (command_name) {
     json[command_name] = true;
-  } else {
-    char attrid_str[12];
-    snprintf_P(attrid_str, sizeof(attrid_str), PSTR("%04X!%02X"), cluster, cmd);
+  // } else {
+  //   char attrid_str[12];
+  //   snprintf_P(attrid_str, sizeof(attrid_str), PSTR("%04X!%02X"), cluster, cmd);
 
-    json[attrid_str] = hex_char;
+  //   json[attrid_str] = hex_char;
   }
 }
 
 // Find the command details by command name
 // Returns if found:
 //  - cluster number
-//  - command number or 0xFFFF if command is part of the variable part
+//  - command number or 0xFF if command is part of the variable part
 //  - the payload in the form of a HEX string with x/y/z variables
 // If not found:
 //  - returns nullptr
