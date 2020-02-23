@@ -163,6 +163,10 @@ inline int8_t hexValue(char c) {
 }
 
 // works on big endiand hex only
+// Returns if found:
+//  - cluster number
+//  - command number or 0xFF if command is part of the variable part
+//  - the payload in the form of a HEX string with x/y/z variables
 uint32_t parseHex_P(const char **data, size_t max_len = 8) {
   uint32_t ret = 0;
   for (uint32_t i = 0; i < max_len; i++) {
@@ -176,8 +180,10 @@ uint32_t parseHex_P(const char **data, size_t max_len = 8) {
 
 // Parse a cluster specific command, and try to convert into human readable
 void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, bool direction, const SBuffer &payload) {
-  char hex_char[payload.len()*2+2];
-  ToHex_P((unsigned char*)payload.getBuffer(), payload.len(), hex_char, sizeof(hex_char));
+  size_t hex_char_len = payload.len()*2+2;
+  char *hex_char = (char*) malloc(hex_char_len);
+  if (!hex_char) { return; }
+  ToHex_P((unsigned char*)payload.getBuffer(), payload.len(), hex_char, hex_char_len);
 
   const __FlashStringHelper* command_name = nullptr;
 
@@ -224,10 +230,13 @@ void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, boo
 
   }
 
+  // always report attribute in raw format
+  // Format: "0001!06": "00" = "<cluster>!<cmd>": "<payload>" for commands to devices
+  // Format: "0004<00": "00" = "<cluster><<cmd>": "<payload>" for commands to devices
   char attrid_str[12];
-  snprintf_P(attrid_str, sizeof(attrid_str), PSTR("%04X!%02X"), cluster, cmd);
-
+  snprintf_P(attrid_str, sizeof(attrid_str), PSTR("%04X%c%02X"), cluster, direction ? '<' : '!', cmd);
   json[attrid_str] = hex_char;
+  free(hex_char);
 
   if (command_name) {
     json[command_name] = true;
@@ -240,10 +249,6 @@ void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, boo
 }
 
 // Find the command details by command name
-// Returns if found:
-//  - cluster number
-//  - command number or 0xFF if command is part of the variable part
-//  - the payload in the form of a HEX string with x/y/z variables
 // If not found:
 //  - returns nullptr
 const __FlashStringHelper* zigbeeFindCommand(const char *command, uint16_t *cluster, uint16_t *cmd) {
