@@ -169,43 +169,6 @@ enum Z_configuration {
   ZNP_HAS_CONFIGURED = 0xF00
 };
 
-// enum Z_nvItemIds {
-//   SCENE_TABLE = 145,
-//   MIN_FREE_NWK_ADDR = 146,
-//   MAX_FREE_NWK_ADDR = 147,
-//   MIN_FREE_GRP_ID = 148,
-//   MAX_FREE_GRP_ID = 149,
-//   MIN_GRP_IDS = 150,
-//   MAX_GRP_IDS = 151,
-//   OTA_BLOCK_REQ_DELAY = 152,
-//   SAPI_ENDPOINT = 161,
-//   SAS_SHORT_ADDR = 177,
-//   SAS_EXT_PANID = 178,
-//   SAS_PANID = 179,
-//   SAS_CHANNEL_MASK = 180,
-//   SAS_PROTOCOL_VER = 181,
-//   SAS_STACK_PROFILE = 182,
-//   SAS_STARTUP_CTRL = 183,
-//   SAS_TC_ADDR = 193,
-//   SAS_TC_MASTER_KEY = 194,
-//   SAS_NWK_KEY = 195,
-//   SAS_USE_INSEC_JOIN = 196,
-//   SAS_PRECFG_LINK_KEY = 197,
-//   SAS_NWK_KEY_SEQ_NUM = 198,
-//   SAS_NWK_KEY_TYPE = 199,
-//   SAS_NWK_MGR_ADDR = 200,
-//   SAS_CURR_TC_MASTER_KEY = 209,
-//   SAS_CURR_NWK_KEY = 210,
-//   SAS_CURR_PRECFG_LINK_KEY = 211,
-//   TCLK_TABLE_START = 257,
-//   TCLK_TABLE_END = 511,
-//   APS_LINK_KEY_DATA_START = 513,
-//   APS_LINK_KEY_DATA_END = 767,
-//   DUPLICATE_BINDING_TABLE = 768,
-//   DUPLICATE_DEVICE_LIST = 769,
-//   DUPLICATE_DEVICE_LIST_KA_TIMEOUT = 770,
-//};
-
 //
 enum Z_Status {
   Z_Success = 0x00,
@@ -261,16 +224,6 @@ enum Z_Device_Ids {
   // 0x0403	IAS Warning Device
 };
 
-// enum class AddrMode : uint8_t {
-//   NotPresent = 0,
-//   Group = 1,
-//   ShortAddress = 2,
-//   IEEEAddress = 3,
-//   Broadcast = 0xFF
-// };
-//
-//
-//
 // Commands in the AF subsystem
 enum AfCommand : uint8_t {
   AF_REGISTER = 0x00,
@@ -286,7 +239,7 @@ enum AfCommand : uint8_t {
   AF_INCOMING_MSG = 0x81,
   AF_INCOMING_MSG_EXT = 0x82
 };
-//
+
 // Commands in the ZDO subsystem
 enum : uint8_t {
   ZDO_NWK_ADDR_REQ = 0x00,
@@ -371,7 +324,7 @@ enum ZdoStates {
   ZDO_DEV_ZB_COORD = 0x09,          // Started as a a Zigbee Coordinator
   ZDO_DEV_NWK_ORPHAN = 0x0A,        // Device has lost information about its parent.
 };
-//
+
 // Commands in the UTIL subsystem
 enum Z_Util {
   Z_UTIL_GET_DEVICE_INFO = 0x00,

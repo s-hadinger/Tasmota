@@ -49,9 +49,6 @@ typedef union Zigbee_Instruction {
     uint16_t d16;    // 16 bits data
   } i;
   const void *p;              // pointer
-  // const void *m;           // for type checking only, message
-  // const ZB_Func f;
-  // const ZB_RecvMsgFunc fr;
 } Zigbee_Instruction;
 //
 // Zigbee_Instruction z1 = { .i = {1,2,3}};

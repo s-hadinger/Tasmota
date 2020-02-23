@@ -36,13 +36,6 @@ const char kZbCommands[] PROGMEM = D_PRFX_ZB "|"    // prefix
   D_CMND_ZIGBEE_FORGET "|" D_CMND_ZIGBEE_SAVE "|" D_CMND_ZIGBEE_NAME "|" D_CMND_ZIGBEE_BIND "|"
   D_CMND_ZIGBEE_PING ;
 
-const char kZigbeeCommands[] PROGMEM = D_PRFX_ZIGBEE "|"    // legacy prefix -- deprecated
-  D_CMND_ZIGBEEZNPSEND "|" D_CMND_ZIGBEE_PERMITJOIN "|"
-  D_CMND_ZIGBEE_STATUS "|" D_CMND_ZIGBEE_RESET "|" D_CMND_ZIGBEE_SEND "|"
-  D_CMND_ZIGBEE_PROBE "|" D_CMND_ZIGBEE_READ "|" D_CMND_ZIGBEEZNPRECEIVE "|"
-  D_CMND_ZIGBEE_FORGET "|" D_CMND_ZIGBEE_SAVE "|" D_CMND_ZIGBEE_NAME "|" D_CMND_ZIGBEE_BIND "|"
-  D_CMND_ZIGBEE_PING ;
-
 void (* const ZigbeeCommand[])(void) PROGMEM = {
   &CmndZbZNPSend, &CmndZbPermitJoin,
   &CmndZbStatus, &CmndZbReset, &CmndZbSend,
@@ -775,7 +768,6 @@ bool Xdrv23(uint8_t function)
       case FUNC_LOOP:
         if (ZigbeeSerial) { ZigbeeInput(); }
 				if (zigbee.state_machine) {
-					//ZigbeeStateMachine();
           ZigbeeStateMachine_Run();
 				}
         break;
@@ -784,7 +776,6 @@ bool Xdrv23(uint8_t function)
         break;
       case FUNC_COMMAND:
         result = DecodeCommand(kZbCommands, ZigbeeCommand);
-        result = result || DecodeCommand(kZigbeeCommands, ZigbeeCommand);   // deprecated
         break;
     }
   }
