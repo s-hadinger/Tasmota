@@ -37,6 +37,14 @@ typedef struct Z_XYZ_Var {    // Holds values for vairables X, Y and Z
 
 // list of post-processing directives
 const Z_CommandConverter Z_Commands[] = {
+  // Group adress commands
+  { "AddGroup",       0x0004, 0x00,   "xxxx00" },       // Add group id, group name is not supported
+  { "ViewGroup",      0x0004, 0x01,   "xxxx" },         // Ask for the group name
+  { "GetGroup",       0x0004, 0x02,   "01xxxx" },       // Get one group membership
+  { "GetAllGroups",   0x0004, 0x02,   "00" },           // Get all groups membership
+  { "RemoveGroup",    0x0004, 0x03,   "xxxx" },         // Remove one group
+  { "RemoveAllGroups",0x0004, 0x04,   "" },             // Remove all groups
+  // Light & Shutter commands
   { "Power",          0x0006, 0xFFFF, "" },             // 0=Off, 1=On, 2=Toggle
   { "Dimmer",         0x0008, 0x04,   "xx0A00" },       // Move to Level with On/Off, xx=0..254 (255 is invalid)
   { "Dimmer+",        0x0008, 0x06,   "001902" },       // Step up by 10%, 0.2 secs
@@ -165,7 +173,7 @@ uint32_t parseHex_P(const char **data, size_t max_len = 8) {
   return ret;
 }
 
-void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, const SBuffer &payload) {
+void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, bool direction, const SBuffer &payload) {
   char hex_char[payload.len()*2+2];
   ToHex_P((unsigned char*)payload.getBuffer(), payload.len(), hex_char, sizeof(hex_char));
 

@@ -487,7 +487,7 @@ void ZCLFrame::parseReadAttributes(JsonObject& json, uint8_t offset) {
 
 // Parse non-normalized attributes
 void ZCLFrame::parseClusterSpecificCommand(JsonObject& json, uint8_t offset) {
-  convertClusterSpecific(json, _cluster_id, _cmd_id, _payload);
+  convertClusterSpecific(json, _cluster_id, _cmd_id, _frame_control.b.direction, _payload);
 }
 
 // return value:
