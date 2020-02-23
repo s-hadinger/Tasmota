@@ -145,10 +145,14 @@ void zigbeeSetCommandTimer(uint16_t shortaddr, uint16_t cluster, uint16_t endpoi
   }
 }
 
+// returns true if char is 'x', 'y' or 'z'
 inline bool isXYZ(char c) {
   return (c >= 'x') && (c <= 'z');
 }
 
+// returns the Hex value of a digit [0-9A-Fa-f]
+// return: 0x00-0x0F
+// or -1 if cannot be parsed
 inline int8_t hexValue(char c) {
   if ((c >= '0') && (c <= '9')) {
     return c - '0';
@@ -162,11 +166,7 @@ inline int8_t hexValue(char c) {
   return -1;
 }
 
-// works on big endiand hex only
-// Returns if found:
-//  - cluster number
-//  - command number or 0xFF if command is part of the variable part
-//  - the payload in the form of a HEX string with x/y/z variables
+// Parse a Big Endian suite of max_len digits, or stops when a non-hex digit is found
 uint32_t parseHex_P(const char **data, size_t max_len = 8) {
   uint32_t ret = 0;
   for (uint32_t i = 0; i < max_len; i++) {
@@ -178,6 +178,48 @@ uint32_t parseHex_P(const char **data, size_t max_len = 8) {
   return ret;
 }
 
+// Parse a model like "xxyy00"
+// and fill x, y and z values
+// Little Endian encoding
+// On exit, xyz is updated, and x_type, y_type, z_type contain the number of bytes read for each
+void parseXYZ(const char *model, const SBuffer &payload, struct Z_XYZ_Var *xyz) {
+  const char *p = model;    // pointer to the model character
+  uint32_t   v = 0;         // index in the payload bytes buffer
+  char c = pgm_read_byte(p);  // cur char
+  while (c) {
+    char c1 = pgm_read_byte(p+1);   // next char
+    if (!c1) { break; }   // unexpected end of model
+    if (isXYZ(c) && (c == c1)) {    // if char is [x-z] and followed by same char
+      uint8_t val = payload.get8(v);
+      switch (c) {
+        case 'x':
+          xyz->x = xyz->x | (val << (xyz->x_type * 8));
+          xyz->x_type++;
+          break;
+        case 'y':
+          xyz->y = xyz->y | (val << (xyz->y_type * 8));
+          xyz->y_type++;
+          break;
+        case 'z':
+          xyz->z = xyz->x | (val << (xyz->z_type * 8));
+          xyz->z_type++;
+          break;
+      }
+    }
+    p += 2;
+    v++;
+    c = pgm_read_byte(p);
+  }
+}
+
+// works on big endiand hex only
+// Returns if found:
+//  - cluster number
+//  - command number or 0xFF if command is part of the variable part
+//  - the payload in the form of a HEX string with x/y/z variables
+
+
+
 // Parse a cluster specific command, and try to convert into human readable
 void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, bool direction, const SBuffer &payload) {
   size_t hex_char_len = payload.len()*2+2;
@@ -186,6 +228,7 @@ void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, boo
   ToHex_P((unsigned char*)payload.getBuffer(), payload.len(), hex_char, hex_char_len);
 
   const __FlashStringHelper* command_name = nullptr;
+  Z_XYZ_Var xyz;
 
 //AddLog_P2(LOG_LEVEL_INFO, PSTR(">>> len = %d - %02X%02X%02X"), payload.len(), payload.get8(0), payload.get8(1), payload.get8(2));
   for (uint32_t i = 0; i < sizeof(Z_Commands) / sizeof(Z_Commands[0]); i++) {
@@ -219,15 +262,22 @@ void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, boo
             p += 2;
           }
           if (match) {
-            // parse xyz
             command_name = (const __FlashStringHelper*) conv->tasmota_cmd;
+            parseXYZ(conv->param, payload, &xyz);
+            if (0xFF == conv->cmd) {
+              // shift all values
+              xyz.z = xyz.y;
+              xyz.z_type = xyz.y_type;
+              xyz.y = xyz.x;
+              xyz.y_type = xyz.x_type;
+              xyz.x = cmd;
+              xyz.x_type = 1;   // 1 byte
+            }
             break;
           }
         }
       }
     }
-
-
   }
 
   // always report attribute in raw format
@@ -239,12 +289,15 @@ void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, boo
   free(hex_char);
 
   if (command_name) {
-    json[command_name] = true;
-  // } else {
-  //   char attrid_str[12];
-  //   snprintf_P(attrid_str, sizeof(attrid_str), PSTR("%04X!%02X"), cluster, cmd);
-
-  //   json[attrid_str] = hex_char;
+    if (0 == xyz.x_type) {
+      json[command_name] = true;    // no parameter
+    } else if (0 == xyz.y_type) {
+      json[command_name] = xyz.x;       // 1 parameter
+    } else if (0 == xyz.z_type) {
+      json[command_name] = xyz.x;       // 2 parameters
+    } else {
+      json[command_name] = xyz.x;       // 3 parameters
+    }
   }
 }
 
