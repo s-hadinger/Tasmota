@@ -494,7 +494,7 @@ void CmndZbSend(void) {
         }
 
         //AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZbSend: command_template = %s"), cmd_str.c_str());
-        if (0xFFFF == cmd_var) {      // if command number is a variable, replace it with x
+        if (0xFF == cmd_var) {      // if command number is a variable, replace it with x
           cmd = x;
           x = y;                  // and shift other variables
           y = z;
