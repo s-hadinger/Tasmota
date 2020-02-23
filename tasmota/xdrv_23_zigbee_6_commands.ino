@@ -81,9 +81,14 @@ const Z_CommandConverter Z_Commands[] = {
   { "ColorMove",      0x0300, 0x08, 0x01,   "xxxxyyyy" },
   { "ColorStep",      0x0300, 0x09, 0x01,   "xxxxyyyy0A00" },
   // Tradfri
-  { "ArrowClick",    0x0005, 0x07, 0x01,   "xx" },         // xx == 0x01 = left, 0x00 = right
-  { "ArrowHold",     0x0005, 0x08, 0x01,   "xx" },         // xx == 0x01 = left, 0x00 = right
-  { "ArrowRelease",  0x0005, 0x09, 0x01,   "" },
+  { "ArrowClick",     0x0005, 0x07, 0x01,   "xx" },         // xx == 0x01 = left, 0x00 = right
+  { "ArrowHold",      0x0005, 0x08, 0x01,   "xx" },         // xx == 0x01 = left, 0x00 = right
+  { "ArrowRelease",   0x0005, 0x09, 0x01,   "" },
+  // responses for Group cluster commands
+  { "AddGroupResp",   0x0004, 0x00, 0x02,   "xxyyyy" },       // xx = status, yy = group id
+  { "ViewGroupResp",  0x0004, 0x01, 0x02,   "xxyyyy" },       // xx = status, yy = group id, name ignored
+  { "GetGroupResp",   0x0004, 0x02, 0x02,   "xxyyzzzz" },     // xx = capacity, yy = count, zzzz = first group id, following groups ignored
+  { "RemoveGroup",    0x0004, 0x03, 0x02,   "xxyyyy" },       // xx = status, yy = group id
 };
 
 
@@ -189,7 +194,7 @@ void parseXYZ(const char *model, const SBuffer &payload, struct Z_XYZ_Var *xyz) 
   while (c) {
     char c1 = pgm_read_byte(p+1);   // next char
     if (!c1) { break; }   // unexpected end of model
-    if (isXYZ(c) && (c == c1)) {    // if char is [x-z] and followed by same char
+    if (isXYZ(c) && (c == c1) && (v <= payload.len())) {    // if char is [x-z] and followed by same char
       uint8_t val = payload.get8(v);
       switch (c) {
         case 'x':
@@ -293,10 +298,14 @@ void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, boo
       json[command_name] = true;    // no parameter
     } else if (0 == xyz.y_type) {
       json[command_name] = xyz.x;       // 1 parameter
-    } else if (0 == xyz.z_type) {
-      json[command_name] = xyz.x;       // 2 parameters
     } else {
-      json[command_name] = xyz.x;       // 3 parameters
+      // multiple answers, create an array
+      JsonArray &arr = json.createNestedArray(command_name);
+      arr.add(xyz.x);
+      arr.add(xyz.y);
+      if (xyz.z_type) {
+        arr.add(xyz.z);
+      }
     }
   }
 }
