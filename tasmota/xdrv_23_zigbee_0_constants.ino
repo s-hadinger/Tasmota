@@ -224,6 +224,14 @@ enum Z_Device_Ids {
   // 0x0403	IAS Warning Device
 };
 
+ enum Z_AddrMode : uint8_t {
+  Z_Addr_NotPresent = 0,
+  Z_Addr_Group = 1,
+  Z_Addr_ShortAddress = 2,
+  Z_Addr_IEEEAddress = 3,
+  Z_Addr_Broadcast = 0xFF
+};
+
 // Commands in the AF subsystem
 enum AfCommand : uint8_t {
   AF_REGISTER = 0x00,

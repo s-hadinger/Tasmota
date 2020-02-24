@@ -33,15 +33,15 @@ const char kZbCommands[] PROGMEM = D_PRFX_ZB "|"    // prefix
   D_CMND_ZIGBEEZNPSEND "|" D_CMND_ZIGBEE_PERMITJOIN "|"
   D_CMND_ZIGBEE_STATUS "|" D_CMND_ZIGBEE_RESET "|" D_CMND_ZIGBEE_SEND "|"
   D_CMND_ZIGBEE_PROBE "|" D_CMND_ZIGBEE_READ "|" D_CMND_ZIGBEEZNPRECEIVE "|"
-  D_CMND_ZIGBEE_FORGET "|" D_CMND_ZIGBEE_SAVE "|" D_CMND_ZIGBEE_NAME "|" D_CMND_ZIGBEE_BIND "|"
-  D_CMND_ZIGBEE_PING ;
+  D_CMND_ZIGBEE_FORGET "|" D_CMND_ZIGBEE_SAVE "|" D_CMND_ZIGBEE_NAME "|"
+  D_CMND_ZIGBEE_BIND "|" D_CMND_ZIGBEE_PING ;
 
 void (* const ZigbeeCommand[])(void) PROGMEM = {
   &CmndZbZNPSend, &CmndZbPermitJoin,
   &CmndZbStatus, &CmndZbReset, &CmndZbSend,
   &CmndZbProbe, &CmndZbRead, &CmndZbZNPReceive,
-  &CmndZbForget, &CmndZbSave, &CmndZbName, &CmndZbBind,
-  &CmndZbPing,
+  &CmndZbForget, &CmndZbSave, &CmndZbName,
+  &CmndZbBind, &CmndZbPing,
   };
 
 int32_t ZigbeeProcessInput(class SBuffer &buf) {
@@ -540,35 +540,58 @@ void CmndZbBind(void) {
 
   // params
   // static char delim[] = ", ";    // delimiters for parameters
-  uint16_t device = 0xFFFF;         // 0xFFFF is broadcast, so considered valid
-  uint8_t  endpoint = 0x00;         // 0x00 is invalid for the dst endpoint
+  uint16_t srcDevice = 0xFFFF;         // 0xFFFF is broadcast, so considered invalid
+  uint16_t dstDevice = 0xFFFF;      // 0xFFFF is broadcast, so considered invalid
+  uint8_t  endpoint = 0x00;         // 0x00 is invalid for the src endpoint
+  uint8_t  toendpoint = 0x00;       // 0x00 is invalid for the dst endpoint
   uint16_t cluster  = 0;            // 0xFFFF is invalid
   uint32_t group = 0xFFFFFFFF;      // 16 bits values, otherwise 0xFFFFFFFF is unspecified
 
+  // Information about source device: "Device", "Endpoint", "Cluster"
+  //  - the source endpoint must have a known IEEE address
   const JsonVariant &val_device = getCaseInsensitive(json, PSTR("Device"));
   if (nullptr != &val_device) {
-    device = zigbee_devices.parseDeviceParam(val_device.as<char*>());
-    if (0xFFFF == device) { ResponseCmndChar("Invalid parameter"); return; }
+    srcDevice = zigbee_devices.parseDeviceParam(val_device.as<char*>());
+    if (0xFFFF == srcDevice) { ResponseCmndChar("Invalid parameter"); return; }
   }
-  if ((nullptr == &val_device) || (0x000 == device)) { ResponseCmndChar("Unknown device"); return; }
+  if ((nullptr == &val_device) || (0x0000 == srcDevice)) { ResponseCmndChar("Unknown source device"); return; }
+
+  uint64_t srcLongAddr = zigbee_devices.getDeviceLongAddr(srcDevice);
+  if (0 == srcLongAddr) { ResponseCmndChar("Unknown source IEEE address"); return; }
 
   const JsonVariant &val_endpoint = getCaseInsensitive(json, PSTR("Endpoint"));
   if (nullptr != &val_endpoint) { endpoint = strToUInt(val_endpoint); }
+
   const JsonVariant &val_cluster = getCaseInsensitive(json, PSTR("Cluster"));
   if (nullptr != &val_cluster) { cluster = strToUInt(val_cluster); }
 
-  // TODO compute endpoint from cluster
+  // Either Device address
+  // In this case the following parameters are mandatory
+  //  - "ToDevice" and the device must have a known IEEE address
+  //  - "ToEndpoint"
+  const JsonVariant &dst_device = getCaseInsensitive(json, PSTR("ToDevice"));
+  if (nullptr != &dst_device) {
+    dstDevice = zigbee_devices.parseDeviceParam(dst_device.as<char*>());
+    if (0xFFFF == dstDevice) { ResponseCmndChar("Invalid parameter"); return; }
+  }
+  if ((nullptr == &dst_device) || (0x0000 == dstDevice)) { ResponseCmndChar("Unknown dest device"); return; }
+
+  uint64_t dstLongAddr = zigbee_devices.getDeviceLongAddr(dstDevice);
+  if (0 == dstLongAddr) { ResponseCmndChar("Unknown dest IEEE address"); return; }
+
+  const JsonVariant &val_toendpoint = getCaseInsensitive(json, PSTR("ToEndpoint"));
+  if (nullptr != &val_toendpoint) { toendpoint = strToUInt(val_endpoint); } else { toendpoint = endpoint; }
 
   SBuffer buf(sizeof(ZBS_BIND_REQ));
   buf.add8(Z_SREQ | Z_ZDO);
   buf.add8(ZDO_BIND_REQ);
-  buf.add16(device);
-  buf.add64(zigbee_devices.getDeviceLongAddr(device));
+  buf.add16(srcDevice);
+  buf.add64(srcLongAddr);
   buf.add8(endpoint);
   buf.add16(cluster);
-  buf.add8(0x03);             // DstAddrMode - 0x03 = ADDRESS_64_BIT
-  buf.add64(localIEEEAddr);   // coordinatore IEEE address
-  buf.add8(0x01);             // local endpoint = 1
+  buf.add8(Z_Addr_IEEEAddress);         // DstAddrMode - 0x03 = ADDRESS_64_BIT
+  buf.add64(dstLongAddr);               // coordinatore IEEE address 'localIEEEAddr'
+  buf.add8(toendpoint);                 // local endpoint = 1
 
   ZigbeeZNPSend(buf.getBuffer(), buf.len());
 
