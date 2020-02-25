@@ -575,8 +575,11 @@ void CmndZbBind(void) {
   if (nullptr != &dst_device) {
     dstDevice = zigbee_devices.parseDeviceParam(dst_device.as<char*>());
     if (0xFFFF == dstDevice) { ResponseCmndChar("Invalid parameter"); return; }
-    if (0x0000 == dstDevice) { ResponseCmndChar("Unknown dest device"); return; } // TODO if coordinator is the target
-    dstLongAddr = zigbee_devices.getDeviceLongAddr(dstDevice);
+    if (0x0000 == dstDevice) {
+      dstLongAddr = localIEEEAddr;
+    } else {
+      dstLongAddr = zigbee_devices.getDeviceLongAddr(dstDevice);
+    }
     if (0 == dstLongAddr) { ResponseCmndChar("Unknown dest IEEE address"); return; }
 
     const JsonVariant &val_toendpoint = getCaseInsensitive(json, PSTR("ToEndpoint"));

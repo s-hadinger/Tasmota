@@ -36,7 +36,13 @@ typedef struct Z_XYZ_Var {    // Holds values for vairables X, Y and Z
   uint8_t     z_type = 0;
 } Z_XYZ_Var;
 
-// list of post-processing directives
+// Cluster specific commands
+// Note: the table is both for sending commands, but also displaying received commands
+// - tasmota_cmd: the human-readable name of the command as entered or displayed, use '|' to split into multiple commands when displayed
+// - cluster: cluster number of the command
+// - cmd: the command number, of 0xFF if it's actually a variable to be assigned from 'xx'
+// - direction: the direction of the command (bit field). 0x01=from client to server (coord to device), 0x02= from server to client (response), 0x80=needs specific decoding
+// - param: the paylod template, x/y/z are substituted with arguments, little endian. For command display, payload must match until x/y/z character or until the end of the paylod. '??' means ignore.
 const Z_CommandConverter Z_Commands[] = {
   // Group adress commands
   { "AddGroup",       0x0004, 0x00, 0x01,   "xxxx00" },       // Add group id, group name is not supported
@@ -65,7 +71,7 @@ const Z_CommandConverter Z_Commands[] = {
   { "ShutterTilt",    0x0102, 0x08, 0x01,   "xx" },            // Tilt percentage
   { "Shutter",        0x0102, 0xFF, 0x01,   "" },
   // Blitzwolf PIR
-  { "Occupancy",      0xEF00, 0x01, 0x02,   "xx"},                // Specific decoder for Blitzwolf PIR, empty name means special treatment
+  { "Occupancy",      0xEF00, 0x01, 0x82,   ""},                // Specific decoder for Blitzwolf PIR, empty name means special treatment
   // Decoders only - normally not used to send, and names may be masked by previous definitions
   { "Dimmer",         0x0008, 0x00, 0x01,   "xx" },
   { "DimmerMove",     0x0008, 0x01, 0x01,   "xx0A" },
@@ -87,12 +93,11 @@ const Z_CommandConverter Z_Commands[] = {
   // IAS - Intruder Alarm System + leak/fire detection
   { "ZoneStatusChange",0x0500, 0x00, 0x02,  "xxxxyyzz" },   // xxxx = zone status, yy = extended status, zz = zone id, Delay is ignored
   // responses for Group cluster commands
-  { "AddGroupResp",   0x0004, 0x00, 0x02,   "xxyyyy" },       // xx = status, yy = group id
-  { "ViewGroupResp",  0x0004, 0x01, 0x02,   "xxyyyy" },       // xx = status, yy = group id, name ignored
-  { "GetGroupResp",   0x0004, 0x02, 0x02,   "xxyyzzzz" },     // xx = capacity, yy = count, zzzz = first group id, following groups ignored
-  { "RemoveGroup",    0x0004, 0x03, 0x02,   "xxyyyy" },       // xx = status, yy = group id
+  { "AddGroupResp",   0x0004, 0x00, 0x82,   "xxyyyy" },       // xx = status, yy = group id
+  { "ViewGroupResp",  0x0004, 0x01, 0x82,   "xxyyyy" },       // xx = status, yy = group id, name ignored
+  { "GetGroupResp",   0x0004, 0x02, 0x82,   "xxyyzzzz" },     // xx = capacity, yy = count, zzzz = first group id, following groups ignored
+  { "RemoveGroup",    0x0004, 0x03, 0x82,   "xxyyyy" },       // xx = status, yy = group id
 };
-
 
 #define ZLE(x) ((x) & 0xFF), ((x) >> 8)     // Little Endian
 
