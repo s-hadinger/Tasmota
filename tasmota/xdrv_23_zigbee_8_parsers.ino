@@ -355,14 +355,14 @@ int32_t Z_ReceiveIEEEAddr(int32_t res, const class SBuffer &buf) {
     zigbee_devices.updateDevice(nwkAddr, ieeeAddr);
     char hex[20];
     Uint64toHex(ieeeAddr, hex, 64);
-    Response_P(PSTR("{\"" D_JSON_ZIGBEE_STATE "\":{"
-                    "\"Status\":%d,\"IEEEAddr\":\"%s\",\"ShortAddr\":\"0x%04X\""
-                    "}}"),
-                    ZIGBEE_STATUS_DEVICE_IEEE, hex, nwkAddr
-                    );
+    // Response_P(PSTR("{\"" D_JSON_ZIGBEE_STATE "\":{"
+    //                 "\"Status\":%d,\"IEEEAddr\":\"%s\",\"ShortAddr\":\"0x%04X\""
+    //                 "}}"),
+    //                 ZIGBEE_STATUS_DEVICE_IEEE, hex, nwkAddr
+    //                 );
 
-    MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCL_RECEIVED));
-    XdrvRulesProcess();
+    // MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCL_RECEIVED));
+    // XdrvRulesProcess();
     // Ping response
     const String * friendlyName = zigbee_devices.getFriendlyName(nwkAddr);
     if (friendlyName) {
