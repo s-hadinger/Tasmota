@@ -93,7 +93,8 @@ public:
   void setManufId(uint16_t shortaddr, const char * str);
   void setModelId(uint16_t shortaddr, const char * str);
   void setFriendlyName(uint16_t shortaddr, const char * str);
-  const String * getFriendlyName(uint16_t) const;
+  const String * getFriendlyName(uint16_t shortaddr) const;
+  const String * getModelId(uint16_t shortaddr) const;
 
   // device just seen on the network, update the lastSeen field
   void updateLastSeen(uint16_t shortaddr);
@@ -528,6 +529,17 @@ const String * Z_Devices::getFriendlyName(uint16_t shortaddr) const {
     const Z_Device & device = devicesAt(found);
     if (device.friendlyName.length() > 0) {
       return &device.friendlyName;
+    }
+  }
+  return nullptr;
+}
+
+const String * Z_Devices::getModelId(uint16_t shortaddr) const {
+  int32_t found = findShortAddr(shortaddr);
+  if (found >= 0) {
+    const Z_Device & device = devicesAt(found);
+    if (device.modelId.length() > 0) {
+      return &device.modelId;
     }
   }
   return nullptr;

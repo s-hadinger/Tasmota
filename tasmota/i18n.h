@@ -473,6 +473,7 @@
 #define D_ZIGBEE_NOT_STARTED "Zigbee not started (yet)"
 #define D_CMND_ZIGBEE_PERMITJOIN "PermitJoin"
 #define D_CMND_ZIGBEE_STATUS "Status"
+  #define D_JSON_ZIGBEE_Status "Status"
 #define D_CMND_ZIGBEE_RESET "Reset"
   #define D_JSON_ZIGBEE_CC2530 "CC2530"
 #define D_CMND_ZIGBEEZNPRECEIVE "ZNPReceive"      // only for debug
@@ -496,6 +497,7 @@
 #define D_JSON_ZIGBEE_RECEIVED "ZbReceived"
 #define D_JSON_ZIGBEE_RECEIVED_LEGACY "ZigbeeReceived"
 #define D_CMND_ZIGBEE_BIND "Bind"
+  #define D_JSON_ZIGBEE_BIND "ZbBind"
 #define D_CMND_ZIGBEE_PING "Ping"
   #define D_JSON_ZIGBEE_PING "ZbPing"
   #define D_JSON_ZIGBEE_IEEE "IEEEAddr"

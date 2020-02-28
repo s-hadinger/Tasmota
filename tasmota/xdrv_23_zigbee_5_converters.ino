@@ -968,6 +968,7 @@ int32_t Z_AqaraSensor(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject&
   char tmp[] = "tmp";   // for obscure reasons, it must be converted from const char* to char*, otherwise ArduinoJson gets confused
 
   JsonVariant sub_value;
+  const String * modelId = zigbee_devices.getModelId(shortaddr);  // null if unknown
 
   while (len - i >= 2) {
     uint8_t attrid = buf2.get8(i++);
@@ -975,25 +976,43 @@ int32_t Z_AqaraSensor(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject&
     i += parseSingleAttribute(json, tmp, buf2, i, len);
     float val = json[tmp];
     json.remove(tmp);
+    bool translated = false;    // were we able to translate to a known format?
     if (0x01 == attrid) {
       json[F(D_JSON_VOLTAGE)] = val / 1000.0f;
       json[F("Battery")] = toPercentageCR2032(val);
-    } else if (0 == zcl->getManufCode()) {
-      // onla Aqara Temp/Humidity has manuf_code of zero. If non-zero we skip the parameters
-      if (0x64 == attrid) {
-        json[F(D_JSON_TEMPERATURE)] = val / 100.0f;
-      } else if (0x65 == attrid) {
-        json[F(D_JSON_HUMIDITY)] = val / 100.0f;
-      } else if (0x66 == attrid) {
-        json[F(D_JSON_PRESSURE)] = val / 100.0f;
-        json[F(D_JSON_PRESSURE_UNIT)] = F(D_UNIT_PRESSURE);   // hPa
-      } else if (0x01 == attrid) {
-        json[F(D_JSON_VOLTAGE)] = val / 1000.0f;
-        json[F("Battery")] = toPercentageCR2032(val);
+    } else if ((nullptr != modelId) && (0 == zcl->getManufCode())) {
+      translated = true;
+      if (modelId->startsWith(F("lumi.sensor_ht")) ||
+          modelId->startsWith(F("lumi.weather"))) {     // Temp sensor
+        // Filter according to prefix of model name
+        // onla Aqara Temp/Humidity has manuf_code of zero. If non-zero we skip the parameters
+        if (0x64 == attrid) {
+          json[F(D_JSON_TEMPERATURE)] = val / 100.0f;
+        } else if (0x65 == attrid) {
+          json[F(D_JSON_HUMIDITY)] = val / 100.0f;
+        } else if (0x66 == attrid) {
+          json[F(D_JSON_PRESSURE)] = val / 100.0f;
+          json[F(D_JSON_PRESSURE_UNIT)] = F(D_UNIT_PRESSURE);   // hPa
+        }
+      } else if (modelId->startsWith(F("lumi.sensor_smoke"))) {   // gas leak
+        if (0x64 == attrid) {
+          json[F("SmokeDensity")] = val;
+        }
+      } else if (modelId->startsWith(F("lumi.sensor_natgas"))) {   // gas leak
+        if (0x64 == attrid) {
+          json[F("GasDensity")] = val;
+        }
+      } else {
+        translated = false;     // we didn't find a match
       }
-    } else if (0x115F == zcl->getManufCode()) {
-      // Aqara Motion Sensor, still unknown field
-      json[F("AqaraUnknown")] = val;
+ //   } else if (0x115F == zcl->getManufCode()) {      // Aqara Motion Sensor, still unknown field
+    }
+    if (!translated) {
+      if (attrid >= 100) {    // payload is always above 0x64 or 100
+        char attr_name[12];
+        snprintf_P(attr_name, sizeof(attr_name), PSTR("Xiaomi_%02X"), attrid);
+        json[attr_name] = val;
+      }
     }
   }
   return 1;   // remove original key
