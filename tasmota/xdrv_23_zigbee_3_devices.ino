@@ -664,13 +664,31 @@ bool Z_Devices::jsonIsConflict(uint16_t shortaddr, const JsonObject &values) {
     return false;                                           // if no previous value, no conflict
   }
 
+  // compare groups
+  uint16_t group1 = 0;
+  uint16_t group2 = 0;
+  if (device.json->containsKey(D_CMND_ZIGBEE_GROUP)) {
+    group1 = device.json->get<unsigned int>(D_CMND_ZIGBEE_GROUP);
+  }
+  if (values.containsKey(D_CMND_ZIGBEE_GROUP)) {
+    group2 = values.get<unsigned int>(D_CMND_ZIGBEE_GROUP);
+  }
+  if (group1 != group2) {
+    return true;      // if group addresses differ, then conflict
+  }
+
+  // parse all other parameters
   for (auto kv : values) {
     String key_string = kv.key;
 
-    if (0 == strcasecmp_P(kv.key, PSTR(D_CMND_ZIGBEE_ENDPOINT))) {
-      // attribute "Endpoint"
-      if (kv.value.as<unsigned int>() != device.json->get<unsigned int>(kv.key)) {
-        return true;
+    if (0 == strcasecmp_P(kv.key, PSTR(D_CMND_ZIGBEE_GROUP))) {
+      // ignore group, it was handled already
+    } else if (0 == strcasecmp_P(kv.key, PSTR(D_CMND_ZIGBEE_ENDPOINT))) {
+      // attribute "Endpoint" or "Group"
+      if (device.json->containsKey(kv.key)) {
+        if (kv.value.as<unsigned int>() != device.json->get<unsigned int>(kv.key)) {
+          return true;
+        }
       }
     } else if (strcasecmp_P(kv.key, PSTR(D_CMND_ZIGBEE_LINKQUALITY))) {  // exception = ignore duplicates for LinkQuality
       if (device.json->containsKey(kv.key)) {

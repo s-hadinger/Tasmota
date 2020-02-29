@@ -520,6 +520,10 @@ int32_t Z_ReceiveAfIncomingMessage(int32_t res, const class SBuffer &buf) {
   zcl_received.postProcessAttributes(srcaddr, json);
   // Add Endpoint
   json[F(D_CMND_ZIGBEE_ENDPOINT)] = srcendpoint;
+  // Add Group if non-zero
+  if (groupid) {
+    json[F(D_CMND_ZIGBEE_GROUP)] = groupid;
+  }
   // Add linkquality
   json[F(D_CMND_ZIGBEE_LINKQUALITY)] = linkquality;
 
