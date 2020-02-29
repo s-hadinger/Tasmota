@@ -43,7 +43,7 @@ typedef struct Z_XYZ_Var {    // Holds values for vairables X, Y and Z
 // - cmd: the command number, of 0xFF if it's actually a variable to be assigned from 'xx'
 // - direction: the direction of the command (bit field). 0x01=from client to server (coord to device), 0x02= from server to client (response), 0x80=needs specific decoding
 // - param: the paylod template, x/y/z are substituted with arguments, little endian. For command display, payload must match until x/y/z character or until the end of the paylod. '??' means ignore.
-const Z_CommandConverter Z_Commands[] = {
+const Z_CommandConverter Z_Commands[] PROGMEM = {
   // Group adress commands
   { "AddGroup",       0x0004, 0x00, 0x01,   "xxxx00" },       // Add group id, group name is not supported
   { "ViewGroup",      0x0004, 0x01, 0x01,   "xxxx" },         // Ask for the group name
@@ -245,11 +245,14 @@ void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, boo
 //AddLog_P2(LOG_LEVEL_INFO, PSTR(">>> len = %d - %02X%02X%02X"), payload.len(), payload.get8(0), payload.get8(1), payload.get8(2));
   for (uint32_t i = 0; i < sizeof(Z_Commands) / sizeof(Z_Commands[0]); i++) {
     const Z_CommandConverter *conv = &Z_Commands[i];
-    if (conv->cluster == cluster) {
+    uint16_t conv_cluster = pgm_read_word(&conv->cluster);
+    if (conv_cluster == cluster) {
       // cluster match
-      if ((0xFF == conv->cmd) || (cmd == conv->cmd)) {
+      uint8_t conv_cmd = pgm_read_byte(&conv->cmd);
+      uint8_t conv_direction = pgm_read_byte(&conv->direction);
+      if ((0xFF == conv_cmd) || (cmd == conv_cmd)) {
           // cmd match
-        if ((direction && (conv->direction & 0x02)) || (!direction && (conv->direction & 0x01))) {
+        if ((direction && (conv_direction & 0x02)) || (!direction && (conv_direction & 0x01))) {
           // check if we have a match for params too
           // Match if:
           //  - payload exactly matches conv->param (conv->param may be longer)
@@ -276,7 +279,7 @@ void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, boo
           if (match) {
             command_name = (const __FlashStringHelper*) conv->tasmota_cmd;
             parseXYZ(conv->param, payload, &xyz);
-            if (0xFF == conv->cmd) {
+            if (0xFF == conv_cmd) {
               // shift all values
               xyz.z = xyz.y;
               xyz.z_type = xyz.y_type;
