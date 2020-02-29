@@ -388,4 +388,48 @@ enum ZCL_Global_Commands {
 const uint16_t Z_ProfileIds[]   PROGMEM = { 0x0104, 0x0109, 0xA10E, 0xC05E };
 const char     Z_ProfileNames[] PROGMEM = "ZigBee Home Automation|ZigBee Smart Energy|ZigBee Green Power|ZigBee Light Link";
 
+typedef struct Z_StatusLine {
+  uint8_t      status;
+  const char * status_msg;
+} Z_StatusLine;
+
+const Z_StatusLine Z_Status[] PROGMEM = {
+  0x00,   "SUCCESS",
+  0x01,   "FAILURE",
+  0x7E,   "NOT_AUTHORIZED",
+  0x7F,   "RESERVED_FIELD_NOT_ZERO",
+  0x80,   "MALFORMED_COMMAND",
+  0x81,   "UNSUP_CLUSTER_COMMAND",
+  0x82,   "UNSUP_GENERAL_COMMAND",
+  0x83,   "UNSUP_MANUF_CLUSTER_COMMAND",
+  0x84,   "UNSUP_MANUF_GENERAL_COMMAND",
+  0x85,   "INVALID_FIELD",
+  0x86,   "UNSUPPORTED_ATTRIBUTE",
+  0x87,   "INVALID_VALUE",
+  0x88,   "READ_ONLY",
+  0x89,   "INSUFFICIENT_SPACE",
+  0x8A,   "DUPLICATE_EXISTS",
+  0x8B,   "NOT_FOUND",
+  0x8C,   "UNREPORTABLE_ATTRIBUTE",
+  0x8D,   "INVALID_DATA_TYPE",
+  0x8E,   "INVALID_SELECTOR",
+  0x8F,   "WRITE_ONLY",
+  0x90,   "INCONSISTENT_STARTUP_STATE",
+  0x91,   "DEFINED_OUT_OF_BAND",
+  0x92,   "INCONSISTENT",
+  0x93,   "ACTION_DENIED",
+  0x94,   "TIMEOUT",
+  0x95,   "ABORT",
+  0x96,   "INVALID_IMAGE",
+  0x97,   "WAIT_FOR_DATA",
+  0x98,   "NO_IMAGE_AVAILABLE",
+  0x99,   "REQUIRE_MORE_IMAGE",
+  0x9A,   "NOTIFICATION_PENDING",
+  0xC0,   "HARDWARE_FAILURE",
+  0xC1,   "SOFTWARE_FAILURE",
+  0xC2,   "CALIBRATION_ERROR",
+  0xC3,   "UNSUPPORTED_CLUSTER",
+};
+
+
 #endif // USE_ZIGBEE
