@@ -716,12 +716,12 @@ const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
   { 0x0102, 0x0009,  "CurrentPositionTiltPercentage",&Z_Copy },
   { 0x0102, 0x0010,  "InstalledOpenLimitLift",&Z_Copy },
   { 0x0102, 0x0011,  "InstalledClosedLimitLift",&Z_Copy },
-  { 0x0102, 0x0012,  "InstalledOpenLimitTilt",  &Z_Copy },
-  { 0x0102, 0x0013,  "InstalledClosedLimitTilt",  &Z_Copy },
-  { 0x0102, 0x0014,  "VelocityLift",&Z_Copy },
+  { 0x0102, 0x0012,  "InstalledOpenLimitTilt",&Z_Copy },
+  { 0x0102, 0x0013,  "InstalledClosedLimitTilt",&Z_Copy },
+  { 0x0102, 0x0014,  "VelocityLift",         &Z_Copy },
   { 0x0102, 0x0015,  "AccelerationTimeLift",&Z_Copy },
-  { 0x0102, 0x0016,  "DecelerationTimeLift",         &Z_Copy },
-  { 0x0102, 0x0017,  "Mode",&Z_Copy },
+  { 0x0102, 0x0016,  "DecelerationTimeLift", &Z_Copy },
+  { 0x0102, 0x0017,  "Mode",                 &Z_Copy },
   { 0x0102, 0x0018,  "IntermediateSetpointsLift",&Z_Copy },
   { 0x0102, 0x0019,  "IntermediateSetpointsTilt",&Z_Copy },
 
@@ -792,9 +792,9 @@ const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
 
   // Flow Measurement cluster
   { 0x0404, 0x0000,  D_JSON_FLOWRATE,        &Z_FloatDiv10 },    // Flow (in m3/h)
-  { 0x0404, 0x0001,  "FlowMinMeasuredValue",     &Z_Copy },    //
-  { 0x0404, 0x0002,  "FlowMaxMeasuredValue",     &Z_Copy },    //
-  { 0x0404, 0x0003,  "FlowTolerance",            &Z_Copy },    //
+  { 0x0404, 0x0001,  "FlowMinMeasuredValue", &Z_Copy },    //
+  { 0x0404, 0x0002,  "FlowMaxMeasuredValue", &Z_Copy },    //
+  { 0x0404, 0x0003,  "FlowTolerance",        &Z_Copy },    //
   { 0x0404, 0xFFFF,  nullptr,                &Z_Remove },    // Remove all other values
 
   // Relative Humidity Measurement cluster
