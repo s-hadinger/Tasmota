@@ -947,9 +947,6 @@ int32_t Z_AqaraVibration(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObje
         int32_t Angle_X = 0.5f + atanf(X/sqrtf(z*z+y*y)) * f_180pi;
         int32_t Angle_Y = 0.5f + atanf(Y/sqrtf(x*x+z*z)) * f_180pi;
         int32_t Angle_Z = 0.5f + atanf(Z/sqrtf(x*x+y*y)) * f_180pi;
-        // int32_t Angle_X = 0.5f + atanf(X/sqrtf(Z*Z+Y*Y)) * f_180pi;
-        // int32_t Angle_Y = 0.5f + atanf(Y/sqrtf(X*X+Z*Z)) * f_180pi;
-        // int32_t Angle_Z = 0.5f + atanf(Z/sqrtf(X*X+Y*Y)) * f_180pi;
         JsonArray& angles = json.createNestedArray(F("AqaraAngles"));
         angles.add(Angle_X);
         angles.add(Angle_Y);
