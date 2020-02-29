@@ -112,6 +112,7 @@ public:
   static void generateAttributeName(const JsonObject& json, uint16_t cluster, uint16_t attr, char *key, size_t key_len);
   void parseRawAttributes(JsonObject& json, uint8_t offset = 0);
   void parseReadAttributes(JsonObject& json, uint8_t offset = 0);
+  void parseResponse(void);
   void parseClusterSpecificCommand(JsonObject& json, uint8_t offset = 0);
   void postProcessAttributes(uint16_t shortaddr, JsonObject& json);
 
@@ -482,6 +483,46 @@ void ZCLFrame::parseReadAttributes(JsonObject& json, uint8_t offset) {
       i += parseSingleAttribute(json, key, _payload, i, len);
     }
   }
+}
+
+// ZCL_DEFAULT_RESPONSE
+void ZCLFrame::parseResponse(void) {
+  if (_payload.len() < 2) { return; }   // wrong format
+  uint8_t cmd = _payload.get8(0);
+  uint8_t status = _payload.get8(1);
+
+  DynamicJsonBuffer jsonBuffer;
+  JsonObject& json = jsonBuffer.createObject();
+
+  // "Device"
+  char s[12];
+  snprintf_P(s, sizeof(s), PSTR("0x%04X"), _srcaddr);
+  json[F(D_JSON_ZIGBEE_DEVICE)] = s;
+  // "Name"
+  const String * friendlyName = zigbee_devices.getFriendlyName(_srcaddr);
+  if (friendlyName) {
+    json[F(D_JSON_ZIGBEE_NAME)] = *friendlyName;
+  }
+  // "Command"
+  snprintf_P(s, sizeof(s), PSTR("%04X!%02X"), _cluster_id, cmd);
+  json[F(D_JSON_ZIGBEE_CMD)] = s;
+  // "Status"
+  json[F(D_JSON_ZIGBEE_STATUS)] = status;
+  // Add Endpoint
+  json[F(D_CMND_ZIGBEE_ENDPOINT)] = _srcendpoint;
+  // Add Group if non-zero
+  if (_group_id) {
+    json[F(D_CMND_ZIGBEE_GROUP)] = _group_id;
+  }
+  // Add linkquality
+  json[F(D_CMND_ZIGBEE_LINKQUALITY)] = _linkquality;
+
+  String msg("");
+  msg.reserve(100);
+  json.printTo(msg);
+  Response_P(PSTR("{\"" D_JSON_ZIGBEE_RESPONSE "\":%s}"), msg.c_str());
+  MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCL_RECEIVED));
+  XdrvRulesProcess();
 }
 
 

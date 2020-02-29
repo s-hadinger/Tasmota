@@ -504,40 +504,45 @@ int32_t Z_ReceiveAfIncomingMessage(int32_t res, const class SBuffer &buf) {
   DynamicJsonBuffer jsonBuffer;
   JsonObject& json = jsonBuffer.createObject();
 
-  if ( (!zcl_received.isClusterSpecificCommand()) && (ZCL_REPORT_ATTRIBUTES == zcl_received.getCmdId())) {
-    zcl_received.parseRawAttributes(json);
-    if (clusterid) { defer_attributes = true; }  // don't defer system Cluster=0 messages
-  } else if ( (!zcl_received.isClusterSpecificCommand()) && (ZCL_READ_ATTRIBUTES_RESPONSE == zcl_received.getCmdId())) {
-    zcl_received.parseReadAttributes(json);
-  } else if (zcl_received.isClusterSpecificCommand()) {
-    zcl_received.parseClusterSpecificCommand(json);
-  }
-  String msg("");
-  msg.reserve(100);
-  json.printTo(msg);
-  AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_ZIGBEE D_JSON_ZIGBEEZCL_RAW_RECEIVED ": {\"0x%04X\":%s}"), srcaddr, msg.c_str());
-
-  zcl_received.postProcessAttributes(srcaddr, json);
-  // Add Endpoint
-  json[F(D_CMND_ZIGBEE_ENDPOINT)] = srcendpoint;
-  // Add Group if non-zero
-  if (groupid) {
-    json[F(D_CMND_ZIGBEE_GROUP)] = groupid;
-  }
-  // Add linkquality
-  json[F(D_CMND_ZIGBEE_LINKQUALITY)] = linkquality;
-
-  if (defer_attributes) {
-    // Prepare for publish
-    if (zigbee_devices.jsonIsConflict(srcaddr, json)) {
-      // there is conflicting values, force a publish of the previous message now and don't coalesce
-      zigbee_devices.jsonPublishFlush(srcaddr);
+  if ( (!zcl_received.isClusterSpecificCommand()) && (ZCL_DEFAULT_RESPONSE == zcl_received.getCmdId())) {
+      zcl_received.parseResponse();
+  } else {  
+    // Build the ZbReceive json
+    if ( (!zcl_received.isClusterSpecificCommand()) && (ZCL_REPORT_ATTRIBUTES == zcl_received.getCmdId())) {
+      zcl_received.parseRawAttributes(json);
+      if (clusterid) { defer_attributes = true; }  // don't defer system Cluster=0 messages
+    } else if ( (!zcl_received.isClusterSpecificCommand()) && (ZCL_READ_ATTRIBUTES_RESPONSE == zcl_received.getCmdId())) {
+      zcl_received.parseReadAttributes(json);
+    } else if (zcl_received.isClusterSpecificCommand()) {
+      zcl_received.parseClusterSpecificCommand(json);
     }
-    zigbee_devices.jsonAppend(srcaddr, json);
-    zigbee_devices.setTimer(srcaddr, USE_ZIGBEE_COALESCE_ATTR_TIMER, clusterid, srcendpoint, 0, &Z_PublishAttributes);
-  } else {
-    // Publish immediately
-    zigbee_devices.jsonPublishNow(srcaddr, json);
+    String msg("");
+    msg.reserve(100);
+    json.printTo(msg);
+    AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_ZIGBEE D_JSON_ZIGBEEZCL_RAW_RECEIVED ": {\"0x%04X\":%s}"), srcaddr, msg.c_str());
+
+    zcl_received.postProcessAttributes(srcaddr, json);
+    // Add Endpoint
+    json[F(D_CMND_ZIGBEE_ENDPOINT)] = srcendpoint;
+    // Add Group if non-zero
+    if (groupid) {
+      json[F(D_CMND_ZIGBEE_GROUP)] = groupid;
+    }
+    // Add linkquality
+    json[F(D_CMND_ZIGBEE_LINKQUALITY)] = linkquality;
+
+    if (defer_attributes) {
+      // Prepare for publish
+      if (zigbee_devices.jsonIsConflict(srcaddr, json)) {
+        // there is conflicting values, force a publish of the previous message now and don't coalesce
+        zigbee_devices.jsonPublishFlush(srcaddr);
+      }
+      zigbee_devices.jsonAppend(srcaddr, json);
+      zigbee_devices.setTimer(srcaddr, USE_ZIGBEE_COALESCE_ATTR_TIMER, clusterid, srcendpoint, 0, &Z_PublishAttributes);
+    } else {
+      // Publish immediately
+      zigbee_devices.jsonPublishNow(srcaddr, json);
+    }
   }
   return -1;
 }
