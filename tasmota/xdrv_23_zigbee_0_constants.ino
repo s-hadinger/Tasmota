@@ -389,7 +389,7 @@ const uint16_t Z_ProfileIds[]   PROGMEM = { 0x0104, 0x0109, 0xA10E, 0xC05E };
 const char     Z_ProfileNames[] PROGMEM = "ZigBee Home Automation|ZigBee Smart Energy|ZigBee Green Power|ZigBee Light Link";
 
 typedef struct Z_StatusLine {
-  uint8_t      status;
+  uint32_t     status;          // no need to use uint8_t since it uses 32 bits anyways
   const char * status_msg;
 } Z_StatusLine;
 
@@ -431,5 +431,14 @@ const Z_StatusLine Z_Status[] PROGMEM = {
   0xC3,   "UNSUPPORTED_CLUSTER",
 };
 
+const __FlashStringHelper* getZigbeeStatusMessage(uint8_t status) {
+  for (uint32_t i = 0; i < sizeof(Z_Status) / sizeof(Z_Status[0]); i++) {
+    const Z_StatusLine *statl = &Z_Status[i];
+    if (statl->status == status) {
+      return (const __FlashStringHelper*) statl->status_msg;
+    }
+  }
+  return nullptr;
+}
 
 #endif // USE_ZIGBEE

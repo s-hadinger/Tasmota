@@ -508,6 +508,11 @@ void ZCLFrame::parseResponse(void) {
   json[F(D_JSON_ZIGBEE_CMD)] = s;
   // "Status"
   json[F(D_JSON_ZIGBEE_STATUS)] = status;
+  // "StatusMessage"
+  const __FlashStringHelper* statm = getZigbeeStatusMessage(status);
+  if (statm) {
+    json[F(D_JSON_ZIGBEE_STATUS_MSG)] = statm;
+  }
   // Add Endpoint
   json[F(D_CMND_ZIGBEE_ENDPOINT)] = _srcendpoint;
   // Add Group if non-zero
