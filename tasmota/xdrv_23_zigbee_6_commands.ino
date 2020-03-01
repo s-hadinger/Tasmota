@@ -93,9 +93,9 @@ const Z_CommandConverter Z_Commands[] PROGMEM = {
   // IAS - Intruder Alarm System + leak/fire detection
   { "ZoneStatusChange",0x0500, 0x00, 0x82,  "xxxxyyzz" },   // xxxx = zone status, yy = extended status, zz = zone id, Delay is ignored
   // responses for Group cluster commands
-  { "AddGroupResp",   0x0004, 0x00, 0x82,   "xxyyyy" },       // xx = status, yy = group id
-  { "ViewGroupResp",  0x0004, 0x01, 0x82,   "xxyyyy" },       // xx = status, yy = group id, name ignored
-  { "GetGroupResp",   0x0004, 0x02, 0x82,   "xxyyzzzz" },     // xx = capacity, yy = count, zzzz = first group id, following groups ignored
+  { "AddGroup",       0x0004, 0x00, 0x82,   "xxyyyy" },       // xx = status, yy = group id
+  { "ViewGroup",      0x0004, 0x01, 0x82,   "xxyyyy" },       // xx = status, yy = group id, name ignored
+  { "GetGroup",       0x0004, 0x02, 0x82,   "xxyyzzzz" },     // xx = capacity, yy = count, zzzz = first group id, following groups ignored
   { "RemoveGroup",    0x0004, 0x03, 0x82,   "xxyyyy" },       // xx = status, yy = group id
 };
 
@@ -310,12 +310,26 @@ void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, boo
     if (conv_direction & 0x80) {
       // TODO need to create a specific command
       // IAS
+      String command_name2 = String(command_name);
       if ((cluster == 0x0500) && (cmd == 0x00)) {
         // "ZoneStatusChange"
         json[command_name] = xyz.x;
-        String command_name2 = String(command_name);
         json[command_name2 + "Ext"] = xyz.y;
         json[command_name2 + "Zone"] = xyz.z;
+      } else if ((cluster == 0x0004) && ((cmd == 0x00) || (cmd == 0x01) || (cmd == 0x03))) {
+        // AddGroupResp or ViewGroupResp (group name ignored) or RemoveGroup
+        json[command_name] = xyz.y;
+        json[command_name2 + "Status"] = xyz.x;
+        json[command_name2 + "StatusMsg"] = getZigbeeStatusMessage(xyz.x);
+      } else if ((cluster == 0x0004) && (cmd == 0x02)) {
+        // GetGroupResp
+        json[command_name2 + "Capacity"] = xyz.x;
+        json[command_name2 + "Count"] = xyz.y;
+        JsonArray &arr = json.createNestedArray(command_name);
+        for (uint32_t i = 0; i < xyz.y; i++) {
+          arr.add(payload.get16(2 + 2*i));
+        }
+        //arr.add(xyz.z);
       }
     } else {
       if (0 == xyz.x_type) {
@@ -342,9 +356,12 @@ void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, boo
 const __FlashStringHelper* zigbeeFindCommand(const char *command, uint16_t *cluster, uint16_t *cmd) {
   for (uint32_t i = 0; i < sizeof(Z_Commands) / sizeof(Z_Commands[0]); i++) {
     const Z_CommandConverter *conv = &Z_Commands[i];
-    if ((conv->direction & 0x01) && (0 == strcasecmp_P(command, conv->tasmota_cmd))) {
-      *cluster = conv->cluster;
-      *cmd = conv->cmd;
+    uint8_t conv_direction = pgm_read_byte(&conv->direction);
+    uint8_t conv_cmd = pgm_read_byte(&conv->cmd);
+    uint16_t conv_cluster = pgm_read_word(&conv->cluster);
+    if ((conv_direction & 0x01) && (0 == strcasecmp_P(command, conv->tasmota_cmd))) {
+      *cluster = conv_cluster;
+      *cmd = conv_cmd;
       return (const __FlashStringHelper*) conv->param;
     }
   }
