@@ -486,6 +486,8 @@
   #define D_JSON_ZIGBEE_DEVICE "Device"
   #define D_JSON_ZIGBEE_NAME "Name"
 #define D_CMND_ZIGBEE_NAME "Name"
+#define D_CMND_ZIGBEE_MODELID "ModelId"
+  #define D_JSON_ZIGBEE_MODELID "ModelId"
 #define D_CMND_ZIGBEE_PROBE "Probe"
 #define D_CMND_ZIGBEE_FORGET "Forget"
 #define D_CMND_ZIGBEE_SAVE "Save"
