@@ -91,7 +91,7 @@ const Z_CommandConverter Z_Commands[] PROGMEM = {
   { "ArrowHold",      0x0005, 0x08, 0x01,   "xx" },         // xx == 0x01 = left, 0x00 = right
   { "ArrowRelease",   0x0005, 0x09, 0x01,   "" },
   // IAS - Intruder Alarm System + leak/fire detection
-  { "ZoneStatusChange",0x0500, 0x00, 0x02,  "xxxxyyzz" },   // xxxx = zone status, yy = extended status, zz = zone id, Delay is ignored
+  { "ZoneStatusChange",0x0500, 0x00, 0x82,  "xxxxyyzz" },   // xxxx = zone status, yy = extended status, zz = zone id, Delay is ignored
   // responses for Group cluster commands
   { "AddGroupResp",   0x0004, 0x00, 0x82,   "xxyyyy" },       // xx = status, yy = group id
   { "ViewGroupResp",  0x0004, 0x01, 0x82,   "xxyyyy" },       // xx = status, yy = group id, name ignored
@@ -240,6 +240,7 @@ void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, boo
   ToHex_P((unsigned char*)payload.getBuffer(), payload.len(), hex_char, hex_char_len);
 
   const __FlashStringHelper* command_name = nullptr;
+  uint8_t conv_direction;
   Z_XYZ_Var xyz;
 
 //AddLog_P2(LOG_LEVEL_INFO, PSTR(">>> len = %d - %02X%02X%02X"), payload.len(), payload.get8(0), payload.get8(1), payload.get8(2));
@@ -249,7 +250,7 @@ void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, boo
     if (conv_cluster == cluster) {
       // cluster match
       uint8_t conv_cmd = pgm_read_byte(&conv->cmd);
-      uint8_t conv_direction = pgm_read_byte(&conv->direction);
+      conv_direction = pgm_read_byte(&conv->direction);
       if ((0xFF == conv_cmd) || (cmd == conv_cmd)) {
           // cmd match
         if ((direction && (conv_direction & 0x02)) || (!direction && (conv_direction & 0x01))) {
@@ -304,17 +305,31 @@ void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, boo
   free(hex_char);
 
   if (command_name) {
-    if (0 == xyz.x_type) {
-      json[command_name] = true;    // no parameter
-    } else if (0 == xyz.y_type) {
-      json[command_name] = xyz.x;       // 1 parameter
+    // Now try to transform into a human readable format
+    // if (direction & 0x80) then specific transform
+    if (conv_direction & 0x80) {
+      // TODO need to create a specific command
+      // IAS
+      if ((cluster == 0x0500) && (cmd == 0x00)) {
+        // "ZoneStatusChange"
+        json[command_name] = xyz.x;
+        String command_name2 = String(command_name);
+        json[command_name2 + "Ext"] = xyz.y;
+        json[command_name2 + "Zone"] = xyz.z;
+      }
     } else {
-      // multiple answers, create an array
-      JsonArray &arr = json.createNestedArray(command_name);
-      arr.add(xyz.x);
-      arr.add(xyz.y);
-      if (xyz.z_type) {
-        arr.add(xyz.z);
+      if (0 == xyz.x_type) {
+        json[command_name] = true;    // no parameter
+      } else if (0 == xyz.y_type) {
+        json[command_name] = xyz.x;       // 1 parameter
+      } else {
+        // multiple answers, create an array
+        JsonArray &arr = json.createNestedArray(command_name);
+        arr.add(xyz.x);
+        arr.add(xyz.y);
+        if (xyz.z_type) {
+          arr.add(xyz.z);
+        }
       }
     }
   }
