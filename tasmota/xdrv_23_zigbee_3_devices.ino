@@ -119,6 +119,8 @@ public:
 
 #ifdef ZIGBEE_ALEXA
   // Alexa support
+  void setAlexaBulbtype(uint16_t shortaddr, uint8_t bulbtype);
+  uint8_t getAlexaBulbtype(uint16_t shortaddr) const ;
   void updateAlexaState(uint16_t shortaddr,
                         const uint8_t *power, const uint8_t *dimmer, const uint8_t *sat,
                         const uint16_t *ct, const uint16_t *hue,
@@ -601,6 +603,21 @@ uint8_t Z_Devices::getNextSeqNumber(uint16_t shortaddr) {
 
 
 #ifdef ZIGBEE_ALEXA
+
+// Alexa support
+void Z_Devices::setAlexaBulbtype(uint16_t shortaddr, uint8_t bulbtype) {
+  Z_Device &device = getShortAddr(shortaddr);
+  device.bulbtype = bulbtype;
+}
+uint8_t Z_Devices::getAlexaBulbtype(uint16_t shortaddr) const {
+  int32_t found = findShortAddr(shortaddr);
+  if (found >= 0) {
+    return _devices[found].bulbtype;
+  } else {
+    return 0xFF;      // Alexa not activated
+  }
+}
+
 // Alexa support
 void Z_Devices::updateAlexaState(uint16_t shortaddr,
                                 const uint8_t *power, const uint8_t *dimmer, const uint8_t *sat,
