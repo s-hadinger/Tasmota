@@ -19,6 +19,8 @@
 
 #ifdef USE_ZIGBEE
 
+#define ZIGBEE_ALEXA
+
 #include <vector>
 #include <map>
 
@@ -51,6 +53,7 @@ typedef struct Z_Device {
   JsonObject           *json;
   // sequence number for Zigbee frames
   uint8_t               seqNumber;
+#ifdef ZIGBEE_ALEXA
   // Light information for Alexa integration, last known values
   uint8_t               bulbtype;       // number of channel for the bulb: 0-5, or 0xFF if no Alexa integration
   uint8_t               power;          // power state (boolean)
@@ -59,6 +62,7 @@ typedef struct Z_Device {
   uint16_t              ct;             // last CT: 153-500
   uint16_t              hue;            // last Hue: 0..359
   float                 x, y;           // last color [x,y]
+#endif // ZIGBEE_ALEXA
 } Z_Device;
 
 // All devices are stored in a Vector
@@ -112,6 +116,15 @@ public:
 
   // Dump json
   String dump(uint32_t dump_mode, uint16_t status_shortaddr = 0) const;
+
+#ifdef ZIGBEE_ALEXA
+  // Alexa support
+  void updateAlexaState(uint16_t shortaddr,
+                        const uint8_t *power, const uint8_t *dimmer, const uint8_t *sat,
+                        const uint16_t *ct, const uint16_t *hue,
+                        const float *x, const float *y);
+
+#endif
 
   // Timers
   void resetTimer(uint32_t shortaddr);
@@ -243,6 +256,7 @@ Z_Device & Z_Devices::createDeviceEntry(uint16_t shortaddr, uint64_t longaddr) {
                       nullptr,
                       nullptr, nullptr,
                       0,          // seqNumber
+#ifdef ZIGBEE_ALEXA
                       // Alexa support
                       0xFF,       // no Alexa support
                       0,          // power
@@ -251,6 +265,7 @@ Z_Device & Z_Devices::createDeviceEntry(uint16_t shortaddr, uint64_t longaddr) {
                       200,        // ct
                       0,          // hue
                       0.0f, 0.0f, // x, y
+#endif // ZIGBEE_ALEXA
                       };
   device.json_buffer = new DynamicJsonBuffer();
   _devices.push_back(device);
@@ -580,6 +595,26 @@ uint8_t Z_Devices::getNextSeqNumber(uint16_t shortaddr) {
     return _seqNumber;
   }
 }
+
+
+#ifdef ZIGBEE_ALEXA
+// Alexa support
+void Z_Devices::updateAlexaState(uint16_t shortaddr,
+                                const uint8_t *power, const uint8_t *dimmer, const uint8_t *sat,
+                                const uint16_t *ct, const uint16_t *hue,
+                                const float *x, const float *y) {
+  Z_Device &device = getShortAddr(shortaddr);
+  if (power)    { device.power = *power; }
+  if (dimmer)   { device.dimmer = *dimmer; }
+  if (sat)      { device.sat = *sat; }
+  if (ct)       { device.ct = *ct; }
+  if (hue)      { device.hue = *hue; }
+  if (x)        { device.x = *x; }
+  if (y)        { device.y = *y; }
+}
+
+#endif
+
 
 // Per device timers
 //
