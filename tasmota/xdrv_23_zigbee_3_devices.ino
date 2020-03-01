@@ -50,7 +50,15 @@ typedef struct Z_Device {
   DynamicJsonBuffer    *json_buffer;
   JsonObject           *json;
   // sequence number for Zigbee frames
-  uint8_t              seqNumber;
+  uint8_t               seqNumber;
+  // Light information for Alexa integration, last known values
+  uint8_t               bulbtype;       // number of channel for the bulb: 0-5, or 0xFF if no Alexa integration
+  uint8_t               power;          // power state (boolean)
+  uint8_t               dimmer;         // last Dimmer value: 0-254
+  uint8_t               sat;            // last Sat: 0..254
+  uint16_t              ct;             // last CT: 153-500
+  uint16_t              hue;            // last Hue: 0..359
+  float                 x, y;           // last color [x,y]
 } Z_Device;
 
 // All devices are stored in a Vector
@@ -235,6 +243,14 @@ Z_Device & Z_Devices::createDeviceEntry(uint16_t shortaddr, uint64_t longaddr) {
                       nullptr,
                       nullptr, nullptr,
                       0,          // seqNumber
+                      // Alexa support
+                      0xFF,       // no Alexa support
+                      0,          // power
+                      0,          // dimmer
+                      0,          // sat
+                      200,        // ct
+                      0,          // hue
+                      0.0f, 0.0f, // x, y
                       };
   device.json_buffer = new DynamicJsonBuffer();
   _devices.push_back(device);
