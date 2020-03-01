@@ -123,7 +123,10 @@ public:
                         const uint8_t *power, const uint8_t *dimmer, const uint8_t *sat,
                         const uint16_t *ct, const uint16_t *hue,
                         const float *x, const float *y);
-
+  bool getAlexaState(uint16_t shortaddr,
+                        uint8_t *power, uint8_t *dimmer, uint8_t *sat,
+                        uint16_t *ct, uint16_t *hue,
+                        float *x, float *y) const ;
 #endif
 
   // Timers
@@ -613,6 +616,26 @@ void Z_Devices::updateAlexaState(uint16_t shortaddr,
   if (y)        { device.y = *y; }
 }
 
+// return true if ok
+bool Z_Devices::getAlexaState(uint16_t shortaddr,
+                              uint8_t *power, uint8_t *dimmer, uint8_t *sat,
+                              uint16_t *ct, uint16_t *hue,
+                              float *x, float *y) const {
+  int32_t found = findShortAddr(shortaddr);
+  if (found >= 0) {
+    const Z_Device &device = _devices[found];
+    if (power)    { *power = device.power; }
+    if (dimmer)   { *dimmer = device.dimmer; }
+    if (sat)      { *sat = device.sat; }
+    if (ct)       { *ct = device.ct; }
+    if (hue)      { *hue = device.hue; }
+    if (x)        { *x = device.x; }
+    if (y)        { *y = device.y; }
+    return true;
+  } else {
+    return false;
+  }
+}
 #endif
 
 
