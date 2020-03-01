@@ -57,6 +57,7 @@ typedef struct Z_Device {
   // Light information for Alexa integration, last known values
   uint8_t               bulbtype;       // number of channel for the bulb: 0-5, or 0xFF if no Alexa integration
   uint8_t               power;          // power state (boolean)
+  uint8_t               colormode;      // 0x00: Hue/Sat, 0x01: XY, 0x02: CT
   uint8_t               dimmer;         // last Dimmer value: 0-254
   uint8_t               sat;            // last Sat: 0..254
   uint16_t              ct;             // last CT: 153-500
@@ -122,11 +123,13 @@ public:
   void setAlexaBulbtype(uint16_t shortaddr, uint8_t bulbtype);
   uint8_t getAlexaBulbtype(uint16_t shortaddr) const ;
   void updateAlexaState(uint16_t shortaddr,
-                        const uint8_t *power, const uint8_t *dimmer, const uint8_t *sat,
+                        const uint8_t *power, const uint8_t *colormode,
+                        const uint8_t *dimmer, const uint8_t *sat,
                         const uint16_t *ct, const uint16_t *hue,
                         const float *x, const float *y);
   bool getAlexaState(uint16_t shortaddr,
-                        uint8_t *power, uint8_t *dimmer, uint8_t *sat,
+                        uint8_t *power, uint8_t *colormode,
+                        uint8_t *dimmer, uint8_t *sat,
                         uint16_t *ct, uint16_t *hue,
                         float *x, float *y) const ;
 #endif
@@ -265,6 +268,7 @@ Z_Device & Z_Devices::createDeviceEntry(uint16_t shortaddr, uint64_t longaddr) {
                       // Alexa support
                       0xFF,       // no Alexa support
                       0,          // power
+                      0,          // colormode
                       0,          // dimmer
                       0,          // sat
                       200,        // ct
@@ -620,11 +624,13 @@ uint8_t Z_Devices::getAlexaBulbtype(uint16_t shortaddr) const {
 
 // Alexa support
 void Z_Devices::updateAlexaState(uint16_t shortaddr,
-                                const uint8_t *power, const uint8_t *dimmer, const uint8_t *sat,
+                                const uint8_t *power, const uint8_t *colormode,
+                                const uint8_t *dimmer, const uint8_t *sat,
                                 const uint16_t *ct, const uint16_t *hue,
                                 const float *x, const float *y) {
   Z_Device &device = getShortAddr(shortaddr);
   if (power)    { device.power = *power; }
+  if (colormode){ device.colormode = *colormode; }
   if (dimmer)   { device.dimmer = *dimmer; }
   if (sat)      { device.sat = *sat; }
   if (ct)       { device.ct = *ct; }
@@ -635,13 +641,15 @@ void Z_Devices::updateAlexaState(uint16_t shortaddr,
 
 // return true if ok
 bool Z_Devices::getAlexaState(uint16_t shortaddr,
-                              uint8_t *power, uint8_t *dimmer, uint8_t *sat,
+                              uint8_t *power, uint8_t *colormode,
+                              uint8_t *dimmer, uint8_t *sat,
                               uint16_t *ct, uint16_t *hue,
                               float *x, float *y) const {
   int32_t found = findShortAddr(shortaddr);
   if (found >= 0) {
     const Z_Device &device = _devices[found];
     if (power)    { *power = device.power; }
+    if (colormode){ *colormode = device.colormode; }
     if (dimmer)   { *dimmer = device.dimmer; }
     if (sat)      { *sat = device.sat; }
     if (ct)       { *ct = device.ct; }
