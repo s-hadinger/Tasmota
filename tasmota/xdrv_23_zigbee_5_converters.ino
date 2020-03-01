@@ -1121,6 +1121,39 @@ void ZCLFrame::postProcessAttributes(uint16_t shortaddr, JsonObject& json) {
         suffix = strtoul(delimiter2+1, nullptr, 10);
       }
 
+#ifdef ZIGBEE_ALEXA
+      // see if we need to update the Alexa bulb status
+      if ((cluster = 0x0006) && ((attribute == 0x0000) || (attribute == 0x8000))) {
+        uint8_t power = value;
+        zigbee_devices.updateAlexaState(shortaddr, &power, nullptr, nullptr,
+                                        nullptr, nullptr, nullptr, nullptr);
+      } else if ((cluster == 0x0008) && (attribute == 0x0000)) {
+        uint8_t dimmer = value;
+        zigbee_devices.updateAlexaState(shortaddr, nullptr, &dimmer, nullptr,
+                                        nullptr, nullptr, nullptr, nullptr);
+      } else if ((cluster == 0x0300) && (attribute == 0x0000)) {
+        uint16_t hue = value;
+        zigbee_devices.updateAlexaState(shortaddr, nullptr, nullptr, nullptr,
+                                        nullptr, &hue, nullptr, nullptr);
+      } else if ((cluster == 0x0300) && (attribute == 0x0001)) {
+        uint8_t sat = value;
+        zigbee_devices.updateAlexaState(shortaddr, nullptr, nullptr, &sat,
+                                        nullptr, nullptr, nullptr, nullptr);
+      } else if ((cluster == 0x0300) && (attribute == 0x0003)) {
+        float x = value;
+        zigbee_devices.updateAlexaState(shortaddr, nullptr, nullptr, nullptr,
+                                        nullptr, nullptr, &x, nullptr);
+      } else if ((cluster == 0x0300) && (attribute == 0x0004)) {
+        float y = value;
+        zigbee_devices.updateAlexaState(shortaddr, nullptr, nullptr, nullptr,
+                                        nullptr, nullptr, nullptr, &y);
+      } else if ((cluster == 0x0300) && (attribute == 0x0007)) {
+        uint16_t ct = value;
+        zigbee_devices.updateAlexaState(shortaddr, nullptr, nullptr, nullptr,
+                                        &ct, nullptr, nullptr, nullptr);
+      }
+#endif // ZIGBEE_ALEXA
+
       // Iterate on filter
       for (uint32_t i = 0; i < sizeof(Z_PostProcess) / sizeof(Z_PostProcess[0]); i++) {
         const Z_AttributeConverter *converter = &Z_PostProcess[i];
