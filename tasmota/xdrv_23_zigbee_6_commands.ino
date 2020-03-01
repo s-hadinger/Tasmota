@@ -105,7 +105,7 @@ const Z_CommandConverter Z_Commands[] PROGMEM = {
 const uint8_t CLUSTER_0006[] = { ZLE(0x0000) };    // Power
 const uint8_t CLUSTER_0008[] = { ZLE(0x0000) };    // CurrentLevel
 const uint8_t CLUSTER_0009[] = { ZLE(0x0000) };    // AlarmCount
-const uint8_t CLUSTER_0300[] = { ZLE(0x0000), ZLE(0x0001), ZLE(0x0003), ZLE(0x0004), ZLE(0x0007) };    // Hue, Sat, X, Y, CT
+const uint8_t CLUSTER_0300[] = { ZLE(0x0000), ZLE(0x0001), ZLE(0x0003), ZLE(0x0004), ZLE(0x0007), ZLE(0x0008) };    // Hue, Sat, X, Y, CT, ColorMode
 
 // This callback is registered after a cluster specific command and sends a read command for the same cluster
 int32_t Z_ReadAttrCallback(uint16_t shortaddr, uint16_t cluster, uint16_t endpoint, uint32_t value) {
