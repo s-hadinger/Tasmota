@@ -145,8 +145,9 @@ public:
 #endif
 
   // Timers
-  void resetTimer(uint32_t shortaddr);
-  void setTimer(uint32_t shortaddr, uint32_t wait_ms, uint16_t cluster, uint16_t endpoint, uint32_t value, Z_DeviceTimer func);
+  void resetTimersForDevice(uint16_t shortaddr);
+  void resetTimersForDeviceCluster(uint16_t shortaddr, uint16_t cluster);
+  void setTimer(uint16_t shortaddr, uint32_t wait_ms, uint16_t cluster, uint16_t endpoint, uint32_t value, Z_DeviceTimer func);
   void runTimer(void);
 
   // Append or clear attributes Json structure
@@ -681,38 +682,56 @@ bool Z_Devices::getAlexaState(uint16_t shortaddr,
 // Per device timers
 //
 // Reset the timer for a specific device
-void Z_Devices::resetTimer(uint32_t shortaddr) {
-  Z_Device & device = getShortAddr(shortaddr);
-  if (&device == nullptr) { return; }                 // don't crash if not found
-  device.timer = 0;
-  device.func = nullptr;
+void Z_Devices::resetTimersForDevice(uint16_t shortaddr) {
+  // iterate the list of deferred, and remove any linked to the shortaddr
+  for (auto it = _deferred.begin(); it != _deferred.end(); it++) {
+    // Notice that the iterator is decremented after it is passed 
+		// to erase() but before erase() is executed
+    // see https://www.techiedelight.com/remove-elements-vector-inside-loop-cpp/
+    if (it->shortaddr == shortaddr) {
+      _deferred.erase(it--);
+    }
+  }
+}
+
+void Z_Devices::resetTimersForDeviceCluster(uint16_t shortaddr, uint16_t cluster) {
+  // iterate the list of deferred, and remove any linked to the shortaddr
+  for (auto it = _deferred.begin(); it != _deferred.end(); it++) {
+    // Notice that the iterator is decremented after it is passed 
+		// to erase() but before erase() is executed
+    // see https://www.techiedelight.com/remove-elements-vector-inside-loop-cpp/
+    if ((it->shortaddr == shortaddr) && (it->cluster == cluster)) {
+      _deferred.erase(it--);
+    }
+  }
 }
 
 // Set timer for a specific device
-void Z_Devices::setTimer(uint32_t shortaddr, uint32_t wait_ms, uint16_t cluster, uint16_t endpoint, uint32_t value, Z_DeviceTimer func) {
-  Z_Device & device = getShortAddr(shortaddr);
-  if (&device == nullptr) { return; }                 // don't crash if not found
+void Z_Devices::setTimer(uint16_t shortaddr, uint32_t wait_ms, uint16_t cluster, uint16_t endpoint, uint32_t value, Z_DeviceTimer func) {
+  resetTimersForDeviceCluster(shortaddr, cluster);    // remove any cluster
 
-  device.cluster = cluster;
-  device.endpoint = endpoint;
-  device.value = value;
-  device.func = func;
-  device.timer = wait_ms + millis();
+  Z_Deferred deferred = { wait_ms + millis(),   // timer
+                          shortaddr,
+                          cluster,
+                          endpoint,
+                          value,
+                          func };
+  _deferred.push_back(deferred);
 }
 
 // Run timer at each tick
 void Z_Devices::runTimer(void) {
-  for (std::vector<Z_Device>::iterator it = _devices.begin(); it != _devices.end(); ++it) {
-    Z_Device &device = *it;
-    uint16_t shortaddr = device.shortaddr;
+  // visit all timers
+  for (auto it = _deferred.begin(); it != _deferred.end(); it++) {
+    Z_Deferred &defer = *it;
 
-    uint32_t timer = device.timer;
-    if ((timer) && TimeReached(timer)) {
-      device.timer = 0;       // cancel the timer before calling, so the callback can set another timer
-      // trigger the timer
-      (*device.func)(device.shortaddr, device.cluster, device.endpoint, device.value);
+    uint32_t timer = defer.timer;
+    if (TimeReached(timer)) {
+      (*defer.func)(defer.shortaddr, defer.cluster, defer.endpoint, defer.value);
+      _deferred.erase(it--);    // remove from list
     }
   }
+
   // save timer
   if ((_saveTimer) && TimeReached(_saveTimer)) {
     saveZigbeeDevices();
