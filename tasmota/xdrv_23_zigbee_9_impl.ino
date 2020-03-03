@@ -34,7 +34,8 @@ const char kZbCommands[] PROGMEM = D_PRFX_ZB "|"    // prefix
   D_CMND_ZIGBEE_STATUS "|" D_CMND_ZIGBEE_RESET "|" D_CMND_ZIGBEE_SEND "|"
   D_CMND_ZIGBEE_PROBE "|" D_CMND_ZIGBEE_READ "|" D_CMND_ZIGBEEZNPRECEIVE "|"
   D_CMND_ZIGBEE_FORGET "|" D_CMND_ZIGBEE_SAVE "|" D_CMND_ZIGBEE_NAME "|"
-  D_CMND_ZIGBEE_BIND "|" D_CMND_ZIGBEE_PING "|" D_CMND_ZIGBEE_MODELID
+  D_CMND_ZIGBEE_BIND "|" D_CMND_ZIGBEE_PING "|" D_CMND_ZIGBEE_MODELID "|"
+  D_CMND_ZIGBEE_BULBTYPE
   ;
 
 void (* const ZigbeeCommand[])(void) PROGMEM = {
@@ -43,6 +44,7 @@ void (* const ZigbeeCommand[])(void) PROGMEM = {
   &CmndZbProbe, &CmndZbRead, &CmndZbZNPReceive,
   &CmndZbForget, &CmndZbSave, &CmndZbName,
   &CmndZbBind, &CmndZbPing, &CmndZbModelId,
+  &CmndZbBulbType,
   };
 
 int32_t ZigbeeProcessInput(class SBuffer &buf) {
@@ -718,6 +720,35 @@ void CmndZbModelId(void) {
   } else {
     zigbee_devices.setModelId(shortaddr, p);
     Response_P(PSTR("{\"0x%04X\":{\"" D_JSON_ZIGBEE_MODELID "\":\"%s\"}}"), shortaddr, p);
+  }
+}
+
+// Specify, read or erase a BulbType for Alexa integration
+void CmndZbBulbType(void) {
+  // Syntax is:
+  //  ZbBulbType <device_id>,<x>            - assign a bulb type 0-5
+  //  ZbBulbType <device_id>                - display the current bulb type
+  //
+  // Where <device_id> can be: short_addr, long_addr, device_index, friendly_name
+
+  if (zigbee.init_phase) { ResponseCmndChar(D_ZIGBEE_NOT_STARTED); return; }
+
+  // check if parameters contain a comma ','
+  char *p;
+  char *str = strtok_r(XdrvMailbox.data, ", ", &p);
+
+  // parse first part, <device_id>
+  uint16_t shortaddr = zigbee_devices.parseDeviceParam(XdrvMailbox.data, true);  // in case of short_addr, it must be already registered
+  if (0x0000 == shortaddr) { ResponseCmndChar("Unknown device"); return; }
+  if (0xFFFF == shortaddr) { ResponseCmndChar("Invalid parameter"); return; }
+
+  if (p == nullptr) {
+    int8_t bulbtype = zigbee_devices.getAlexaBulbtype(shortaddr);
+    Response_P(PSTR("{\"0x%04X\":{\"" D_JSON_ZIGBEE_BULBTYPE "\":%d}}"), shortaddr, bulbtype);
+  } else {
+    int8_t bulbtype = strtol(p, nullptr, 10);
+    zigbee_devices.setAlexaBulbtype(shortaddr, bulbtype);
+    Response_P(PSTR("{\"0x%04X\":{\"" D_JSON_ZIGBEE_BULBTYPE "\":%d}}"), shortaddr, bulbtype);
   }
 }
 

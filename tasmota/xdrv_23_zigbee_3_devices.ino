@@ -611,7 +611,10 @@ uint8_t Z_Devices::getNextSeqNumber(uint16_t shortaddr) {
 // Alexa support
 void Z_Devices::setAlexaBulbtype(uint16_t shortaddr, int8_t bulbtype) {
   Z_Device &device = getShortAddr(shortaddr);
-  device.bulbtype = bulbtype;
+  if (bulbtype != device.bulbtype) {
+    device.bulbtype = bulbtype;
+    dirty();
+  }
 }
 int8_t Z_Devices::getAlexaBulbtype(uint16_t shortaddr) const {
   int32_t found = findShortAddr(shortaddr);
