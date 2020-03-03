@@ -66,6 +66,16 @@ typedef struct Z_Device {
 #endif // ZIGBEE_ALEXA
 } Z_Device;
 
+typedef struct Z_Deferred {
+  // below are per device timers, used for example to query the new state of the device
+  uint32_t              timer;          // millis() when to fire the timer, 0 if no timer
+  uint16_t              shortaddr;      // identifier of the device
+  uint16_t              cluster;        // cluster to use for the timer
+  uint16_t              endpoint;       // endpoint to use for timer
+  uint32_t              value;          // any raw value to use for the timer
+  Z_DeviceTimer         func;           // function to call when timer occurs
+} Z_Deferred;
+
 // All devices are stored in a Vector
 // Invariants:
 // - shortaddr is unique if not null
@@ -166,9 +176,10 @@ public:
   uint16_t parseDeviceParam(const char * param, bool short_must_be_known = false) const;
 
 private:
-  std::vector<Z_Device> _devices = {};
-  uint32_t              _saveTimer = 0;   
-  uint8_t               _seqNumber = 0;     // global seqNumber if device is unknown
+  std::vector<Z_Device>     _devices = {};
+  std::vector<Z_Deferred>   _deferred = {};   // list of deferred calls
+  uint32_t                  _saveTimer = 0;   
+  uint8_t                   _seqNumber = 0;     // global seqNumber if device is unknown
 
   template < typename T>
   static bool findInVector(const std::vector<T>  & vecOfElements, const T  & element);
