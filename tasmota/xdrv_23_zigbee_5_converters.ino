@@ -210,6 +210,7 @@ uint32_t parseSingleAttribute(JsonObject& json, char *attrid_str, class SBuffer 
       }
       break;
     case 0x20:      // uint8
+    case 0x30:      // enum8
       {
         uint8_t uint8_val = buf.get8(i);
         i += 1;
@@ -219,6 +220,7 @@ uint32_t parseSingleAttribute(JsonObject& json, char *attrid_str, class SBuffer 
       }
       break;
     case 0x21:      // uint16
+    case 0x31:      // enum16
       {
         uint16_t uint16_val = buf.get16(i);
         i += 2;
@@ -357,11 +359,6 @@ uint32_t parseSingleAttribute(JsonObject& json, char *attrid_str, class SBuffer 
         i += 4;
         json[attrid_str] = uint32_val;
       }
-      break;
-    // enum
-    case 0x30:      // enum8
-    case 0x31:      // enum16
-      i += attrtype - 0x2F;
       break;
 
     // TODO
