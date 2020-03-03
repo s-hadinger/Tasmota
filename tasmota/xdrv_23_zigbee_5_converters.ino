@@ -1123,7 +1123,7 @@ void ZCLFrame::postProcessAttributes(uint16_t shortaddr, JsonObject& json) {
 
 #ifdef ZIGBEE_ALEXA
       // see if we need to update the Alexa bulb status
-      if ((cluster = 0x0006) && ((attribute == 0x0000) || (attribute == 0x8000))) {
+      if ((cluster == 0x0006) && ((attribute == 0x0000) || (attribute == 0x8000))) {
         uint8_t power = value;
         zigbee_devices.updateAlexaState(shortaddr, &power, nullptr, nullptr, nullptr,
                                         nullptr, nullptr, nullptr, nullptr);
