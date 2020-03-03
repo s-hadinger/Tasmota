@@ -595,6 +595,42 @@ int32_t Z_Load_Devices(uint8_t value) {
   return 0;                              // continue
 }
 
+int32_t Z_Query_Bulbs(uint8_t value) {
+  // Scan all devices and send deferred requests to know the state of bulbs
+  uint32_t wait_ms = 1000;                  // start with 1.0 s delay
+  const uint32_t inter_message_ms = 100;    // wait 100ms between messages
+  for (uint32_t i = 0; i < zigbee_devices.devicesSize(); i++) {
+    const Z_Device &device = zigbee_devices.devicesAt(i);
+
+    if (0 <= device.bulbtype) {
+      uint16_t cluster;
+      uint8_t endpoint;
+
+      cluster = 0x0006;
+      endpoint = zigbee_devices.findClusterEndpointIn(device.shortaddr, cluster);
+      if (endpoint) {   // send only if we know the endpoint
+        zigbee_devices.setTimer(device.shortaddr, wait_ms, cluster, endpoint, 0 /* value */, &Z_ReadAttrCallback);
+        wait_ms += inter_message_ms;
+      }
+
+      cluster = 0x0008;
+      endpoint = zigbee_devices.findClusterEndpointIn(device.shortaddr, cluster);
+      if (endpoint) {   // send only if we know the endpoint
+        zigbee_devices.setTimer(device.shortaddr, wait_ms, cluster, endpoint, 0 /* value */, &Z_ReadAttrCallback);
+        wait_ms += inter_message_ms;
+      }
+
+      cluster = 0x0300;
+      endpoint = zigbee_devices.findClusterEndpointIn(device.shortaddr, cluster);
+      if (endpoint) {   // send only if we know the endpoint
+        zigbee_devices.setTimer(device.shortaddr, wait_ms, cluster, endpoint, 0 /* value */, &Z_ReadAttrCallback);
+        wait_ms += inter_message_ms;
+      }
+    }
+  }
+  return 0;                              // continue
+}
+
 int32_t Z_State_Ready(uint8_t value) {
   zigbee.init_phase = false;             // initialization phase complete
   return 0;                              // continue

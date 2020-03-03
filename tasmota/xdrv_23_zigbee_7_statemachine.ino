@@ -385,6 +385,7 @@ ZI_SEND(ZBS_STARTUPFROMAPP)                       // start coordinator
     ZI_LOG(LOG_LEVEL_INFO, D_LOG_ZIGBEE "Zigbee started")
     ZI_CALL(&Z_State_Ready, 1)                    // Now accept incoming messages
     ZI_CALL(&Z_Load_Devices, 0)
+    ZI_CALL(&Z_Query_Bulbs, 0)
   ZI_LABEL(ZIGBEE_LABEL_MAIN_LOOP)
     ZI_WAIT_FOREVER()
     ZI_GOTO(ZIGBEE_LABEL_READY)

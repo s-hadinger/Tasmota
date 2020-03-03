@@ -42,12 +42,6 @@ typedef struct Z_Device {
   std::vector<uint32_t> endpoints;      // encoded as high 16 bits is endpoint, low 16 bits is ProfileId
   std::vector<uint32_t> clusters_in;    // encoded as high 16 bits is endpoint, low 16 bits is cluster number
   std::vector<uint32_t> clusters_out;   // encoded as high 16 bits is endpoint, low 16 bits is cluster number
-  // below are per device timers, used for example to query the new state of the device
-  uint32_t              timer;          // millis() when to fire the timer, 0 if no timer
-  uint16_t              cluster;        // cluster to use for the timer
-  uint16_t              endpoint;       // endpoint to use for timer
-  uint32_t              value;          // any raw value to use for the timer
-  Z_DeviceTimer         func;           // function to call when timer occurs
   // json buffer used for attribute reporting
   DynamicJsonBuffer    *json_buffer;
   JsonObject           *json;
@@ -272,8 +266,6 @@ Z_Device & Z_Devices::createDeviceEntry(uint16_t shortaddr, uint64_t longaddr) {
                       std::vector<uint32_t>(),
                       std::vector<uint32_t>(),
                       std::vector<uint32_t>(),
-                      0,0,0,0,
-                      nullptr,
                       nullptr, nullptr,
                       0,          // seqNumber
 #ifdef ZIGBEE_ALEXA
