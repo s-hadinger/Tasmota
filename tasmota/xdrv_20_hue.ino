@@ -396,22 +396,34 @@ void HueLightStatus2(uint8_t device, String *response)
 // generate a unique lightId mixing local IP address and device number
 // it is limited to 32 devices.
 // last 24 bits of Mac address + 4 bits of local light + high bit for relays 16-31, relay 32 is mapped to 0
+// Zigbee extension: base address + 32 + shortaddr
+#ifndef USE_ZIGBEE
 uint32_t EncodeLightId(uint8_t relay_id)
+#else
+uint32_t EncodeLightId(uint8_t relay_id, uint16_t z_shortaddr = 0)
+#endif
 {
   uint8_t mac[6];
   WiFi.macAddress(mac);
-  uint32_t id = 0;
+  uint32_t id = (mac[3] << 20) | (mac[4] << 12) | (mac[5] << 4);
 
   if (relay_id >= 32) {   // for Relay #32, we encode as 0
     relay_id = 0;
   }
   if (relay_id > 15) {
-    id = (1 << 28);
+    id |= (1 << 28);
   }
+  id |= (relay_id & 0xF);
+#ifdef USE_ZIGBEE
+  if ((z_shortaddr) && (!relay_id)) {
+    // fror Zigbee devices, we have relay_id == 0 and shortaddr != 0
+    id = id + 0x20 + z_shortaddr;
+  }
+#endif
 
-  id |= (mac[3] << 20) | (mac[4] << 12) | (mac[5] << 4) | (relay_id & 0xF);
   return id;
 }
+
 
 // get hue_id and decode the relay_id
 // 4 LSB decode to 1-15, if bit 28 is set, it encodes 16-31, if 0 then 32
