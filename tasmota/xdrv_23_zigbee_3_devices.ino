@@ -945,6 +945,22 @@ String Z_Devices::dump(uint32_t dump_mode, uint16_t status_shortaddr) const {
       dev[F(D_JSON_ZIGBEE_NAME)] = device.friendlyName;
     }
 
+    if (0 == dump_mode) {
+      // expose the last known status of the bulb, for Alexa integration
+      dev[F("BulbType")] = (int32_t) ((int8_t)device.bulbtype);   // sign extend, 0xFF changed as -1
+      if (0xFF != device.bulbtype) {
+        // bulbtype is defined
+        dev[F("Power")] = device.power;
+        dev[F("Colormode")] = device.colormode;
+        dev[F("Dimmer")] = device.dimmer;
+        dev[F("Sat")] = device.sat;
+        dev[F("CT")] = device.ct;
+        dev[F("Hue")] = device.hue;
+        dev[F("X")] = device.x;
+        dev[F("Y")] = device.y;
+      }
+    }
+
     if (2 <= dump_mode) {
       hex[0] = '0';   // prefix with '0x'
       hex[1] = 'x';

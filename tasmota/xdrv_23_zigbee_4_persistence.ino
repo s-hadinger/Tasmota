@@ -193,7 +193,7 @@ class SBuffer hibernateDevices(void) {
   return buf;
 }
 
-void hidrateDevices(const SBuffer &buf) {
+void hydrateDevices(const SBuffer &buf) {
   uint32_t buf_len = buf.len();
   if (buf_len <= 10) { return; }
 
@@ -268,7 +268,7 @@ void loadZigbeeDevices(void) {
     SBuffer buf(buf_len);
     buf.addBuffer(z_dev_start + sizeof(z_flashdata_t), buf_len);
     AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "Zigbee devices data in Flash (%d bytes)"), buf_len);
-    hidrateDevices(buf);
+    hydrateDevices(buf);
     zigbee_devices.clean();   // don't write back to Flash what we just loaded
   } else {
     AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "No zigbee devices data in Flash"));

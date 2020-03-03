@@ -342,6 +342,7 @@ void ZigbeeZNPSend(const uint8_t *msg, size_t len) {
 }
 
 void ZigbeeZCLSend(uint16_t dtsAddr, uint16_t clusterId, uint8_t endpoint, uint8_t cmdId, bool clusterSpecific, const uint8_t *msg, size_t len, bool needResponse, uint8_t transacId) {
+#if 0
   SBuffer buf(25+len);
   buf.add8(Z_SREQ | Z_AF);        // 24
   buf.add8(AF_DATA_REQUEST);      // 01
@@ -354,6 +355,28 @@ void ZigbeeZCLSend(uint16_t dtsAddr, uint16_t clusterId, uint8_t endpoint, uint8
   buf.add8(0x1E);                 // 1E radius
 
   buf.add8(3 + len);
+  buf.add8((needResponse ? 0x00 : 0x10) | (clusterSpecific ? 0x01 : 0x00));                 // Frame Control Field
+  buf.add8(transacId);            // Transaction Sequance Number
+  buf.add8(cmdId);
+  if (len > 0) {
+    buf.addBuffer(msg, len);             // add the payload
+  }
+#endif
+  
+  SBuffer buf(32+len);
+  buf.add8(Z_SREQ | Z_AF);        // 24
+  buf.add8(AF_DATA_REQUEST_EXT);  // 02
+  buf.add8(Z_Addr_ShortAddress);  // 02
+  buf.add64(dtsAddr);             // dest address, only 2 LSB, upper 6 MSB are discarded
+  buf.add8(endpoint);             // dest endpoint
+  buf.add16(0x0000);              // dest Pan ID, 0x0000 = intra-pan
+  buf.add8(0x01);                 // source endpoint
+  buf.add16(clusterId);
+  buf.add8(transacId);                 // transacId
+  buf.add8(0x30);                 // 30 options
+  buf.add8(0x1E);                 // 1E radius
+
+  buf.add16(3 + len);
   buf.add8((needResponse ? 0x00 : 0x10) | (clusterSpecific ? 0x01 : 0x00));                 // Frame Control Field
   buf.add8(transacId);            // Transaction Sequance Number
   buf.add8(cmdId);
