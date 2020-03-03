@@ -503,7 +503,7 @@ int32_t Z_ReceiveAfIncomingMessage(int32_t res, const class SBuffer &buf) {
 
   DynamicJsonBuffer jsonBuffer;
   JsonObject& json = jsonBuffer.createObject();
-
+  
   if ( (!zcl_received.isClusterSpecificCommand()) && (ZCL_DEFAULT_RESPONSE == zcl_received.getCmdId())) {
       zcl_received.parseResponse();
   } else {  
@@ -513,6 +513,7 @@ int32_t Z_ReceiveAfIncomingMessage(int32_t res, const class SBuffer &buf) {
       if (clusterid) { defer_attributes = true; }  // don't defer system Cluster=0 messages
     } else if ( (!zcl_received.isClusterSpecificCommand()) && (ZCL_READ_ATTRIBUTES_RESPONSE == zcl_received.getCmdId())) {
       zcl_received.parseReadAttributes(json);
+      if (clusterid) { defer_attributes = true; }  // don't defer system Cluster=0 messages
     } else if (zcl_received.isClusterSpecificCommand()) {
       zcl_received.parseClusterSpecificCommand(json);
     }
@@ -598,7 +599,7 @@ int32_t Z_Load_Devices(uint8_t value) {
 int32_t Z_Query_Bulbs(uint8_t value) {
   // Scan all devices and send deferred requests to know the state of bulbs
   uint32_t wait_ms = 1000;                  // start with 1.0 s delay
-  const uint32_t inter_message_ms = 100;    // wait 100ms between messages
+  const uint32_t inter_message_ms = 50;    // wait 100ms between messages
   for (uint32_t i = 0; i < zigbee_devices.devicesSize(); i++) {
     const Z_Device &device = zigbee_devices.devicesAt(i);
 
