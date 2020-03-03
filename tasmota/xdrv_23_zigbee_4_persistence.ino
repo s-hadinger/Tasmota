@@ -45,6 +45,8 @@
 // str    - Manuf   (null terminated C string, 32 chars max)
 // str    - FriendlyName   (null terminated C string, 32 chars max)
 // reserved for extensions
+//  -- V2 -- 
+// int8_t - bulbtype
 
 // Memory footprint
 const static uint16_t z_spi_start_sector = 0xFF;  // Force last bank of first MB
@@ -158,6 +160,9 @@ class SBuffer hibernateDevice(const struct Z_Device &device) {
   buf.addBuffer(device.friendlyName.c_str(), frname_len);
   buf.add8(0x00);     // end of string marker
 
+  // Alexa Bulbtype
+  buf.add8(device.bulbtype);
+
   // update overall length
   buf.set8(0, buf.len());
 
@@ -250,6 +255,12 @@ void hydrateDevices(const SBuffer &buf) {
     ptr = s_len ? buf_d.charptr(d) : empty;
     zigbee_devices.setFriendlyName(shortaddr, ptr);
     d += s_len + 1;
+
+    // Alexa bulbtype - if present
+    if (d < dev_record_len) {
+      zigbee_devices.setAlexaBulbtype(shortaddr, buf_d.get8(d));
+      d++;
+    }
 
     // next iteration
     k += dev_record_len;

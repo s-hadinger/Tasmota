@@ -55,7 +55,7 @@ typedef struct Z_Device {
   uint8_t               seqNumber;
 #ifdef ZIGBEE_ALEXA
   // Light information for Alexa integration, last known values
-  uint8_t               bulbtype;       // number of channel for the bulb: 0-5, or 0xFF if no Alexa integration
+  int8_t                bulbtype;       // number of channel for the bulb: 0-5, or 0xFF if no Alexa integration
   uint8_t               power;          // power state (boolean)
   uint8_t               colormode;      // 0x00: Hue/Sat, 0x01: XY, 0x02: CT
   uint8_t               dimmer;         // last Dimmer value: 0-254
@@ -120,8 +120,8 @@ public:
 
 #ifdef ZIGBEE_ALEXA
   // Alexa support
-  void setAlexaBulbtype(uint16_t shortaddr, uint8_t bulbtype);
-  uint8_t getAlexaBulbtype(uint16_t shortaddr) const ;
+  void setAlexaBulbtype(uint16_t shortaddr, int8_t bulbtype);
+  int8_t getAlexaBulbtype(uint16_t shortaddr) const ;
   void updateAlexaState(uint16_t shortaddr,
                         const uint8_t *power, const uint8_t *colormode,
                         const uint8_t *dimmer, const uint8_t *sat,
@@ -266,7 +266,7 @@ Z_Device & Z_Devices::createDeviceEntry(uint16_t shortaddr, uint64_t longaddr) {
                       0,          // seqNumber
 #ifdef ZIGBEE_ALEXA
                       // Alexa support
-                      0xFF,       // no Alexa support
+                      -1,       // no Alexa support
                       0,          // power
                       0,          // colormode
                       0,          // dimmer
@@ -609,16 +609,16 @@ uint8_t Z_Devices::getNextSeqNumber(uint16_t shortaddr) {
 #ifdef ZIGBEE_ALEXA
 
 // Alexa support
-void Z_Devices::setAlexaBulbtype(uint16_t shortaddr, uint8_t bulbtype) {
+void Z_Devices::setAlexaBulbtype(uint16_t shortaddr, int8_t bulbtype) {
   Z_Device &device = getShortAddr(shortaddr);
   device.bulbtype = bulbtype;
 }
-uint8_t Z_Devices::getAlexaBulbtype(uint16_t shortaddr) const {
+int8_t Z_Devices::getAlexaBulbtype(uint16_t shortaddr) const {
   int32_t found = findShortAddr(shortaddr);
   if (found >= 0) {
     return _devices[found].bulbtype;
   } else {
-    return 0xFF;      // Alexa not activated
+    return -1;      // Alexa not activated
   }
 }
 
@@ -947,8 +947,8 @@ String Z_Devices::dump(uint32_t dump_mode, uint16_t status_shortaddr) const {
 
     if (0 == dump_mode) {
       // expose the last known status of the bulb, for Alexa integration
-      dev[F("BulbType")] = (int32_t) ((int8_t)device.bulbtype);   // sign extend, 0xFF changed as -1
-      if (0xFF != device.bulbtype) {
+      dev[F("BulbType")] = device.bulbtype;   // sign extend, 0xFF changed as -1
+      if (0 <= device.bulbtype) {
         // bulbtype is defined
         dev[F("Power")] = device.power;
         dev[F("Colormode")] = device.colormode;
