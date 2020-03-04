@@ -25,7 +25,7 @@
 #include <map>
 
 #ifndef ZIGBEE_SAVE_DELAY_SECONDS
-#define ZIGBEE_SAVE_DELAY_SECONDS 10;               // wait for 10s before saving Zigbee info
+#define ZIGBEE_SAVE_DELAY_SECONDS 2;               // wait for 2s before saving Zigbee info
 #endif
 const uint16_t kZigbeeSaveDelaySeconds = ZIGBEE_SAVE_DELAY_SECONDS;    // wait for x seconds
 
@@ -678,8 +678,8 @@ bool Z_Devices::getAlexaState(uint16_t shortaddr,
 #endif
 
 
-// Per device timers
-// Earse for a specific category, of all deferred for a device if category == 0xFF
+// Deferred actions
+// Parse for a specific category, of all deferred for a device if category == 0xFF
 void Z_Devices::resetTimersForDevice(uint16_t shortaddr, uint8_t category) {
   // iterate the list of deferred, and remove any linked to the shortaddr
   for (auto it = _deferred.begin(); it != _deferred.end(); it++) {
@@ -696,10 +696,12 @@ void Z_Devices::resetTimersForDevice(uint16_t shortaddr, uint8_t category) {
 
 // Set timer for a specific device
 void Z_Devices::setTimer(uint16_t shortaddr, uint32_t wait_ms, uint16_t cluster, uint8_t endpoint, uint8_t category, uint32_t value, Z_DeviceTimer func) {
+  // First we remove any existing timer for same device in same category, except for category=0x00 (they need to happen anyway)
   if (category) {     // if category == 0, we leave all previous
     resetTimersForDevice(shortaddr, category);    // remove any cluster
   }
 
+  // Now create the new timer
   Z_Deferred deferred = { wait_ms + millis(),   // timer
                           shortaddr,
                           cluster,
@@ -723,13 +725,14 @@ void Z_Devices::runTimer(void) {
     }
   }
 
-  // save timer
+  // check if we need to save to Flash
   if ((_saveTimer) && TimeReached(_saveTimer)) {
     saveZigbeeDevices();
     _saveTimer = 0;
   }
 }
 
+// Clear the JSON buffer for coalesced and deferred attributes
 void Z_Devices::jsonClear(uint16_t shortaddr) {
   Z_Device & device = getShortAddr(shortaddr);
   if (&device == nullptr) { return; }                 // don't crash if not found
@@ -738,23 +741,26 @@ void Z_Devices::jsonClear(uint16_t shortaddr) {
   device.json_buffer->clear();
 }
 
+// Copy JSON from one object to another, this helps preserving the order of attributes
 void CopyJsonVariant(JsonObject &to, const String &key, const JsonVariant &val) {
+  // first remove the potentially existing key in the target JSON, so new adds will be at the end of the list
   to.remove(key);    // force remove to have metadata like LinkQuality at the end
 
   if (val.is<char*>()) {
-    String sval = val.as<String>();       // force a copy of the String value
+    String sval = val.as<String>();       // force a copy of the String value, avoiding crash
     to.set(key, sval);
   } else if (val.is<JsonArray>()) {
     JsonArray &nested_arr = to.createNestedArray(key);
-    CopyJsonArray(nested_arr, val.as<JsonArray>());
+    CopyJsonArray(nested_arr, val.as<JsonArray>());   // deep copy
   } else if (val.is<JsonObject>()) {
     JsonObject &nested_obj = to.createNestedObject(key);
-    CopyJsonObject(nested_obj, val.as<JsonObject>());
+    CopyJsonObject(nested_obj, val.as<JsonObject>()); // deep copy
   } else {
-    to.set(key, val);
+    to.set(key, val);                     // general case for non array, object or string
   }
 }
 
+// Shallow copy of array, we skip any sub-array or sub-object. It may be added in the future
 void CopyJsonArray(JsonArray &to, const JsonArray &arr) {
   for (auto v : arr) {
     if (v.is<char*>()) {
@@ -768,6 +774,7 @@ void CopyJsonArray(JsonArray &to, const JsonArray &arr) {
   }
 }
 
+// Deep copy of object
 void CopyJsonObject(JsonObject &to, const JsonObject &from) {
   for (auto kv : from) {
     String key_string = kv.key;
@@ -778,6 +785,8 @@ void CopyJsonObject(JsonObject &to, const JsonObject &from) {
 }
 
 // does the new payload conflicts with the existing payload, i.e. values would be overwritten
+// true - one attribute (except LinkQuality) woudl be lost, there is conflict
+// false - new attributes can be safely added
 bool Z_Devices::jsonIsConflict(uint16_t shortaddr, const JsonObject &values) {
   Z_Device & device = getShortAddr(shortaddr);
   if (&device == nullptr) { return false; }                 // don't crash if not found
@@ -788,14 +797,14 @@ bool Z_Devices::jsonIsConflict(uint16_t shortaddr, const JsonObject &values) {
   }
 
   // compare groups
-  uint16_t group1 = 0;
-  uint16_t group2 = 0;
-  if (device.json->containsKey(D_CMND_ZIGBEE_GROUP)) {
-    group1 = device.json->get<unsigned int>(D_CMND_ZIGBEE_GROUP);
-  }
-  if (values.containsKey(D_CMND_ZIGBEE_GROUP)) {
-    group2 = values.get<unsigned int>(D_CMND_ZIGBEE_GROUP);
-  }
+  // Special case for group addresses. Group attribute is only present if the target
+  // address is a group address, so just comparing attributes will not work.
+  // Eg: if the first packet has no group attribute, and the second does, conflict would not be detected
+  // Here we explicitly compute the group address of both messages, and compare them. No group means group=0x0000
+  // (we use the property of an missing attribute returning 0)
+  // (note: we use .get() here which is case-sensitive. We know however that the attribute was set with the exact syntax D_CMND_ZIGBEE_GROUP, so we don't need a case-insensitive get())
+  uint16_t group1 = device.json->get<unsigned int>(D_CMND_ZIGBEE_GROUP);
+  uint16_t group2 = values.get<unsigned int>(D_CMND_ZIGBEE_GROUP);
   if (group1 != group2) {
     return true;      // if group addresses differ, then conflict
   }
