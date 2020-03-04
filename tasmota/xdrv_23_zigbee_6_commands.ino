@@ -108,7 +108,7 @@ const uint8_t CLUSTER_0009[] = { ZLE(0x0000) };    // AlarmCount
 const uint8_t CLUSTER_0300[] = { ZLE(0x0000), ZLE(0x0001), ZLE(0x0003), ZLE(0x0004), ZLE(0x0007), ZLE(0x0008) };    // Hue, Sat, X, Y, CT, ColorMode
 
 // This callback is registered after a cluster specific command and sends a read command for the same cluster
-int32_t Z_ReadAttrCallback(uint16_t shortaddr, uint16_t cluster, uint16_t endpoint, uint32_t value) {
+int32_t Z_ReadAttrCallback(uint16_t shortaddr, uint16_t cluster, uint8_t endpoint, uint32_t value) {
   size_t         attrs_len = 0;
   const uint8_t* attrs = nullptr;
 
@@ -136,7 +136,7 @@ int32_t Z_ReadAttrCallback(uint16_t shortaddr, uint16_t cluster, uint16_t endpoi
 }
 
 // set a timer to read back the value in the future
-void zigbeeSetCommandTimer(uint16_t shortaddr, uint16_t cluster, uint16_t endpoint) {
+void zigbeeSetCommandTimer(uint16_t shortaddr, uint16_t cluster, uint8_t endpoint) {
   uint32_t wait_ms = 0;
 
   switch (cluster) {
@@ -153,7 +153,7 @@ void zigbeeSetCommandTimer(uint16_t shortaddr, uint16_t cluster, uint16_t endpoi
       break;
   }
   if (wait_ms) {
-    zigbee_devices.setTimer(shortaddr, wait_ms, cluster, endpoint, 0 /* value */, &Z_ReadAttrCallback);
+    zigbee_devices.setTimer(shortaddr, wait_ms, cluster, endpoint, Z_CAT_NONE, 0 /* value */, &Z_ReadAttrCallback);
   }
 }
 

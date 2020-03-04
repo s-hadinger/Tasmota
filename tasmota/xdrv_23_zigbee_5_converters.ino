@@ -921,7 +921,7 @@ int32_t Z_FloatDiv2(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& j
 }
 
 // Publish a message for `"Occupancy":0` when the timer expired
-int32_t Z_OccupancyCallback(uint16_t shortaddr, uint16_t cluster, uint16_t endpoint, uint32_t value) {
+int32_t Z_OccupancyCallback(uint16_t shortaddr, uint16_t cluster, uint8_t endpoint, uint32_t value) {
   DynamicJsonBuffer jsonBuffer;
   JsonObject& json = jsonBuffer.createObject();
   json[F(OCCUPANCY)] = 0;
