@@ -302,14 +302,7 @@ ZBM(ZBS_AF_REGISTER0B, Z_SREQ | Z_AF, AF_REGISTER, 0x0B /* endpoint */, Z_B0(Z_P
 // Z_ZDO:mgmtPermitJoinReq
 ZBM(ZBS_PERMITJOINREQ_CLOSE, Z_SREQ | Z_ZDO, ZDO_MGMT_PERMIT_JOIN_REQ, 0x02 /* AddrMode */,   // 25360200000000
                               0x00, 0x00 /* DstAddr */, 0x00 /* Duration */, 0x00 /* TCSignificance */)
-ZBM(ZBS_PERMITJOINREQ_OPEN_60, Z_SREQ | Z_ZDO, ZDO_MGMT_PERMIT_JOIN_REQ, 0x0F /* AddrMode */,   // 25360FFFFC3C00
-                              0xFC, 0xFF /* DstAddr */, 60 /* Duration */, 0x00 /* TCSignificance */)
-ZBM(ZBS_PERMITJOINREQ_OPEN_XX, Z_SREQ | Z_ZDO, ZDO_MGMT_PERMIT_JOIN_REQ, 0x0F /* AddrMode */,   // 25360FFFFCFF00
-                              0xFC, 0xFF /* DstAddr */, 0xFF /* Duration */, 0x00 /* TCSignificance */)
 ZBM(ZBR_PERMITJOINREQ, Z_SRSP | Z_ZDO, ZDO_MGMT_PERMIT_JOIN_REQ, Z_SUCCESS)    // 653600
-ZBM(ZBR_PERMITJOIN_AREQ_CLOSE, Z_AREQ | Z_ZDO, ZDO_PERMIT_JOIN_IND, 0x00 /* Duration */)      // 45CB00
-ZBM(ZBR_PERMITJOIN_AREQ_OPEN_60, Z_AREQ | Z_ZDO, ZDO_PERMIT_JOIN_IND, 60 /* Duration */)      // 45CB3C
-ZBM(ZBR_PERMITJOIN_AREQ_OPEN_FF, Z_AREQ | Z_ZDO, ZDO_PERMIT_JOIN_IND, 0xFF /* Duration */)    // 45CBFF
 ZBM(ZBR_PERMITJOIN_AREQ_RSP,  Z_AREQ | Z_ZDO, ZDO_MGMT_PERMIT_JOIN_RSP, 0x00, 0x00 /* srcAddr*/, Z_SUCCESS )   // 45B6000000
 
 static const Zigbee_Instruction zb_prog[] PROGMEM = {
@@ -346,7 +339,6 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
 
   ZI_LABEL(ZIGBEE_LABEL_START)                // START ZNP App
     ZI_MQTT_STATE(ZIGBEE_STATUS_STARTING, "Configured, starting coordinator")
-    //ZI_CALL(&Z_State_Ready, 1)                // Now accept incoming messages
     ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_ABORT)
     // Z_ZDO:startupFromApp
     //ZI_LOG(LOG_LEVEL_INFO, D_LOG_ZIGBEE "starting zigbee coordinator")
@@ -372,13 +364,8 @@ ZI_SEND(ZBS_STARTUPFROMAPP)                       // start coordinator
     ZI_WAIT_UNTIL(1000, ZBR_ZDO_ACTIVEEPRSP_OK)
     ZI_SEND(ZBS_PERMITJOINREQ_CLOSE)              // Closing the Permit Join
     ZI_WAIT_RECV(1000, ZBR_PERMITJOINREQ)
-    ZI_WAIT_UNTIL(1000, ZBR_PERMITJOIN_AREQ_RSP)  // not sure it's useful
-    //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_CLOSE)
-    //ZI_SEND(ZBS_PERMITJOINREQ_OPEN_XX)               // Opening Permit Join, normally through command
-    //ZI_WAIT_RECV(1000, ZBR_PERMITJOINREQ)
-    //ZI_WAIT_UNTIL(1000, ZBR_PERMITJOIN_AREQ_RSP)  // not sure it's useful
-    //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_OPEN_FF)
-
+    ZI_WAIT_UNTIL(1000, ZBR_PERMITJOIN_AREQ_RSP)
+  
   ZI_LABEL(ZIGBEE_LABEL_READY)
     ZI_MQTT_STATE(ZIGBEE_STATUS_OK, "Started")
     ZI_LOG(LOG_LEVEL_INFO, D_LOG_ZIGBEE "Zigbee started")
@@ -388,30 +375,6 @@ ZI_SEND(ZBS_STARTUPFROMAPP)                       // start coordinator
   ZI_LABEL(ZIGBEE_LABEL_MAIN_LOOP)
     ZI_WAIT_FOREVER()
     ZI_GOTO(ZIGBEE_LABEL_READY)
-
-  ZI_LABEL(ZIGBEE_LABEL_PERMIT_JOIN_CLOSE)
-    //ZI_MQTT_STATE(ZIGBEE_STATUS_PERMITJOIN_CLOSE, "Disable Pairing mode")
-    ZI_SEND(ZBS_PERMITJOINREQ_CLOSE)              // Closing the Permit Join
-    ZI_WAIT_RECV(1000, ZBR_PERMITJOINREQ)
-    //ZI_WAIT_UNTIL(1000, ZBR_PERMITJOIN_AREQ_RSP)  // not sure it's useful
-    //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_CLOSE)
-    ZI_GOTO(ZIGBEE_LABEL_MAIN_LOOP)
-
-  ZI_LABEL(ZIGBEE_LABEL_PERMIT_JOIN_OPEN_60)
-    //ZI_MQTT_STATE(ZIGBEE_STATUS_PERMITJOIN_OPEN_60, "Enable Pairing mode for 60 seconds")
-    ZI_SEND(ZBS_PERMITJOINREQ_OPEN_60)
-    ZI_WAIT_RECV(1000, ZBR_PERMITJOINREQ)
-    //ZI_WAIT_UNTIL(1000, ZBR_PERMITJOIN_AREQ_RSP)  // not sure it's useful
-    //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_OPEN_60)
-    ZI_GOTO(ZIGBEE_LABEL_MAIN_LOOP)
-
-  ZI_LABEL(ZIGBEE_LABEL_PERMIT_JOIN_OPEN_XX)
-    //ZI_MQTT_STATE(ZIGBEE_STATUS_PERMITJOIN_OPEN_XX, "Enable Pairing mode until next boot")
-    ZI_SEND(ZBS_PERMITJOINREQ_OPEN_XX)
-    ZI_WAIT_RECV(1000, ZBR_PERMITJOINREQ)
-    //ZI_WAIT_UNTIL(1000, ZBR_PERMITJOIN_AREQ_RSP)  // not sure it's useful
-    //ZI_WAIT_UNTIL(500, ZBR_PERMITJOIN_AREQ_OPEN_FF)
-    ZI_GOTO(ZIGBEE_LABEL_MAIN_LOOP)
 
   ZI_LABEL(50)                                    // reformat device
     ZI_MQTT_STATE(ZIGBEE_STATUS_RESET_CONF, "Reseting configuration")

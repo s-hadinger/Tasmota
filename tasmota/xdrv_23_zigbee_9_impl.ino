@@ -545,16 +545,6 @@ void CmndZbSend(void) {
 
 }
 
-ZBM(ZBS_BIND_REQ, Z_SREQ | Z_ZDO, ZDO_BIND_REQ,
-      0,0,                // dstAddr - 16 bits, device to send the bind to
-      0,0,0,0,0,0,0,0,    // srcAddr - 64 bits, IEEE binding source
-      0x00,               // source endpoint
-      0x00, 0x00,         // cluster
-      0x03,               // DstAddrMode - 0x03 = ADDRESS_64_BIT
-      0,0,0,0,0,0,0,0,    // dstAddr - 64 bits, IEEE binding destination, i.e. coordinator
-      0x01                // dstEndpoint - 0x01 for coordinator
-)
-
 void CmndZbBind(void) {
   // ZbBind { "device":"0x1234", "endpoint":1, "cluster":6 }
 
@@ -620,7 +610,7 @@ void CmndZbBind(void) {
   if (toGroup && dstLongAddr) { ResponseCmndChar("Cannot have both \"ToDevice\" and \"ToGroup\""); return; }
   if (!toGroup && !dstLongAddr) { ResponseCmndChar("Missing \"ToDevice\" or \"ToGroup\""); return; }
 
-  SBuffer buf(sizeof(ZBS_BIND_REQ));
+  SBuffer buf(34);
   buf.add8(Z_SREQ | Z_ZDO);
   buf.add8(ZDO_BIND_REQ);
   buf.add16(srcDevice);
@@ -847,16 +837,25 @@ void CmndZbPermitJoin(void)
 {
   if (zigbee.init_phase) { ResponseCmndChar(D_ZIGBEE_NOT_STARTED); return; }
   uint32_t payload = XdrvMailbox.payload;
-  if (payload < 0) { payload = 0; }
-  if ((99 != payload) && (payload > 1)) { payload = 1; }
+  uint16_t dstAddr = 0xFFFC;            // default addr
+  uint8_t  duration = 60;               // default 60s
 
-  if (1 == payload) {
-    ZigbeeGotoLabel(ZIGBEE_LABEL_PERMIT_JOIN_OPEN_60);
-  } else if (99 == payload){
-    ZigbeeGotoLabel(ZIGBEE_LABEL_PERMIT_JOIN_OPEN_XX);
-  } else {
-    ZigbeeGotoLabel(ZIGBEE_LABEL_PERMIT_JOIN_CLOSE);
+  if (payload <= 0) {
+    duration = 0;
+  } else if (99 == payload) {
+    duration = 0xFF;                    // unlimited time
   }
+
+  SBuffer buf(34);
+  buf.add8(Z_SREQ | Z_ZDO);             // 25
+  buf.add8(ZDO_MGMT_PERMIT_JOIN_REQ);   // 36
+  buf.add8(0x0F);                       // AddrMode
+  buf.add16(0xFFFC);                    // DstAddr
+  buf.add8(duration);
+  buf.add8(0x00);                       // TCSignificance
+
+  ZigbeeZNPSend(buf.getBuffer(), buf.len());
+
   ResponseCmndDone();
 }
 
