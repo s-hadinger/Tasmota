@@ -868,15 +868,6 @@ void Z_Devices::jsonPublishFlush(uint16_t shortaddr) {
   const String * fname = zigbee_devices.getFriendlyName(shortaddr);
   bool use_fname = (Settings.flag4.zigbee_use_names) && (fname);    // should we replace shortaddr with friendlyname?
 
-  // if (use_fname) {
-  //   // we need to add the Device short_addr inside the JSON
-  //   char sa[8];
-  //   snprintf_P(sa, sizeof(sa), PSTR("0x%04X"), shortaddr);
-  //   json->set(F(D_JSON_ZIGBEE_DEVICE), sa);
-  // } else if (fname) {
-  //   json->set(F(D_JSON_NAME), (char*) fname);
-  // }
-
   // Remove redundant "Name" or "Device"
   if (use_fname) {
     json->remove(F(D_JSON_ZIGBEE_NAME));
