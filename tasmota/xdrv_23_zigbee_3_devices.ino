@@ -1061,4 +1061,21 @@ String Z_Devices::dump(uint32_t dump_mode, uint16_t status_shortaddr) const {
   return payload;
 }
 
+// Add global functions for Hue Emulation
+
+// get the total number of zigbee devices registered, to allow iterator
+uint32_t zigbeeDevicesSize(void) {
+  return zigbee_devices.devicesSize();
+}
+
+// get the bulb type for the nth device
+int8_t  zigbeeGetBulbType(uint32_t idx) {
+  return zigbee_devices.devicesAt(idx).bulbtype;
+}
+
+// get the shortaddr of the nth device
+uint16_t zigbeeGetShortAddr(uint32_t idx) {
+  return zigbee_devices.devicesAt(idx).shortaddr;
+}
+
 #endif // USE_ZIGBEE

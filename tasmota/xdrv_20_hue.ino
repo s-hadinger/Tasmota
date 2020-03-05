@@ -396,7 +396,7 @@ void HueLightStatus2(uint8_t device, String *response)
 // generate a unique lightId mixing local IP address and device number
 // it is limited to 32 devices.
 // last 24 bits of Mac address + 4 bits of local light + high bit for relays 16-31, relay 32 is mapped to 0
-// Zigbee extension: base address + 32 + shortaddr
+// Zigbee extension: bit 29 = 1, and last 16 bits = short address of Zigbee device
 #ifndef USE_ZIGBEE
 uint32_t EncodeLightId(uint8_t relay_id)
 #else
@@ -417,7 +417,7 @@ uint32_t EncodeLightId(uint8_t relay_id, uint16_t z_shortaddr = 0)
 #ifdef USE_ZIGBEE
   if ((z_shortaddr) && (!relay_id)) {
     // fror Zigbee devices, we have relay_id == 0 and shortaddr != 0
-    id = id + 0x20 + z_shortaddr;
+    id = (1 << 29) | z_shortaddr;
   }
 #endif
 
@@ -427,7 +427,15 @@ uint32_t EncodeLightId(uint8_t relay_id, uint16_t z_shortaddr = 0)
 
 // get hue_id and decode the relay_id
 // 4 LSB decode to 1-15, if bit 28 is set, it encodes 16-31, if 0 then 32
-uint32_t DecodeLightId(uint32_t hue_id) {
+// Zigbee:
+// If the Id encodes a Zigbee device (meaning bit 29 is set)
+// it returns 0 and sets the 'shortaddr' to the device short address
+#ifndef USE_ZIGBEE
+uint32_t DecodeLightId(uint32_t hue_id)
+#else
+uint32_t DecodeLightId(uint32_t hue_id, uint16_t * shortaddr = nullptr)
+#endif
+{
   uint8_t relay_id = hue_id & 0xF;
   if (hue_id & (1 << 28)) {   // check if bit 25 is set, if so we have
     relay_id += 16;
@@ -435,6 +443,13 @@ uint32_t DecodeLightId(uint32_t hue_id) {
   if (0 == relay_id) {        // special value 0 is actually relay #32
     relay_id = 32;
   }
+#ifdef USE_ZIGBEE
+  if (hue_id & (1 << 29)) {
+    // this is actually a Zigbee ID
+    if (shortaddr) { *shortaddr = hue_id & 0xFFFF; }
+    relay_id = 0;
+  }
+#endif // USE_ZIGBEE
   return relay_id;
 }
 
@@ -481,6 +496,24 @@ void HueGlobalConfig(String *path) {
       appending = true;
     }
   }
+#ifdef USE_ZIGBEE
+  uint32_t zigbee_num = zigbeeDevicesSize();
+  for (uint32_t i = 0; i < zigbee_num; i++) {
+    int8_t bulbtype = zigbeeGetBulbType(i);
+
+    if (bulbtype >= 0) {
+      uint16_t shortaddr = zigbeeGetShortAddr(i);
+      // this bulb is advertized
+      if (appending) { response += ","; }
+      response += "\"";
+      response += EncodeLightId(0, shortaddr);
+      response += F("\":{\"state\":");
+      HueLightStatus1(i, &response);
+      HueLightStatus2(i, &response);
+      appending = true;
+    }
+  }
+#endif // USE_ZIGBEE
   response += F("},\"groups\":{},\"schedules\":{},\"config\":");
   HueConfigResponse(&response);
   response += "}";
