@@ -83,16 +83,17 @@ void HueRespondToMSearch(void)
     char response[320];
     snprintf_P(response, sizeof(response), HUE_RESPONSE, WiFi.localIP().toString().c_str(), HueBridgeId().c_str());
     int len = strlen(response);
+    String uuid = HueUuid();
 
-    snprintf_P(response + len, sizeof(response) - len, HUE_ST1, HueUuid().c_str());
+    snprintf_P(response + len, sizeof(response) - len, HUE_ST1, uuid.c_str());
     PortUdp.write(response);
     PortUdp.endPacket();
 
-    snprintf_P(response + len, sizeof(response) - len, HUE_ST2, HueUuid().c_str(), HueUuid().c_str());
+    snprintf_P(response + len, sizeof(response) - len, HUE_ST2, uuid.c_str(), uuid.c_str());
     PortUdp.write(response);
     PortUdp.endPacket();
 
-    snprintf_P(response + len, sizeof(response) - len, HUE_ST3, HueUuid().c_str());
+    snprintf_P(response + len, sizeof(response) - len, HUE_ST3, uuid.c_str());
     PortUdp.write(response);
     PortUdp.endPacket();
 
@@ -502,6 +503,7 @@ void HueAuthentication(String *path)
   WSSend(200, CT_JSON, response);
 }
 
+// refactored to remove code duplicates
 void CheckHue(String * response, bool &appending) {
   uint8_t maxhue = (devices_present > MAX_HUE_DEVICES) ? MAX_HUE_DEVICES : devices_present;
   for (uint32_t i = 1; i <= maxhue; i++) {
@@ -777,7 +779,8 @@ void HueGroups(String *path)
  */
   String response = "{}";
   uint8_t maxhue = (devices_present > MAX_HUE_DEVICES) ? MAX_HUE_DEVICES : devices_present;
-
+  AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR(D_LOG_HTTP D_HUE " HueGroups (%s)"), path->c_str());
+  
   if (path->endsWith("/0")) {
     response = FPSTR(HUE_GROUP0_STATUS_JSON);
     String lights = F("\"1\"");
@@ -795,6 +798,7 @@ void HueGroups(String *path)
     response += F("}");
   }
 
+  AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR(D_LOG_HTTP D_HUE " HueGroups Result (%s)"), path->c_str());
   WSSend(200, CT_JSON, response);
 }
 
