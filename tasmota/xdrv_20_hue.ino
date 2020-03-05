@@ -501,6 +501,7 @@ void HueAuthentication(String *path)
 
   snprintf_P(response, sizeof(response), PSTR("[{\"success\":{\"username\":\"%s\"}}]"), GetHueUserId().c_str());
   WSSend(200, CT_JSON, response);
+  AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR(D_LOG_HTTP D_HUE " Authentication Result (%s)"), response);
 }
 
 // refactored to remove code duplicates
