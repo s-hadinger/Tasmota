@@ -47,8 +47,7 @@ typedef struct Z_Device {
   JsonObject           *json;
   // sequence number for Zigbee frames
   uint8_t               seqNumber;
-#ifdef ZIGBEE_ALEXA
-  // Light information for Alexa integration, last known values
+  // Light information for Hue integration integration, last known values
   int8_t                bulbtype;       // number of channel for the bulb: 0-5, or 0xFF if no Alexa integration
   uint8_t               power;          // power state (boolean)
   uint8_t               colormode;      // 0x00: Hue/Sat, 0x01: XY, 0x02: CT
@@ -57,7 +56,6 @@ typedef struct Z_Device {
   uint16_t              ct;             // last CT: 153-500
   uint16_t              hue;            // last Hue: 0..359
   float                 x, y;           // last color [x,y]
-#endif // ZIGBEE_ALEXA
 } Z_Device;
 
 // Category for Deferred actions, this allows to selectively remove active deferred or update them
@@ -130,7 +128,6 @@ public:
   // Dump json
   String dump(uint32_t dump_mode, uint16_t status_shortaddr = 0) const;
 
-#ifdef ZIGBEE_ALEXA
   // Alexa support
   void setAlexaBulbtype(uint16_t shortaddr, int8_t bulbtype);
   int8_t getAlexaBulbtype(uint16_t shortaddr) const ;
@@ -144,7 +141,6 @@ public:
                         uint8_t *dimmer, uint8_t *sat,
                         uint16_t *ct, uint16_t *hue,
                         float *x, float *y) const ;
-#endif
 
   // Timers
   void resetTimersForDevice(uint16_t shortaddr, uint8_t category);
@@ -1076,6 +1072,21 @@ int8_t  zigbeeGetBulbType(uint32_t idx) {
 // get the shortaddr of the nth device
 uint16_t zigbeeGetShortAddr(uint32_t idx) {
   return zigbee_devices.devicesAt(idx).shortaddr;
+}
+
+// get the name of the nth device
+const String &zigbeeGetFriendlyName(uint32_t idx) {
+  return zigbee_devices.devicesAt(idx).friendlyName;
+}
+
+// get bulb last known state
+bool zigbeeGetBulbState(uint16_t shortaddr,
+                        uint8_t *power, uint8_t *colormode,
+                        uint8_t *dimmer, uint8_t *sat,
+                        uint16_t *ct, uint16_t *hue,
+                        float *x, float *y)
+{
+  return zigbee_devices.getAlexaState(shortaddr, power, colormode, dimmer, sat, ct, hue, x, y);
 }
 
 #endif // USE_ZIGBEE

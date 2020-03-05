@@ -1129,7 +1129,8 @@ void ZCLFrame::postProcessAttributes(uint16_t shortaddr, JsonObject& json) {
         zigbee_devices.updateAlexaState(shortaddr, nullptr, nullptr, &dimmer, nullptr,
                                         nullptr, nullptr, nullptr, nullptr);
       } else if ((cluster == 0x0300) && (attribute == 0x0000)) {
-        uint16_t hue = value;
+        uint16_t hue8 = value;
+        uint16_t hue = changeUIntScale(hue8, 0, 254, 0, 360);     // change range from 0..254 to 0..360
         zigbee_devices.updateAlexaState(shortaddr, nullptr, nullptr, nullptr, nullptr,
                                         nullptr, &hue, nullptr, nullptr);
       } else if ((cluster == 0x0300) && (attribute == 0x0001)) {
