@@ -849,7 +849,7 @@ bool Xdrv20(uint8_t function)
 {
   bool result = false;
 
-#ifdef USE_SCRIPT_HUE
+#if defined(USE_SCRIPT_HUE) || defined(USE_ZIGBEE)
   if ((EMUL_HUE == Settings.flag2.emulation)) {
 #else
   if (devices_present && (EMUL_HUE == Settings.flag2.emulation)) {
