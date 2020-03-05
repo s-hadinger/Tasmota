@@ -480,22 +480,11 @@ uint32_t findEchoGeneration(void) {
 
 void HueGlobalConfig(String *path) {
   String response;
-  uint8_t maxhue = (devices_present > MAX_HUE_DEVICES) ? MAX_HUE_DEVICES : devices_present;
 
   path->remove(0,1);                                 // cut leading / to get <id>
   response = F("{\"lights\":{");
   bool appending = false;                             // do we need to add a comma to append
-  for (uint32_t i = 1; i <= maxhue; i++) {
-    if (HueActive(i)) {
-      if (appending) { response += ","; }
-      response += "\"";
-      response += EncodeLightId(i);
-      response += F("\":{\"state\":");
-      HueLightStatus1(i, &response);
-      HueLightStatus2(i, &response);
-      appending = true;
-    }
-  }
+  CheckHue(&response, appending);
 #ifdef USE_ZIGBEE
   ZigbeeCheckHue(&response, appending);
 #endif // USE_ZIGBEE
@@ -511,6 +500,21 @@ void HueAuthentication(String *path)
 
   snprintf_P(response, sizeof(response), PSTR("[{\"success\":{\"username\":\"%s\"}}]"), GetHueUserId().c_str());
   WSSend(200, CT_JSON, response);
+}
+
+void CheckHue(String * response, bool &appending) {
+  uint8_t maxhue = (devices_present > MAX_HUE_DEVICES) ? MAX_HUE_DEVICES : devices_present;
+  for (uint32_t i = 1; i <= maxhue; i++) {
+    if (HueActive(i)) {
+      if (appending) { *response += ","; }
+      *response += "\"";
+      *response += EncodeLightId(i);
+      *response += F("\":{\"state\":");
+      HueLightStatus1(i, response);
+      HueLightStatus2(i, response);
+      appending = true;
+    }
+  }
 }
 
 void HueLights(String *path)
@@ -536,17 +540,7 @@ void HueLights(String *path)
   if (path->endsWith("/lights")) {                   // Got /lights
     response = "{";
     bool appending = false;
-    for (uint32_t i = 1; i <= maxhue; i++) {
-      if (HueActive(i)) {
-        if (appending) { response += ","; }
-        response += "\"";
-        response += EncodeLightId(i);
-        response += F("\":{\"state\":");
-        HueLightStatus1(i, &response);
-        HueLightStatus2(i, &response);
-        appending = true;
-      }
-    }
+    CheckHue(&response, appending);
 #ifdef USE_ZIGBEE
     ZigbeeCheckHue(&response, appending);
 #endif // USE_ZIGBEE

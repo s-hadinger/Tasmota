@@ -21,21 +21,6 @@
 
 // Add global functions for Hue Emulation
 
-// get the name of the nth device
-const String &zigbeeGetFriendlyName(uint32_t idx) {
-  return zigbee_devices.devicesAt(idx).friendlyName;
-}
-
-// get bulb last known state
-bool zigbeeGetBulbState(uint16_t shortaddr,
-                        uint8_t *power, uint8_t *colormode,
-                        uint8_t *dimmer, uint8_t *sat,
-                        uint16_t *ct, uint16_t *hue,
-                        float *x, float *y)
-{
-  return zigbee_devices.getAlexaState(shortaddr, power, colormode, dimmer, sat, ct, hue, x, y);
-}
-
 // idx: index in the list of zigbee_devices
 void HueLightStatus1Zigbee(uint32_t idx, uint16_t shortaddr, uint8_t local_light_subtype, String *response) {
   uint8_t  power, colormode, bri, sat;
@@ -44,7 +29,7 @@ void HueLightStatus1Zigbee(uint32_t idx, uint16_t shortaddr, uint8_t local_light
   String light_status = "";
   uint32_t echo_gen = findEchoGeneration();   // 1 for 1st gen =+ Echo Dot 2nd gen, 2 for 2nd gen and above
 
-  zigbeeGetBulbState(shortaddr, &power, &colormode, &bri, &sat, &ct, &hue, &x, &y);
+  zigbee_devices.getAlexaState(shortaddr, &power, &colormode, &bri, &sat, &ct, &hue, &x, &y);
 
   //bri = LightGetBri(device);   // get Dimmer corrected with SetOption68
   if (bri > 254)  bri = 254;    // Philips Hue bri is between 1 and 254
@@ -98,7 +83,7 @@ void HueLightStatus1Zigbee(uint32_t idx, uint16_t shortaddr, uint8_t local_light
 void HueLightStatus2Zigbee(uint32_t idx, uint16_t shortaddr, String *response)
 {
   *response += FPSTR(HUE_LIGHTS_STATUS_JSON2);
-  const String &friendlyName = zigbeeGetFriendlyName(idx);
+  const String &friendlyName = zigbee_devices.devicesAt(idx).friendlyName;
   if (friendlyName.length() > 0) {
     response->replace("{j1", friendlyName);
   } else {
@@ -109,7 +94,7 @@ void HueLightStatus2Zigbee(uint32_t idx, uint16_t shortaddr, String *response)
   response->replace("{j2", GetHueDeviceId(idx));
 }
 
-void ZigbeeCheckHue(String * response, bool appending) {
+void ZigbeeCheckHue(String * response, bool &appending) {
   uint32_t zigbee_num = zigbee_devices.devicesSize();
   for (uint32_t i = 0; i < zigbee_num; i++) {
     int8_t bulbtype = zigbee_devices.devicesAt(i).bulbtype;
