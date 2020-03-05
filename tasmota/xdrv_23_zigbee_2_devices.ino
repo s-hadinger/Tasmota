@@ -19,8 +19,6 @@
 
 #ifdef USE_ZIGBEE
 
-#define ZIGBEE_ALEXA
-
 #include <vector>
 #include <map>
 
@@ -271,7 +269,6 @@ Z_Device & Z_Devices::createDeviceEntry(uint16_t shortaddr, uint64_t longaddr) {
                       std::vector<uint32_t>(),
                       nullptr, nullptr,
                       0,          // seqNumber
-#ifdef ZIGBEE_ALEXA
                       // Alexa support
                       -1,       // no Alexa support
                       0,          // power
@@ -281,7 +278,6 @@ Z_Device & Z_Devices::createDeviceEntry(uint16_t shortaddr, uint64_t longaddr) {
                       200,        // ct
                       0,          // hue
                       0.0f, 0.0f, // x, y
-#endif // ZIGBEE_ALEXA
                       };
   device.json_buffer = new DynamicJsonBuffer();
   _devices.push_back(device);
@@ -613,8 +609,6 @@ uint8_t Z_Devices::getNextSeqNumber(uint16_t shortaddr) {
 }
 
 
-#ifdef ZIGBEE_ALEXA
-
 // Alexa support
 void Z_Devices::setAlexaBulbtype(uint16_t shortaddr, int8_t bulbtype) {
   Z_Device &device = getShortAddr(shortaddr);
@@ -671,8 +665,6 @@ bool Z_Devices::getAlexaState(uint16_t shortaddr,
     return false;
   }
 }
-#endif
-
 
 // Deferred actions
 // Parse for a specific category, of all deferred for a device if category == 0xFF
@@ -1055,38 +1047,6 @@ String Z_Devices::dump(uint32_t dump_mode, uint16_t status_shortaddr) const {
   payload.reserve(200);
   json.printTo(payload);
   return payload;
-}
-
-// Add global functions for Hue Emulation
-
-// get the total number of zigbee devices registered, to allow iterator
-uint32_t zigbeeDevicesSize(void) {
-  return zigbee_devices.devicesSize();
-}
-
-// get the bulb type for the nth device
-int8_t  zigbeeGetBulbType(uint32_t idx) {
-  return zigbee_devices.devicesAt(idx).bulbtype;
-}
-
-// get the shortaddr of the nth device
-uint16_t zigbeeGetShortAddr(uint32_t idx) {
-  return zigbee_devices.devicesAt(idx).shortaddr;
-}
-
-// get the name of the nth device
-const String &zigbeeGetFriendlyName(uint32_t idx) {
-  return zigbee_devices.devicesAt(idx).friendlyName;
-}
-
-// get bulb last known state
-bool zigbeeGetBulbState(uint16_t shortaddr,
-                        uint8_t *power, uint8_t *colormode,
-                        uint8_t *dimmer, uint8_t *sat,
-                        uint16_t *ct, uint16_t *hue,
-                        float *x, float *y)
-{
-  return zigbee_devices.getAlexaState(shortaddr, power, colormode, dimmer, sat, ct, hue, x, y);
 }
 
 #endif // USE_ZIGBEE
