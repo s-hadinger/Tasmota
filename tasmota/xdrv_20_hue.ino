@@ -555,10 +555,18 @@ void HueLights(String *path)
   else if (path->endsWith("/state")) {               // Got ID/state
     path->remove(0,8);                               // Remove /lights/
     path->remove(path->indexOf("/state"));           // Remove /state
+#ifndef USE_ZIGBEE
     device = DecodeLightId(atoi(path->c_str()));
+#else // USE_ZIGBEE
+    uint16_t shortaddr;
+    device = DecodeLightId(atoi(path->c_str()), &shortaddr);
+    if (shortaddr) {
+      return ZigbeeHandleHue(shortaddr, path);
+    }
+#endif // USE_ZIGBEE
 
 #ifdef USE_SCRIPT_HUE
-    if (device>devices_present) {
+    if (device > devices_present) {
       return Script_Handle_Hue(path);
     }
 #endif
@@ -639,7 +647,7 @@ void HueLights(String *path)
       }
       // handle xy before Hue/Sat
       // If the request contains both XY and HS, we wan't to give priority to HS
-      if (hue_json.containsKey("xy")) {             // Saturation of the light. 254 is the most saturated (colored) and 0 is the least saturated (white).
+      if (hue_json.containsKey("xy")) {
         float x, y;
         x = hue_json["xy"][0];
         y = hue_json["xy"][1];

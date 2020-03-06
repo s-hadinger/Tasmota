@@ -126,4 +126,119 @@ void ZigbeeHueGroups(String * lights) {
   }
 }
 
+void ZigbeeHandleHue(uint16_t shortaddr, String *path) {
+  String response;
+  uint8_t  power, colormode, bri, sat;
+  uint16_t ct, hue;
+  float    x, y;
+  int code = 200;
+
+  bool resp = false;  // is the response non null (add comma between parameters)
+  bool on = false;
+
+  uint8_t bulbtype = zigbee_devices.getAlexaBulbtype(shortaddr);
+
+  if (WebServer->args()) {
+    response = "[";
+
+    StaticJsonBuffer<400> jsonBuffer;
+    JsonObject &hue_json = jsonBuffer.parseObject(WebServer->arg((WebServer->args())-1));
+    if (hue_json.containsKey("on")) {
+
+      response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
+      response.replace("{id", String(EncodeLightId(0, shortaddr)));
+      response.replace("{cm", "on");
+      on = hue_json["on"];
+      switch(on)
+      {
+        case false : // TODO
+                    response.replace("{re", "false");
+                    break;
+        case true  : // TODO
+                    response.replace("{re", "true");
+                    break;
+        default    : response.replace("{re", (power & 1) ? "true" : "false");
+                    break;
+      }
+      resp = true;
+    }
+
+    if (hue_json.containsKey("bri")) {             // Brightness is a scale from 1 (the minimum the light is capable of) to 254 (the maximum). Note: a brightness of 1 is not off.
+      bri = hue_json["bri"];
+      if (resp) { response += ","; }
+      response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
+      response.replace("{id", String(shortaddr));
+      response.replace("{cm", "bri");
+      response.replace("{re", String(bri));
+      if (bri > 254) { bri = 254; }               // limit to 254
+      if (LST_SINGLE <= bulbtype) {
+        // TODO change
+      }
+      resp = true;
+    }
+    // handle xy before Hue/Sat
+    // If the request contains both XY and HS, we wan't to give priority to HS
+    if (hue_json.containsKey("xy")) {
+      float x, y;
+      x = hue_json["xy"][0];
+      y = hue_json["xy"][1];
+      if (resp) { response += ","; }
+      response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
+      response.replace("{id", String(shortaddr));
+      response.replace("{cm", "xy");
+      response.replace("{re", "[" + String(x, 5) + "," + String(y, 5) + "]");
+      resp = true;
+      // TODO change
+    }
+    if (hue_json.containsKey("hue")) {             // The hue value is a wrapping value between 0 and 65535. Both 0 and 65535 are red, 25500 is green and 46920 is blue.
+      hue = hue_json["hue"];
+      if (resp) { response += ","; }
+      response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
+      response.replace("{id", String(shortaddr));
+      response.replace("{cm", "hue");
+      response.replace("{re", String(hue));
+      if (LST_RGB <= bulbtype) {
+        uint8_t hue8 = changeUIntScale(hue, 0, 65535, 0, 254);
+        // TODO
+      }
+      resp = true;
+    }
+    if (hue_json.containsKey("sat")) {             // Saturation of the light. 254 is the most saturated (colored) and 0 is the least saturated (white).
+      sat = hue_json["sat"];
+      if (resp) { response += ","; }
+      response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
+      response.replace("{id", String(shortaddr));
+      response.replace("{cm", "sat");
+      response.replace("{re", String(sat));
+      if (LST_RGB <= bulbtype) {
+        // extend sat value if set to max
+        if (254 <= sat) { sat = 255; }
+        // TODO
+      }
+      resp = true;
+    }
+    if (hue_json.containsKey("ct")) {  // Color temperature 153 (Cold) to 500 (Warm)
+      ct = hue_json["ct"];
+      if (resp) { response += ","; }
+      response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
+      response.replace("{id", String(shortaddr));
+      response.replace("{cm", "ct");
+      response.replace("{re", String(ct));
+      if ((LST_COLDWARM == bulbtype) || (LST_RGBW <= bulbtype)) {
+        // TODO
+      }
+      resp = true;
+    }
+    response += "]";
+    if (2 == response.length()) {
+      response = FPSTR(HUE_ERROR_JSON);
+    }
+  }
+  else {
+    response = FPSTR(HUE_ERROR_JSON);
+  }
+  AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR(D_LOG_HTTP D_HUE " Result (%s)"), response.c_str());
+  WSSend(code, CT_JSON, response);
+}
+
 #endif // USE_ZIGBEE
