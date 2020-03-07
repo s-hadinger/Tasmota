@@ -537,36 +537,40 @@ void HueLightsCommand(uint8_t device, uint32_t device_id, String &response) {
   if (WebServer->args()) {
     response = "[";
 
-    StaticJsonBuffer<400> jsonBuffer;
+    StaticJsonBuffer<300> jsonBuffer;
     JsonObject &hue_json = jsonBuffer.parseObject(WebServer->arg((WebServer->args())-1));
     if (hue_json.containsKey("on")) {
-
-      response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-      response.replace("{id", String(EncodeLightId(device_id)));
-      response.replace("{cm", "on");
+      on = hue_json["on"];
+      // response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
+      // response.replace("{id", String(EncodeLightId(device_id)));
+      // response.replace("{cm", "on");
+      snprintf_P(buf, buf_size,
+                 PSTR("{\"success\":{\"/lights/%d/state/on\":%s}"),
+                 device_id, on ? "true" : "false");
 
 #ifdef USE_SHUTTER
       if (ShutterState(device)) {
         if (!change) {
-          on = hue_json["on"];
           bri = on ? 1.0f : 0.0f; // when bri is not part of this request then calculate it
           change = true;
+          resp = true;
+          response += buf;        // actually publish the state
         }
-        response.replace("{re", on ? "true" : "false");
+        //response.replace("{re", on ? "true" : "false");
       } else {
 #endif
-        on = hue_json["on"];
         switch(on)
         {
           case false : ExecuteCommandPower(device, POWER_OFF, SRC_HUE);
-                      response.replace("{re", "false");
+                      //response.replace("{re", "false");
                       break;
           case true  : ExecuteCommandPower(device, POWER_ON, SRC_HUE);
-                      response.replace("{re", "true");
+                      //response.replace("{re", "true");
                       break;
-          default    : response.replace("{re", (power & (1 << (device-1))) ? "true" : "false");
-                      break;
+          // default    : response.replace("{re", (power & (1 << (device-1))) ? "true" : "false");
+          //             break;
         }
+        response += buf;
         resp = true;
 #ifdef USE_SHUTTER
       }
@@ -589,16 +593,20 @@ void HueLightsCommand(uint8_t device, uint32_t device_id, String &response) {
     prev_x_str[0] = prev_y_str[0] = 0;  // reset xy string
 
     if (hue_json.containsKey("bri")) {             // Brightness is a scale from 1 (the minimum the light is capable of) to 254 (the maximum). Note: a brightness of 1 is not off.
-      tmp = hue_json["bri"];
-      prev_bri = bri = tmp;   // store command value
-      // extend bri value if set to max
-      if (254 <= bri) { bri = 255; }
+      bri = hue_json["bri"];
+      prev_bri = bri;   // store command value
       if (resp) { response += ","; }
-      response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-      response.replace("{id", String(device_id));
-      response.replace("{cm", "bri");
-      response.replace("{re", String(tmp));
+      snprintf_P(buf, buf_size,
+                 PSTR("{\"success\":{\"/lights/%d/state/%s\":%d}}"),
+                 device_id, "bri", bri);
+      response += buf;
+      // response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
+      // response.replace("{id", String(device_id));
+      // response.replace("{cm", "bri");
+      // response.replace("{re", String(bri));
       if (LST_SINGLE <= Light.subtype) {
+        // extend bri value if set to max
+        if (254 <= bri) { bri = 255; }
         change = true;
       }
       resp = true;
@@ -606,9 +614,8 @@ void HueLightsCommand(uint8_t device, uint32_t device_id, String &response) {
     // handle xy before Hue/Sat
     // If the request contains both XY and HS, we wan't to give priority to HS
     if (hue_json.containsKey("xy")) {
-      float x, y;
-      x = hue_json["xy"][0];
-      y = hue_json["xy"][1];
+      float x = hue_json["xy"][0];
+      float y = hue_json["xy"][1];
       const String &x_str = hue_json["xy"][0];
       const String &y_str = hue_json["xy"][1];
       x_str.toCharArray(prev_x_str, sizeof(prev_x_str));
@@ -621,41 +628,53 @@ void HueLightsCommand(uint8_t device, uint32_t device_id, String &response) {
       prev_sat = (sat > 254 ? 254 : sat);
       //AddLog_P2(LOG_LEVEL_DEBUG_MORE, "XY RGB (%d %d %d) HS (%d %d)", rr,gg,bb,hue,sat);
       if (resp) { response += ","; }
-      response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-      response.replace("{id", String(device_id));
-      response.replace("{cm", "xy");
-      response.replace("{re", "[" + x_str + "," + y_str + "]");
+      snprintf_P(buf, buf_size,
+                 PSTR("{\"success\":{\"/lights/%d/state/xy\":[%s,%s]}}"),
+                 device_id, prev_x_str, prev_y_str);
+      response += buf;
+      // response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
+      // response.replace("{id", String(device_id));
+      // response.replace("{cm", "xy");
+      // response.replace("{re", "[" + x_str + "," + y_str + "]");
       g_gotct = false;
       resp = true;
       change = true;
     }
     if (hue_json.containsKey("hue")) {             // The hue value is a wrapping value between 0 and 65535. Both 0 and 65535 are red, 25500 is green and 46920 is blue.
-      tmp = hue_json["hue"];
-      prev_hue = tmp;
-      // change range from 0..65535 to 0..359
-      hue = changeUIntScale(tmp, 0, 65535, 0, 359);
+      hue = hue_json["hue"];
+      prev_hue = hue;
       if (resp) { response += ","; }
-      response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-      response.replace("{id", String(device_id));
-      response.replace("{cm", "hue");
-      response.replace("{re", String(tmp));
+      snprintf_P(buf, buf_size,
+                 PSTR("{\"success\":{\"/lights/%d/state/%s\":%d}}"),
+                 device_id, "hue", hue);
+      response += buf;
+      // response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
+      // response.replace("{id", String(device_id));
+      // response.replace("{cm", "hue");
+      // response.replace("{re", String(tmp));
       if (LST_RGB <= Light.subtype) {
+        // change range from 0..65535 to 0..359
+        hue = changeUIntScale(hue, 0, 65535, 0, 359);
         g_gotct = false;
         change = true;
       }
       resp = true;
     }
     if (hue_json.containsKey("sat")) {             // Saturation of the light. 254 is the most saturated (colored) and 0 is the least saturated (white).
-      tmp = hue_json["sat"];
-      prev_sat = sat = tmp;   // store command value
-      // extend sat value if set to max
-      if (254 <= sat) { sat = 255; }
+      sat = hue_json["sat"];
+      prev_sat = sat;   // store command value
       if (resp) { response += ","; }
-      response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-      response.replace("{id", String(device_id));
-      response.replace("{cm", "sat");
-      response.replace("{re", String(tmp));
+      snprintf_P(buf, buf_size,
+                 PSTR("{\"success\":{\"/lights/%d/state/%s\":%d}}"),
+                 device_id, "sat", sat);
+      response += buf;
+      // response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
+      // response.replace("{id", String(device_id));
+      // response.replace("{cm", "sat");
+      // response.replace("{re", String(sat));
       if (LST_RGB <= Light.subtype) {
+        // extend sat value if set to max
+        if (254 <= sat) { sat = 255; }
         g_gotct = false;
         change = true;
       }
@@ -665,10 +684,14 @@ void HueLightsCommand(uint8_t device, uint32_t device_id, String &response) {
       ct = hue_json["ct"];
       prev_ct = ct;   // store commande value
       if (resp) { response += ","; }
-      response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-      response.replace("{id", String(device_id));
-      response.replace("{cm", "ct");
-      response.replace("{re", String(ct));
+      snprintf_P(buf, buf_size,
+                 PSTR("{\"success\":{\"/lights/%d/state/%s\":%d}}"),
+                 device_id, "ct", ct);
+      response += buf;
+      // response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
+      // response.replace("{id", String(device_id));
+      // response.replace("{cm", "ct");
+      // response.replace("{re", String(ct));
       if ((LST_COLDWARM == Light.subtype) || (LST_RGBW <= Light.subtype)) {
         g_gotct = true;
         change = true;
