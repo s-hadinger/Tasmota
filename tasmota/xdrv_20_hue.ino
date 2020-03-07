@@ -520,7 +520,7 @@ void CheckHue(String * response, bool &appending) {
   }
 }
 
-void HueLightsCommand(uint8_t device, String &response) {
+void HueLightsCommand(uint8_t device, uint32_t device_id, String &response) {
   uint16_t tmp = 0;
   uint16_t hue = 0;
   uint8_t  sat = 0;
@@ -717,6 +717,7 @@ void HueLights(String *path)
   String response;
   int code = 200;
   uint8_t device = 1;
+  uint32_t device_id;   // the raw device_id used by Hue emulation
   uint8_t maxhue = (devices_present > MAX_HUE_DEVICES) ? MAX_HUE_DEVICES : devices_present;
 
   path->remove(0,path->indexOf("/lights"));          // Remove until /lights
@@ -735,12 +736,13 @@ void HueLights(String *path)
   else if (path->endsWith("/state")) {               // Got ID/state
     path->remove(0,8);                               // Remove /lights/
     path->remove(path->indexOf("/state"));           // Remove /state
-    device = DecodeLightId(atoi(path->c_str()));
+    device_id = atoi(path->c_str());
+    device = DecodeLightId(device_id);
 #ifdef USE_ZIGBEE
     uint16_t shortaddr;
-    device = DecodeLightId(atoi(path->c_str()), &shortaddr);
+    device = DecodeLightId(device_id, &shortaddr);
     if (shortaddr) {
-      return ZigbeeHandleHue(shortaddr, path);
+      return ZigbeeHandleHue(shortaddr, device_id, response);
     }
 #endif // USE_ZIGBEE
 
@@ -750,20 +752,21 @@ void HueLights(String *path)
     }
 #endif
     if ((device >= 1) || (device <= maxhue)) {
-      HueLightsCommand(device, response);
+      HueLightsCommand(device, device_id, response);
     }
 
   }
   else if(path->indexOf("/lights/") >= 0) {          // Got /lights/ID
     AddLog_P2(LOG_LEVEL_DEBUG_MORE, "/lights path=%s", path->c_str());
     path->remove(0,8);                               // Remove /lights/
-    device = DecodeLightId(atoi(path->c_str()));
+    device_id = atoi(path->c_str());
+    device = DecodeLightId(device_id);
 
 #ifdef USE_SCRIPT_HUE
-    if (device>devices_present) {
-      Script_HueStatus(&response,device-devices_present-1);
+    if (device > devices_present) {
+      Script_HueStatus(&response, device-devices_present - 1);
       goto exit;
-}
+    }
 #endif
 
     if ((device < 1) || (device > maxhue)) {

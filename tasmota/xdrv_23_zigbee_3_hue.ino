@@ -126,8 +126,7 @@ void ZigbeeHueGroups(String * lights) {
   }
 }
 
-void ZigbeeHandleHue(uint16_t shortaddr, String *path) {
-  String response;
+void ZigbeeHandleHue(uint16_t shortaddr, uint32_t device_id, String &response) {
   uint8_t  power, colormode, bri, sat;
   uint16_t ct, hue;
   float    x, y;
