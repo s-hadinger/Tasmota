@@ -174,8 +174,6 @@ const char HueConfigResponse_JSON[] PROGMEM =
    "\"linkbutton\":false,"
    "\"portalservices\":false"
   "}";
-const char HUE_LIGHT_RESPONSE_JSON[] PROGMEM =
-  "{\"success\":{\"/lights/{id/state/{cm\":{re}}";
 const char HUE_ERROR_JSON[] PROGMEM =
   "[{\"error\":{\"type\":901,\"address\":\"/\",\"description\":\"Internal Error\"}}]";
 
@@ -541,9 +539,6 @@ void HueLightsCommand(uint8_t device, uint32_t device_id, String &response) {
     JsonObject &hue_json = jsonBuffer.parseObject(WebServer->arg((WebServer->args())-1));
     if (hue_json.containsKey("on")) {
       on = hue_json["on"];
-      // response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-      // response.replace("{id", String(EncodeLightId(device_id)));
-      // response.replace("{cm", "on");
       snprintf_P(buf, buf_size,
                  PSTR("{\"success\":{\"/lights/%d/state/on\":%s}}"),
                  device_id, on ? "true" : "false");
@@ -556,7 +551,6 @@ void HueLightsCommand(uint8_t device, uint32_t device_id, String &response) {
           resp = true;
           response += buf;        // actually publish the state
         }
-        //response.replace("{re", on ? "true" : "false");
       } else {
 #endif
         switch(on)
@@ -567,8 +561,6 @@ void HueLightsCommand(uint8_t device, uint32_t device_id, String &response) {
           case true  : ExecuteCommandPower(device, POWER_ON, SRC_HUE);
                       //response.replace("{re", "true");
                       break;
-          // default    : response.replace("{re", (power & (1 << (device-1))) ? "true" : "false");
-          //             break;
         }
         response += buf;
         resp = true;
@@ -600,10 +592,6 @@ void HueLightsCommand(uint8_t device, uint32_t device_id, String &response) {
                  PSTR("{\"success\":{\"/lights/%d/state/%s\":%d}}"),
                  device_id, "bri", bri);
       response += buf;
-      // response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-      // response.replace("{id", String(device_id));
-      // response.replace("{cm", "bri");
-      // response.replace("{re", String(bri));
       if (LST_SINGLE <= Light.subtype) {
         // extend bri value if set to max
         if (254 <= bri) { bri = 255; }
@@ -620,7 +608,6 @@ void HueLightsCommand(uint8_t device, uint32_t device_id, String &response) {
       const String &y_str = hue_json["xy"][1];
       x_str.toCharArray(prev_x_str, sizeof(prev_x_str));
       y_str.toCharArray(prev_y_str, sizeof(prev_y_str));
-      //AddLog_P2(LOG_LEVEL_DEBUG_MORE, "XY (%s %s)", String(prev_x,5).c_str(), String(prev_y,5).c_str());
       uint8_t rr,gg,bb;
       LightStateClass::XyToRgb(x, y, &rr, &gg, &bb);
       LightStateClass::RgbToHsb(rr, gg, bb, &hue, &sat, nullptr);
@@ -632,10 +619,6 @@ void HueLightsCommand(uint8_t device, uint32_t device_id, String &response) {
                  PSTR("{\"success\":{\"/lights/%d/state/xy\":[%s,%s]}}"),
                  device_id, prev_x_str, prev_y_str);
       response += buf;
-      // response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-      // response.replace("{id", String(device_id));
-      // response.replace("{cm", "xy");
-      // response.replace("{re", "[" + x_str + "," + y_str + "]");
       g_gotct = false;
       resp = true;
       change = true;
@@ -648,10 +631,6 @@ void HueLightsCommand(uint8_t device, uint32_t device_id, String &response) {
                  PSTR("{\"success\":{\"/lights/%d/state/%s\":%d}}"),
                  device_id, "hue", hue);
       response += buf;
-      // response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-      // response.replace("{id", String(device_id));
-      // response.replace("{cm", "hue");
-      // response.replace("{re", String(tmp));
       if (LST_RGB <= Light.subtype) {
         // change range from 0..65535 to 0..359
         hue = changeUIntScale(hue, 0, 65535, 0, 359);
@@ -668,10 +647,6 @@ void HueLightsCommand(uint8_t device, uint32_t device_id, String &response) {
                  PSTR("{\"success\":{\"/lights/%d/state/%s\":%d}}"),
                  device_id, "sat", sat);
       response += buf;
-      // response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-      // response.replace("{id", String(device_id));
-      // response.replace("{cm", "sat");
-      // response.replace("{re", String(sat));
       if (LST_RGB <= Light.subtype) {
         // extend sat value if set to max
         if (254 <= sat) { sat = 255; }
@@ -688,10 +663,6 @@ void HueLightsCommand(uint8_t device, uint32_t device_id, String &response) {
                  PSTR("{\"success\":{\"/lights/%d/state/%s\":%d}}"),
                  device_id, "ct", ct);
       response += buf;
-      // response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-      // response.replace("{id", String(device_id));
-      // response.replace("{cm", "ct");
-      // response.replace("{re", String(ct));
       if ((LST_COLDWARM == Light.subtype) || (LST_RGBW <= Light.subtype)) {
         g_gotct = true;
         change = true;
