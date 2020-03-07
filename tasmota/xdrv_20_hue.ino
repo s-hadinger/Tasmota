@@ -545,7 +545,7 @@ void HueLightsCommand(uint8_t device, uint32_t device_id, String &response) {
       // response.replace("{id", String(EncodeLightId(device_id)));
       // response.replace("{cm", "on");
       snprintf_P(buf, buf_size,
-                 PSTR("{\"success\":{\"/lights/%d/state/on\":%s}"),
+                 PSTR("{\"success\":{\"/lights/%d/state/on\":%s}}"),
                  device_id, on ? "true" : "false");
 
 #ifdef USE_SHUTTER
