@@ -563,7 +563,7 @@ const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
   { 0x0001, 0x0000,  "MainsVoltage",         &Z_Copy },
   { 0x0001, 0x0001,  "MainsFrequency",       &Z_Copy },
   { 0x0001, 0x0020,  "BatteryVoltage",       &Z_FloatDiv10 },
-  { 0x0001, 0x0021,  "BatteryPercentageRemaining",&Z_Copy },
+  { 0x0001, 0x0021,  "BatteryPercentage",    &Z_Copy },
 
   // Device Temperature Configuration cluster
   { 0x0002, 0x0000,  "CurrentTemperature",   &Z_Copy },
