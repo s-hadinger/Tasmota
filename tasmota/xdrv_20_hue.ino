@@ -539,7 +539,7 @@ void HueLightsCommand(uint8_t device, uint32_t device_id, String &response) {
     if (hue_json.containsKey("on")) {
 
       response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-      response.replace("{id", String(EncodeLightId(device)));
+      response.replace("{id", String(EncodeLightId(device_id)));
       response.replace("{cm", "on");
 
 #ifdef USE_SHUTTER
@@ -592,7 +592,7 @@ void HueLightsCommand(uint8_t device, uint32_t device_id, String &response) {
       if (254 <= bri) { bri = 255; }
       if (resp) { response += ","; }
       response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-      response.replace("{id", String(device));
+      response.replace("{id", String(device_id));
       response.replace("{cm", "bri");
       response.replace("{re", String(tmp));
       if (LST_SINGLE <= Light.subtype) {
@@ -619,7 +619,7 @@ void HueLightsCommand(uint8_t device, uint32_t device_id, String &response) {
       //AddLog_P2(LOG_LEVEL_DEBUG_MORE, "XY RGB (%d %d %d) HS (%d %d)", rr,gg,bb,hue,sat);
       if (resp) { response += ","; }
       response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-      response.replace("{id", String(device));
+      response.replace("{id", String(device_id));
       response.replace("{cm", "xy");
       response.replace("{re", "[" + x_str + "," + y_str + "]");
       g_gotct = false;
@@ -633,7 +633,7 @@ void HueLightsCommand(uint8_t device, uint32_t device_id, String &response) {
       hue = changeUIntScale(tmp, 0, 65535, 0, 359);
       if (resp) { response += ","; }
       response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-      response.replace("{id", String(device));
+      response.replace("{id", String(device_id));
       response.replace("{cm", "hue");
       response.replace("{re", String(tmp));
       if (LST_RGB <= Light.subtype) {
@@ -649,7 +649,7 @@ void HueLightsCommand(uint8_t device, uint32_t device_id, String &response) {
       if (254 <= sat) { sat = 255; }
       if (resp) { response += ","; }
       response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-      response.replace("{id", String(device));
+      response.replace("{id", String(device_id));
       response.replace("{cm", "sat");
       response.replace("{re", String(tmp));
       if (LST_RGB <= Light.subtype) {
@@ -663,7 +663,7 @@ void HueLightsCommand(uint8_t device, uint32_t device_id, String &response) {
       prev_ct = ct;   // store commande value
       if (resp) { response += ","; }
       response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-      response.replace("{id", String(device));
+      response.replace("{id", String(device_id));
       response.replace("{cm", "ct");
       response.replace("{re", String(ct));
       if ((LST_COLDWARM == Light.subtype) || (LST_RGBW <= Light.subtype)) {
