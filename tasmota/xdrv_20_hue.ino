@@ -520,6 +520,195 @@ void CheckHue(String * response, bool &appending) {
   }
 }
 
+void HueLightsCommand(uint8_t device, String &response) {
+  uint16_t tmp = 0;
+  uint16_t hue = 0;
+  uint8_t  sat = 0;
+  uint8_t  bri = 254;
+  uint16_t ct = 0;
+  bool on = false;
+  bool resp = false;  // is the response non null (add comma between parameters)
+  bool change = false;  // need to change a parameter to the light
+  uint8_t local_light_subtype = getLocalLightSubtype(device); // get the subtype for this device
+
+  if (WebServer->args()) {
+    response = "[";
+
+    StaticJsonBuffer<400> jsonBuffer;
+    JsonObject &hue_json = jsonBuffer.parseObject(WebServer->arg((WebServer->args())-1));
+    if (hue_json.containsKey("on")) {
+
+      response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
+      response.replace("{id", String(EncodeLightId(device)));
+      response.replace("{cm", "on");
+
+#ifdef USE_SHUTTER
+      if (ShutterState(device)) {
+        if (!change) {
+          on = hue_json["on"];
+          bri = on ? 1.0f : 0.0f; // when bri is not part of this request then calculate it
+          change = true;
+        }
+        response.replace("{re", on ? "true" : "false");
+      } else {
+#endif
+        on = hue_json["on"];
+        switch(on)
+        {
+          case false : ExecuteCommandPower(device, POWER_OFF, SRC_HUE);
+                      response.replace("{re", "false");
+                      break;
+          case true  : ExecuteCommandPower(device, POWER_ON, SRC_HUE);
+                      response.replace("{re", "true");
+                      break;
+          default    : response.replace("{re", (power & (1 << (device-1))) ? "true" : "false");
+                      break;
+        }
+        resp = true;
+#ifdef USE_SHUTTER
+      }
+#endif  // USE_SHUTTER
+    }
+
+    if (light_type && (local_light_subtype >= LST_SINGLE)) {
+      if (!Settings.flag3.pwm_multi_channels) {  // SetOption68 - Enable multi-channels PWM instead of Color PWM
+        light_state.getHSB(&hue, &sat, nullptr);
+        bri = light_state.getBri();   // get the combined bri for CT and RGB, not only the RGB one
+        ct = light_state.getCT();
+        uint8_t color_mode = light_state.getColorMode();
+        if (LCM_RGB == color_mode) { g_gotct = false; }
+        if (LCM_CT  == color_mode) { g_gotct = true; }
+        // If LCM_BOTH == color_mode, leave g_gotct unchanged
+      } else {    // treat each channel as simple dimmer
+        bri = LightGetBri(device);
+      }
+    }
+    prev_x_str[0] = prev_y_str[0] = 0;  // reset xy string
+
+    if (hue_json.containsKey("bri")) {             // Brightness is a scale from 1 (the minimum the light is capable of) to 254 (the maximum). Note: a brightness of 1 is not off.
+      tmp = hue_json["bri"];
+      prev_bri = bri = tmp;   // store command value
+      // extend bri value if set to max
+      if (254 <= bri) { bri = 255; }
+      if (resp) { response += ","; }
+      response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
+      response.replace("{id", String(device));
+      response.replace("{cm", "bri");
+      response.replace("{re", String(tmp));
+      if (LST_SINGLE <= Light.subtype) {
+        change = true;
+      }
+      resp = true;
+    }
+    // handle xy before Hue/Sat
+    // If the request contains both XY and HS, we wan't to give priority to HS
+    if (hue_json.containsKey("xy")) {
+      float x, y;
+      x = hue_json["xy"][0];
+      y = hue_json["xy"][1];
+      const String &x_str = hue_json["xy"][0];
+      const String &y_str = hue_json["xy"][1];
+      x_str.toCharArray(prev_x_str, sizeof(prev_x_str));
+      y_str.toCharArray(prev_y_str, sizeof(prev_y_str));
+      //AddLog_P2(LOG_LEVEL_DEBUG_MORE, "XY (%s %s)", String(prev_x,5).c_str(), String(prev_y,5).c_str());
+      uint8_t rr,gg,bb;
+      LightStateClass::XyToRgb(x, y, &rr, &gg, &bb);
+      LightStateClass::RgbToHsb(rr, gg, bb, &hue, &sat, nullptr);
+      prev_hue = changeUIntScale(hue, 0, 359, 0, 65535);  // calculate back prev_hue
+      prev_sat = (sat > 254 ? 254 : sat);
+      //AddLog_P2(LOG_LEVEL_DEBUG_MORE, "XY RGB (%d %d %d) HS (%d %d)", rr,gg,bb,hue,sat);
+      if (resp) { response += ","; }
+      response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
+      response.replace("{id", String(device));
+      response.replace("{cm", "xy");
+      response.replace("{re", "[" + x_str + "," + y_str + "]");
+      g_gotct = false;
+      resp = true;
+      change = true;
+    }
+    if (hue_json.containsKey("hue")) {             // The hue value is a wrapping value between 0 and 65535. Both 0 and 65535 are red, 25500 is green and 46920 is blue.
+      tmp = hue_json["hue"];
+      prev_hue = tmp;
+      // change range from 0..65535 to 0..359
+      hue = changeUIntScale(tmp, 0, 65535, 0, 359);
+      if (resp) { response += ","; }
+      response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
+      response.replace("{id", String(device));
+      response.replace("{cm", "hue");
+      response.replace("{re", String(tmp));
+      if (LST_RGB <= Light.subtype) {
+        g_gotct = false;
+        change = true;
+      }
+      resp = true;
+    }
+    if (hue_json.containsKey("sat")) {             // Saturation of the light. 254 is the most saturated (colored) and 0 is the least saturated (white).
+      tmp = hue_json["sat"];
+      prev_sat = sat = tmp;   // store command value
+      // extend sat value if set to max
+      if (254 <= sat) { sat = 255; }
+      if (resp) { response += ","; }
+      response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
+      response.replace("{id", String(device));
+      response.replace("{cm", "sat");
+      response.replace("{re", String(tmp));
+      if (LST_RGB <= Light.subtype) {
+        g_gotct = false;
+        change = true;
+      }
+      resp = true;
+    }
+    if (hue_json.containsKey("ct")) {  // Color temperature 153 (Cold) to 500 (Warm)
+      ct = hue_json["ct"];
+      prev_ct = ct;   // store commande value
+      if (resp) { response += ","; }
+      response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
+      response.replace("{id", String(device));
+      response.replace("{cm", "ct");
+      response.replace("{re", String(ct));
+      if ((LST_COLDWARM == Light.subtype) || (LST_RGBW <= Light.subtype)) {
+        g_gotct = true;
+        change = true;
+      }
+      resp = true;
+    }
+    if (change) {
+#ifdef USE_SHUTTER
+      if (ShutterState(device)) {
+        AddLog_P2(LOG_LEVEL_DEBUG, PSTR("Settings.shutter_invert: %d"), Settings.shutter_options[device-1] & 1);
+        ShutterSetPosition(device, bri * 100.0f );
+      } else
+#endif
+      if (light_type && (local_light_subtype > LST_NONE)) {   // not relay
+        if (!Settings.flag3.pwm_multi_channels) {  // SetOption68 - Enable multi-channels PWM instead of Color PWM
+          if (g_gotct) {
+            light_controller.changeCTB(ct, bri);
+          } else {
+            light_controller.changeHSB(hue, sat, bri);
+          }
+          LightPreparePower();
+        } else {  // SetOption68 On, each channel is a dimmer
+          LightSetBri(device, bri);
+        }
+        if (LST_COLDWARM <= local_light_subtype) {
+          MqttPublishPrefixTopic_P(RESULT_OR_STAT, PSTR(D_CMND_COLOR));
+        } else {
+          MqttPublishPrefixTopic_P(RESULT_OR_STAT, PSTR(D_CMND_DIMMER));
+        }
+        XdrvRulesProcess();
+      }
+      change = false;
+    }
+    response += "]";
+    if (2 == response.length()) {
+      response = FPSTR(HUE_ERROR_JSON);
+    }
+  }
+  else {
+    response = FPSTR(HUE_ERROR_JSON);
+  }
+}
+
 void HueLights(String *path)
 {
 /*
@@ -527,16 +716,7 @@ void HueLights(String *path)
  */
   String response;
   int code = 200;
-  uint16_t tmp = 0;
-  uint16_t hue = 0;
-  uint8_t  sat = 0;
-  uint8_t  bri = 254;
-  uint16_t ct = 0;
-  bool resp = false;  // is the response non null (add comma between parameters)
-  bool on = false;
-  bool change = false;  // need to change a parameter to the light
   uint8_t device = 1;
-  uint8_t local_light_subtype = Light.subtype;
   uint8_t maxhue = (devices_present > MAX_HUE_DEVICES) ? MAX_HUE_DEVICES : devices_present;
 
   path->remove(0,path->indexOf("/lights"));          // Remove until /lights
@@ -555,9 +735,8 @@ void HueLights(String *path)
   else if (path->endsWith("/state")) {               // Got ID/state
     path->remove(0,8);                               // Remove /lights/
     path->remove(path->indexOf("/state"));           // Remove /state
-#ifndef USE_ZIGBEE
     device = DecodeLightId(atoi(path->c_str()));
-#else // USE_ZIGBEE
+#ifdef USE_ZIGBEE
     uint16_t shortaddr;
     device = DecodeLightId(atoi(path->c_str()), &shortaddr);
     if (shortaddr) {
@@ -570,188 +749,10 @@ void HueLights(String *path)
       return Script_Handle_Hue(path);
     }
 #endif
-
-    if ((device < 1) || (device > maxhue)) {
-      device = 1;
+    if ((device >= 1) || (device <= maxhue)) {
+      HueLightsCommand(device, response);
     }
-    local_light_subtype = getLocalLightSubtype(device); // get the subtype for this device
 
-    if (WebServer->args()) {
-      response = "[";
-
-      StaticJsonBuffer<400> jsonBuffer;
-      JsonObject &hue_json = jsonBuffer.parseObject(WebServer->arg((WebServer->args())-1));
-      if (hue_json.containsKey("on")) {
-
-        response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-        response.replace("{id", String(EncodeLightId(device)));
-        response.replace("{cm", "on");
-
-#ifdef USE_SHUTTER
-        if (ShutterState(device)) {
-          if (!change) {
-            on = hue_json["on"];
-            bri = on ? 1.0f : 0.0f; // when bri is not part of this request then calculate it
-            change = true;
-          }
-          response.replace("{re", on ? "true" : "false");
-        } else {
-#endif
-          on = hue_json["on"];
-          switch(on)
-          {
-            case false : ExecuteCommandPower(device, POWER_OFF, SRC_HUE);
-                        response.replace("{re", "false");
-                        break;
-            case true  : ExecuteCommandPower(device, POWER_ON, SRC_HUE);
-                        response.replace("{re", "true");
-                        break;
-            default    : response.replace("{re", (power & (1 << (device-1))) ? "true" : "false");
-                        break;
-          }
-          resp = true;
-#ifdef USE_SHUTTER
-        }
-#endif  // USE_SHUTTER
-      }
-
-      if (light_type && (local_light_subtype >= LST_SINGLE)) {
-        if (!Settings.flag3.pwm_multi_channels) {  // SetOption68 - Enable multi-channels PWM instead of Color PWM
-          light_state.getHSB(&hue, &sat, nullptr);
-          bri = light_state.getBri();   // get the combined bri for CT and RGB, not only the RGB one
-          ct = light_state.getCT();
-          uint8_t color_mode = light_state.getColorMode();
-          if (LCM_RGB == color_mode) { g_gotct = false; }
-          if (LCM_CT  == color_mode) { g_gotct = true; }
-          // If LCM_BOTH == color_mode, leave g_gotct unchanged
-        } else {    // treat each channel as simple dimmer
-          bri = LightGetBri(device);
-        }
-      }
-      prev_x_str[0] = prev_y_str[0] = 0;  // reset xy string
-
-      if (hue_json.containsKey("bri")) {             // Brightness is a scale from 1 (the minimum the light is capable of) to 254 (the maximum). Note: a brightness of 1 is not off.
-        tmp = hue_json["bri"];
-        prev_bri = bri = tmp;   // store command value
-        // extend bri value if set to max
-        if (254 <= bri) { bri = 255; }
-        if (resp) { response += ","; }
-        response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-        response.replace("{id", String(device));
-        response.replace("{cm", "bri");
-        response.replace("{re", String(tmp));
-        if (LST_SINGLE <= Light.subtype) {
-          change = true;
-        }
-        resp = true;
-      }
-      // handle xy before Hue/Sat
-      // If the request contains both XY and HS, we wan't to give priority to HS
-      if (hue_json.containsKey("xy")) {
-        float x, y;
-        x = hue_json["xy"][0];
-        y = hue_json["xy"][1];
-        const String &x_str = hue_json["xy"][0];
-        const String &y_str = hue_json["xy"][1];
-        x_str.toCharArray(prev_x_str, sizeof(prev_x_str));
-        y_str.toCharArray(prev_y_str, sizeof(prev_y_str));
-        //AddLog_P2(LOG_LEVEL_DEBUG_MORE, "XY (%s %s)", String(prev_x,5).c_str(), String(prev_y,5).c_str());
-        uint8_t rr,gg,bb;
-        LightStateClass::XyToRgb(x, y, &rr, &gg, &bb);
-        LightStateClass::RgbToHsb(rr, gg, bb, &hue, &sat, nullptr);
-        prev_hue = changeUIntScale(hue, 0, 359, 0, 65535);  // calculate back prev_hue
-        prev_sat = (sat > 254 ? 254 : sat);
-        //AddLog_P2(LOG_LEVEL_DEBUG_MORE, "XY RGB (%d %d %d) HS (%d %d)", rr,gg,bb,hue,sat);
-        if (resp) { response += ","; }
-        response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-        response.replace("{id", String(device));
-        response.replace("{cm", "xy");
-        response.replace("{re", "[" + x_str + "," + y_str + "]");
-        g_gotct = false;
-        resp = true;
-        change = true;
-      }
-      if (hue_json.containsKey("hue")) {             // The hue value is a wrapping value between 0 and 65535. Both 0 and 65535 are red, 25500 is green and 46920 is blue.
-        tmp = hue_json["hue"];
-        prev_hue = tmp;
-        // change range from 0..65535 to 0..359
-        hue = changeUIntScale(tmp, 0, 65535, 0, 359);
-        if (resp) { response += ","; }
-        response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-        response.replace("{id", String(device));
-        response.replace("{cm", "hue");
-        response.replace("{re", String(tmp));
-        if (LST_RGB <= Light.subtype) {
-          g_gotct = false;
-          change = true;
-        }
-        resp = true;
-      }
-      if (hue_json.containsKey("sat")) {             // Saturation of the light. 254 is the most saturated (colored) and 0 is the least saturated (white).
-        tmp = hue_json["sat"];
-        prev_sat = sat = tmp;   // store command value
-        // extend sat value if set to max
-        if (254 <= sat) { sat = 255; }
-        if (resp) { response += ","; }
-        response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-        response.replace("{id", String(device));
-        response.replace("{cm", "sat");
-        response.replace("{re", String(tmp));
-        if (LST_RGB <= Light.subtype) {
-          g_gotct = false;
-          change = true;
-        }
-        resp = true;
-      }
-      if (hue_json.containsKey("ct")) {  // Color temperature 153 (Cold) to 500 (Warm)
-        ct = hue_json["ct"];
-        prev_ct = ct;   // store commande value
-        if (resp) { response += ","; }
-        response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-        response.replace("{id", String(device));
-        response.replace("{cm", "ct");
-        response.replace("{re", String(ct));
-        if ((LST_COLDWARM == Light.subtype) || (LST_RGBW <= Light.subtype)) {
-          g_gotct = true;
-          change = true;
-        }
-        resp = true;
-      }
-      if (change) {
-#ifdef USE_SHUTTER
-        if (ShutterState(device)) {
-          AddLog_P2(LOG_LEVEL_DEBUG, PSTR("Settings.shutter_invert: %d"), Settings.shutter_options[device-1] & 1);
-          ShutterSetPosition(device, bri * 100.0f );
-        } else
-#endif
-        if (light_type && (local_light_subtype > LST_NONE)) {   // not relay
-          if (!Settings.flag3.pwm_multi_channels) {  // SetOption68 - Enable multi-channels PWM instead of Color PWM
-            if (g_gotct) {
-              light_controller.changeCTB(ct, bri);
-            } else {
-              light_controller.changeHSB(hue, sat, bri);
-            }
-            LightPreparePower();
-          } else {  // SetOption68 On, each channel is a dimmer
-            LightSetBri(device, bri);
-          }
-          if (LST_COLDWARM <= local_light_subtype) {
-            MqttPublishPrefixTopic_P(RESULT_OR_STAT, PSTR(D_CMND_COLOR));
-          } else {
-            MqttPublishPrefixTopic_P(RESULT_OR_STAT, PSTR(D_CMND_DIMMER));
-          }
-          XdrvRulesProcess();
-        }
-        change = false;
-      }
-      response += "]";
-      if (2 == response.length()) {
-        response = FPSTR(HUE_ERROR_JSON);
-      }
-    }
-    else {
-      response = FPSTR(HUE_ERROR_JSON);
-    }
   }
   else if(path->indexOf("/lights/") >= 0) {          // Got /lights/ID
     AddLog_P2(LOG_LEVEL_DEBUG_MORE, "/lights path=%s", path->c_str());
