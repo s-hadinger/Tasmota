@@ -135,14 +135,8 @@ const char HUE_DESCRIPTION_XML[] PROGMEM =
   "</device>"
   "</root>\r\n"
   "\r\n";
-// const char HUE_LIGHTS_STATUS_JSON1[] PROGMEM =
-//   "{\"on\":{state},"
-//   "{light_status}"
-//   "\"alert\":\"none\","
-//   "\"effect\":\"none\","
-//   "\"reachable\":true}";
 const char HUE_LIGHTS_STATUS_JSON1_SUFFIX[] PROGMEM =
-  "\"alert\":\"none\","
+  "%s\"alert\":\"none\","
   "\"effect\":\"none\","
   "\"reachable\":true}";
 const char HUE_LIGHTS_STATUS_JSON2[] PROGMEM =
@@ -325,57 +319,30 @@ void HueLightStatus1(uint8_t device, String *response)
   char * buf = (char*) malloc(buf_size);     // temp buffer for strings, avoid stack
 
   //String resp;
-//  *response += FPSTR(HUE_LIGHTS_STATUS_JSON1_START);
   snprintf_P(buf, buf_size, PSTR("{\"on\":%s,"), (power & (1 << (device-1))) ? "true" : "false");
-  //*response += buf;
-  // response->replace("{state}", (power & (1 << (device-1))) ? "true" : "false");
   // Brightness for all devices with PWM
   if ((1 == echo_gen) || (LST_SINGLE <= local_light_subtype)) { // force dimmer for 1st gen Echo
     snprintf_P(buf, buf_size, PSTR("%s\"bri\":%d,"), buf, bri);
   }
   if (LST_COLDWARM <= local_light_subtype) {
     snprintf_P(buf, buf_size, PSTR("%s\"colormode\":\"%d\","), buf, g_gotct ? "ct" : "hs");
-    // light_status += F("\"colormode\":\"");
-    // light_status += (g_gotct ? "ct" : "hs");
-    // light_status += "\",";
   }
   if (LST_RGB <= local_light_subtype) {  // colors
     if (prev_x_str[0] && prev_y_str[0]) {
       snprintf_P(buf, buf_size, PSTR("%s\"xy\":[%s,%s],"), buf, prev_x_str, prev_y_str);
-      // light_status += "\"xy\":[";
-      // light_status += prev_x_str;
-      // light_status += ",";
-      // light_status += prev_y_str;
-      // light_status += "],";
     } else {
       float x, y;
       light_state.getXY(&x, &y);
       snprintf_P(buf, buf_size, PSTR("%s\"xy\":[%s,%s],"), buf, String(x, 5).c_str(), String(y, 5).c_str());
-      // light_status += "\"xy\":[";
-      // light_status += String(x, 5);
-      // light_status += ",";
-      // light_status += String(y, 5);
-      // light_status += "],";
     }
-    snprintf_P(buf, buf_size, PSTR("%s\"hue\":%d,"), buf, hue);
-    // light_status += "\"hue\":";
-    // light_status += String(hue);
-    // light_status += ",";
-
-    snprintf_P(buf, buf_size, PSTR("%s\"sat\":%d,"), buf, sat);
-    // light_status += "\"sat\":";
-    // light_status += String(sat);
-    // light_status += ",";
+    snprintf_P(buf, buf_size, PSTR("%s\"hue\":%d,\"sat\":%d"), buf, hue, sat);
   }
   if (LST_COLDWARM == local_light_subtype || LST_RGBW <= local_light_subtype) {  // white temp
     snprintf_P(buf, buf_size, PSTR("%s\"ct\":%d,"), buf, ct > 0 ? ct : 284);
-    // light_status += "\"ct\":";
-    // light_status += String(ct > 0 ? ct : 284);  // if no ct, default to medium white
-    // light_status += ",";
   }
+  snprintf_P(buf, buf_size, HUE_LIGHTS_STATUS_JSON1_SUFFIX, buf);
+
   *response += buf;
-  *response += FPSTR(HUE_LIGHTS_STATUS_JSON1_SUFFIX);
-  //response->replace("{light_status}", light_status);
   free(buf);
 }
 
