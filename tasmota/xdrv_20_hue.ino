@@ -145,12 +145,6 @@ const char HUE_LIGHTS_STATUS_JSON2[] PROGMEM =
   "\"modelid\":\"LCT007\","
   "\"uniqueid\":\"%s\","
   "\"swversion\":\"5.50.1.19085\"}";
-// const char HUE_LIGHTS_STATUS_JSON2_OLD[] PROGMEM =
-//   ",\"type\":\"Extended color light\","
-//   "\"name\":\"{j1\","
-//   "\"modelid\":\"LCT007\","
-//   "\"uniqueid\":\"{j2\","
-//   "\"swversion\":\"5.50.1.19085\"}";
 const char HUE_GROUP0_STATUS_JSON[] PROGMEM =
   "{\"name\":\"Group 0\","
    "\"lights\":[{l1],"
@@ -363,15 +357,12 @@ void HueLightStatus2(uint8_t device, String *response)
 {
   const size_t buf_size = 192;
   char * buf = (char*) malloc(buf_size);
-  char * name;
   const size_t max_name_len = 32;
   char fname[max_name_len + 1];
 
-  //*response += FPSTR(HUE_LIGHTS_STATUS_JSON2);
-  if (device <= MAX_FRIENDLYNAMES) {
-    name = SettingsText(SET_FRIENDLYNAME1 +device -1);
-  } else {
-    strlcpy(fname, SettingsText(SET_FRIENDLYNAME1 + MAX_FRIENDLYNAMES -1), 33);
+  strlcpy(fname, SettingsText(device <= MAX_FRIENDLYNAMES ? SET_FRIENDLYNAME1 + device -1 : SET_FRIENDLYNAME1 + MAX_FRIENDLYNAMES -1), max_name_len + 1);
+
+  if (device > MAX_FRIENDLYNAMES) {
     uint32_t fname_len = strlen(fname);
     if (fname_len > max_name_len - 2) { fname_len = max_name_len - 2; }
     fname[fname_len++] = '-';
@@ -381,12 +372,9 @@ void HueLightStatus2(uint8_t device, String *response)
       fname[fname_len++] = 'A' + device - MAX_FRIENDLYNAMES - 10;
     }
     fname[fname_len] = 0x00;
-    name = &fname[0];
-    //response->replace("{j1", fname);
   }
-  snprintf_P(buf, buf_size, HUE_LIGHTS_STATUS_JSON2, name, GetHueDeviceId(device).c_str());
+  snprintf_P(buf, buf_size, HUE_LIGHTS_STATUS_JSON2, fname, GetHueDeviceId(device).c_str());
   *response += buf;
-  //response->replace("{j2", GetHueDeviceId(device));
   free(buf);
 }
 
