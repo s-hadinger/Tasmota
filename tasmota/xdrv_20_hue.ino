@@ -141,10 +141,16 @@ const char HUE_LIGHTS_STATUS_JSON1_SUFFIX[] PROGMEM =
   "\"reachable\":true}";
 const char HUE_LIGHTS_STATUS_JSON2[] PROGMEM =
   ",\"type\":\"Extended color light\","
-  "\"name\":\"{j1\","
+  "\"name\":\"%s\","
   "\"modelid\":\"LCT007\","
-  "\"uniqueid\":\"{j2\","
+  "\"uniqueid\":\"%s\","
   "\"swversion\":\"5.50.1.19085\"}";
+// const char HUE_LIGHTS_STATUS_JSON2_OLD[] PROGMEM =
+//   ",\"type\":\"Extended color light\","
+//   "\"name\":\"{j1\","
+//   "\"modelid\":\"LCT007\","
+//   "\"uniqueid\":\"{j2\","
+//   "\"swversion\":\"5.50.1.19085\"}";
 const char HUE_GROUP0_STATUS_JSON[] PROGMEM =
   "{\"name\":\"Group 0\","
    "\"lights\":[{l1],"
@@ -355,14 +361,19 @@ bool HueActive(uint8_t device) {
 
 void HueLightStatus2(uint8_t device, String *response)
 {
-  *response += FPSTR(HUE_LIGHTS_STATUS_JSON2);
+  const size_t buf_size = 192;
+  char * buf = (char*) malloc(buf_size);
+  char * name;
+  const size_t max_name_len = 32;
+  char fname[max_name_len + 1];
+
+  //*response += FPSTR(HUE_LIGHTS_STATUS_JSON2);
   if (device <= MAX_FRIENDLYNAMES) {
-    response->replace("{j1", SettingsText(SET_FRIENDLYNAME1 +device -1));
+    name = SettingsText(SET_FRIENDLYNAME1 +device -1);
   } else {
-    char fname[33];
-    strcpy(fname, SettingsText(SET_FRIENDLYNAME1 + MAX_FRIENDLYNAMES -1));
+    strlcpy(fname, SettingsText(SET_FRIENDLYNAME1 + MAX_FRIENDLYNAMES -1), 33);
     uint32_t fname_len = strlen(fname);
-    if (fname_len > 30) { fname_len = 30; }
+    if (fname_len > max_name_len - 2) { fname_len = max_name_len - 2; }
     fname[fname_len++] = '-';
     if (device - MAX_FRIENDLYNAMES < 10) {
       fname[fname_len++] = '0' + device - MAX_FRIENDLYNAMES;
@@ -370,10 +381,13 @@ void HueLightStatus2(uint8_t device, String *response)
       fname[fname_len++] = 'A' + device - MAX_FRIENDLYNAMES - 10;
     }
     fname[fname_len] = 0x00;
-
-    response->replace("{j1", fname);
+    name = &fname[0];
+    //response->replace("{j1", fname);
   }
-  response->replace("{j2", GetHueDeviceId(device));
+  snprintf_P(buf, buf_size, HUE_LIGHTS_STATUS_JSON2, name, GetHueDeviceId(device).c_str());
+  *response += buf;
+  //response->replace("{j2", GetHueDeviceId(device));
+  free(buf);
 }
 
 // generate a unique lightId mixing local IP address and device number
