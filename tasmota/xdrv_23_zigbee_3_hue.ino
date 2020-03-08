@@ -31,53 +31,39 @@ void HueLightStatus1Zigbee(uint32_t idx, uint16_t shortaddr, uint8_t local_light
 
   zigbee_devices.getAlexaState(shortaddr, &power, &colormode, &bri, &sat, &ct, &hue, &x, &y);
 
-  //bri = LightGetBri(device);   // get Dimmer corrected with SetOption68
   if (bri > 254)  bri = 254;    // Philips Hue bri is between 1 and 254
   if (bri < 1)    bri = 1;
   if (sat > 254)  sat = 254;  // Philips Hue only accepts 254 as max hue
   uint8_t hue8 = changeUIntScale(hue, 0, 360, 0, 254);    // default hue is 0..254, we don't use extended hue
 
-  *response += FPSTR(HUE_LIGHTS_STATUS_JSON1);
-  response->replace("{state}", (power & 1) ? "true" : "false");
+  const size_t buf_size = 256;
+  char * buf = (char*) malloc(buf_size);     // temp buffer for strings, avoid stack
 
+  snprintf_P(buf, buf_size, PSTR("{\"on\":%s,"), (power & 1) ? "true" : "false");
   // Brightness for all devices with PWM
   if ((1 == echo_gen) || (LST_SINGLE <= local_light_subtype)) { // force dimmer for 1st gen Echo
-    light_status += "\"bri\":";
-    light_status += String(bri);
-    light_status += ",";
+    snprintf_P(buf, buf_size, PSTR("%s\"bri\":%d,"), buf, bri);
   }
   if (LST_COLDWARM <= local_light_subtype) {
-    light_status += F("\"colormode\":\"");
-    if (1 == colormode) {
-      light_status += "xy";
-    } else if (2 == colormode) {
-      light_status += "ct";
-    } else {
-      light_status += "hs";
-    }
-    light_status += "\",";
+    snprintf_P(buf, buf_size, PSTR("%s\"colormode\":\"%s\","), buf, g_gotct ? "ct" : "hs");
   }
   if (LST_RGB <= local_light_subtype) {  // colors
-    light_status += "\"xy\":[";
-    light_status += String(x, 5);
-    light_status += ",";
-    light_status += String(y, 5);
-    light_status += "],";
-    
-    light_status += "\"hue\":";
-    light_status += String(hue);
-    light_status += ",";
-
-    light_status += "\"sat\":";
-    light_status += String(sat);
-    light_status += ",";
+    if (prev_x_str[0] && prev_y_str[0]) {
+      snprintf_P(buf, buf_size, PSTR("%s\"xy\":[%s,%s],"), buf, prev_x_str, prev_y_str);
+    } else {
+      float x, y;
+      light_state.getXY(&x, &y);
+      snprintf_P(buf, buf_size, PSTR("%s\"xy\":[%s,%s],"), buf, String(x, 5).c_str(), String(y, 5).c_str());
+    }
+    snprintf_P(buf, buf_size, PSTR("%s\"hue\":%d,\"sat\":%d,"), buf, hue, sat);
   }
   if (LST_COLDWARM == local_light_subtype || LST_RGBW <= local_light_subtype) {  // white temp
-    light_status += "\"ct\":";
-    light_status += String(ct > 0 ? ct : 284);  // if no ct, default to medium white
-    light_status += ",";
+    snprintf_P(buf, buf_size, PSTR("%s\"ct\":%d,"), buf, ct > 0 ? ct : 284);
   }
-  response->replace("{light_status}", light_status);
+  snprintf_P(buf, buf_size, HUE_LIGHTS_STATUS_JSON1_SUFFIX, buf);
+
+  *response += buf;
+  free(buf);
 }
 
 void HueLightStatus2Zigbee(uint32_t idx, uint16_t shortaddr, String *response)
@@ -137,40 +123,42 @@ void ZigbeeHandleHue(uint16_t shortaddr, uint32_t device_id, String &response) {
 
   uint8_t bulbtype = zigbee_devices.getAlexaBulbtype(shortaddr);
 
+  const size_t buf_size = 100;
+  char * buf = (char*) malloc(buf_size);
+
   if (WebServer->args()) {
     response = "[";
 
-    StaticJsonBuffer<400> jsonBuffer;
+    StaticJsonBuffer<300> jsonBuffer;
     JsonObject &hue_json = jsonBuffer.parseObject(WebServer->arg((WebServer->args())-1));
     if (hue_json.containsKey("on")) {
-
-      response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-      response.replace("{id", String(EncodeLightId(0, shortaddr)));
-      response.replace("{cm", "on");
       on = hue_json["on"];
+      snprintf_P(buf, buf_size,
+                 PSTR("{\"success\":{\"/lights/%d/state/on\":%s}}"),
+                 device_id, on ? "true" : "false");
+
       switch(on)
       {
-        case false : // TODO
-                    response.replace("{re", "false");
+        case false : // TODO change
                     break;
-        case true  : // TODO
-                    response.replace("{re", "true");
-                    break;
-        default    : response.replace("{re", (power & 1) ? "true" : "false");
+        case true  : // TODO change
                     break;
       }
+      response += buf;
       resp = true;
     }
 
     if (hue_json.containsKey("bri")) {             // Brightness is a scale from 1 (the minimum the light is capable of) to 254 (the maximum). Note: a brightness of 1 is not off.
       bri = hue_json["bri"];
+      prev_bri = bri;   // store command value
       if (resp) { response += ","; }
-      response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-      response.replace("{id", String(shortaddr));
-      response.replace("{cm", "bri");
-      response.replace("{re", String(bri));
-      if (bri > 254) { bri = 254; }               // limit to 254
-      if (LST_SINGLE <= bulbtype) {
+      snprintf_P(buf, buf_size,
+                 PSTR("{\"success\":{\"/lights/%d/state/%s\":%d}}"),
+                 device_id, "bri", bri);
+      response += buf;
+      if (LST_SINGLE <= Light.subtype) {
+        // extend bri value if set to max
+        if (254 <= bri) { bri = 255; }
         // TODO change
       }
       resp = true;
@@ -178,56 +166,69 @@ void ZigbeeHandleHue(uint16_t shortaddr, uint32_t device_id, String &response) {
     // handle xy before Hue/Sat
     // If the request contains both XY and HS, we wan't to give priority to HS
     if (hue_json.containsKey("xy")) {
-      float x, y;
-      x = hue_json["xy"][0];
-      y = hue_json["xy"][1];
+      float x = hue_json["xy"][0];
+      float y = hue_json["xy"][1];
+      const String &x_str = hue_json["xy"][0];
+      const String &y_str = hue_json["xy"][1];
+      x_str.toCharArray(prev_x_str, sizeof(prev_x_str));
+      y_str.toCharArray(prev_y_str, sizeof(prev_y_str));
+      uint8_t rr,gg,bb;
+      LightStateClass::XyToRgb(x, y, &rr, &gg, &bb);
+      LightStateClass::RgbToHsb(rr, gg, bb, &hue, &sat, nullptr);
+      prev_hue = changeUIntScale(hue, 0, 359, 0, 65535);  // calculate back prev_hue
+      prev_sat = (sat > 254 ? 254 : sat);
       if (resp) { response += ","; }
-      response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-      response.replace("{id", String(shortaddr));
-      response.replace("{cm", "xy");
-      response.replace("{re", "[" + String(x, 5) + "," + String(y, 5) + "]");
+      snprintf_P(buf, buf_size,
+                 PSTR("{\"success\":{\"/lights/%d/state/xy\":[%s,%s]}}"),
+                 device_id, prev_x_str, prev_y_str);
+      response += buf;
       resp = true;
       // TODO change
     }
     if (hue_json.containsKey("hue")) {             // The hue value is a wrapping value between 0 and 65535. Both 0 and 65535 are red, 25500 is green and 46920 is blue.
       hue = hue_json["hue"];
+      prev_hue = hue;
       if (resp) { response += ","; }
-      response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-      response.replace("{id", String(shortaddr));
-      response.replace("{cm", "hue");
-      response.replace("{re", String(hue));
-      if (LST_RGB <= bulbtype) {
-        uint8_t hue8 = changeUIntScale(hue, 0, 65535, 0, 254);
-        // TODO
+      snprintf_P(buf, buf_size,
+                 PSTR("{\"success\":{\"/lights/%d/state/%s\":%d}}"),
+                 device_id, "hue", hue);
+      response += buf;
+      if (LST_RGB <= Light.subtype) {
+        // change range from 0..65535 to 0..359
+        hue = changeUIntScale(hue, 0, 65535, 0, 359);
+        // TODO change
       }
       resp = true;
     }
     if (hue_json.containsKey("sat")) {             // Saturation of the light. 254 is the most saturated (colored) and 0 is the least saturated (white).
       sat = hue_json["sat"];
+      prev_sat = sat;   // store command value
       if (resp) { response += ","; }
-      response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-      response.replace("{id", String(shortaddr));
-      response.replace("{cm", "sat");
-      response.replace("{re", String(sat));
-      if (LST_RGB <= bulbtype) {
+      snprintf_P(buf, buf_size,
+                 PSTR("{\"success\":{\"/lights/%d/state/%s\":%d}}"),
+                 device_id, "sat", sat);
+      response += buf;
+      if (LST_RGB <= Light.subtype) {
         // extend sat value if set to max
         if (254 <= sat) { sat = 255; }
-        // TODO
+        // TODO change
       }
       resp = true;
     }
     if (hue_json.containsKey("ct")) {  // Color temperature 153 (Cold) to 500 (Warm)
       ct = hue_json["ct"];
+      prev_ct = ct;   // store commande value
       if (resp) { response += ","; }
-      response += FPSTR(HUE_LIGHT_RESPONSE_JSON);
-      response.replace("{id", String(shortaddr));
-      response.replace("{cm", "ct");
-      response.replace("{re", String(ct));
-      if ((LST_COLDWARM == bulbtype) || (LST_RGBW <= bulbtype)) {
-        // TODO
+      snprintf_P(buf, buf_size,
+                 PSTR("{\"success\":{\"/lights/%d/state/%s\":%d}}"),
+                 device_id, "ct", ct);
+      response += buf;
+      if ((LST_COLDWARM == Light.subtype) || (LST_RGBW <= Light.subtype)) {
+        // TODO change
       }
       resp = true;
     }
+
     response += "]";
     if (2 == response.length()) {
       response = FPSTR(HUE_ERROR_JSON);
@@ -238,6 +239,8 @@ void ZigbeeHandleHue(uint16_t shortaddr, uint32_t device_id, String &response) {
   }
   AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR(D_LOG_HTTP D_HUE " Result (%s)"), response.c_str());
   WSSend(code, CT_JSON, response);
+
+  free(buf);
 }
 
 #endif // USE_ZIGBEE
