@@ -823,17 +823,17 @@ void HandleHueApi(String *path)
     AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR(D_LOG_HTTP D_HUE_POST_ARGS " (%s)"), json.c_str());  // HTP: Hue POST args ({"on":false})
   }
 
-  if (path->endsWith("/invalid/")) {}                // Just ignore
+  if (path->endsWith(F("/invalid/"))) {}                // Just ignore
   else if (!apilen) HueAuthentication(path);                  // New HUE App setup
-  else if (path->endsWith("/")) HueAuthentication(path);      // New HUE App setup
-  else if (path->endsWith("/config")) HueConfig(path);
-  else if (path->indexOf("/lights") >= 0) HueLights(path);
-  else if (path->indexOf("/groups") >= 0) HueGroups(path);
-  else if (path->endsWith("/schedules")) HueNotImplemented(path);
-  else if (path->endsWith("/sensors")) HueNotImplemented(path);
-  else if (path->endsWith("/scenes")) HueNotImplemented(path);
-  else if (path->endsWith("/rules")) HueNotImplemented(path);
-  else if (path->endsWith("/resourcelinks")) HueNotImplemented(path);
+  else if (path->endsWith(F("/"))) HueAuthentication(path);      // New HUE App setup
+  else if (path->endsWith(F("/config"))) HueConfig(path);
+  else if (path->indexOf(F("/lights")) >= 0) HueLights(path);
+  else if (path->indexOf(F("/groups")) >= 0) HueGroups(path);
+  else if (path->endsWith(F("/schedules"))) HueNotImplemented(path);
+  else if (path->endsWith(F("/sensors"))) HueNotImplemented(path);
+  else if (path->endsWith(F("/scenes"))) HueNotImplemented(path);
+  else if (path->endsWith(F("/rules"))) HueNotImplemented(path);
+  else if (path->endsWith(F("/resourcelinks"))) HueNotImplemented(path);
   else HueGlobalConfig(path);
 }
 
@@ -852,7 +852,7 @@ bool Xdrv20(uint8_t function)
 #endif
     switch (function) {
       case FUNC_WEB_ADD_HANDLER:
-        WebServer->on("/description.xml", HandleUpnpSetupHue);
+        WebServer->on(F("/description.xml"), HandleUpnpSetupHue);
         break;
     }
   }
