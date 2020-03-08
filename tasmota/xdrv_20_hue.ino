@@ -179,7 +179,7 @@ const char HUE_ERROR_JSON[] PROGMEM =
 
 /********************************************************************************************/
 
-String GetHueDeviceId(uint8_t id)
+String GetHueDeviceId(uint16_t id)
 {
   String deviceid = WiFi.macAddress();
   deviceid += F(":00:11-");

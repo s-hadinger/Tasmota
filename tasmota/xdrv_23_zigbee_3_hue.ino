@@ -68,16 +68,18 @@ void HueLightStatus1Zigbee(uint32_t idx, uint16_t shortaddr, uint8_t local_light
 
 void HueLightStatus2Zigbee(uint32_t idx, uint16_t shortaddr, String *response)
 {
-  *response += FPSTR(HUE_LIGHTS_STATUS_JSON2);
+  const size_t buf_size = 192;
+  char * buf = (char*) malloc(buf_size);
+
   const String &friendlyName = zigbee_devices.devicesAt(idx).friendlyName;
-  if (friendlyName.length() > 0) {
-    response->replace("{j1", friendlyName);
-  } else {
-    char shortaddrname[8];
-    snprintf_P(shortaddrname, sizeof(shortaddrname), PSTR("0x%04X"), shortaddr);
-    response->replace("{j1", shortaddrname);
-  }
-  response->replace("{j2", GetHueDeviceId(idx));
+  char shortaddrname[8];
+  snprintf_P(shortaddrname, sizeof(shortaddrname), PSTR("0x%04X"), shortaddr);
+
+  snprintf_P(buf, buf_size, HUE_LIGHTS_STATUS_JSON2,
+              (friendlyName.length() > 0) ? friendlyName.c_str() : shortaddrname,
+              GetHueDeviceId(shortaddr).c_str());
+  *response += buf;
+  free(buf);
 }
 
 void ZigbeeCheckHue(String * response, bool &appending) {
