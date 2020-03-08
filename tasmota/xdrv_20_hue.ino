@@ -55,7 +55,9 @@ String HueBridgeId(void)
 {
   String temp = WiFi.macAddress();
   temp.replace(":", "");
-  String bridgeid = temp.substring(0, 6) + "FFFE" + temp.substring(6);
+  String bridgeid = temp.substring(0, 6);
+  bridgeid += "FFFE";
+  bridgeid += temp.substring(6);
   return bridgeid;  // 5CCF7FFFFE139F3D
 }
 
@@ -179,7 +181,9 @@ const char HUE_ERROR_JSON[] PROGMEM =
 
 String GetHueDeviceId(uint8_t id)
 {
-  String deviceid = WiFi.macAddress() + F(":00:11-") + String(id);
+  String deviceid = WiFi.macAddress();
+  deviceid += F(":00:11-");
+  deviceid += String(id);
   deviceid.toLowerCase();
   return deviceid;  // 5c:cf:7f:13:9f:3d:00:11-1
 }
@@ -325,7 +329,7 @@ void HueLightStatus1(uint8_t device, String *response)
     snprintf_P(buf, buf_size, PSTR("%s\"bri\":%d,"), buf, bri);
   }
   if (LST_COLDWARM <= local_light_subtype) {
-    snprintf_P(buf, buf_size, PSTR("%s\"colormode\":\"%d\","), buf, g_gotct ? "ct" : "hs");
+    snprintf_P(buf, buf_size, PSTR("%s\"colormode\":\"%s\","), buf, g_gotct ? "ct" : "hs");
   }
   if (LST_RGB <= local_light_subtype) {  // colors
     if (prev_x_str[0] && prev_y_str[0]) {
@@ -335,7 +339,7 @@ void HueLightStatus1(uint8_t device, String *response)
       light_state.getXY(&x, &y);
       snprintf_P(buf, buf_size, PSTR("%s\"xy\":[%s,%s],"), buf, String(x, 5).c_str(), String(y, 5).c_str());
     }
-    snprintf_P(buf, buf_size, PSTR("%s\"hue\":%d,\"sat\":%d"), buf, hue, sat);
+    snprintf_P(buf, buf_size, PSTR("%s\"hue\":%d,\"sat\":%d,"), buf, hue, sat);
   }
   if (LST_COLDWARM == local_light_subtype || LST_RGBW <= local_light_subtype) {  // white temp
     snprintf_P(buf, buf_size, PSTR("%s\"ct\":%d,"), buf, ct > 0 ? ct : 284);
