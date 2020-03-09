@@ -713,7 +713,7 @@ void CmndZbModelId(void) {
   }
 }
 
-// Specify, read or erase a BulbType for Alexa integration
+// Specify, read or erase a BulbType for Hue/Alexa integration
 void CmndZbBulbType(void) {
   // Syntax is:
   //  ZbBulbType <device_id>,<x>            - assign a bulb type 0-5
@@ -733,11 +733,11 @@ void CmndZbBulbType(void) {
   if (0xFFFF == shortaddr) { ResponseCmndChar("Invalid parameter"); return; }
 
   if (p == nullptr) {
-    int8_t bulbtype = zigbee_devices.getAlexaBulbtype(shortaddr);
+    int8_t bulbtype = zigbee_devices.getHueBulbtype(shortaddr);
     Response_P(PSTR("{\"0x%04X\":{\"" D_JSON_ZIGBEE_BULBTYPE "\":%d}}"), shortaddr, bulbtype);
   } else {
     int8_t bulbtype = strtol(p, nullptr, 10);
-    zigbee_devices.setAlexaBulbtype(shortaddr, bulbtype);
+    zigbee_devices.setHueBulbtype(shortaddr, bulbtype);
     Response_P(PSTR("{\"0x%04X\":{\"" D_JSON_ZIGBEE_BULBTYPE "\":%d}}"), shortaddr, bulbtype);
   }
 }

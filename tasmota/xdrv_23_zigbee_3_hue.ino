@@ -29,7 +29,7 @@ void HueLightStatus1Zigbee(uint32_t idx, uint16_t shortaddr, uint8_t local_light
   String light_status = "";
   uint32_t echo_gen = findEchoGeneration();   // 1 for 1st gen =+ Echo Dot 2nd gen, 2 for 2nd gen and above
 
-  zigbee_devices.getAlexaState(shortaddr, &power, &colormode, &bri, &sat, &ct, &hue, &x, &y);
+  zigbee_devices.getHueState(shortaddr, &power, &colormode, &bri, &sat, &ct, &hue, &x, &y);
 
   if (bri > 254)  bri = 254;    // Philips Hue bri is between 1 and 254
   if (bri < 1)    bri = 1;
@@ -123,7 +123,7 @@ void ZigbeeHandleHue(uint16_t shortaddr, uint32_t device_id, String &response) {
   bool resp = false;  // is the response non null (add comma between parameters)
   bool on = false;
 
-  uint8_t bulbtype = zigbee_devices.getAlexaBulbtype(shortaddr);
+  uint8_t bulbtype = zigbee_devices.getHueBulbtype(shortaddr);
 
   const size_t buf_size = 100;
   char * buf = (char*) malloc(buf_size);

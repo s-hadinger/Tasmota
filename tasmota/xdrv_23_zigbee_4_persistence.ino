@@ -160,7 +160,7 @@ class SBuffer hibernateDevice(const struct Z_Device &device) {
   buf.addBuffer(device.friendlyName.c_str(), frname_len);
   buf.add8(0x00);     // end of string marker
 
-  // Alexa Bulbtype
+  // Hue Bulbtype
   buf.add8(device.bulbtype);
 
   // update overall length
@@ -256,9 +256,9 @@ void hydrateDevices(const SBuffer &buf) {
     zigbee_devices.setFriendlyName(shortaddr, ptr);
     d += s_len + 1;
 
-    // Alexa bulbtype - if present
+    // Hue bulbtype - if present
     if (d < dev_record_len) {
-      zigbee_devices.setAlexaBulbtype(shortaddr, buf_d.get8(d));
+      zigbee_devices.setHueBulbtype(shortaddr, buf_d.get8(d));
       d++;
     }
 

@@ -46,7 +46,7 @@ typedef struct Z_Device {
   // sequence number for Zigbee frames
   uint8_t               seqNumber;
   // Light information for Hue integration integration, last known values
-  int8_t                bulbtype;       // number of channel for the bulb: 0-5, or 0xFF if no Alexa integration
+  int8_t                bulbtype;       // number of channel for the bulb: 0-5, or 0xFF if no Hue integration
   uint8_t               power;          // power state (boolean)
   uint8_t               colormode;      // 0x00: Hue/Sat, 0x01: XY, 0x02: CT
   uint8_t               dimmer;         // last Dimmer value: 0-254
@@ -126,15 +126,15 @@ public:
   // Dump json
   String dump(uint32_t dump_mode, uint16_t status_shortaddr = 0) const;
 
-  // Alexa support
-  void setAlexaBulbtype(uint16_t shortaddr, int8_t bulbtype);
-  int8_t getAlexaBulbtype(uint16_t shortaddr) const ;
-  void updateAlexaState(uint16_t shortaddr,
+  // Hue support
+  void setHueBulbtype(uint16_t shortaddr, int8_t bulbtype);
+  int8_t getHueBulbtype(uint16_t shortaddr) const ;
+  void updateHueState(uint16_t shortaddr,
                         const uint8_t *power, const uint8_t *colormode,
                         const uint8_t *dimmer, const uint8_t *sat,
                         const uint16_t *ct, const uint16_t *hue,
                         const float *x, const float *y);
-  bool getAlexaState(uint16_t shortaddr,
+  bool getHueState(uint16_t shortaddr,
                         uint8_t *power, uint8_t *colormode,
                         uint8_t *dimmer, uint8_t *sat,
                         uint16_t *ct, uint16_t *hue,
@@ -269,8 +269,8 @@ Z_Device & Z_Devices::createDeviceEntry(uint16_t shortaddr, uint64_t longaddr) {
                       std::vector<uint32_t>(),
                       nullptr, nullptr,
                       0,          // seqNumber
-                      // Alexa support
-                      -1,       // no Alexa support
+                      // Hue support
+                      -1,         // no Hue support
                       0,          // power
                       0,          // colormode
                       0,          // dimmer
@@ -609,25 +609,25 @@ uint8_t Z_Devices::getNextSeqNumber(uint16_t shortaddr) {
 }
 
 
-// Alexa support
-void Z_Devices::setAlexaBulbtype(uint16_t shortaddr, int8_t bulbtype) {
+// Hue support
+void Z_Devices::setHueBulbtype(uint16_t shortaddr, int8_t bulbtype) {
   Z_Device &device = getShortAddr(shortaddr);
   if (bulbtype != device.bulbtype) {
     device.bulbtype = bulbtype;
     dirty();
   }
 }
-int8_t Z_Devices::getAlexaBulbtype(uint16_t shortaddr) const {
+int8_t Z_Devices::getHueBulbtype(uint16_t shortaddr) const {
   int32_t found = findShortAddr(shortaddr);
   if (found >= 0) {
     return _devices[found].bulbtype;
   } else {
-    return -1;      // Alexa not activated
+    return -1;      // Hue not activated
   }
 }
 
-// Alexa support
-void Z_Devices::updateAlexaState(uint16_t shortaddr,
+// Hue support
+void Z_Devices::updateHueState(uint16_t shortaddr,
                                 const uint8_t *power, const uint8_t *colormode,
                                 const uint8_t *dimmer, const uint8_t *sat,
                                 const uint16_t *ct, const uint16_t *hue,
@@ -644,7 +644,7 @@ void Z_Devices::updateAlexaState(uint16_t shortaddr,
 }
 
 // return true if ok
-bool Z_Devices::getAlexaState(uint16_t shortaddr,
+bool Z_Devices::getHueState(uint16_t shortaddr,
                               uint8_t *power, uint8_t *colormode,
                               uint8_t *dimmer, uint8_t *sat,
                               uint16_t *ct, uint16_t *hue,
@@ -962,7 +962,7 @@ String Z_Devices::dump(uint32_t dump_mode, uint16_t status_shortaddr) const {
     }
 
     if (0 == dump_mode) {
-      // expose the last known status of the bulb, for Alexa integration
+      // expose the last known status of the bulb, for Hue integration
       dev[F("BulbType")] = device.bulbtype;   // sign extend, 0xFF changed as -1
       if (0 <= device.bulbtype) {
         // bulbtype is defined
