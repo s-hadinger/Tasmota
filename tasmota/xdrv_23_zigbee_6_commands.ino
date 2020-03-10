@@ -231,6 +231,40 @@ void parseXYZ(const char *model, const SBuffer &payload, struct Z_XYZ_Var *xyz) 
 //  - the payload in the form of a HEX string with x/y/z variables
 
 
+void sendHueUpdate(uint16_t shortaddr, uint16_t cluster, uint8_t cmd, bool direction) {
+  if (direction) { return; }    // no need to update if server->client
+
+  int32_t z_cat = -1;
+  uint32_t wait_ms = 0;
+
+  switch (cluster) {
+    case 0x0006:
+      z_cat = Z_CAT_READ_0006;
+      wait_ms = 200;    // wait 0.2 s
+      break;
+    case 0x0008:
+      z_cat = Z_CAT_READ_0008;
+      wait_ms = 1050;   // wait 1.0 s
+      break;
+    case 0x0102:
+      z_cat = Z_CAT_READ_0102;
+      wait_ms = 10000;   // wait 10.0 s
+      break;
+    case 0x0300:
+      z_cat = Z_CAT_READ_0300;
+      wait_ms = 1050;   // wait 1.0 s
+      break;
+    default:
+      break;
+  }
+  if (z_cat >= 0) {
+    uint8_t endpoint = zigbee_devices.findClusterEndpointIn(shortaddr, cluster);
+    if (endpoint) {   // send only if we know the endpoint
+      zigbee_devices.setTimer(shortaddr, 0 /* wait ms */, cluster, endpoint, z_cat, 0 /* value */, &Z_ReadAttrCallback);
+    }
+  }
+}
+
 
 // Parse a cluster specific command, and try to convert into human readable
 void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, bool direction, const SBuffer &payload) {

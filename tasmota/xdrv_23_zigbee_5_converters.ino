@@ -531,6 +531,7 @@ void ZCLFrame::parseResponse(void) {
 // Parse non-normalized attributes
 void ZCLFrame::parseClusterSpecificCommand(JsonObject& json, uint8_t offset) {
   convertClusterSpecific(json, _cluster_id, _cmd_id, _frame_control.b.direction, _payload);
+  sendHueUpdate(_srcaddr, _cluster_id, _cmd_id, _frame_control.b.direction);
 }
 
 // return value:
