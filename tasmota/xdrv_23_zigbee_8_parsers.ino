@@ -460,14 +460,14 @@ void Z_AqaraOccupancy(uint16_t shortaddr, uint16_t cluster, uint8_t endpoint, co
     uint32_t occupancy = strToUInt(val_endpoint);
 
     if (occupancy) {
-      zigbee_devices.setTimer(shortaddr, OCCUPANCY_TIMEOUT, cluster, endpoint, Z_CAT_VIRTUAL_ATTR, 0, &Z_OccupancyCallback);
+      zigbee_devices.setTimer(shortaddr, 0 /* groupaddr */, OCCUPANCY_TIMEOUT, cluster, endpoint, Z_CAT_VIRTUAL_ATTR, 0, &Z_OccupancyCallback);
     }
   }
 }
 
 
 // Publish the received values once they have been coalesced
-int32_t Z_PublishAttributes(uint16_t shortaddr, uint16_t cluster, uint8_t endpoint, uint32_t value) {
+int32_t Z_PublishAttributes(uint16_t shortaddr, uint16_t groupaddr, uint16_t cluster, uint8_t endpoint, uint32_t value) {
   const JsonObject *json = zigbee_devices.jsonGet(shortaddr);
   if (json == nullptr) { return 0; }                 // don't crash if not found
   // Post-provess for Aqara Presence Senson
@@ -539,7 +539,7 @@ int32_t Z_ReceiveAfIncomingMessage(int32_t res, const class SBuffer &buf) {
         zigbee_devices.jsonPublishFlush(srcaddr);
       }
       zigbee_devices.jsonAppend(srcaddr, json);
-      zigbee_devices.setTimer(srcaddr, USE_ZIGBEE_COALESCE_ATTR_TIMER, clusterid, srcendpoint, Z_CAT_READ_ATTR, 0, &Z_PublishAttributes);
+      zigbee_devices.setTimer(srcaddr, 0 /* groupaddr */, USE_ZIGBEE_COALESCE_ATTR_TIMER, clusterid, srcendpoint, Z_CAT_READ_ATTR, 0, &Z_PublishAttributes);
     } else {
       // Publish immediately
       zigbee_devices.jsonPublishNow(srcaddr, json);
@@ -610,21 +610,21 @@ int32_t Z_Query_Bulbs(uint8_t value) {
       cluster = 0x0006;
       endpoint = zigbee_devices.findClusterEndpointIn(device.shortaddr, cluster);
       if (endpoint) {   // send only if we know the endpoint
-        zigbee_devices.setTimer(device.shortaddr, wait_ms, cluster, endpoint, Z_CAT_NONE, 0 /* value */, &Z_ReadAttrCallback);
+        zigbee_devices.setTimer(device.shortaddr, 0 /* groupaddr */, wait_ms, cluster, endpoint, Z_CAT_NONE, 0 /* value */, &Z_ReadAttrCallback);
         wait_ms += inter_message_ms;
       }
 
       cluster = 0x0008;
       endpoint = zigbee_devices.findClusterEndpointIn(device.shortaddr, cluster);
       if (endpoint) {   // send only if we know the endpoint
-        zigbee_devices.setTimer(device.shortaddr, wait_ms, cluster, endpoint, Z_CAT_NONE, 0 /* value */, &Z_ReadAttrCallback);
+        zigbee_devices.setTimer(device.shortaddr, 0 /* groupaddr */, wait_ms, cluster, endpoint, Z_CAT_NONE, 0 /* value */, &Z_ReadAttrCallback);
         wait_ms += inter_message_ms;
       }
 
       cluster = 0x0300;
       endpoint = zigbee_devices.findClusterEndpointIn(device.shortaddr, cluster);
       if (endpoint) {   // send only if we know the endpoint
-        zigbee_devices.setTimer(device.shortaddr, wait_ms, cluster, endpoint, Z_CAT_NONE, 0 /* value */, &Z_ReadAttrCallback);
+        zigbee_devices.setTimer(device.shortaddr, 0 /* groupaddr */, wait_ms, cluster, endpoint, Z_CAT_NONE, 0 /* value */, &Z_ReadAttrCallback);
         wait_ms += inter_message_ms;
       }
     }

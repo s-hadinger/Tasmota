@@ -27,7 +27,7 @@
 #endif
 const uint16_t kZigbeeSaveDelaySeconds = ZIGBEE_SAVE_DELAY_SECONDS;    // wait for x seconds
 
-typedef int32_t (*Z_DeviceTimer)(uint16_t shortaddr, uint16_t cluster, uint8_t endpoint, uint32_t value);
+typedef int32_t (*Z_DeviceTimer)(uint16_t shortaddr, uint16_t groupaddr, uint16_t cluster, uint8_t endpoint, uint32_t value);
 
 typedef struct Z_Device {
   uint16_t              shortaddr;      // unique key if not null, or unspecified if null
@@ -71,6 +71,7 @@ typedef struct Z_Deferred {
   // below are per device timers, used for example to query the new state of the device
   uint32_t              timer;          // millis() when to fire the timer, 0 if no timer
   uint16_t              shortaddr;      // identifier of the device
+  uint16_t              groupaddr;      // group address (if needed)
   uint16_t              cluster;        // cluster to use for the timer
   uint8_t               endpoint;       // endpoint to use for timer
   uint8_t               category;       // which category of deferred is it 
@@ -145,8 +146,8 @@ public:
                         float *x, float *y) const ;
 
   // Timers
-  void resetTimersForDevice(uint16_t shortaddr, uint8_t category);
-  void setTimer(uint16_t shortaddr, uint32_t wait_ms, uint16_t cluster, uint8_t endpoint, uint8_t category, uint32_t value, Z_DeviceTimer func);
+  void resetTimersForDevice(uint16_t shortaddr, uint16_t groupaddr, uint8_t category);
+  void setTimer(uint16_t shortaddr, uint16_t groupaddr, uint32_t wait_ms, uint16_t cluster, uint8_t endpoint, uint8_t category, uint32_t value, Z_DeviceTimer func);
   void runTimer(void);
 
   // Append or clear attributes Json structure
@@ -672,13 +673,13 @@ bool Z_Devices::getHueState(uint16_t shortaddr,
 
 // Deferred actions
 // Parse for a specific category, of all deferred for a device if category == 0xFF
-void Z_Devices::resetTimersForDevice(uint16_t shortaddr, uint8_t category) {
+void Z_Devices::resetTimersForDevice(uint16_t shortaddr, uint16_t groupaddr, uint8_t category) {
   // iterate the list of deferred, and remove any linked to the shortaddr
   for (auto it = _deferred.begin(); it != _deferred.end(); it++) {
     // Notice that the iterator is decremented after it is passed 
 		// to erase() but before erase() is executed
     // see https://www.techiedelight.com/remove-elements-vector-inside-loop-cpp/
-    if (it->shortaddr == shortaddr) {
+    if ((it->shortaddr == shortaddr) && (it->groupaddr == groupaddr)) {
       if ((0xFF == category) || (it->category == category)) {
         _deferred.erase(it--);
       }
@@ -687,15 +688,16 @@ void Z_Devices::resetTimersForDevice(uint16_t shortaddr, uint8_t category) {
 }
 
 // Set timer for a specific device
-void Z_Devices::setTimer(uint16_t shortaddr, uint32_t wait_ms, uint16_t cluster, uint8_t endpoint, uint8_t category, uint32_t value, Z_DeviceTimer func) {
+void Z_Devices::setTimer(uint16_t shortaddr, uint16_t groupaddr, uint32_t wait_ms, uint16_t cluster, uint8_t endpoint, uint8_t category, uint32_t value, Z_DeviceTimer func) {
   // First we remove any existing timer for same device in same category, except for category=0x00 (they need to happen anyway)
   if (category) {     // if category == 0, we leave all previous
-    resetTimersForDevice(shortaddr, category);    // remove any cluster
+    resetTimersForDevice(shortaddr, groupaddr, category);    // remove any cluster
   }
 
   // Now create the new timer
   Z_Deferred deferred = { wait_ms + millis(),   // timer
                           shortaddr,
+                          groupaddr,
                           cluster,
                           endpoint,
                           category,
@@ -712,7 +714,7 @@ void Z_Devices::runTimer(void) {
 
     uint32_t timer = defer.timer;
     if (TimeReached(timer)) {
-      (*defer.func)(defer.shortaddr, defer.cluster, defer.endpoint, defer.value);
+      (*defer.func)(defer.shortaddr, defer.groupaddr, defer.cluster, defer.endpoint, defer.value);
       _deferred.erase(it--);    // remove from list
     }
   }

@@ -418,7 +418,7 @@ void zigbeeZCLSendStr(uint16_t dstAddr, uint8_t endpoint, bool clusterSpecific,
   ZigbeeZCLSend(dstAddr, cluster, endpoint, cmd, clusterSpecific, buf.getBuffer(), buf.len(), false, zigbee_devices.getNextSeqNumber(dstAddr));
   // now set the timer, if any, to read back the state later
   if (clusterSpecific) {
-    zigbeeSetCommandTimer(dstAddr, cluster, endpoint);
+    zigbeeSetCommandTimer(dstAddr, 0 /* groupaddr */, cluster, endpoint);
   }
   ResponseCmndDone();
 }
