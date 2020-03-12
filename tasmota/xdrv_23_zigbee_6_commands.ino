@@ -51,6 +51,13 @@ const Z_CommandConverter Z_Commands[] PROGMEM = {
   { "GetAllGroups",   0x0004, 0x02, 0x01,   "00" },           // Get all groups membership
   { "RemoveGroup",    0x0004, 0x03, 0x01,   "xxxx" },         // Remove one group
   { "RemoveAllGroups",0x0004, 0x04, 0x01,   "" },             // Remove all groups
+  // Scenes
+  { "AddScene",       0x0005, 0x00, 0x01,   "xxxxyy0100" },
+  { "ViewScene",      0x0005, 0x01, 0x01,   "xxxxyy" },
+  { "RemoveScene",    0x0005, 0x02, 0x01,   "xxxxyy" },
+  { "RemoveAllScenes",0x0005, 0x03, 0x01,   "xxxx" },
+  { "RecallScene",    0x0005, 0x05, 0x01,   "xxxxyy" },
+  { "GetSceneMembership",0x0005, 0x06, 0x01,   "xxxx" },
   // Light & Shutter commands
   { "Power",          0x0006, 0xFF, 0x01,   "" },             // 0=Off, 1=On, 2=Toggle
   { "Dimmer",         0x0008, 0x04, 0x01,   "xx0A00" },       // Move to Level with On/Off, xx=0..254 (255 is invalid)
