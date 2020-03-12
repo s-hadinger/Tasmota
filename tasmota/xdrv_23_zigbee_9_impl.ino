@@ -553,8 +553,8 @@ void CmndZbSend(void) {
       // we have an unsupported command type, just ignore it and fallback to missing command
     }
 
-    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZbCmd_actual: ZigbeeZCLSend {\"device\":\"0x%04X\",\"group\":\"0x%04X\",\"endpoint\":%d,\"send\":\"%04X!%02X/%s\"}"),
-              device, groupaddr, endpoint, cluster, cmd, cmd_str.c_str());
+    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeZCLSend device: 0x%04X, group: 0x%04X, endpoint:%d, cluster:0x%04X, cmd:0x%02X, send:\"%s\""),
+              device, groupaddr, endpoint, cluster, cmd, cmd_s);
     zigbeeZCLSendStr(device, groupaddr, endpoint, clusterSpecific, cluster, cmd, cmd_s);
   } else {
     Response_P(PSTR("Missing zigbee 'Send'"));
