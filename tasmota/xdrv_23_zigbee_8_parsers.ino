@@ -384,18 +384,47 @@ int32_t Z_ReceiveIEEEAddr(int32_t res, const class SBuffer &buf) {
 int32_t Z_BindRsp(int32_t res, const class SBuffer &buf) {
   Z_ShortAddress    nwkAddr = buf.get16(2);
   uint8_t           status = buf.get8(4);
+  char              status_message[32];
+
+  strncpy_P(status_message, (const char*) getZigbeeStatusMessage(status), sizeof(status_message));
+  status_message[sizeof(status_message)-1] = 0;   // truncate if needed, strlcpy is safer but strlcpy_P does not exist
 
   const String * friendlyName = zigbee_devices.getFriendlyName(nwkAddr);
   if (friendlyName) {
     Response_P(PSTR("{\"" D_JSON_ZIGBEE_BIND "\":{\"" D_JSON_ZIGBEE_DEVICE "\":\"0x%04X\""
                     ",\"" D_JSON_ZIGBEE_NAME "\":\"%s\""
-                    ",\"" D_JSON_ZIGBEE_Status "\":%d"
-                    "}}"), nwkAddr, friendlyName->c_str(), status);
+                    ",\"" D_JSON_ZIGBEE_STATUS "\":%d"
+                    ",\"" D_JSON_ZIGBEE_STATUS_MSG "\":\"%s\""
+                    "}}"), nwkAddr, friendlyName->c_str(), status, status_message);
   } else {
     Response_P(PSTR("{\"" D_JSON_ZIGBEE_BIND "\":{\"" D_JSON_ZIGBEE_DEVICE "\":\"0x%04X\""
-                    ",\"" D_JSON_ZIGBEE_Status "\":%d"
-                    "}}"), nwkAddr, status);
+                    ",\"" D_JSON_ZIGBEE_STATUS "\":%d"
+                    ",\"" D_JSON_ZIGBEE_STATUS_MSG "\":\"%s\""
+                    "}}"), nwkAddr, status, status_message);
   }
+  MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCL_RECEIVED));
+  XdrvRulesProcess();
+
+  return -1;
+}
+
+//
+// Report any AF_DATA_CONFIRM message
+// Ex: {"ZbConfirm":{"Endpoint":1,"Status":0,"StatusMessage":"SUCCESS"}}
+//
+int32_t Z_DataConfirm(int32_t res, const class SBuffer &buf) {
+  uint8_t           status = buf.get8(2);
+  uint8_t           endpoint = buf.get8(3);
+  //uint8_t           transId = buf.get8(4);
+  char              status_message[32];
+
+  strncpy_P(status_message, (const char*) getZigbeeStatusMessage(status), sizeof(status_message));
+  status_message[sizeof(status_message)-1] = 0;   // truncate if needed, strlcpy is safer but strlcpy_P does not exist
+
+  Response_P(PSTR("{\"" D_JSON_ZIGBEE_CONFIRM "\":{\"" D_CMND_ZIGBEE_ENDPOINT "\":%d"
+                    ",\"" D_JSON_ZIGBEE_STATUS "\":%d"
+                    ",\"" D_JSON_ZIGBEE_STATUS_MSG "\":\"%s\""
+                    "}}"), endpoint, status, status_message);
   MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCL_RECEIVED));
   XdrvRulesProcess();
 
@@ -554,6 +583,7 @@ typedef struct Z_Dispatcher {
 } Z_Dispatcher;
 
 // Filters for ZCL frames
+ZBM(AREQ_AF_DATA_CONFIRM, Z_AREQ | Z_AF, AF_DATA_CONFIRM)          // 4480
 ZBM(AREQ_AF_INCOMING_MESSAGE, Z_AREQ | Z_AF, AF_INCOMING_MSG)              // 4481
 ZBM(AREQ_END_DEVICE_ANNCE_IND, Z_AREQ | Z_ZDO, ZDO_END_DEVICE_ANNCE_IND)   // 45C1
 ZBM(AREQ_END_DEVICE_TC_DEV_IND, Z_AREQ | Z_ZDO, ZDO_TC_DEV_IND)   // 45CA
@@ -564,6 +594,7 @@ ZBM(AREQ_ZDO_IEEE_ADDR_RSP, Z_AREQ | Z_ZDO, ZDO_IEEE_ADDR_RSP)    // 4581
 ZBM(AREQ_ZDO_BIND_RSP, Z_AREQ | Z_ZDO, ZDO_BIND_RSP)    // 45A1
 
 const Z_Dispatcher Z_DispatchTable[] PROGMEM = {
+  { AREQ_AF_DATA_CONFIRM,         &Z_DataConfirm },
   { AREQ_AF_INCOMING_MESSAGE,     &Z_ReceiveAfIncomingMessage },
   { AREQ_END_DEVICE_ANNCE_IND,    &Z_ReceiveEndDeviceAnnonce },
   { AREQ_END_DEVICE_TC_DEV_IND,   &Z_ReceiveTCDevInd },
