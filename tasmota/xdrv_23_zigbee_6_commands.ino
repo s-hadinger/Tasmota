@@ -104,6 +104,13 @@ const Z_CommandConverter Z_Commands[] PROGMEM = {
   { "ViewGroup",      0x0004, 0x01, 0x82,   "xxyyyy" },       // xx = status, yy = group id, name ignored
   { "GetGroup",       0x0004, 0x02, 0x82,   "xxyyzzzz" },     // xx = capacity, yy = count, zzzz = first group id, following groups ignored
   { "RemoveGroup",    0x0004, 0x03, 0x82,   "xxyyyy" },       // xx = status, yy = group id
+  // responses for Scene cluster commands
+  { "AddScene",       0x0005, 0x00, 0x82,   "xxyyyyzz" },     // xx = status, yyyy = group id, zz = scene id
+  { "ViewScene",      0x0005, 0x01, 0x82,   "xxyyyyzz" },     // xx = status, yyyy = group id, zz = scene id
+  { "RemoveScene",    0x0005, 0x02, 0x82,   "xxyyyyzz" },     // xx = status, yyyy = group id, zz = scene id
+  { "RemoveAllScenes",0x0005, 0x03, 0x82,   "xxyyyy" },     // xx = status, yyyy = group id
+  { "StoreScene",     0x0005, 0x04, 0x82,   "xxyyyyzz" },     // xx = status, yyyy = group id, zz = scene id
+  { "GetSceneMembership",0x0005, 0x06, 0x82,   "" },     // specific
 };
 
 #define ZLE(x) ((x) & 0xFF), ((x) >> 8)     // Little Endian
