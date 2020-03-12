@@ -418,15 +418,17 @@ int32_t Z_DataConfirm(int32_t res, const class SBuffer &buf) {
   //uint8_t           transId = buf.get8(4);
   char              status_message[32];
 
-  strncpy_P(status_message, (const char*) getZigbeeStatusMessage(status), sizeof(status_message));
-  status_message[sizeof(status_message)-1] = 0;   // truncate if needed, strlcpy is safer but strlcpy_P does not exist
+  if (status) {   // only report errors
+    strncpy_P(status_message, (const char*) getZigbeeStatusMessage(status), sizeof(status_message));
+    status_message[sizeof(status_message)-1] = 0;   // truncate if needed, strlcpy is safer but strlcpy_P does not exist
 
-  Response_P(PSTR("{\"" D_JSON_ZIGBEE_CONFIRM "\":{\"" D_CMND_ZIGBEE_ENDPOINT "\":%d"
-                    ",\"" D_JSON_ZIGBEE_STATUS "\":%d"
-                    ",\"" D_JSON_ZIGBEE_STATUS_MSG "\":\"%s\""
-                    "}}"), endpoint, status, status_message);
-  MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCL_RECEIVED));
-  XdrvRulesProcess();
+    Response_P(PSTR("{\"" D_JSON_ZIGBEE_CONFIRM "\":{\"" D_CMND_ZIGBEE_ENDPOINT "\":%d"
+                      ",\"" D_JSON_ZIGBEE_STATUS "\":%d"
+                      ",\"" D_JSON_ZIGBEE_STATUS_MSG "\":\"%s\""
+                      "}}"), endpoint, status, status_message);
+    MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCL_RECEIVED));
+    XdrvRulesProcess();
+  }
 
   return -1;
 }

@@ -402,7 +402,7 @@ void zigbeeZCLSendStr(uint16_t shortaddr, uint16_t groupaddr, uint8_t endpoint, 
   }     // endpoint null is ok for group address
 
   // everything is good, we can send the command
-  ZigbeeZCLSend_Raw(shortaddr, groupaddr, cluster, endpoint, cmd, clusterSpecific, buf.getBuffer(), buf.len(), false, zigbee_devices.getNextSeqNumber(shortaddr));
+  ZigbeeZCLSend_Raw(shortaddr, groupaddr, cluster, endpoint, cmd, clusterSpecific, buf.getBuffer(), buf.len(), true, zigbee_devices.getNextSeqNumber(shortaddr));
   // now set the timer, if any, to read back the state later
   if (clusterSpecific) {
     zigbeeSetCommandTimer(shortaddr, groupaddr, cluster, endpoint);
