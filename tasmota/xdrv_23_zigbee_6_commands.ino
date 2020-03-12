@@ -52,7 +52,7 @@ const Z_CommandConverter Z_Commands[] PROGMEM = {
   { "RemoveGroup",    0x0004, 0x03, 0x01,   "xxxx" },         // Remove one group
   { "RemoveAllGroups",0x0004, 0x04, 0x01,   "" },             // Remove all groups
   // Scenes
-  { "AddScene",       0x0005, 0x00, 0x01,   "xxxxyy0100" },
+  //{ "AddScene",       0x0005, 0x00, 0x01,   "xxxxyy0100" },
   { "ViewScene",      0x0005, 0x01, 0x01,   "xxxxyy" },
   { "RemoveScene",    0x0005, 0x02, 0x01,   "xxxxyy" },
   { "RemoveAllScenes",0x0005, 0x03, 0x01,   "xxxx" },
