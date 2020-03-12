@@ -43,4 +43,15 @@ JsonVariant &getCaseInsensitive(const JsonObject &json, const char *needle) {
   return *(JsonVariant*)nullptr;
 }
 
+uint32_t parseHex(const char **data, size_t max_len = 8) {
+  uint32_t ret = 0;
+  for (uint32_t i = 0; i < max_len; i++) {
+    int8_t v = hexValue(**data);
+    if (v < 0) { break; }     // non hex digit, we stop parsing
+    ret = (ret << 4) | v;
+    *data += 1;
+  }
+  return ret;
+}
+
 #endif // USE_ZIGBEE
