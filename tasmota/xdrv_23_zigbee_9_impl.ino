@@ -429,7 +429,7 @@ void CmndZbSend(void) {
 
   // params
   static char delim[] = ", ";     // delimiters for parameters
-  uint16_t device = 0xFFFF;       // 0xFFFF is broadcast, so considered valid
+  uint16_t device = 0x0000;       // 0xFFFF is broadcast, so considered valid
   uint16_t groupaddr = 0x0000;    // ignore group address if 0x0000
   uint8_t  endpoint = 0x00;       // 0x00 is invalid for the dst endpoint
   // Command elements
@@ -448,7 +448,7 @@ void CmndZbSend(void) {
       device = zigbee_devices.parseDeviceParam(val_device.as<char*>());
       if (0xFFFF == device) { ResponseCmndChar("Invalid parameter"); return; }
     }
-    if ((nullptr == &val_device) || (0x000 == device)) { ResponseCmndChar("Unknown device"); return; }
+    if ((nullptr == &val_device) || (0x0000 == device)) { ResponseCmndChar("Unknown device"); return; }
   }
 
   const JsonVariant &val_endpoint = getCaseInsensitive(json, PSTR("Endpoint"));
