@@ -391,8 +391,8 @@ void zigbeeZCLSendStr(uint16_t dstAddr, uint16_t groupaddr, uint8_t endpoint, bo
     endpoint = zigbee_devices.findClusterEndpointIn(dstAddr, cluster);
     AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZbSend: guessing endpoint 0x%02X"), endpoint);
   }
-  AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZbSend: dstAddr 0x%04X, cluster 0x%04X, endpoint 0x%02X, cmd 0x%02X, data %s"),
-    dstAddr, cluster, endpoint, cmd, param);
+  AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZbSend: dstAddr 0x%04X, groupaddr 0x%04X, cluster 0x%04X, endpoint 0x%02X, cmd 0x%02X, data %s"),
+    dstAddr, groupaddr, cluster, endpoint, cmd, param);
 
   if (0 == endpoint) {
     AddLog_P2(LOG_LEVEL_INFO, PSTR("ZbSend: unspecified endpoint"));
