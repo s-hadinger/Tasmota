@@ -123,7 +123,7 @@ void ZigbeeHueGroups(String * lights) {
 // Send commands
 // Power On/Off
 void ZigbeeHuePower(uint16_t shortaddr, uint8_t power) {
-  zigbeeZCLSendStr(shortaddr, 0, 0, true, 0x0006, power, "");
+  // zigbeeZCLSendStr(shortaddr, 0, 0, true, 0x0006, power, "");
   zigbee_devices.updateHueState(shortaddr, &power, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
 }
 
@@ -131,7 +131,7 @@ void ZigbeeHuePower(uint16_t shortaddr, uint8_t power) {
 void ZigbeeHueDimmer(uint16_t shortaddr, uint8_t dimmer) {
   char param[8];
   snprintf_P(param, sizeof(param), PSTR("%02X0A00"), dimmer);
-  zigbeeZCLSendStr(shortaddr, 0, 0, true, 0x0008, 0x04, param);
+  // zigbeeZCLSendStr(shortaddr, 0, 0, true, 0x0008, 0x04, param);
   zigbee_devices.updateHueState(shortaddr, nullptr, nullptr, &dimmer, nullptr, nullptr, nullptr, nullptr, nullptr);
 }
 
@@ -140,7 +140,7 @@ void ZigbeeHueCT(uint16_t shortaddr, uint16_t ct) {
   char param[12];
   snprintf_P(param, sizeof(param), PSTR("%02X%02X%0A00"), ct & 0xFF, ct >> 8);
   uint8_t colormode = 2;      // "ct"
-  zigbeeZCLSendStr(shortaddr, 0, 0, true, 0x0300, 0x0A, param);
+  // zigbeeZCLSendStr(shortaddr, 0, 0, true, 0x0300, 0x0A, param);
   zigbee_devices.updateHueState(shortaddr, nullptr, &colormode, nullptr, nullptr, &ct, nullptr, nullptr, nullptr);
 }
 
@@ -151,7 +151,7 @@ void ZigbeeHueXY(uint16_t shortaddr, float x, float y) {
   uint32_t yi = y * 65536.0f;
   snprintf_P(param, sizeof(param), PSTR("%02X%02X%02X%02X0A00"), xi & 0xFF, xi >> 8, yi & 0xFF, yi >> 8);
   uint8_t colormode = 1;      // "ct"
-  zigbeeZCLSendStr(shortaddr, 0, 0, true, 0x0300, 0x07, param);
+  // zigbeeZCLSendStr(shortaddr, 0, 0, true, 0x0300, 0x07, param);
   zigbee_devices.updateHueState(shortaddr, nullptr, &colormode, nullptr, nullptr, nullptr, nullptr, &x, &y);
 }
 
@@ -161,7 +161,7 @@ void ZigbeeHueHS(uint16_t shortaddr, uint16_t hue, uint8_t sat) {
   uint8_t hue8 = changeUIntScale(hue, 0, 360, 0, 254);
   snprintf_P(param, sizeof(param), PSTR("%02X%02X0A00"), hue8, sat);
   uint8_t colormode = 0;      // "hs"
-  zigbeeZCLSendStr(shortaddr, 0, 0, true, 0x0300, 0x06, param);
+  // zigbeeZCLSendStr(shortaddr, 0, 0, true, 0x0300, 0x06, param);
   zigbee_devices.updateHueState(shortaddr, nullptr, &colormode, nullptr, &sat, nullptr, &hue, nullptr, nullptr);
 }
 
@@ -209,7 +209,7 @@ void ZigbeeHandleHue(uint16_t shortaddr, uint32_t device_id, String &response) {
                  PSTR("{\"success\":{\"/lights/%d/state/%s\":%d}}"),
                  device_id, "bri", bri);
       response += buf;
-      if (LST_SINGLE <= Light.subtype) {
+      if (LST_SINGLE <= bulbtype) {
         // extend bri value if set to max
         if (254 <= bri) { bri = 255; }
         ZigbeeHueDimmer(shortaddr, bri);
@@ -247,7 +247,7 @@ void ZigbeeHandleHue(uint16_t shortaddr, uint32_t device_id, String &response) {
                  PSTR("{\"success\":{\"/lights/%d/state/%s\":%d}}"),
                  device_id, "hue", hue);
       response += buf;
-      if (LST_RGB <= Light.subtype) {
+      if (LST_RGB <= bulbtype) {
         // change range from 0..65535 to 0..359
         hue = changeUIntScale(hue, 0, 65535, 0, 359);
         huesat_changed = true;
@@ -262,7 +262,7 @@ void ZigbeeHandleHue(uint16_t shortaddr, uint32_t device_id, String &response) {
                  PSTR("{\"success\":{\"/lights/%d/state/%s\":%d}}"),
                  device_id, "sat", sat);
       response += buf;
-      if (LST_RGB <= Light.subtype) {
+      if (LST_RGB <= bulbtype) {
         // extend sat value if set to max
         if (254 <= sat) { sat = 255; }
         huesat_changed = true;
@@ -280,8 +280,8 @@ void ZigbeeHandleHue(uint16_t shortaddr, uint32_t device_id, String &response) {
                  PSTR("{\"success\":{\"/lights/%d/state/%s\":%d}}"),
                  device_id, "ct", ct);
       response += buf;
-      if ((LST_COLDWARM == Light.subtype) || (LST_RGBW <= Light.subtype)) {
-        // TODO change
+      if ((LST_COLDWARM == bulbtype) || (LST_RGBW <= bulbtype)) {
+        ZigbeeHueCT(shortaddr, ct);
       }
       resp = true;
     }
