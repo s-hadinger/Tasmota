@@ -45,7 +45,7 @@ void HueLightStatus1Zigbee(uint16_t shortaddr, uint8_t local_light_subtype, Stri
     snprintf_P(buf, buf_size, PSTR("%s\"bri\":%d,"), buf, bri);
   }
   if (LST_COLDWARM <= local_light_subtype) {
-    snprintf_P(buf, buf_size, PSTR("%s\"colormode\":\"%s\","), buf, g_gotct ? "ct" : "hs");
+    snprintf_P(buf, buf_size, PSTR("%s\"colormode\":\"%s\","), buf, (0 == colormode) ? "hs" : (1 == colormode) ? "xy" : "ct");
   }
   if (LST_RGB <= local_light_subtype) {  // colors
     if (prev_x_str[0] && prev_y_str[0]) {
@@ -123,7 +123,7 @@ void ZigbeeHueGroups(String * lights) {
 // Send commands
 // Power On/Off
 void ZigbeeHuePower(uint16_t shortaddr, uint8_t power) {
-  zigbeeZCLSendStr(shortaddr, 0, 0, power, 0x0006, 0x00, "");
+  zigbeeZCLSendStr(shortaddr, 0, 0, true, 0x0006, power, "");
   zigbee_devices.updateHueState(shortaddr, &power, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
 }
 
@@ -131,8 +131,28 @@ void ZigbeeHuePower(uint16_t shortaddr, uint8_t power) {
 void ZigbeeHueDimmer(uint16_t shortaddr, uint8_t dimmer) {
   char param[8];
   snprintf_P(param, sizeof(param), PSTR("%02X0A00"), dimmer);
-  zigbeeZCLSendStr(shortaddr, 0, 0, power, 0x0008, 0x04, param);
+  zigbeeZCLSendStr(shortaddr, 0, 0, true, 0x0008, 0x04, param);
   zigbee_devices.updateHueState(shortaddr, nullptr, nullptr, &dimmer, nullptr, nullptr, nullptr, nullptr, nullptr);
+}
+
+// CT
+void ZigbeeHueCT(uint16_t shortaddr, uint16_t ct) {
+  char param[12];
+  snprintf_P(param, sizeof(param), PSTR("%02X%02X%0A00"), ct & 0xFF, ct >> 8);
+  uint8_t colormode = 2;      // "ct"
+  zigbeeZCLSendStr(shortaddr, 0, 0, true, 0x0300, 0x0A, param);
+  zigbee_devices.updateHueState(shortaddr, nullptr, &colormode, nullptr, nullptr, &ct, nullptr, nullptr, nullptr);
+}
+
+// XY
+void ZigbeeHueXY(uint16_t shortaddr, float x, float y) {
+  char param[16];
+  uint32_t xi = x * 65536.0f;
+  uint32_t yi = y * 65536.0f;
+  snprintf_P(param, sizeof(param), PSTR("%02X%02X%02X%02X0A00"), xi & 0xFF, xi >> 8, yi & 0xFF, yi >> 8);
+  uint8_t colormode = 1;      // "ct"
+  zigbeeZCLSendStr(shortaddr, 0, 0, true, 0x0300, 0x07, param);
+  zigbee_devices.updateHueState(shortaddr, nullptr, &colormode, nullptr, nullptr, nullptr, nullptr, &x, &y);
 }
 
 void ZigbeeHandleHue(uint16_t shortaddr, uint32_t device_id, String &response) {
@@ -206,7 +226,7 @@ void ZigbeeHandleHue(uint16_t shortaddr, uint32_t device_id, String &response) {
                  device_id, prev_x_str, prev_y_str);
       response += buf;
       resp = true;
-      // TODO change
+      ZigbeeHueXY(shortaddr, x, y);
     }
     if (hue_json.containsKey("hue")) {             // The hue value is a wrapping value between 0 and 65535. Both 0 and 65535 are red, 25500 is green and 46920 is blue.
       hue = hue_json["hue"];
