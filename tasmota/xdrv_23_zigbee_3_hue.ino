@@ -139,7 +139,7 @@ void ZigbeeHueDimmer(uint16_t shortaddr, uint8_t dimmer) {
 void ZigbeeHueCT(uint16_t shortaddr, uint16_t ct) {
   AddLog_P2(LOG_LEVEL_INFO, PSTR("ZigbeeHueCT 0x%04X - %d"), shortaddr, ct);
   char param[12];
-  snprintf_P(param, sizeof(param), PSTR("%02X%02X%0800"), ct & 0xFF, ct >> 8);
+  snprintf_P(param, sizeof(param), PSTR("%02X%02X0A00"), ct & 0xFF, ct >> 8);
   uint8_t colormode = 2;      // "ct"
   zigbeeZCLSendStr(shortaddr, 0, 0, true, 0x0300, 0x0A, param);
   zigbee_devices.updateHueState(shortaddr, nullptr, &colormode, nullptr, nullptr, &ct, nullptr, nullptr, nullptr);
