@@ -210,30 +210,26 @@ void hydrateDevices(const SBuffer &buf) {
 
   uint32_t k = 0;
   uint32_t num_devices = buf.get8(k++);
-size_t before = 0;
+//size_t before = 0;
   for (uint32_t i = 0; (i < num_devices) && (k < buf_len); i++) {
     uint32_t dev_record_len = buf.get8(k);
 
-AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "Device %d Before Memory = %d // DIFF %d // record_len %d"), i, ESP.getFreeHeap(), before - ESP.getFreeHeap(), dev_record_len);
-before = ESP.getFreeHeap();
+// AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "Device %d Before Memory = %d // DIFF %d // record_len %d"), i, ESP.getFreeHeap(), before - ESP.getFreeHeap(), dev_record_len);
+// before = ESP.getFreeHeap();
 
     SBuffer buf_d = buf.subBuffer(k, dev_record_len);
 
-char *hex_char = (char*) malloc((dev_record_len * 2) + 2);
-if (hex_char) {
-  AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "/// SUB %s"),
-                                  ToHex_P(buf_d.getBuffer(), dev_record_len, hex_char, (dev_record_len * 2) + 2));
-  free(hex_char);
-}
-
-
+// char *hex_char = (char*) malloc((dev_record_len * 2) + 2);
+// if (hex_char) {
+//   AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "/// SUB %s"),
+//                                   ToHex_P(buf_d.getBuffer(), dev_record_len, hex_char, (dev_record_len * 2) + 2));
+//   free(hex_char);
+// }
 
     uint32_t d = 1;   // index in device buffer
     uint16_t shortaddr = buf_d.get16(d);  d += 2;
     uint64_t longaddr  = buf_d.get64(d);  d += 8;
-AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "Device 0x%04X Memory1 = %d"), shortaddr, ESP.getFreeHeap());
     zigbee_devices.updateDevice(shortaddr, longaddr);   // update device's addresses
-AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "Device 0x%04X Memory2 = %d"), shortaddr, ESP.getFreeHeap());
 
     uint32_t endpoints = buf_d.get8(d++);
     for (uint32_t j = 0; j < endpoints; j++) {
@@ -254,9 +250,8 @@ AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "Device 0x%04X Memory2 = %d"), short
         zigbee_devices.addCluster(shortaddr, ep, fromClusterCode(ep_cluster), true);
       }
     }
-AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "Device 0x%04X Memory3 = %d"), shortaddr, ESP.getFreeHeap());
     zigbee_devices.shrinkToFit(shortaddr);
-AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "Device 0x%04X Memory3.shrink = %d"), shortaddr, ESP.getFreeHeap());
+//AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "Device 0x%04X Memory3.shrink = %d"), shortaddr, ESP.getFreeHeap());
 
     // parse 3 strings
     char empty[] = "";
@@ -287,7 +282,7 @@ AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "Device 0x%04X Memory3.shrink = %d")
 
     // next iteration
     k += dev_record_len;
-AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "Device %d After  Memory = %d"), i, ESP.getFreeHeap());
+//AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "Device %d After  Memory = %d"), i, ESP.getFreeHeap());
   }
 }
 

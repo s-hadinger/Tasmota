@@ -257,16 +257,15 @@ int32_t Z_Devices::findClusterEndpoint(const std::vector<uint32_t>  & vecOfEleme
 //
 Z_Device & Z_Devices::createDeviceEntry(uint16_t shortaddr, uint64_t longaddr) {
   if (!shortaddr && !longaddr) { return *(Z_Device*) nullptr; }      // it is not legal to create an enrty with both short/long addr null
-AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE ">> Device 0x%04X Memory1 = %d"), shortaddr, ESP.getFreeHeap());
   //Z_Device* device_alloc = (Z_Device*) malloc(sizeof(Z_Device));
   Z_Device* device_alloc = new Z_Device{
                       longaddr,
                       nullptr,    // ManufId
                       nullptr,   // DeviceId
                       nullptr,   // FriendlyName
-                      std::vector<uint32_t>(4),     // at least one endpoint
-                      std::vector<uint32_t>(4),     // try not to allocate if not needed
-                      std::vector<uint32_t>(4),     // try not to allocate if not needed
+                      std::vector<uint32_t>(),     // at least one endpoint
+                      std::vector<uint32_t>(),     // try not to allocate if not needed
+                      std::vector<uint32_t>(),     // try not to allocate if not needed
                       nullptr, nullptr,
                       shortaddr,
                       0,          // seqNumber
@@ -281,11 +280,8 @@ AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE ">> Device 0x%04X Memory1 = %d"), sh
                       0.0f, 0.0f, // x, y
                     };
 
-AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE ">> Device 0x%04X Memory2 = %d, sizeof %d, SizeofVector %d"), shortaddr, ESP.getFreeHeap(), sizeof(Z_Device), sizeof(std::vector<uint32_t>(4)));
   device_alloc->json_buffer = new DynamicJsonBuffer(16);
-AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE ">> Device 0x%04X Memory3 = %d"), shortaddr, ESP.getFreeHeap());
   _devices.push_back(device_alloc);
-AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE ">> Device 0x%04X Memory4 = %d"), shortaddr, ESP.getFreeHeap());
   dirty();
   return *(_devices.back());
 }
@@ -495,6 +491,7 @@ void Z_Devices::updateDevice(uint16_t shortaddr, uint64_t longaddr) {
 //
 void Z_Devices::addEndoint(uint16_t shortaddr, uint8_t endpoint) {
   if (!shortaddr) { return; }
+  if (0x00 == endpoint) { return; }
   uint32_t ep_profile = (endpoint << 16);
   Z_Device &device = getShortAddr(shortaddr);
   if (&device == nullptr) { return; }                 // don't crash if not found
@@ -506,6 +503,7 @@ void Z_Devices::addEndoint(uint16_t shortaddr, uint8_t endpoint) {
 
 void Z_Devices::addEndointProfile(uint16_t shortaddr, uint8_t endpoint, uint16_t profileId) {
   if (!shortaddr) { return; }
+  if (0x00 == endpoint) { return; }
   uint32_t ep_profile = (endpoint << 16) | profileId;
   Z_Device &device = getShortAddr(shortaddr);
   if (&device == nullptr) { return; }                 // don't crash if not found
