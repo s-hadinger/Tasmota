@@ -129,6 +129,7 @@ public:
   uint8_t getNextSeqNumber(uint16_t shortaddr);
 
   // Dump json
+  String dumpLightState(uint16_t shortaddr) const;
   String dump(uint32_t dump_mode, uint16_t status_shortaddr = 0) const;
 
   // Hue support
@@ -939,6 +940,59 @@ uint16_t Z_Devices::parseDeviceParam(const char * param, bool short_must_be_know
   }
 
   return shortaddr;
+}
+
+// Display the tracked status for a light
+String Z_Devices::dumpLightState(uint16_t shortaddr) const {
+  DynamicJsonBuffer jsonBuffer;
+  JsonObject& json_root = jsonBuffer.createObject();
+  JsonObject& json = json_root.createNestedObject(F(D_PRFX_ZB D_CMND_ZIGBEE_LIGHT));
+  char hex[8];
+
+  int32_t found = findShortAddr(shortaddr);
+  if (found >= 0) {
+    const Z_Device & device = devicesAt(found);
+    const String * fname = getFriendlyName(shortaddr);
+
+    bool use_fname = (Settings.flag4.zigbee_use_names) && (fname);    // should we replace shortaddr with friendlyname?
+
+    snprintf_P(hex, sizeof(hex), PSTR("0x%04X"), shortaddr);
+
+    JsonObject& dev = use_fname ? json.createNestedObject(F(D_JSON_ZIGBEE_NAME))
+                                : json.createNestedObject(hex);
+    if (use_fname) {
+      dev[F(D_JSON_ZIGBEE_DEVICE)] = hex;
+    } else if (fname) {
+      dev[F(D_JSON_ZIGBEE_NAME)] = fname;
+    }
+
+    // expose the last known status of the bulb, for Hue integration
+    dev[F(D_JSON_ZIGBEE_LIGHT)] = device.bulbtype;   // sign extend, 0xFF changed as -1
+    if (0 <= device.bulbtype) {
+      // bulbtype is defined
+      dev[F("Power")] = device.power;
+      if (1 <= device.bulbtype) {
+        dev[F("Dimmer")] = device.dimmer;
+      }
+      if (2 <= device.bulbtype) {
+        dev[F("Colormode")] = device.colormode;
+      }
+      if ((2 == device.bulbtype) || (5 == device.bulbtype)) {
+        dev[F("CT")] = device.ct;
+      }
+      if (3 <= device.bulbtype) {
+        dev[F("Sat")] = device.sat;
+        dev[F("Hue")] = device.hue;
+        dev[F("X")] = device.x;
+        dev[F("Y")] = device.y;
+      }
+    }
+  }
+
+  String payload = "";
+  payload.reserve(200);
+  json.printTo(payload);
+  return payload;
 }
 
 // Dump the internal memory of Zigbee devices

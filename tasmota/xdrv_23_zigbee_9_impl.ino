@@ -35,7 +35,7 @@ const char kZbCommands[] PROGMEM = D_PRFX_ZB "|"    // prefix
   D_CMND_ZIGBEE_PROBE "|" D_CMND_ZIGBEE_READ "|" D_CMND_ZIGBEEZNPRECEIVE "|"
   D_CMND_ZIGBEE_FORGET "|" D_CMND_ZIGBEE_SAVE "|" D_CMND_ZIGBEE_NAME "|"
   D_CMND_ZIGBEE_BIND "|" D_CMND_ZIGBEE_PING "|" D_CMND_ZIGBEE_MODELID "|"
-  D_CMND_ZIGBEE_BULBTYPE
+  D_CMND_ZIGBEE_LIGHT
   ;
 
 void (* const ZigbeeCommand[])(void) PROGMEM = {
@@ -752,11 +752,11 @@ void CmndZbBulbType(void) {
 
   if (p == nullptr) {
     int8_t bulbtype = zigbee_devices.getHueBulbtype(shortaddr);
-    Response_P(PSTR("{\"0x%04X\":{\"" D_JSON_ZIGBEE_BULBTYPE "\":%d}}"), shortaddr, bulbtype);
+    Response_P(PSTR("{\"0x%04X\":{\"" D_JSON_ZIGBEE_LIGHT "\":%d}}"), shortaddr, bulbtype);
   } else {
     int8_t bulbtype = strtol(p, nullptr, 10);
     zigbee_devices.setHueBulbtype(shortaddr, bulbtype);
-    Response_P(PSTR("{\"0x%04X\":{\"" D_JSON_ZIGBEE_BULBTYPE "\":%d}}"), shortaddr, bulbtype);
+    Response_P(PSTR("{\"0x%04X\":{\"" D_JSON_ZIGBEE_LIGHT "\":%d}}"), shortaddr, bulbtype);
   }
 }
 
