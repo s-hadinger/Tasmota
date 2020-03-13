@@ -243,9 +243,7 @@ void parseXYZ(const char *model, const SBuffer &payload, struct Z_XYZ_Var *xyz) 
 //  - cluster number
 //  - command number or 0xFF if command is part of the variable part
 //  - the payload in the form of a HEX string with x/y/z variables
-
-
-void sendHueUpdate(uint16_t shortaddr, uint16_t cluster, uint8_t cmd, bool direction) {
+void sendHueUpdate(uint16_t shortaddr, uint16_t groupaddr, uint16_t cluster, uint8_t cmd, bool direction) {
   if (direction) { return; }    // no need to update if server->client
 
   int32_t z_cat = -1;
@@ -272,9 +270,12 @@ void sendHueUpdate(uint16_t shortaddr, uint16_t cluster, uint8_t cmd, bool direc
       break;
   }
   if (z_cat >= 0) {
-    uint8_t endpoint = zigbee_devices.findClusterEndpointIn(shortaddr, cluster);
-    if (endpoint) {   // send only if we know the endpoint
-      zigbee_devices.setTimer(shortaddr, 0 /* groupaddr */, 0 /* wait ms */, cluster, endpoint, z_cat, 0 /* value */, &Z_ReadAttrCallback);
+    uint8_t endpoint = 0;
+    if (!groupaddr) {
+      endpoint = zigbee_devices.findClusterEndpointIn(shortaddr, cluster);
+    }
+    if ((endpoint) || (groupaddr)) {   // send only if we know the endpoint
+      zigbee_devices.setTimer(shortaddr, groupaddr, wait_ms, cluster, endpoint, z_cat, 0 /* value */, &Z_ReadAttrCallback);
     }
   }
 }

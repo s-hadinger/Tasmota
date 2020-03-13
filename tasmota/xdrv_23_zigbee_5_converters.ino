@@ -39,13 +39,13 @@ class ZCLFrame {
 public:
 
   ZCLFrame(uint8_t frame_control, uint16_t manuf_code, uint8_t transact_seq, uint8_t cmd_id,
-    const char *buf, size_t buf_len, uint16_t clusterid, uint16_t groupid,
+    const char *buf, size_t buf_len, uint16_t clusterid, uint16_t groupaddr,
     uint16_t srcaddr, uint8_t srcendpoint, uint8_t dstendpoint, uint8_t wasbroadcast,
     uint8_t linkquality, uint8_t securityuse, uint8_t seqnumber,
     uint32_t timestamp):
     _cmd_id(cmd_id), _manuf_code(manuf_code), _transact_seq(transact_seq),
     _payload(buf_len ? buf_len : 250),      // allocate the data frame from source or preallocate big enough
-    _cluster_id(clusterid), _group_id(groupid),
+    _cluster_id(clusterid), _groupaddr(groupaddr),
     _srcaddr(srcaddr), _srcendpoint(srcendpoint), _dstendpoint(dstendpoint), _wasbroadcast(wasbroadcast),
     _linkquality(linkquality), _securityuse(securityuse), _seqnumber(seqnumber),
     _timestamp(timestamp)
@@ -65,7 +65,7 @@ public:
                     "\"timestamp\":%d,"
                     "\"fc\":\"0x%02X\",\"manuf\":\"0x%04X\",\"transact\":%d,"
                     "\"cmdid\":\"0x%02X\",\"payload\":\"%s\"}}"),
-                    _group_id, _cluster_id, _srcaddr,
+                    _groupaddr, _cluster_id, _srcaddr,
                     _srcendpoint, _dstendpoint, _wasbroadcast,
                     _linkquality, _securityuse, _seqnumber,
                     _timestamp,
@@ -117,7 +117,7 @@ public:
   void postProcessAttributes(uint16_t shortaddr, JsonObject& json);
 
   inline void setGroupId(uint16_t groupid) {
-    _group_id = groupid;
+    _groupaddr = groupid;
   }
 
   inline void setClusterId(uint16_t clusterid) {
@@ -150,7 +150,7 @@ private:
   uint8_t                 _transact_seq = 0;    // transaction sequence number
   uint8_t                 _cmd_id = 0;
   uint16_t                _cluster_id = 0;
-  uint16_t                _group_id = 0;
+  uint16_t                _groupaddr = 0;
   SBuffer                 _payload;
   // information from decoded ZCL frame
   uint16_t                _srcaddr;
@@ -513,8 +513,8 @@ void ZCLFrame::parseResponse(void) {
   // Add Endpoint
   json[F(D_CMND_ZIGBEE_ENDPOINT)] = _srcendpoint;
   // Add Group if non-zero
-  if (_group_id) {
-    json[F(D_CMND_ZIGBEE_GROUP)] = _group_id;
+  if (_groupaddr) {
+    json[F(D_CMND_ZIGBEE_GROUP)] = _groupaddr;
   }
   // Add linkquality
   json[F(D_CMND_ZIGBEE_LINKQUALITY)] = _linkquality;
@@ -531,7 +531,7 @@ void ZCLFrame::parseResponse(void) {
 // Parse non-normalized attributes
 void ZCLFrame::parseClusterSpecificCommand(JsonObject& json, uint8_t offset) {
   convertClusterSpecific(json, _cluster_id, _cmd_id, _frame_control.b.direction, _payload);
-  sendHueUpdate(_srcaddr, _cluster_id, _cmd_id, _frame_control.b.direction);
+  sendHueUpdate(_srcaddr, _groupaddr, _cluster_id, _cmd_id, _frame_control.b.direction);
 }
 
 // return value:
