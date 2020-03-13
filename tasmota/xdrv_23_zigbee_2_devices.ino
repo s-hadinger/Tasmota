@@ -442,8 +442,8 @@ Z_Device & Z_Devices::getLongAddr(uint64_t longaddr) {
 bool Z_Devices::removeDevice(uint16_t shortaddr) {
   int32_t found = findShortAddr(shortaddr);
   if (found >= 0) {
+    freeDeviceEntry(_devices.at(found));
     _devices.erase(_devices.begin() + found);
-    // TODO SH
     dirty();
     return true;
   }
@@ -465,8 +465,8 @@ void Z_Devices::updateDevice(uint16_t shortaddr, uint64_t longaddr) {
       // the device with longaddr got a new shortaddr
       _devices[l_found]->shortaddr = shortaddr;      // update the shortaddr corresponding to the longaddr
       // erase the previous shortaddr
+      freeDeviceEntry(_devices.at(s_found));
       _devices.erase(_devices.begin() + s_found);
-      // TODO SH
       dirty();
     }
   } else if (s_found >= 0) {
