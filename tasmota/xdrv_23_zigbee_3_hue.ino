@@ -155,6 +155,16 @@ void ZigbeeHueXY(uint16_t shortaddr, float x, float y) {
   zigbee_devices.updateHueState(shortaddr, nullptr, &colormode, nullptr, nullptr, nullptr, nullptr, &x, &y);
 }
 
+// HueSat
+void ZigbeeHueHS(uint16_t shortaddr, uint16_t hue, uint8_t sat) {
+  char param[16];
+  uint8_t hue8 = changeUIntScale(hue, 0, 360, 0, 254);
+  snprintf_P(param, sizeof(param), PSTR("%02X%02X0A00"), hue8, sat);
+  uint8_t colormode = 0;      // "hs"
+  zigbeeZCLSendStr(shortaddr, 0, 0, true, 0x0300, 0x06, param);
+  zigbee_devices.updateHueState(shortaddr, nullptr, &colormode, nullptr, &sat, nullptr, &hue, nullptr, nullptr);
+}
+
 void ZigbeeHandleHue(uint16_t shortaddr, uint32_t device_id, String &response) {
   uint8_t  power, colormode, bri, sat;
   uint16_t ct, hue;
@@ -228,6 +238,7 @@ void ZigbeeHandleHue(uint16_t shortaddr, uint32_t device_id, String &response) {
       resp = true;
       ZigbeeHueXY(shortaddr, x, y);
     }
+    bool huesat_changed = false;
     if (hue_json.containsKey("hue")) {             // The hue value is a wrapping value between 0 and 65535. Both 0 and 65535 are red, 25500 is green and 46920 is blue.
       hue = hue_json["hue"];
       prev_hue = hue;
@@ -239,7 +250,7 @@ void ZigbeeHandleHue(uint16_t shortaddr, uint32_t device_id, String &response) {
       if (LST_RGB <= Light.subtype) {
         // change range from 0..65535 to 0..359
         hue = changeUIntScale(hue, 0, 65535, 0, 359);
-        // TODO change
+        huesat_changed = true;
       }
       resp = true;
     }
@@ -254,7 +265,10 @@ void ZigbeeHandleHue(uint16_t shortaddr, uint32_t device_id, String &response) {
       if (LST_RGB <= Light.subtype) {
         // extend sat value if set to max
         if (254 <= sat) { sat = 255; }
-        // TODO change
+        huesat_changed = true;
+      }
+      if (huesat_changed) {
+        ZigbeeHueHS(shortaddr, hue, sat);
       }
       resp = true;
     }
