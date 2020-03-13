@@ -945,8 +945,7 @@ uint16_t Z_Devices::parseDeviceParam(const char * param, bool short_must_be_know
 // Display the tracked status for a light
 String Z_Devices::dumpLightState(uint16_t shortaddr) const {
   DynamicJsonBuffer jsonBuffer;
-  JsonObject& json_root = jsonBuffer.createObject();
-  JsonObject& json = json_root.createNestedObject(F(D_PRFX_ZB D_CMND_ZIGBEE_LIGHT));
+  JsonObject& json = jsonBuffer.createObject();
   char hex[8];
 
   int32_t found = findShortAddr(shortaddr);
@@ -958,7 +957,7 @@ String Z_Devices::dumpLightState(uint16_t shortaddr) const {
 
     snprintf_P(hex, sizeof(hex), PSTR("0x%04X"), shortaddr);
 
-    JsonObject& dev = use_fname ? json.createNestedObject(F(D_JSON_ZIGBEE_NAME))
+    JsonObject& dev = use_fname ? json.createNestedObject(*fname)
                                 : json.createNestedObject(hex);
     if (use_fname) {
       dev[F(D_JSON_ZIGBEE_DEVICE)] = hex;
@@ -1019,22 +1018,6 @@ String Z_Devices::dump(uint32_t dump_mode, uint16_t status_shortaddr) const {
 
     if (device.friendlyName.length() > 0) {
       dev[F(D_JSON_ZIGBEE_NAME)] = device.friendlyName;
-    }
-
-    if (0 == dump_mode) {
-      // expose the last known status of the bulb, for Hue integration
-      dev[F("BulbType")] = device.bulbtype;   // sign extend, 0xFF changed as -1
-      if (0 <= device.bulbtype) {
-        // bulbtype is defined
-        dev[F("Power")] = device.power;
-        dev[F("Colormode")] = device.colormode;
-        dev[F("Dimmer")] = device.dimmer;
-        dev[F("Sat")] = device.sat;
-        dev[F("CT")] = device.ct;
-        dev[F("Hue")] = device.hue;
-        dev[F("X")] = device.x;
-        dev[F("Y")] = device.y;
-      }
     }
 
     if (2 <= dump_mode) {

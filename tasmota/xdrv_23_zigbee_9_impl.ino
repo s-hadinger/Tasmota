@@ -44,7 +44,7 @@ void (* const ZigbeeCommand[])(void) PROGMEM = {
   &CmndZbProbe, &CmndZbRead, &CmndZbZNPReceive,
   &CmndZbForget, &CmndZbSave, &CmndZbName,
   &CmndZbBind, &CmndZbPing, &CmndZbModelId,
-  &CmndZbBulbType,
+  &CmndZbLight,
   };
 
 int32_t ZigbeeProcessInput(class SBuffer &buf) {
@@ -731,11 +731,11 @@ void CmndZbModelId(void) {
   }
 }
 
-// Specify, read or erase a BulbType for Hue/Alexa integration
-void CmndZbBulbType(void) {
+// Specify, read or erase a Light type for Hue/Alexa integration
+void CmndZbLight(void) {
   // Syntax is:
-  //  ZbBulbType <device_id>,<x>            - assign a bulb type 0-5
-  //  ZbBulbType <device_id>                - display the current bulb type
+  //  ZbLight <device_id>,<x>            - assign a bulb type 0-5
+  //  ZbLight <device_id>                - display the current bulb type and status
   //
   // Where <device_id> can be: short_addr, long_addr, device_index, friendly_name
 
@@ -750,14 +750,16 @@ void CmndZbBulbType(void) {
   if (0x0000 == shortaddr) { ResponseCmndChar("Unknown device"); return; }
   if (0xFFFF == shortaddr) { ResponseCmndChar("Invalid parameter"); return; }
 
-  if (p == nullptr) {
-    int8_t bulbtype = zigbee_devices.getHueBulbtype(shortaddr);
-    Response_P(PSTR("{\"0x%04X\":{\"" D_JSON_ZIGBEE_LIGHT "\":%d}}"), shortaddr, bulbtype);
-  } else {
+  if (p) {
     int8_t bulbtype = strtol(p, nullptr, 10);
     zigbee_devices.setHueBulbtype(shortaddr, bulbtype);
-    Response_P(PSTR("{\"0x%04X\":{\"" D_JSON_ZIGBEE_LIGHT "\":%d}}"), shortaddr, bulbtype);
   }
+  String dump = zigbee_devices.dumpLightState(shortaddr);
+  Response_P(PSTR("{\"" D_PRFX_ZB D_CMND_ZIGBEE_LIGHT "\":%s}"), dump.c_str());
+
+  MqttPublishPrefixTopic_P(RESULT_OR_STAT, PSTR(D_PRFX_ZB D_CMND_ZIGBEE_LIGHT));
+  XdrvRulesProcess();
+  ResponseCmndDone();
 }
 
 // Remove an old Zigbee device from the list of known devices, use ZigbeeStatus to know all registered devices
