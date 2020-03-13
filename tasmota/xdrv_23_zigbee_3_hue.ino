@@ -120,6 +120,21 @@ void ZigbeeHueGroups(String * lights) {
   }
 }
 
+// Send commands
+// Power On/Off
+void ZigbeeHuePower(uint16_t shortaddr, uint8_t power) {
+  zigbeeZCLSendStr(shortaddr, 0, 0, power, 0x0006, 0x00, "");
+  zigbee_devices.updateHueState(shortaddr, &power, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+}
+
+// Dimmer
+void ZigbeeHueDimmer(uint16_t shortaddr, uint8_t dimmer) {
+  char param[8];
+  snprintf_P(param, sizeof(param), PSTR("%02X0A00"), dimmer);
+  zigbeeZCLSendStr(shortaddr, 0, 0, power, 0x0008, 0x04, param);
+  zigbee_devices.updateHueState(shortaddr, nullptr, nullptr, &dimmer, nullptr, nullptr, nullptr, nullptr, nullptr);
+}
+
 void ZigbeeHandleHue(uint16_t shortaddr, uint32_t device_id, String &response) {
   uint8_t  power, colormode, bri, sat;
   uint16_t ct, hue;
@@ -147,9 +162,9 @@ void ZigbeeHandleHue(uint16_t shortaddr, uint32_t device_id, String &response) {
 
       switch(on)
       {
-        case false : // TODO change
+        case false : ZigbeeHuePower(shortaddr, 0x00);
                     break;
-        case true  : // TODO change
+        case true  : ZigbeeHuePower(shortaddr, 0x01);
                     break;
       }
       response += buf;
@@ -167,7 +182,7 @@ void ZigbeeHandleHue(uint16_t shortaddr, uint32_t device_id, String &response) {
       if (LST_SINGLE <= Light.subtype) {
         // extend bri value if set to max
         if (254 <= bri) { bri = 255; }
-        // TODO change
+        ZigbeeHueDimmer(shortaddr, bri);
       }
       resp = true;
     }
