@@ -407,7 +407,6 @@ void zigbeeZCLSendStr(uint16_t shortaddr, uint16_t groupaddr, uint8_t endpoint, 
   if (clusterSpecific) {
     zigbeeSetCommandTimer(shortaddr, groupaddr, cluster, endpoint);
   }
-  ResponseCmndDone();
 }
 
 void CmndZbSend(void) {
@@ -556,6 +555,7 @@ void CmndZbSend(void) {
     AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZigbeeZCLSend device: 0x%04X, group: 0x%04X, endpoint:%d, cluster:0x%04X, cmd:0x%02X, send:\"%s\""),
               device, groupaddr, endpoint, cluster, cmd, cmd_s);
     zigbeeZCLSendStr(device, groupaddr, endpoint, clusterSpecific, cluster, cmd, cmd_s);
+    ResponseCmndDone();
   } else {
     Response_P(PSTR("Missing zigbee 'Send'"));
     return;
