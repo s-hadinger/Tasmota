@@ -29,9 +29,8 @@ const uint16_t kZigbeeSaveDelaySeconds = ZIGBEE_SAVE_DELAY_SECONDS;    // wait f
 typedef int32_t (*Z_DeviceTimer)(uint16_t shortaddr, uint16_t groupaddr, uint16_t cluster, uint8_t endpoint, uint32_t value);
 
 typedef struct Z_Device {
-  uint16_t              shortaddr;      // unique key if not null, or unspecified if null
   uint64_t              longaddr;       // 0x00 means unspecified
-  String                manufacturerId;
+  char *                manufacturerId;
   String                modelId;
   String                friendlyName;
   std::vector<uint32_t> endpoints;      // encoded as high 16 bits is endpoint, low 16 bits is ProfileId
@@ -41,6 +40,7 @@ typedef struct Z_Device {
   DynamicJsonBuffer    *json_buffer;
   JsonObject           *json;
   // sequence number for Zigbee frames
+  uint16_t              shortaddr;      // unique key if not null, or unspecified if null
   uint8_t               seqNumber;
   // Light information for Hue integration integration, last known values
   int8_t                bulbtype;       // number of channel for the bulb: 0-5, or 0xFF if no Hue integration
@@ -199,6 +199,7 @@ private:
 
   // Create a new entry in the devices list - must be called if it is sure it does not already exist
   Z_Device & createDeviceEntry(uint16_t shortaddr, uint64_t longaddr = 0);
+  void freeDeviceEntry(Z_Device *device);
 };
 
 Z_Devices zigbee_devices = Z_Devices();
@@ -259,14 +260,15 @@ Z_Device & Z_Devices::createDeviceEntry(uint16_t shortaddr, uint64_t longaddr) {
 AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE ">> Device 0x%04X Memory1 = %d"), shortaddr, ESP.getFreeHeap());
   //Z_Device* device_alloc = (Z_Device*) malloc(sizeof(Z_Device));
   Z_Device* device_alloc = new Z_Device{
-                      shortaddr, longaddr,
-                      String(),   // ManufId
+                      longaddr,
+                      nullptr,    // ManufId
                       String(),   // DeviceId
                       String(),   // FriendlyName
                       std::vector<uint32_t>(4),     // at least one endpoint
                       std::vector<uint32_t>(4),     // try not to allocate if not needed
                       std::vector<uint32_t>(4),     // try not to allocate if not needed
                       nullptr, nullptr,
+                      shortaddr,
                       0,          // seqNumber
                       // Hue support
                       -1,         // no Hue support
@@ -543,15 +545,26 @@ uint8_t Z_Devices::findClusterEndpointIn(uint16_t shortaddr, uint16_t cluster){
   }
 }
 
-
 void Z_Devices::setManufId(uint16_t shortaddr, const char * str) {
   Z_Device & device = getShortAddr(shortaddr);
   if (&device == nullptr) { return; }                 // don't crash if not found
-  if (!device.manufacturerId.equals(str)) {
-    dirty();
+  size_t str_len = str ? strlen(str) : 0;             // len, handle both null ptr and zero length string
+
+  if ((!device.manufacturerId) && (0 == str_len)) { return; } // if both empty, don't do anything
+  if (device.manufacturerId) {
+    // we already have a value
+    if (strcmp(device.manufacturerId, str) != 0) {
+      // new value
+      free(device.manufacturerId);      // free previous value
+    } else {
+      return;        // same value, don't change anything
+    }
   }
-  device.manufacturerId = str;
+  device.manufacturerId = (char*) malloc(str_len + 1);
+  strlcpy(device.manufacturerId, str, str_len + 1);
+  dirty();
 }
+
 void Z_Devices::setModelId(uint16_t shortaddr, const char * str) {
   Z_Device & device = getShortAddr(shortaddr);
   if (&device == nullptr) { return; }                 // don't crash if not found
@@ -1018,7 +1031,7 @@ String Z_Devices::dump(uint32_t dump_mode, uint16_t status_shortaddr) const {
       if (device.modelId.length() > 0) {
         dev[F(D_JSON_MODEL D_JSON_ID)] = device.modelId;
       }
-      if (device.manufacturerId.length() > 0) {
+      if (device.manufacturerId) {
         dev[F("Manufacturer")] = device.manufacturerId;
       }
     }

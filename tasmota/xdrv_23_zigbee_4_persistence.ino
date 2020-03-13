@@ -149,9 +149,11 @@ class SBuffer hibernateDevice(const struct Z_Device &device) {
   buf.add8(0x00);     // end of string marker
 
   // ManufID
-  size_t manuf_len = device.manufacturerId.length();
-  if (manuf_len > 32) {manuf_len = 32; }       // max 32 chars
-  buf.addBuffer(device.manufacturerId.c_str(), manuf_len);
+  if (device.manufacturerId) {
+    size_t manuf_len = strlen(device.manufacturerId);
+    if (manuf_len > 32) { manuf_len = 32; }       // max 32 chars
+    buf.addBuffer(device.manufacturerId, manuf_len);
+  }
   buf.add8(0x00);     // end of string marker
 
   // FriendlyName
