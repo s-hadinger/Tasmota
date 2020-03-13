@@ -31,8 +31,8 @@ typedef int32_t (*Z_DeviceTimer)(uint16_t shortaddr, uint16_t groupaddr, uint16_
 typedef struct Z_Device {
   uint64_t              longaddr;       // 0x00 means unspecified
   char *                manufacturerId;
-  String                modelId;
-  String                friendlyName;
+  char *                modelId;
+  char *                friendlyName;
   std::vector<uint32_t> endpoints;      // encoded as high 16 bits is endpoint, low 16 bits is ProfileId
   std::vector<uint32_t> clusters_in;    // encoded as high 16 bits is endpoint, low 16 bits is cluster number
   std::vector<uint32_t> clusters_out;   // encoded as high 16 bits is endpoint, low 16 bits is cluster number
@@ -116,8 +116,8 @@ public:
   void setManufId(uint16_t shortaddr, const char * str);
   void setModelId(uint16_t shortaddr, const char * str);
   void setFriendlyName(uint16_t shortaddr, const char * str);
-  const String * getFriendlyName(uint16_t shortaddr) const;
-  const String * getModelId(uint16_t shortaddr) const;
+  const char * getFriendlyName(uint16_t shortaddr) const;
+  const char * getModelId(uint16_t shortaddr) const;
 
   // get next sequence number for (increment at each all)
   uint8_t getNextSeqNumber(uint16_t shortaddr);
@@ -262,8 +262,8 @@ AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE ">> Device 0x%04X Memory1 = %d"), sh
   Z_Device* device_alloc = new Z_Device{
                       longaddr,
                       nullptr,    // ManufId
-                      String(),   // DeviceId
-                      String(),   // FriendlyName
+                      nullptr,   // DeviceId
+                      nullptr,   // FriendlyName
                       std::vector<uint32_t>(4),     // at least one endpoint
                       std::vector<uint32_t>(4),     // try not to allocate if not needed
                       std::vector<uint32_t>(4),     // try not to allocate if not needed
@@ -288,6 +288,13 @@ AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE ">> Device 0x%04X Memory3 = %d"), sh
 AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE ">> Device 0x%04X Memory4 = %d"), shortaddr, ESP.getFreeHeap());
   dirty();
   return *(_devices.back());
+}
+
+void Z_Devices::freeDeviceEntry(Z_Device *device) {
+  if (device->manufacturerId) { free(device->manufacturerId); }
+  if (device->modelId) { free(device->modelId); }
+  if (device->friendlyName) { free(device->friendlyName); }
+  free(device);
 }
 
 void Z_Devices::shrinkToFit(uint16_t shortaddr) {
@@ -349,7 +356,9 @@ int32_t Z_Devices::findFriendlyName(const char * name) const {
   int32_t found = 0;
   if (name_len) {
     for (auto &elem : _devices) {
-      if (elem->friendlyName == name) { return found; }
+      if (elem->friendlyName) {
+        if (strcmp(elem->friendlyName, name) == 0) { return found; }
+      }
       found++;
     }
   }
@@ -556,50 +565,78 @@ void Z_Devices::setManufId(uint16_t shortaddr, const char * str) {
     if (strcmp(device.manufacturerId, str) != 0) {
       // new value
       free(device.manufacturerId);      // free previous value
+      device.manufacturerId = nullptr;
     } else {
       return;        // same value, don't change anything
     }
   }
-  device.manufacturerId = (char*) malloc(str_len + 1);
-  strlcpy(device.manufacturerId, str, str_len + 1);
+  if (str_len) {
+    device.manufacturerId = (char*) malloc(str_len + 1);
+    strlcpy(device.manufacturerId, str, str_len + 1);
+  }
   dirty();
 }
 
 void Z_Devices::setModelId(uint16_t shortaddr, const char * str) {
   Z_Device & device = getShortAddr(shortaddr);
   if (&device == nullptr) { return; }                 // don't crash if not found
-  if (!device.modelId.equals(str)) {
-    dirty();
+  size_t str_len = str ? strlen(str) : 0;             // len, handle both null ptr and zero length string
+
+  if ((!device.modelId) && (0 == str_len)) { return; } // if both empty, don't do anything
+  if (device.modelId) {
+    // we already have a value
+    if (strcmp(device.modelId, str) != 0) {
+      // new value
+      free(device.modelId);      // free previous value
+      device.modelId = nullptr;
+    } else {
+      return;        // same value, don't change anything
+    }
   }
-  device.modelId = str;
+  if (str_len) {
+    device.modelId = (char*) malloc(str_len + 1);
+    strlcpy(device.modelId, str, str_len + 1);
+  }
+  dirty();
 }
+
 void Z_Devices::setFriendlyName(uint16_t shortaddr, const char * str) {
   Z_Device & device = getShortAddr(shortaddr);
   if (&device == nullptr) { return; }                 // don't crash if not found
-  if (!device.friendlyName.equals(str)) {
-    dirty();
+  size_t str_len = str ? strlen(str) : 0;             // len, handle both null ptr and zero length string
+
+  if ((!device.friendlyName) && (0 == str_len)) { return; } // if both empty, don't do anything
+  if (device.friendlyName) {
+    // we already have a value
+    if (strcmp(device.friendlyName, str) != 0) {
+      // new value
+      free(device.friendlyName);      // free previous value
+      device.friendlyName = nullptr;
+    } else {
+      return;        // same value, don't change anything
+    }
   }
-  device.friendlyName = str;
+  if (str_len) {
+    device.friendlyName = (char*) malloc(str_len + 1);
+    strlcpy(device.friendlyName, str, str_len + 1);
+  }
+  dirty();
 }
 
-const String * Z_Devices::getFriendlyName(uint16_t shortaddr) const {
+const char * Z_Devices::getFriendlyName(uint16_t shortaddr) const {
   int32_t found = findShortAddr(shortaddr);
   if (found >= 0) {
     const Z_Device & device = devicesAt(found);
-    if (device.friendlyName.length() > 0) {
-      return &device.friendlyName;
-    }
+    return device.friendlyName;
   }
   return nullptr;
 }
 
-const String * Z_Devices::getModelId(uint16_t shortaddr) const {
+const char * Z_Devices::getModelId(uint16_t shortaddr) const {
   int32_t found = findShortAddr(shortaddr);
   if (found >= 0) {
     const Z_Device & device = devicesAt(found);
-    if (device.modelId.length() > 0) {
-      return &device.modelId;
-    }
+    return device.modelId;
   }
   return nullptr;
 }
@@ -842,9 +879,9 @@ void Z_Devices::jsonAppend(uint16_t shortaddr, const JsonObject &values) {
   snprintf_P(sa, sizeof(sa), PSTR("0x%04X"), shortaddr);
   device.json->set(F(D_JSON_ZIGBEE_DEVICE), sa);
   // Prepend Friendly Name if it has one
-  const String * fname = zigbee_devices.getFriendlyName(shortaddr);
+  const char * fname = zigbee_devices.getFriendlyName(shortaddr);
   if (fname) {
-    device.json->set(F(D_JSON_ZIGBEE_NAME), (char*)fname->c_str());   // (char*) forces ArduinoJson to make a copy of the cstring
+    device.json->set(F(D_JSON_ZIGBEE_NAME), (char*) fname);   // (char*) forces ArduinoJson to make a copy of the cstring
   }
 
   // copy all values from 'values' to 'json'
@@ -863,7 +900,7 @@ void Z_Devices::jsonPublishFlush(uint16_t shortaddr) {
   JsonObject * json = device.json;
   if (json == nullptr) { return; }                    // abort if nothing in buffer
 
-  const String * fname = zigbee_devices.getFriendlyName(shortaddr);
+  const char * fname = zigbee_devices.getFriendlyName(shortaddr);
   bool use_fname = (Settings.flag4.zigbee_use_names) && (fname);    // should we replace shortaddr with friendlyname?
 
   // Remove redundant "Name" or "Device"
@@ -878,7 +915,7 @@ void Z_Devices::jsonPublishFlush(uint16_t shortaddr) {
   zigbee_devices.jsonClear(shortaddr);
 
   if (use_fname) {
-    Response_P(PSTR("{\"" D_JSON_ZIGBEE_RECEIVED "\":{\"%s\":%s}}"), fname->c_str(), msg.c_str());
+    Response_P(PSTR("{\"" D_JSON_ZIGBEE_RECEIVED "\":{\"%s\":%s}}"), fname, msg.c_str());
   } else {
     Response_P(PSTR("{\"" D_JSON_ZIGBEE_RECEIVED "\":{\"0x%04X\":%s}}"), shortaddr, msg.c_str());
   }
@@ -954,18 +991,18 @@ String Z_Devices::dumpLightState(uint16_t shortaddr) const {
   int32_t found = findShortAddr(shortaddr);
   if (found >= 0) {
     const Z_Device & device = devicesAt(found);
-    const String * fname = getFriendlyName(shortaddr);
+    const char * fname = getFriendlyName(shortaddr);
 
     bool use_fname = (Settings.flag4.zigbee_use_names) && (fname);    // should we replace shortaddr with friendlyname?
 
     snprintf_P(hex, sizeof(hex), PSTR("0x%04X"), shortaddr);
 
-    JsonObject& dev = use_fname ? json.createNestedObject(*fname)
+    JsonObject& dev = use_fname ? json.createNestedObject((char*) fname)   // casting (char*) forces a copy
                                 : json.createNestedObject(hex);
     if (use_fname) {
       dev[F(D_JSON_ZIGBEE_DEVICE)] = hex;
     } else if (fname) {
-      dev[F(D_JSON_ZIGBEE_NAME)] = fname;
+      dev[F(D_JSON_ZIGBEE_NAME)] = (char*) fname;
     }
 
     // expose the last known status of the bulb, for Hue integration
@@ -1019,8 +1056,8 @@ String Z_Devices::dump(uint32_t dump_mode, uint16_t status_shortaddr) const {
     snprintf_P(hex, sizeof(hex), PSTR("0x%04X"), shortaddr);
     dev[F(D_JSON_ZIGBEE_DEVICE)] = hex;
 
-    if (device.friendlyName.length() > 0) {
-      dev[F(D_JSON_ZIGBEE_NAME)] = device.friendlyName;
+    if (device.friendlyName > 0) {
+      dev[F(D_JSON_ZIGBEE_NAME)] = (char*) device.friendlyName;
     }
 
     if (2 <= dump_mode) {
@@ -1028,7 +1065,7 @@ String Z_Devices::dump(uint32_t dump_mode, uint16_t status_shortaddr) const {
       hex[1] = 'x';
       Uint64toHex(device.longaddr, &hex[2], 64);
       dev[F("IEEEAddr")] = hex;
-      if (device.modelId.length() > 0) {
+      if (device.modelId) {
         dev[F(D_JSON_MODEL D_JSON_ID)] = device.modelId;
       }
       if (device.manufacturerId) {

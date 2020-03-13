@@ -143,9 +143,11 @@ class SBuffer hibernateDevice(const struct Z_Device &device) {
   }
 
   // ModelID
-  size_t model_len = device.modelId.length();
-  if (model_len > 32) { model_len = 32; }       // max 32 chars
-  buf.addBuffer(device.modelId.c_str(), model_len);
+  if (device.modelId) {
+    size_t model_len = strlen(device.modelId);
+    if (model_len > 32) { model_len = 32; }       // max 32 chars
+    buf.addBuffer(device.modelId, model_len);
+  }
   buf.add8(0x00);     // end of string marker
 
   // ManufID
@@ -157,9 +159,11 @@ class SBuffer hibernateDevice(const struct Z_Device &device) {
   buf.add8(0x00);     // end of string marker
 
   // FriendlyName
-  size_t frname_len = device.friendlyName.length();
-  if (frname_len > 32) {frname_len = 32; }       // max 32 chars
-  buf.addBuffer(device.friendlyName.c_str(), frname_len);
+  if (device.friendlyName) {
+    size_t frname_len = strlen(device.friendlyName);
+    if (frname_len > 32) {frname_len = 32; }       // max 32 chars
+    buf.addBuffer(device.friendlyName, frname_len);
+  }
   buf.add8(0x00);     // end of string marker
 
   // Hue Bulbtype
@@ -208,10 +212,21 @@ void hydrateDevices(const SBuffer &buf) {
   uint32_t num_devices = buf.get8(k++);
 size_t before = 0;
   for (uint32_t i = 0; (i < num_devices) && (k < buf_len); i++) {
-AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "Device %d Before Memory = %d // DIFF %d"), i, ESP.getFreeHeap(), before - ESP.getFreeHeap()); before = ESP.getFreeHeap();
     uint32_t dev_record_len = buf.get8(k);
 
+AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "Device %d Before Memory = %d // DIFF %d // record_len %d"), i, ESP.getFreeHeap(), before - ESP.getFreeHeap(), dev_record_len);
+before = ESP.getFreeHeap();
+
     SBuffer buf_d = buf.subBuffer(k, dev_record_len);
+
+char *hex_char = (char*) malloc((dev_record_len * 2) + 2);
+if (hex_char) {
+  AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "/// SUB %s"),
+                                  ToHex_P(buf_d.getBuffer(), dev_record_len, hex_char, (dev_record_len * 2) + 2));
+  free(hex_char);
+}
+
+
 
     uint32_t d = 1;   // index in device buffer
     uint16_t shortaddr = buf_d.get16(d);  d += 2;

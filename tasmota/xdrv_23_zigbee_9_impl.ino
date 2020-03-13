@@ -694,8 +694,8 @@ void CmndZbName(void) {
   if (0xFFFF == shortaddr) { ResponseCmndChar("Invalid parameter"); return; }
 
   if (p == nullptr) {
-    const String * friendlyName = zigbee_devices.getFriendlyName(shortaddr);
-    Response_P(PSTR("{\"0x%04X\":{\"" D_JSON_ZIGBEE_NAME "\":\"%s\"}}"), shortaddr, friendlyName ? friendlyName->c_str() : "");
+    const char * friendlyName = zigbee_devices.getFriendlyName(shortaddr);
+    Response_P(PSTR("{\"0x%04X\":{\"" D_JSON_ZIGBEE_NAME "\":\"%s\"}}"), shortaddr, friendlyName ? friendlyName : "");
   } else {
     zigbee_devices.setFriendlyName(shortaddr, p);
     Response_P(PSTR("{\"0x%04X\":{\"" D_JSON_ZIGBEE_NAME "\":\"%s\"}}"), shortaddr, p);
@@ -723,8 +723,8 @@ void CmndZbModelId(void) {
   if (0xFFFF == shortaddr) { ResponseCmndChar("Invalid parameter"); return; }
 
   if (p == nullptr) {
-    const String * modelId = zigbee_devices.getModelId(shortaddr);
-    Response_P(PSTR("{\"0x%04X\":{\"" D_JSON_ZIGBEE_MODELID "\":\"%s\"}}"), shortaddr, modelId ? modelId->c_str() : "");
+    const char * modelId = zigbee_devices.getModelId(shortaddr);
+    Response_P(PSTR("{\"0x%04X\":{\"" D_JSON_ZIGBEE_MODELID "\":\"%s\"}}"), shortaddr, modelId ? modelId : "");
   } else {
     zigbee_devices.setModelId(shortaddr, p);
     Response_P(PSTR("{\"0x%04X\":{\"" D_JSON_ZIGBEE_MODELID "\":\"%s\"}}"), shortaddr, p);

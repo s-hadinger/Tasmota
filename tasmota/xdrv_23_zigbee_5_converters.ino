@@ -496,9 +496,9 @@ void ZCLFrame::parseResponse(void) {
   snprintf_P(s, sizeof(s), PSTR("0x%04X"), _srcaddr);
   json[F(D_JSON_ZIGBEE_DEVICE)] = s;
   // "Name"
-  const String * friendlyName = zigbee_devices.getFriendlyName(_srcaddr);
+  const char * friendlyName = zigbee_devices.getFriendlyName(_srcaddr);
   if (friendlyName) {
-    json[F(D_JSON_ZIGBEE_NAME)] = *friendlyName;
+    json[F(D_JSON_ZIGBEE_NAME)] = (char*) friendlyName;
   }
   // "Command"
   snprintf_P(s, sizeof(s), PSTR("%04X!%02X"), _cluster_id, cmd);
@@ -1048,7 +1048,8 @@ int32_t Z_AqaraSensor(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject&
   char tmp[] = "tmp";   // for obscure reasons, it must be converted from const char* to char*, otherwise ArduinoJson gets confused
 
   JsonVariant sub_value;
-  const String * modelId = zigbee_devices.getModelId(shortaddr);  // null if unknown
+  const char * modelId_c = zigbee_devices.getModelId(shortaddr);  // null if unknown
+  String modelId((char*) modelId_c);
 
   while (len - i >= 2) {
     uint8_t attrid = buf2.get8(i++);
@@ -1062,8 +1063,8 @@ int32_t Z_AqaraSensor(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject&
       json[F("Battery")] = toPercentageCR2032(val);
     } else if ((nullptr != modelId) && (0 == zcl->getManufCode())) {
       translated = true;
-      if (modelId->startsWith(F("lumi.sensor_ht")) ||
-          modelId->startsWith(F("lumi.weather"))) {     // Temp sensor
+      if (modelId.startsWith(F("lumi.sensor_ht")) ||
+          modelId.startsWith(F("lumi.weather"))) {     // Temp sensor
         // Filter according to prefix of model name
         // onla Aqara Temp/Humidity has manuf_code of zero. If non-zero we skip the parameters
         if (0x64 == attrid) {
@@ -1074,11 +1075,11 @@ int32_t Z_AqaraSensor(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject&
           json[F(D_JSON_PRESSURE)] = val / 100.0f;
           json[F(D_JSON_PRESSURE_UNIT)] = F(D_UNIT_PRESSURE);   // hPa
         }
-      } else if (modelId->startsWith(F("lumi.sensor_smoke"))) {   // gas leak
+      } else if (modelId.startsWith(F("lumi.sensor_smoke"))) {   // gas leak
         if (0x64 == attrid) {
           json[F("SmokeDensity")] = val;
         }
-      } else if (modelId->startsWith(F("lumi.sensor_natgas"))) {   // gas leak
+      } else if (modelId.startsWith(F("lumi.sensor_natgas"))) {   // gas leak
         if (0x64 == attrid) {
           json[F("GasDensity")] = val;
         }

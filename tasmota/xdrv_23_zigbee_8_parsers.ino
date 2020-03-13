@@ -362,11 +362,11 @@ int32_t Z_ReceiveIEEEAddr(int32_t res, const class SBuffer &buf) {
     // MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCL_RECEIVED));
     // XdrvRulesProcess();
     // Ping response
-    const String * friendlyName = zigbee_devices.getFriendlyName(nwkAddr);
+    const char * friendlyName = zigbee_devices.getFriendlyName(nwkAddr);
     if (friendlyName) {
       Response_P(PSTR("{\"" D_JSON_ZIGBEE_PING "\":{\"" D_JSON_ZIGBEE_DEVICE "\":\"0x%04X\""
                       ",\"" D_JSON_ZIGBEE_IEEE "\":\"0x%s\""
-                      ",\"" D_JSON_ZIGBEE_NAME "\":\"%s\"}}"), nwkAddr, hex, friendlyName->c_str());
+                      ",\"" D_JSON_ZIGBEE_NAME "\":\"%s\"}}"), nwkAddr, hex, friendlyName);
     } else {
       Response_P(PSTR("{\"" D_JSON_ZIGBEE_PING "\":{\"" D_JSON_ZIGBEE_DEVICE "\":\"0x%04X\""
                       ",\"" D_JSON_ZIGBEE_IEEE "\":\"0x%s\""
@@ -387,13 +387,13 @@ int32_t Z_BindRsp(int32_t res, const class SBuffer &buf) {
   strncpy_P(status_message, (const char*) getZigbeeStatusMessage(status), sizeof(status_message));
   status_message[sizeof(status_message)-1] = 0;   // truncate if needed, strlcpy is safer but strlcpy_P does not exist
 
-  const String * friendlyName = zigbee_devices.getFriendlyName(nwkAddr);
+  const char * friendlyName = zigbee_devices.getFriendlyName(nwkAddr);
   if (friendlyName) {
     Response_P(PSTR("{\"" D_JSON_ZIGBEE_BIND "\":{\"" D_JSON_ZIGBEE_DEVICE "\":\"0x%04X\""
                     ",\"" D_JSON_ZIGBEE_NAME "\":\"%s\""
                     ",\"" D_JSON_ZIGBEE_STATUS "\":%d"
                     ",\"" D_JSON_ZIGBEE_STATUS_MSG "\":\"%s\""
-                    "}}"), nwkAddr, friendlyName->c_str(), status, status_message);
+                    "}}"), nwkAddr, friendlyName, status, status_message);
   } else {
     Response_P(PSTR("{\"" D_JSON_ZIGBEE_BIND "\":{\"" D_JSON_ZIGBEE_DEVICE "\":\"0x%04X\""
                     ",\"" D_JSON_ZIGBEE_STATUS "\":%d"
