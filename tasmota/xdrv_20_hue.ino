@@ -746,6 +746,14 @@ void HueLights(String *path)
     path->remove(0,8);                               // Remove /lights/
     device_id = atoi(path->c_str());
     device = DecodeLightId(device_id);
+#ifdef USE_ZIGBEE
+    uint16_t shortaddr;
+    device = DecodeLightId(device_id, &shortaddr);
+    if (shortaddr) {
+      ZigbeeHueStatus(&response, shortaddr);
+      goto exit;
+    }
+#endif // USE_ZIGBEE
 
 #ifdef USE_SCRIPT_HUE
     if (device > devices_present) {

@@ -22,7 +22,7 @@
 // Add global functions for Hue Emulation
 
 // idx: index in the list of zigbee_devices
-void HueLightStatus1Zigbee(uint32_t idx, uint16_t shortaddr, uint8_t local_light_subtype, String *response) {
+void HueLightStatus1Zigbee(uint16_t shortaddr, uint8_t local_light_subtype, String *response) {
   uint8_t  power, colormode, bri, sat;
   uint16_t ct, hue;
   float    x, y;
@@ -66,20 +66,26 @@ void HueLightStatus1Zigbee(uint32_t idx, uint16_t shortaddr, uint8_t local_light
   free(buf);
 }
 
-void HueLightStatus2Zigbee(uint32_t idx, uint16_t shortaddr, String *response)
+void HueLightStatus2Zigbee(uint16_t shortaddr, String *response)
 {
   const size_t buf_size = 192;
   char * buf = (char*) malloc(buf_size);
 
-  const String &friendlyName = zigbee_devices.devicesAt(idx).friendlyName;
+  const char * friendlyName = zigbee_devices.getFriendlyName(shortaddr);
   char shortaddrname[8];
   snprintf_P(shortaddrname, sizeof(shortaddrname), PSTR("0x%04X"), shortaddr);
 
   snprintf_P(buf, buf_size, HUE_LIGHTS_STATUS_JSON2,
-              (friendlyName.length() > 0) ? friendlyName.c_str() : shortaddrname,
+              (friendlyName) ? friendlyName : shortaddrname,
               GetHueDeviceId(shortaddr).c_str());
   *response += buf;
   free(buf);
+}
+
+void ZigbeeHueStatus(String * response, uint16_t shortaddr) {
+  *response += F("{\"state\":");
+  HueLightStatus1Zigbee(shortaddr, zigbee_devices.getHueBulbtype(shortaddr), response);
+  HueLightStatus2Zigbee(shortaddr, response);
 }
 
 void ZigbeeCheckHue(String * response, bool &appending) {
@@ -94,8 +100,8 @@ void ZigbeeCheckHue(String * response, bool &appending) {
       *response += "\"";
       *response += EncodeLightId(0, shortaddr);
       *response += F("\":{\"state\":");
-      HueLightStatus1Zigbee(i, shortaddr, bulbtype, response);    // TODO
-      HueLightStatus2Zigbee(i, shortaddr, response);
+      HueLightStatus1Zigbee(shortaddr, bulbtype, response);    // TODO
+      HueLightStatus2Zigbee(shortaddr, response);
       appending = true;
     }
   }
