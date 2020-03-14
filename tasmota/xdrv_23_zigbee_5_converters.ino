@@ -1139,11 +1139,11 @@ void ZCLFrame::postProcessAttributes(uint16_t shortaddr, JsonObject& json) {
         zigbee_devices.updateHueState(shortaddr, nullptr, nullptr, nullptr, &sat,
                                         nullptr, nullptr, nullptr, nullptr);
       } else if ((cluster == 0x0300) && (attribute == 0x0003)) {
-        float x = ((uint32_t)value) / 65536.0f;
+        uint16_t x = value;
         zigbee_devices.updateHueState(shortaddr, nullptr, nullptr, nullptr, nullptr,
                                         nullptr, nullptr, &x, nullptr);
       } else if ((cluster == 0x0300) && (attribute == 0x0004)) {
-        float y = ((uint32_t)value) / 65536.0f;
+        uint16_t y = value;
         zigbee_devices.updateHueState(shortaddr, nullptr, nullptr, nullptr, nullptr,
                                         nullptr, nullptr, nullptr, &y);
       } else if ((cluster == 0x0300) && (attribute == 0x0007)) {

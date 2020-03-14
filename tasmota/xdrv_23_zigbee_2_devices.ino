@@ -50,7 +50,7 @@ typedef struct Z_Device {
   uint8_t               sat;            // last Sat: 0..254
   uint16_t              ct;             // last CT: 153-500
   uint16_t              hue;            // last Hue: 0..359
-  float                 x, y;           // last color [x,y]
+  uint16_t              x, y;           // last color [x,y]
 } Z_Device;
 
 // Category for Deferred actions, this allows to selectively remove active deferred or update them
@@ -133,12 +133,12 @@ public:
                         const uint8_t *power, const uint8_t *colormode,
                         const uint8_t *dimmer, const uint8_t *sat,
                         const uint16_t *ct, const uint16_t *hue,
-                        const float *x, const float *y);
+                        const uint16_t *x, const uint16_t *y);
   bool getHueState(uint16_t shortaddr,
                         uint8_t *power, uint8_t *colormode,
                         uint8_t *dimmer, uint8_t *sat,
                         uint16_t *ct, uint16_t *hue,
-                        float *x, float *y) const ;
+                        uint16_t *x, uint16_t *y) const ;
 
   // Timers
   void resetTimersForDevice(uint16_t shortaddr, uint16_t groupaddr, uint8_t category);
@@ -277,7 +277,7 @@ Z_Device & Z_Devices::createDeviceEntry(uint16_t shortaddr, uint64_t longaddr) {
                       0,          // sat
                       200,        // ct
                       0,          // hue
-                      0.0f, 0.0f, // x, y
+                      0, 0,       // x, y
                     };
 
   device_alloc->json_buffer = new DynamicJsonBuffer(16);
@@ -675,7 +675,7 @@ void Z_Devices::updateHueState(uint16_t shortaddr,
                                 const uint8_t *power, const uint8_t *colormode,
                                 const uint8_t *dimmer, const uint8_t *sat,
                                 const uint16_t *ct, const uint16_t *hue,
-                                const float *x, const float *y) {
+                                const uint16_t *x, const uint16_t *y) {
   Z_Device &device = getShortAddr(shortaddr);
   if (power)    { device.power = *power; }
   if (colormode){ device.colormode = *colormode; }
@@ -692,7 +692,7 @@ bool Z_Devices::getHueState(uint16_t shortaddr,
                               uint8_t *power, uint8_t *colormode,
                               uint8_t *dimmer, uint8_t *sat,
                               uint16_t *ct, uint16_t *hue,
-                              float *x, float *y) const {
+                              uint16_t *x, uint16_t *y) const {
   int32_t found = findShortAddr(shortaddr);
   if (found >= 0) {
     const Z_Device &device = *(_devices[found]);

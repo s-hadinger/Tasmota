@@ -25,7 +25,7 @@
 void HueLightStatus1Zigbee(uint16_t shortaddr, uint8_t local_light_subtype, String *response) {
   uint8_t  power, colormode, bri, sat;
   uint16_t ct, hue;
-  float    x, y;
+  uint16_t x, y;
   String light_status = "";
   uint32_t echo_gen = findEchoGeneration();   // 1 for 1st gen =+ Echo Dot 2nd gen, 2 for 2nd gen and above
 
@@ -51,8 +51,8 @@ void HueLightStatus1Zigbee(uint16_t shortaddr, uint8_t local_light_subtype, Stri
     if (prev_x_str[0] && prev_y_str[0]) {
       snprintf_P(buf, buf_size, PSTR("%s\"xy\":[%s,%s],"), buf, prev_x_str, prev_y_str);
     } else {
-      float x, y;
-      light_state.getXY(&x, &y);
+      float x_f = x / 65536.0f;
+      float y_f = y / 65536.0f;
       snprintf_P(buf, buf_size, PSTR("%s\"xy\":[%s,%s],"), buf, String(x, 5).c_str(), String(y, 5).c_str());
     }
     snprintf_P(buf, buf_size, PSTR("%s\"hue\":%d,\"sat\":%d,"), buf, hue, sat);
@@ -146,12 +146,10 @@ void ZigbeeHueCT(uint16_t shortaddr, uint16_t ct) {
 }
 
 // XY
-void ZigbeeHueXY(uint16_t shortaddr, float x, float y) {
+void ZigbeeHueXY(uint16_t shortaddr, uint16_t x, uint16_t y) {
   char param[16];
-  uint32_t xi = x * 65536.0f;
-  uint32_t yi = y * 65536.0f;
-  snprintf_P(param, sizeof(param), PSTR("%02X%02X%02X%02X0A00"), xi & 0xFF, xi >> 8, yi & 0xFF, yi >> 8);
-  uint8_t colormode = 1;      // "ct"
+  snprintf_P(param, sizeof(param), PSTR("%02X%02X%02X%02X0A00"), x & 0xFF, x >> 8, y & 0xFF, y >> 8);
+  uint8_t colormode = 1;      // "xy"
   zigbeeZCLSendStr(shortaddr, 0, 0, true, 0x0300, 0x07, param);
   zigbee_devices.updateHueState(shortaddr, nullptr, &colormode, nullptr, nullptr, nullptr, nullptr, &x, &y);
 }
@@ -226,18 +224,15 @@ void ZigbeeHandleHue(uint16_t shortaddr, uint32_t device_id, String &response) {
       const String &y_str = hue_json["xy"][1];
       x_str.toCharArray(prev_x_str, sizeof(prev_x_str));
       y_str.toCharArray(prev_y_str, sizeof(prev_y_str));
-      uint8_t rr,gg,bb;
-      LightStateClass::XyToRgb(x, y, &rr, &gg, &bb);
-      LightStateClass::RgbToHsb(rr, gg, bb, &hue, &sat, nullptr);
-      prev_hue = changeUIntScale(hue, 0, 359, 0, 65535);  // calculate back prev_hue
-      prev_sat = (sat > 254 ? 254 : sat);
       if (resp) { response += ","; }
       snprintf_P(buf, buf_size,
                  PSTR("{\"success\":{\"/lights/%d/state/xy\":[%s,%s]}}"),
                  device_id, prev_x_str, prev_y_str);
       response += buf;
       resp = true;
-      ZigbeeHueXY(shortaddr, x, y);
+      uint16_t xi = x * 65536.0f;
+      uint16_t yi = y * 65536.0f;
+      ZigbeeHueXY(shortaddr, xi, yi);
     }
     bool huesat_changed = false;
     if (hue_json.containsKey("hue")) {             // The hue value is a wrapping value between 0 and 65535. Both 0 and 65535 are red, 25500 is green and 46920 is blue.
