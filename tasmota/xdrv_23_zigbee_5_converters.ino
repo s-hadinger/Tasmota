@@ -546,8 +546,9 @@ typedef struct Z_AttributeConverter {
 } Z_AttributeConverter;
 
 ZF(ZCLVersion) ZF(AppVersion) ZF(StackVersion) ZF(HWVersion) ZF(Manufacturer) ZF(ModelId)
-ZF(DateCode) ZF(PowerSource) ZF(SWBuildID)
-
+ZF(DateCode) ZF(PowerSource) ZF(SWBuildID) ZF(Power) ZF(SwitchType) ZF(Dimmer)
+ZF(MainsVoltage) ZF(MainsFrequency) ZF(BatteryVoltage) ZF(BatteryPercentage)
+ZF(CurrentTemperature) ZF(MinTempExperienced) ZF(MaxTempExperienced) ZF(OverTempTotalDwell)
 
 // list of post-processing directives
 const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
@@ -565,26 +566,26 @@ const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
   { 0x0000, 0xFF01,  nullptr,                &Z_AqaraSensor },    // Occupancy (map8)
 
   // Power Configuration cluster
-  { 0x0001, 0x0000,  "MainsVoltage",         &Z_Copy },
-  { 0x0001, 0x0001,  "MainsFrequency",       &Z_Copy },
-  { 0x0001, 0x0020,  "BatteryVoltage",       &Z_FloatDiv10 },
-  { 0x0001, 0x0021,  "BatteryPercentage",    &Z_Copy },
+  { 0x0001, 0x0000,  Z(MainsVoltage),         &Z_Copy },
+  { 0x0001, 0x0001,  Z(MainsFrequency),       &Z_Copy },
+  { 0x0001, 0x0020,  Z(BatteryVoltage),       &Z_FloatDiv10 },
+  { 0x0001, 0x0021,  Z(BatteryPercentage),    &Z_Copy },
 
   // Device Temperature Configuration cluster
-  { 0x0002, 0x0000,  "CurrentTemperature",   &Z_Copy },
-  { 0x0002, 0x0001,  "MinTempExperienced",   &Z_Copy },
-  { 0x0002, 0x0002,  "MaxTempExperienced",   &Z_Copy },
-  { 0x0002, 0x0003,  "OverTempTotalDwell",   &Z_Copy },
+  { 0x0002, 0x0000,  Z(CurrentTemperature),   &Z_Copy },
+  { 0x0002, 0x0001,  Z(MinTempExperienced),   &Z_Copy },
+  { 0x0002, 0x0002,  Z(MaxTempExperienced),   &Z_Copy },
+  { 0x0002, 0x0003,  Z(OverTempTotalDwell),   &Z_Copy },
 
   // On/off cluster
-  { 0x0006, 0x0000,  "Power",                &Z_Copy },
-  { 0x0006, 0x8000,  "Power",                &Z_Copy },   // See 7280
+  { 0x0006, 0x0000,  Z(Power),                &Z_Copy },
+  { 0x0006, 0x8000,  Z(Power),                &Z_Copy },   // See 7280
 
   // On/Off Switch Configuration cluster
-  { 0x0007, 0x0000,  "SwitchType",           &Z_Copy },
+  { 0x0007, 0x0000,  Z(SwitchType),           &Z_Copy },
 
   // Level Control cluster
-  { 0x0008, 0x0000,  "Dimmer",               &Z_Copy },
+  { 0x0008, 0x0000,  Z(Dimmer),               &Z_Copy },
   // { 0x0008, 0x0001,  "RemainingTime",        &Z_Copy },
   // { 0x0008, 0x0010,  "OnOffTransitionTime",  &Z_Copy },
   // { 0x0008, 0x0011,  "OnLevel",              &Z_Copy },

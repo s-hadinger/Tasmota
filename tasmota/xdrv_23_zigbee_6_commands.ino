@@ -38,7 +38,8 @@ typedef struct Z_XYZ_Var {    // Holds values for vairables X, Y and Z
 
 ZF(AddGroup) ZF(ViewGroup) ZF(GetGroup) ZF(GetAllGroups) ZF(RemoveGroup) ZF(RemoveAllGroups)
 ZF(AddScene) ZF(ViewScene) ZF(RemoveScene) ZF(RemoveAllScenes) ZF(RecallScene) ZF(StoreScene) ZF(GetSceneMembership)
-ZF(Power) ZF(Dimmer) ZF(DimmerUp) ZF(DimmerDown) ZF(DimmerStop)
+//ZF(Power) ZF(Dimmer) 
+ZF(DimmerUp) ZF(DimmerDown) ZF(DimmerStop)
 ZF(ResetAlarm) ZF(ResetAllAlarms)
 ZF(Hue) ZF(Sat) ZF(HueSat) ZF(Color) ZF(CT)
 ZF(ShutterOpen) ZF(ShutterClose) ZF(ShutterStop) ZF(ShutterLift) ZF(ShutterTilt) ZF(Shutter)
