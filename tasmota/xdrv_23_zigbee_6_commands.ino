@@ -45,6 +45,9 @@ ZF(Power) ZF(Dimmer) ZF(DimmerUp) ZF(DimmerDown) ZF(DimmerStop)
 ZF(ResetAlarm) ZF(ResetAllAlarms)
 ZF(Hue) ZF(Sat) ZF(HueSat) ZF(Color) ZF(CT)
 
+ZF(xxxx00) ZF(xxxx) ZF(01xxxx) ZF(00) ZF()
+
+
 // Cluster specific commands
 // Note: the table is both for sending commands, but also displaying received commands
 // - tasmota_cmd: the human-readable name of the command as entered or displayed, use '|' to split into multiple commands when displayed
