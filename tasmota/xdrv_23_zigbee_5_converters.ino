@@ -545,17 +545,21 @@ typedef struct Z_AttributeConverter {
   Z_AttrConverter func;
 } Z_AttributeConverter;
 
+ZF(ZCLVersion) ZF(AppVersion) ZF(StackVersion) ZF(HWVersion) ZF(Manufacturer) ZF(ModelId)
+ZF(DateCode) ZF(PowerSource) ZF(SWBuildID)
+
+
 // list of post-processing directives
 const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
-  { 0x0000, 0x0000,  "ZCLVersion",           &Z_Copy },
-  { 0x0000, 0x0001,  "AppVersion",           &Z_Copy },
-  { 0x0000, 0x0002,  "StackVersion",         &Z_Copy },
-  { 0x0000, 0x0003,  "HWVersion",            &Z_Copy },
-  { 0x0000, 0x0004,  "Manufacturer",         &Z_ManufKeep },    // record Manufacturer
-  { 0x0000, 0x0005,  D_JSON_MODEL D_JSON_ID, &Z_ModelKeep },    // record Model
-  { 0x0000, 0x0006,  "DateCode",             &Z_Copy },
-  { 0x0000, 0x0007,  "PowerSource",          &Z_Copy },
-  { 0x0000, 0x4000,  "SWBuildID",            &Z_Copy },
+  { 0x0000, 0x0000,  Z(ZCLVersion),           &Z_Copy },
+  { 0x0000, 0x0001,  Z(AppVersion),           &Z_Copy },
+  { 0x0000, 0x0002,  Z(StackVersion),         &Z_Copy },
+  { 0x0000, 0x0003,  Z(HWVersion),            &Z_Copy },
+  { 0x0000, 0x0004,  Z(Manufacturer),         &Z_ManufKeep },    // record Manufacturer
+  { 0x0000, 0x0005,  Z(ModelId), &Z_ModelKeep },    // record Model
+  { 0x0000, 0x0006,  Z(DateCode),             &Z_Copy },
+  { 0x0000, 0x0007,  Z(PowerSource),          &Z_Copy },
+  { 0x0000, 0x4000,  Z(SWBuildID),            &Z_Copy },
   { 0x0000, 0xFFFF,  nullptr,                &Z_Remove },    // Remove all other values
   // Cmd 0x0A - Cluster 0x0000, attribute 0xFF01 - proprietary
   { 0x0000, 0xFF01,  nullptr,                &Z_AqaraSensor },    // Occupancy (map8)
