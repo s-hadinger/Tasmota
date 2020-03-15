@@ -614,6 +614,25 @@ ZF(Primary2Y) ZF(Primary2Intensity) ZF(Primary3X) ZF(Primary3Y) ZF(Primary3Inten
 ZF(WhitePointY) ZF(ColorPointRX) ZF(ColorPointRY) ZF(ColorPointRIntensity) ZF(ColorPointGX) ZF(ColorPointGY)
 ZF(ColorPointGIntensity) ZF(ColorPointBX) ZF(ColorPointBY) ZF(ColorPointBIntensity)
 
+ZF(Illuminance) ZF(IlluminanceMinMeasuredValue) ZF(IlluminanceMaxMeasuredValue) ZF(IlluminanceTolerance)
+ZF(IlluminanceLightSensorType) ZF(IlluminanceLevelStatus)
+
+ZF(Temperature) ZF(TemperatureMinMeasuredValue) ZF(TemperatureMaxMeasuredValue) ZF(TemperatureTolerance)
+
+ZF(PressureUnit) ZF(Pressure) ZF(PressureMinMeasuredValue) ZF(PressureMaxMeasuredValue) ZF(PressureTolerance)
+ZF(PressureScaledValue) ZF(PressureMinScaledValue) ZF(PressureMaxScaledValue) ZF(PressureScaledTolerance)
+ZF(PressureScale)
+
+ZF(FlowRate) ZF(FlowMinMeasuredValue) ZF(FlowMaxMeasuredValue) ZF(FlowTolerance)
+
+ZF(Humidity) ZF(HumidityMinMeasuredValue) ZF(HumidityMaxMeasuredValue) ZF(HumidityTolerance)
+
+ZF(Occupancy) ZF(OccupancySensorType)
+
+ZF(CompanyName) ZF(MeterTypeID) ZF(DataQualityID) ZF(CustomerName) ZF(Model) ZF(PartNumber)
+ZF(SoftwareRevision) ZF(POD) ZF(AvailablePower) ZF(PowerThreshold)
+
+ZF(NumberOfResets) ZF(PersistentMemoryWrites) ZF(LastMessageLQI) ZF(LastMessageRSSI)
 // list of post-processing directives
 const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
   { 0x0000, 0x0000,  Z(ZCLVersion),           &Z_Copy },
@@ -650,12 +669,12 @@ const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
 
   // Level Control cluster
   { 0x0008, 0x0000,  Z(Dimmer),               &Z_Copy },
-  // { 0x0008, 0x0001,  "RemainingTime",        &Z_Copy },
-  // { 0x0008, 0x0010,  "OnOffTransitionTime",  &Z_Copy },
-  // { 0x0008, 0x0011,  "OnLevel",              &Z_Copy },
-  // { 0x0008, 0x0012,  "OnTransitionTime",     &Z_Copy },
-  // { 0x0008, 0x0013,  "OffTransitionTime",    &Z_Copy },
-  // { 0x0008, 0x0014,  "DefaultMoveRate",      &Z_Copy },
+  // { 0x0008, 0x0001,  Z(RemainingTime",        &Z_Copy },
+  // { 0x0008, 0x0010,  Z(OnOffTransitionTime",  &Z_Copy },
+  // { 0x0008, 0x0011,  Z(OnLevel",              &Z_Copy },
+  // { 0x0008, 0x0012,  Z(OnTransitionTime",     &Z_Copy },
+  // { 0x0008, 0x0013,  Z(OffTransitionTime",    &Z_Copy },
+  // { 0x0008, 0x0014,  Z(DefaultMoveRate",      &Z_Copy },
 
   // Alarms cluster
   { 0x0009, 0x0000,  Z(AlarmCount),           &Z_Copy },
@@ -871,74 +890,74 @@ const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
   { 0x0300, 0x003C,  Z(ColorPointBIntensity), &Z_Copy },
 
   // Illuminance Measurement cluster
-  { 0x0400, 0x0000,  D_JSON_ILLUMINANCE,     &Z_Copy },    // Illuminance (in Lux)
-  { 0x0400, 0x0001,  "IlluminanceMinMeasuredValue",     &Z_Copy },    //
-  { 0x0400, 0x0002,  "IlluminanceMaxMeasuredValue",     &Z_Copy },    //
-  { 0x0400, 0x0003,  "IlluminanceTolerance",            &Z_Copy },    //
-  { 0x0400, 0x0004,  "IlluminanceLightSensorType",      &Z_Copy },    //
+  { 0x0400, 0x0000,  Z(Illuminance),           &Z_Copy },    // Illuminance (in Lux)
+  { 0x0400, 0x0001,  Z(IlluminanceMinMeasuredValue),     &Z_Copy },    //
+  { 0x0400, 0x0002,  Z(IlluminanceMaxMeasuredValue),     &Z_Copy },    //
+  { 0x0400, 0x0003,  Z(IlluminanceTolerance),            &Z_Copy },    //
+  { 0x0400, 0x0004,  Z(IlluminanceLightSensorType),      &Z_Copy },    //
   { 0x0400, 0xFFFF,  nullptr,                &Z_Remove },    // Remove all other values
 
   // Illuminance Level Sensing cluster
-  { 0x0401, 0x0000,  "IlluminanceLevelStatus",          &Z_Copy },    // Illuminance (in Lux)
-  { 0x0401, 0x0001,  "IlluminanceLightSensorType",      &Z_Copy },    // LightSensorType
+  { 0x0401, 0x0000,  Z(IlluminanceLevelStatus),          &Z_Copy },    // Illuminance (in Lux)
+  { 0x0401, 0x0001,  Z(IlluminanceLightSensorType),      &Z_Copy },    // LightSensorType
   { 0x0401, 0xFFFF,  nullptr,                &Z_Remove },    // Remove all other values
 
   // Temperature Measurement cluster
-  { 0x0402, 0x0000,  D_JSON_TEMPERATURE,     &Z_FloatDiv100 },   // Temperature
-  { 0x0402, 0x0001,  "TemperatureMinMeasuredValue",     &Z_FloatDiv100 },    //
-  { 0x0402, 0x0002,  "TemperatureMaxMeasuredValue",     &Z_FloatDiv100 },    //
-  { 0x0402, 0x0003,  "TemperatureTolerance",            &Z_FloatDiv100 },    //
+  { 0x0402, 0x0000,  Z(Temperature),          &Z_FloatDiv100 },   // Temperature
+  { 0x0402, 0x0001,  Z(TemperatureMinMeasuredValue),     &Z_FloatDiv100 },    //
+  { 0x0402, 0x0002,  Z(TemperatureMaxMeasuredValue),     &Z_FloatDiv100 },    //
+  { 0x0402, 0x0003,  Z(TemperatureTolerance),            &Z_FloatDiv100 },    //
   { 0x0402, 0xFFFF,  nullptr,                &Z_Remove },     // Remove all other values
 
   // Pressure Measurement cluster
-  { 0x0403, 0x0000,  D_JSON_PRESSURE_UNIT,   &Z_AddPressureUnit },     // Pressure Unit
-  { 0x0403, 0x0000,  D_JSON_PRESSURE,        &Z_Copy },     // Pressure
-  { 0x0403, 0x0001,  "PressureMinMeasuredValue",     &Z_Copy },    //
-  { 0x0403, 0x0002,  "PressureMaxMeasuredValue",     &Z_Copy },    //
-  { 0x0403, 0x0003,  "PressureTolerance",            &Z_Copy },    //
-  { 0x0403, 0x0010,  "PressureScaledValue",          &Z_Copy },    //
-  { 0x0403, 0x0011,  "PressureMinScaledValue",       &Z_Copy },    //
-  { 0x0403, 0x0012,  "PressureMaxScaledValue",       &Z_Copy },    //
-  { 0x0403, 0x0013,  "PressureScaledTolerance",      &Z_Copy },    //
-  { 0x0403, 0x0014,  "PressureScale",                &Z_Copy },    //
+  { 0x0403, 0x0000,  Z(PressureUnit),                 &Z_AddPressureUnit },     // Pressure Unit
+  { 0x0403, 0x0000,  Z(Pressure),                     &Z_Copy },     // Pressure
+  { 0x0403, 0x0001,  Z(PressureMinMeasuredValue),     &Z_Copy },    //
+  { 0x0403, 0x0002,  Z(PressureMaxMeasuredValue),     &Z_Copy },    //
+  { 0x0403, 0x0003,  Z(PressureTolerance),            &Z_Copy },    //
+  { 0x0403, 0x0010,  Z(PressureScaledValue),          &Z_Copy },    //
+  { 0x0403, 0x0011,  Z(PressureMinScaledValue),       &Z_Copy },    //
+  { 0x0403, 0x0012,  Z(PressureMaxScaledValue),       &Z_Copy },    //
+  { 0x0403, 0x0013,  Z(PressureScaledTolerance),      &Z_Copy },    //
+  { 0x0403, 0x0014,  Z(PressureScale),                &Z_Copy },    //
   { 0x0403, 0xFFFF,  nullptr,                &Z_Remove },     // Remove all other Pressure values
 
   // Flow Measurement cluster
-  { 0x0404, 0x0000,  D_JSON_FLOWRATE,        &Z_FloatDiv10 },    // Flow (in m3/h)
-  { 0x0404, 0x0001,  "FlowMinMeasuredValue", &Z_Copy },    //
-  { 0x0404, 0x0002,  "FlowMaxMeasuredValue", &Z_Copy },    //
-  { 0x0404, 0x0003,  "FlowTolerance",        &Z_Copy },    //
+  { 0x0404, 0x0000,  Z(FlowRate),             &Z_FloatDiv10 },    // Flow (in m3/h)
+  { 0x0404, 0x0001,  Z(FlowMinMeasuredValue), &Z_Copy },    //
+  { 0x0404, 0x0002,  Z(FlowMaxMeasuredValue), &Z_Copy },    //
+  { 0x0404, 0x0003,  Z(FlowTolerance),        &Z_Copy },    //
   { 0x0404, 0xFFFF,  nullptr,                &Z_Remove },    // Remove all other values
 
   // Relative Humidity Measurement cluster
-  { 0x0405, 0x0000,  D_JSON_HUMIDITY,        &Z_FloatDiv100 },   // Humidity
-  { 0x0405, 0x0001,  "HumidityMinMeasuredValue",     &Z_Copy },    //
-  { 0x0405, 0x0002,  "HumidityMaxMeasuredValue",     &Z_Copy },    //
-  { 0x0405, 0x0003,  "HumidityTolerance",            &Z_Copy },    //
+  { 0x0405, 0x0000,  Z(Humidity),             &Z_FloatDiv100 },   // Humidity
+  { 0x0405, 0x0001,  Z(HumidityMinMeasuredValue),     &Z_Copy },    //
+  { 0x0405, 0x0002,  Z(HumidityMaxMeasuredValue),     &Z_Copy },    //
+  { 0x0405, 0x0003,  Z(HumidityTolerance),            &Z_Copy },    //
   { 0x0405, 0xFFFF,  nullptr,                &Z_Remove },     // Remove all other values
 
   // Occupancy Sensing cluster
-  { 0x0406, 0x0000,  OCCUPANCY,              &Z_Copy },    // Occupancy (map8)
-  { 0x0406, 0x0001,  "OccupancySensorType",  &Z_Copy },    // OccupancySensorType
+  { 0x0406, 0x0000,  Z(Occupancy),            &Z_Copy },    // Occupancy (map8)
+  { 0x0406, 0x0001,  Z(OccupancySensorType),  &Z_Copy },    // OccupancySensorType
   { 0x0406, 0xFFFF,  nullptr,                &Z_Remove },    // Remove all other values
 
   // Meter Identification cluster
-  { 0x0B01, 0x0000,  "CompanyName",          &Z_Copy },
-  { 0x0B01, 0x0001,  "MeterTypeID",          &Z_Copy },
-  { 0x0B01, 0x0004,  "DataQualityID",        &Z_Copy },
-  { 0x0B01, 0x0005,  "CustomerName",         &Z_Copy },
-  { 0x0B01, 0x0006,  "Model",                &Z_Copy },
-  { 0x0B01, 0x0007,  "PartNumber",           &Z_Copy },
-  { 0x0B01, 0x000A,  "SoftwareRevision",     &Z_Copy },
-  { 0x0B01, 0x000C,  "POD",                  &Z_Copy },
-  { 0x0B01, 0x000D,  "AvailablePower",       &Z_Copy },
-  { 0x0B01, 0x000E,  "PowerThreshold",       &Z_Copy },
+  { 0x0B01, 0x0000,  Z(CompanyName),          &Z_Copy },
+  { 0x0B01, 0x0001,  Z(MeterTypeID),          &Z_Copy },
+  { 0x0B01, 0x0004,  Z(DataQualityID),        &Z_Copy },
+  { 0x0B01, 0x0005,  Z(CustomerName),         &Z_Copy },
+  { 0x0B01, 0x0006,  Z(Model),                &Z_Copy },
+  { 0x0B01, 0x0007,  Z(PartNumber),           &Z_Copy },
+  { 0x0B01, 0x000A,  Z(SoftwareRevision),     &Z_Copy },
+  { 0x0B01, 0x000C,  Z(POD),                  &Z_Copy },
+  { 0x0B01, 0x000D,  Z(AvailablePower),       &Z_Copy },
+  { 0x0B01, 0x000E,  Z(PowerThreshold),       &Z_Copy },
 
   // Diagnostics cluster
-  { 0x0B05, 0x0000,  "NumberOfResets",       &Z_Copy },
-  { 0x0B05, 0x0001,  "PersistentMemoryWrites",&Z_Copy },
-  { 0x0B05, 0x011C,  "LastMessageLQI",       &Z_Copy },
-  { 0x0B05, 0x011D,  "LastMessageRSSI",      &Z_Copy },
+  { 0x0B05, 0x0000,  Z(NumberOfResets),       &Z_Copy },
+  { 0x0B05, 0x0001,  Z(PersistentMemoryWrites),&Z_Copy },
+  { 0x0B05, 0x011C,  Z(LastMessageLQI),       &Z_Copy },
+  { 0x0B05, 0x011D,  Z(LastMessageRSSI),      &Z_Copy },
 
 };
 
