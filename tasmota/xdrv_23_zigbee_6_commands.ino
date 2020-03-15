@@ -44,9 +44,14 @@ ZF(AddScene) ZF(ViewScene) ZF(RemoveScene) ZF(RemoveAllScenes) ZF(RecallScene) Z
 ZF(Power) ZF(Dimmer) ZF(DimmerUp) ZF(DimmerDown) ZF(DimmerStop)
 ZF(ResetAlarm) ZF(ResetAllAlarms)
 ZF(Hue) ZF(Sat) ZF(HueSat) ZF(Color) ZF(CT)
+ZF(ShutterOpen) ZF(ShutterClose) ZF(ShutterStop) ZF(ShutterLift) ZF(ShutterTilt) ZF(Shutter)
+ZF(Occupancy) ZF(DimmerMove) ZF(DimmerStep)
+ZF(HueMove) ZF(HueStep) ZF(SatMove) ZF(SatStep) ZF(ColorMove) ZF(ColorStep)
+ZF(ArrowClick) ZF(ArrowHold) ZF(ArrowRelease) ZF(ZoneStatusChange)
 
-ZF(xxxx00) ZF(xxxx) ZF(01xxxx) ZF(00) ZF() ZF(xxxxyy) ZF(001902) ZF(011902) ZF(xxyyyy)
-ZF(xx000A00) ZF(xx0A00) ZF(xxyy0A00) ZF(xxxxyyyy0A00) ZF(xxxx0A00)
+ZF(xxxx00) ZF(xxxx) ZF(01xxxx) ZF(00) ZF(01) ZF() ZF(xxxxyy) ZF(001902) ZF(011902) ZF(xxyyyy) ZF(xx)
+ZF(xx000A00) ZF(xx0A00) ZF(xxyy0A00) ZF(xxxxyyyy0A00) ZF(xxxx0A00) ZF(xx0A)
+ZF(xx190A00) ZF(xx19) ZF(xx190A) ZF(xxxxyyyy) ZF(xxxxyyzz) ZF(xxyyzzzz) ZF(xxyyyyzz)
 
 // Cluster specific commands
 // Note: the table is both for sending commands, but also displaying received commands
@@ -83,46 +88,46 @@ const Z_CommandConverter Z_Commands[] PROGMEM = {
   { Z(HueSat),         0x0300, 0x06, 0x01,   Z(xxyy0A00) },     // Hue, Sat
   { Z(Color),          0x0300, 0x07, 0x01,   Z(xxxxyyyy0A00) }, // x, y (uint16)
   { Z(CT),             0x0300, 0x0A, 0x01,   Z(xxxx0A00) },     // Color Temperature Mireds (uint16)
-  { "ShutterOpen",    0x0102, 0x00, 0x01,   "" },
-  { "ShutterClose",   0x0102, 0x01, 0x01,   "" },
-  { "ShutterStop",    0x0102, 0x02, 0x01,   "" },
-  { "ShutterLift",    0x0102, 0x05, 0x01,   "xx" },            // Lift percentage, 0%=open, 100%=closed
-  { "ShutterTilt",    0x0102, 0x08, 0x01,   "xx" },            // Tilt percentage
-  { "Shutter",        0x0102, 0xFF, 0x01,   "" },
+  { Z(ShutterOpen),    0x0102, 0x00, 0x01,   Z() },
+  { Z(ShutterClose),   0x0102, 0x01, 0x01,   Z() },
+  { Z(ShutterStop),    0x0102, 0x02, 0x01,   Z() },
+  { Z(ShutterLift),    0x0102, 0x05, 0x01,   Z(xx) },            // Lift percentage, 0%=open, 100%=closed
+  { Z(ShutterTilt),    0x0102, 0x08, 0x01,   Z(xx) },            // Tilt percentage
+  { Z(Shutter),        0x0102, 0xFF, 0x01,   Z() },
   // Blitzwolf PIR
-  { "Occupancy",      0xEF00, 0x01, 0x82,   ""},                // Specific decoder for Blitzwolf PIR, empty name means special treatment
+  { Z(Occupancy),      0xEF00, 0x01, 0x82,   Z()},                // Specific decoder for Blitzwolf PIR, empty name means special treatment
   // Decoders only - normally not used to send, and names may be masked by previous definitions
-  { Z(Dimmer),         0x0008, 0x00, 0x01,   "xx" },
-  { "DimmerMove",     0x0008, 0x01, 0x01,   "xx0A" },
-  { "DimmerStep",     0x0008, 0x02, 0x01,   "xx190A00" },
-  { "DimmerMove",     0x0008, 0x05, 0x01,   "xx0A" },
-  { Z(DimmerUp),       0x0008, 0x06, 0x01,   "00" },
-  { Z(DimmerDown),     0x0008, 0x06, 0x01,   "01" },
-  { Z(DimmerStop),     0x0008, 0x07, 0x01,   "" },
-  { "HueMove",        0x0300, 0x01, 0x01,   "xx19" },
-  { "HueStep",        0x0300, 0x02, 0x01,   "xx190A00" },
-  { "SatMove",        0x0300, 0x04, 0x01,   "xx19" },
-  { "SatStep",        0x0300, 0x05, 0x01,   "xx190A" },
-  { "ColorMove",      0x0300, 0x08, 0x01,   "xxxxyyyy" },
-  { "ColorStep",      0x0300, 0x09, 0x01,   "xxxxyyyy0A00" },
+  { Z(Dimmer),         0x0008, 0x00, 0x01,   Z(xx) },
+  { Z(DimmerMove),     0x0008, 0x01, 0x01,   Z(xx0A) },
+  { Z(DimmerStep),     0x0008, 0x02, 0x01,   Z(xx190A00) },
+  { Z(DimmerMove),     0x0008, 0x05, 0x01,   Z(xx0A) },
+  { Z(DimmerUp),       0x0008, 0x06, 0x01,   Z(00) },
+  { Z(DimmerDown),     0x0008, 0x06, 0x01,   Z(01) },
+  { Z(DimmerStop),     0x0008, 0x07, 0x01,   Z() },
+  { Z(HueMove),        0x0300, 0x01, 0x01,   Z(xx19) },
+  { Z(HueStep),        0x0300, 0x02, 0x01,   Z(xx190A00) },
+  { Z(SatMove),        0x0300, 0x04, 0x01,   Z(xx19) },
+  { Z(SatStep),        0x0300, 0x05, 0x01,   Z(xx190A) },
+  { Z(ColorMove),      0x0300, 0x08, 0x01,   Z(xxxxyyyy) },
+  { Z(ColorStep),      0x0300, 0x09, 0x01,   Z(xxxxyyyy0A00) },
   // Tradfri
-  { "ArrowClick",     0x0005, 0x07, 0x01,   "xx" },         // xx == 0x01 = left, 0x00 = right
-  { "ArrowHold",      0x0005, 0x08, 0x01,   "xx" },         // xx == 0x01 = left, 0x00 = right
-  { "ArrowRelease",   0x0005, 0x09, 0x01,   "" },
+  { Z(ArrowClick),     0x0005, 0x07, 0x01,   Z(xx) },         // xx == 0x01 = left, 0x00 = right
+  { Z(ArrowHold),      0x0005, 0x08, 0x01,   Z(xx) },         // xx == 0x01 = left, 0x00 = right
+  { Z(ArrowRelease),   0x0005, 0x09, 0x01,   Z() },
   // IAS - Intruder Alarm System + leak/fire detection
-  { "ZoneStatusChange",0x0500, 0x00, 0x82,  "xxxxyyzz" },   // xxxx = zone status, yy = extended status, zz = zone id, Delay is ignored
+  { Z(ZoneStatusChange),0x0500, 0x00, 0x82,  Z(xxxxyyzz) },   // xxxx = zone status, yy = extended status, zz = zone id, Delay is ignored
   // responses for Group cluster commands
-  { Z(AddGroup),       0x0004, 0x00, 0x82,   "xxyyyy" },       // xx = status, yy = group id
-  { Z(ViewGroup),      0x0004, 0x01, 0x82,   "xxyyyy" },       // xx = status, yy = group id, name ignored
-  { Z(GetGroup),       0x0004, 0x02, 0x82,   "xxyyzzzz" },     // xx = capacity, yy = count, zzzz = first group id, following groups ignored
-  { Z(RemoveGroup),    0x0004, 0x03, 0x82,   "xxyyyy" },       // xx = status, yy = group id
+  { Z(AddGroup),       0x0004, 0x00, 0x82,   Z(xxyyyy) },       // xx = status, yy = group id
+  { Z(ViewGroup),      0x0004, 0x01, 0x82,   Z(xxyyyy) },       // xx = status, yy = group id, name ignored
+  { Z(GetGroup),       0x0004, 0x02, 0x82,   Z(xxyyzzzz) },     // xx = capacity, yy = count, zzzz = first group id, following groups ignored
+  { Z(RemoveGroup),    0x0004, 0x03, 0x82,   Z(xxyyyy) },       // xx = status, yy = group id
   // responses for Scene cluster commands
-  { Z(AddScene),       0x0005, 0x00, 0x82,   "xxyyyyzz" },     // xx = status, yyyy = group id, zz = scene id
-  { Z(ViewScene),      0x0005, 0x01, 0x82,   "xxyyyyzz" },     // xx = status, yyyy = group id, zz = scene id
-  { Z(RemoveScene),    0x0005, 0x02, 0x82,   "xxyyyyzz" },     // xx = status, yyyy = group id, zz = scene id
-  { Z(RemoveAllScenes),0x0005, 0x03, 0x82,   "xxyyyy" },     // xx = status, yyyy = group id
-  { Z(StoreScene),     0x0005, 0x04, 0x82,   "xxyyyyzz" },     // xx = status, yyyy = group id, zz = scene id
-  { Z(GetSceneMembership),0x0005, 0x06, 0x82,   "" },     // specific
+  { Z(AddScene),       0x0005, 0x00, 0x82,   Z(xxyyyyzz) },     // xx = status, yyyy = group id, zz = scene id
+  { Z(ViewScene),      0x0005, 0x01, 0x82,   Z(xxyyyyzz) },     // xx = status, yyyy = group id, zz = scene id
+  { Z(RemoveScene),    0x0005, 0x02, 0x82,   Z(xxyyyyzz) },     // xx = status, yyyy = group id, zz = scene id
+  { Z(RemoveAllScenes),0x0005, 0x03, 0x82,   Z(xxyyyy) },     // xx = status, yyyy = group id
+  { Z(StoreScene),     0x0005, 0x04, 0x82,   Z(xxyyyyzz) },     // xx = status, yyyy = group id, zz = scene id
+  { Z(GetSceneMembership),0x0005, 0x06, 0x82,   Z() },     // specific
 };
 
 #define ZLE(x) ((x) & 0xFF), ((x) >> 8)     // Little Endian
