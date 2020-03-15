@@ -549,6 +549,8 @@ ZF(ZCLVersion) ZF(AppVersion) ZF(StackVersion) ZF(HWVersion) ZF(Manufacturer) ZF
 ZF(DateCode) ZF(PowerSource) ZF(SWBuildID) ZF(Power) ZF(SwitchType) ZF(Dimmer)
 ZF(MainsVoltage) ZF(MainsFrequency) ZF(BatteryVoltage) ZF(BatteryPercentage)
 ZF(CurrentTemperature) ZF(MinTempExperienced) ZF(MaxTempExperienced) ZF(OverTempTotalDwell)
+ZF(AlarmCount) ZF(Time) ZF(TimeStatus) ZF(TimeZone) ZF(DstStart) ZF(DstEnd)
+ZF(DstShift) ZF(StandardTime) ZF(LocalTime) ZF(LastSetTime) ZF(ValidUntilTime)
 
 // list of post-processing directives
 const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
@@ -594,18 +596,18 @@ const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
   // { 0x0008, 0x0014,  "DefaultMoveRate",      &Z_Copy },
 
   // Alarms cluster
-  { 0x0009, 0x0000,  "AlarmCount",           &Z_Copy },
+  { 0x0009, 0x0000,  Z(AlarmCount),           &Z_Copy },
   // Time cluster
-  { 0x000A, 0x0000,  "Time",                 &Z_Copy },
-  { 0x000A, 0x0001,  "TimeStatus",           &Z_Copy },
-  { 0x000A, 0x0002,  "TimeZone",             &Z_Copy },
-  { 0x000A, 0x0003,  "DstStart",             &Z_Copy },
-  { 0x000A, 0x0004,  "DstStart",             &Z_Copy },
-  { 0x000A, 0x0005,  "DstShift",             &Z_Copy },
-  { 0x000A, 0x0006,  "StandardTime",         &Z_Copy },
-  { 0x000A, 0x0007,  "LocalTime",            &Z_Copy },
-  { 0x000A, 0x0008,  "LastSetTime",          &Z_Copy },
-  { 0x000A, 0x0009,  "ValidUntilTime",       &Z_Copy },
+  { 0x000A, 0x0000,  Z(Time),                 &Z_Copy },
+  { 0x000A, 0x0001,  Z(TimeStatus),           &Z_Copy },
+  { 0x000A, 0x0002,  Z(TimeZone),             &Z_Copy },
+  { 0x000A, 0x0003,  Z(DstStart),             &Z_Copy },
+  { 0x000A, 0x0004,  Z(DstEnd),             &Z_Copy },
+  { 0x000A, 0x0005,  Z(DstShift),             &Z_Copy },
+  { 0x000A, 0x0006,  Z(StandardTime),         &Z_Copy },
+  { 0x000A, 0x0007,  Z(LocalTime),            &Z_Copy },
+  { 0x000A, 0x0008,  Z(LastSetTime),          &Z_Copy },
+  { 0x000A, 0x0009,  Z(ValidUntilTime),       &Z_Copy },
   // RSSI Location cluster
   { 0x000B, 0x0000,  "LocationType",         &Z_Copy },
   { 0x000B, 0x0000,  "LocationMethod",       &Z_Copy },
