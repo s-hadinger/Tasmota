@@ -45,8 +45,8 @@ ZF(Power) ZF(Dimmer) ZF(DimmerUp) ZF(DimmerDown) ZF(DimmerStop)
 ZF(ResetAlarm) ZF(ResetAllAlarms)
 ZF(Hue) ZF(Sat) ZF(HueSat) ZF(Color) ZF(CT)
 
-ZF(xxxx00) ZF(xxxx) ZF(01xxxx) ZF(00) ZF()
-
+ZF(xxxx00) ZF(xxxx) ZF(01xxxx) ZF(00) ZF() ZF(xxxxyy) ZF(001902) ZF(011902) ZF(xxyyyy)
+ZF(xx000A00) ZF(xx0A00) ZF(xxyy0A00) ZF(xxxxyyyy0A00) ZF(xxxx0A00)
 
 // Cluster specific commands
 // Note: the table is both for sending commands, but also displaying received commands
@@ -57,32 +57,32 @@ ZF(xxxx00) ZF(xxxx) ZF(01xxxx) ZF(00) ZF()
 // - param: the paylod template, x/y/z are substituted with arguments, little endian. For command display, payload must match until x/y/z character or until the end of the paylod. '??' means ignore.
 const Z_CommandConverter Z_Commands[] PROGMEM = {
   // Group adress commands
-  { Z(AddGroup),       0x0004, 0x00, 0x01,   "xxxx00" },       // Add group id, group name is not supported
-  { Z(ViewGroup),      0x0004, 0x01, 0x01,   "xxxx" },         // Ask for the group name
-  { Z(GetGroup),       0x0004, 0x02, 0x01,   "01xxxx" },       // Get one group membership
-  { Z(GetAllGroups),   0x0004, 0x02, 0x01,   "00" },           // Get all groups membership
-  { Z(RemoveGroup),    0x0004, 0x03, 0x01,   "xxxx" },         // Remove one group
-  { Z(RemoveAllGroups),0x0004, 0x04, 0x01,   "" },             // Remove all groups
+  { Z(AddGroup),       0x0004, 0x00, 0x01,   Z(xxxx00) },       // Add group id, group name is not supported
+  { Z(ViewGroup),      0x0004, 0x01, 0x01,   Z(xxxx) },         // Ask for the group name
+  { Z(GetGroup),       0x0004, 0x02, 0x01,   Z(01xxxx) },       // Get one group membership
+  { Z(GetAllGroups),   0x0004, 0x02, 0x01,   Z(00) },           // Get all groups membership
+  { Z(RemoveGroup),    0x0004, 0x03, 0x01,   Z(xxxx) },         // Remove one group
+  { Z(RemoveAllGroups),0x0004, 0x04, 0x01,   Z() },             // Remove all groups
   // Scenes
   //{ "AddScene",       0x0005, 0x00, 0x01,   "xxxxyy0100" },
-  { Z(ViewScene),      0x0005, 0x01, 0x01,   "xxxxyy" },
-  { Z(RemoveScene),    0x0005, 0x02, 0x01,   "xxxxyy" },
-  { Z(RemoveAllScenes),0x0005, 0x03, 0x01,   "xxxx" },
-  { Z(RecallScene),    0x0005, 0x05, 0x01,   "xxxxyy" },
-  { Z(GetSceneMembership),0x0005, 0x06, 0x01,   "xxxx" },
+  { Z(ViewScene),      0x0005, 0x01, 0x01,   Z(xxxxyy) },
+  { Z(RemoveScene),    0x0005, 0x02, 0x01,   Z(xxxxyy) },
+  { Z(RemoveAllScenes),0x0005, 0x03, 0x01,   Z(xxxx) },
+  { Z(RecallScene),    0x0005, 0x05, 0x01,   Z(xxxxyy) },
+  { Z(GetSceneMembership),0x0005, 0x06, 0x01,   Z(xxxx) },
   // Light & Shutter commands
-  { Z(Power),          0x0006, 0xFF, 0x01,   "" },             // 0=Off, 1=On, 2=Toggle
-  { Z(Dimmer),         0x0008, 0x04, 0x01,   "xx0A00" },       // Move to Level with On/Off, xx=0..254 (255 is invalid)
-  { Z(DimmerUp),        0x0008, 0x06, 0x01,   "001902" },       // Step up by 10%, 0.2 secs
-  { Z(DimmerDown),        0x0008, 0x06, 0x01,   "011902" },       // Step down by 10%, 0.2 secs
-  { Z(DimmerStop),     0x0008, 0x03, 0x01,   "" },             // Stop any Dimmer animation
-  { Z(ResetAlarm),     0x0009, 0x00, 0x01,   "xxyyyy" },       // Reset alarm (alarm code + cluster identifier)
-  { Z(ResetAllAlarms), 0x0009, 0x01, 0x01,   "" },             // Reset all alarms
-  { Z(Hue),            0x0300, 0x00, 0x01,   "xx000A00" },     // Move to Hue, shortest time, 1s
-  { Z(Sat),            0x0300, 0x03, 0x01,   "xx0A00" },       // Move to Sat
-  { Z(HueSat),         0x0300, 0x06, 0x01,   "xxyy0A00" },     // Hue, Sat
-  { Z(Color),          0x0300, 0x07, 0x01,   "xxxxyyyy0A00" }, // x, y (uint16)
-  { Z(CT),             0x0300, 0x0A, 0x01,   "xxxx0A00" },     // Color Temperature Mireds (uint16)
+  { Z(Power),          0x0006, 0xFF, 0x01,   Z() },             // 0=Off, 1=On, 2=Toggle
+  { Z(Dimmer),         0x0008, 0x04, 0x01,   Z(xx0A00) },       // Move to Level with On/Off, xx=0..254 (255 is invalid)
+  { Z(DimmerUp),       0x0008, 0x06, 0x01,   Z(001902) },       // Step up by 10%, 0.2 secs
+  { Z(DimmerDown),     0x0008, 0x06, 0x01,   Z(011902) },       // Step down by 10%, 0.2 secs
+  { Z(DimmerStop),     0x0008, 0x03, 0x01,   Z() },             // Stop any Dimmer animation
+  { Z(ResetAlarm),     0x0009, 0x00, 0x01,   Z(xxyyyy) },       // Reset alarm (alarm code + cluster identifier)
+  { Z(ResetAllAlarms), 0x0009, 0x01, 0x01,   Z() },             // Reset all alarms
+  { Z(Hue),            0x0300, 0x00, 0x01,   Z(xx000A00) },     // Move to Hue, shortest time, 1s
+  { Z(Sat),            0x0300, 0x03, 0x01,   Z(xx0A00) },       // Move to Sat
+  { Z(HueSat),         0x0300, 0x06, 0x01,   Z(xxyy0A00) },     // Hue, Sat
+  { Z(Color),          0x0300, 0x07, 0x01,   Z(xxxxyyyy0A00) }, // x, y (uint16)
+  { Z(CT),             0x0300, 0x0A, 0x01,   Z(xxxx0A00) },     // Color Temperature Mireds (uint16)
   { "ShutterOpen",    0x0102, 0x00, 0x01,   "" },
   { "ShutterClose",   0x0102, 0x01, 0x01,   "" },
   { "ShutterStop",    0x0102, 0x02, 0x01,   "" },
