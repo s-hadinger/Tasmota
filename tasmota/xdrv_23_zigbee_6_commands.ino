@@ -380,17 +380,17 @@ void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, boo
       if ((cluster == 0x0500) && (cmd == 0x00)) {
         // "ZoneStatusChange"
         json[command_name] = xyz.x;
-        json[command_name2 + "Ext"] = xyz.y;
-        json[command_name2 + "Zone"] = xyz.z;
+        json[command_name2 + F("Ext")] = xyz.y;
+        json[command_name2 + F("Zone")] = xyz.z;
       } else if ((cluster == 0x0004) && ((cmd == 0x00) || (cmd == 0x01) || (cmd == 0x03))) {
         // AddGroupResp or ViewGroupResp (group name ignored) or RemoveGroup
         json[command_name] = xyz.y;
-        json[command_name2 + "Status"] = xyz.x;
-        json[command_name2 + "StatusMsg"] = getZigbeeStatusMessage(xyz.x);
+        json[command_name2 + F("Status")] = xyz.x;
+        json[command_name2 + F("StatusMsg")] = getZigbeeStatusMessage(xyz.x);
       } else if ((cluster == 0x0004) && (cmd == 0x02)) {
         // GetGroupResp
-        json[command_name2 + "Capacity"] = xyz.x;
-        json[command_name2 + "Count"] = xyz.y;
+        json[command_name2 + F("Capacity")] = xyz.x;
+        json[command_name2 + F("Count")] = xyz.y;
         JsonArray &arr = json.createNestedArray(command_name);
         for (uint32_t i = 0; i < xyz.y; i++) {
           arr.add(payload.get16(2 + 2*i));

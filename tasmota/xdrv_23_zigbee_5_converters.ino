@@ -1252,7 +1252,7 @@ void ZCLFrame::postProcessAttributes(uint16_t shortaddr, JsonObject& json) {
 
         if ((conv_cluster == cluster) &&
             ((conv_attribute == attribute) || (conv_attribute == 0xFFFF)) ) {
-          String new_name_str = converter->name;
+          String new_name_str = (const __FlashStringHelper*) converter->name;
           if (suffix > 1) { new_name_str += suffix; }   // append suffix number
           int32_t drop = (*converter->func)(this, shortaddr, json, key, value, new_name_str, conv_cluster, conv_attribute);
           if (drop) {
