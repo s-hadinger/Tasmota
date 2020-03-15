@@ -36,9 +36,6 @@ typedef struct Z_XYZ_Var {    // Holds values for vairables X, Y and Z
   uint8_t     z_type = 0;
 } Z_XYZ_Var;
 
-#define ZF(s) static const char ZS_ ## s[] PROGMEM = #s;
-#define Z(s)  ZS_ ## s
-
 ZF(AddGroup) ZF(ViewGroup) ZF(GetGroup) ZF(GetAllGroups) ZF(RemoveGroup) ZF(RemoveAllGroups)
 ZF(AddScene) ZF(ViewScene) ZF(RemoveScene) ZF(RemoveAllScenes) ZF(RecallScene) ZF(StoreScene) ZF(GetSceneMembership)
 ZF(Power) ZF(Dimmer) ZF(DimmerUp) ZF(DimmerDown) ZF(DimmerStop)
