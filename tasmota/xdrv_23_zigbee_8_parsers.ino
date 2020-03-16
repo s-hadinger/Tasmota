@@ -309,11 +309,11 @@ int32_t Z_ReceiveSimpleDesc(int32_t res, const class SBuffer &buf) {
   if (0 == status) {
     zigbee_devices.addEndointProfile(nwkAddr, endpoint, profileId);
     for (uint32_t i = 0; i < numInCluster; i++) {
-      zigbee_devices.addCluster(nwkAddr, endpoint, buf.get16(15 + i*2), false);
+      zigbee_devices.addCluster(nwkAddr, endpoint, buf.get16(15 + i*2));
     }
-    for (uint32_t i = 0; i < numOutCluster; i++) {
-      zigbee_devices.addCluster(nwkAddr, endpoint, buf.get16(16 + numInCluster*2 + i*2), true);
-    }
+    // for (uint32_t i = 0; i < numOutCluster; i++) {
+    //   zigbee_devices.addCluster(nwkAddr, endpoint, buf.get16(16 + numInCluster*2 + i*2), true);
+    // }
 
     Response_P(PSTR("{\"" D_JSON_ZIGBEE_STATE "\":{"
                     "\"Status\":%d,\"Endpoint\":\"0x%02X\""
