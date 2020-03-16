@@ -541,7 +541,7 @@ void CmndZbSend(void) {
         if ('_' == *data) { clusterSpecific = false; }
         data++;
       } else {
-        ResponseCmndChar("Wrong delimiter for payload");
+        ResponseCmndChar_P(PSTR("Wrong delimiter for payload"));
         return;
       }
       // parse cmd number
@@ -592,12 +592,12 @@ void CmndZbBind(void) {
   const JsonVariant &val_device = getCaseInsensitive(json, PSTR("Device"));
   if (nullptr != &val_device) {
     srcDevice = zigbee_devices.parseDeviceParam(val_device.as<char*>());
-    if (0xFFFF == srcDevice) { ResponseCmndChar("Invalid parameter"); return; }
+    if (0xFFFF == srcDevice) { ResponseCmndChar_P(PSTR("Invalid parameter")); return; }
   }
-  if ((nullptr == &val_device) || (0x0000 == srcDevice)) { ResponseCmndChar("Unknown source device"); return; }
+  if ((nullptr == &val_device) || (0x0000 == srcDevice)) { ResponseCmndChar_P(PSTR("Unknown source device")); return; }
   // check if IEEE address is known
   uint64_t srcLongAddr = zigbee_devices.getDeviceLongAddr(srcDevice);
-  if (0 == srcLongAddr) { ResponseCmndChar("Unknown source IEEE address"); return; }
+  if (0 == srcLongAddr) { ResponseCmndChar(PSTR("Unknown source IEEE address")); return; }
   // look for source endpoint
   const JsonVariant &val_endpoint = getCaseInsensitive(json, PSTR("Endpoint"));
   if (nullptr != &val_endpoint) { endpoint = strToUInt(val_endpoint); }
@@ -858,7 +858,7 @@ void CmndZbRead(void) {
     ZigbeeZCLSend_Raw(device, groupaddr, cluster, endpoint, ZCL_READ_ATTRIBUTES, false, attrs, attrs_len, true /* we do want a response */, zigbee_devices.getNextSeqNumber(device));
     ResponseCmndDone();
   } else {
-    ResponseCmndChar("Missing parameters");
+    ResponseCmndChar_P(PSTR("Missing parameters"));
   }
 
   if (attrs) { delete[] attrs; }
