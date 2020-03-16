@@ -112,22 +112,13 @@ class SBuffer hibernateDevice(const struct Z_Device &device) {
   if (endpoints > 254) { endpoints = 254; }
   buf.add8(endpoints);
   // iterate on endpoints
-  for (std::vector<uint32_t>::const_iterator ite = device.endpoints.begin() ; ite != device.endpoints.end(); ++ite) {
-    uint32_t ep_profile = *ite;
-    uint8_t endpoint = (ep_profile >> 16) & 0xFF;
-    uint16_t profileId = ep_profile & 0xFFFF;
+  for (std::vector<uint8_t>::const_iterator ite = device.endpoints.begin() ; ite != device.endpoints.end(); ++ite) {
+    uint8_t endpoint = *ite;
 
     buf.add8(endpoint);
-    buf.add16(profileId);
-    for (std::vector<uint32_t>::const_iterator itc = device.clusters_in.begin() ; itc != device.clusters_in.end(); ++itc) {
-      uint16_t cluster = *itc & 0xFFFF;
-      uint8_t  c_endpoint = (*itc >> 16) & 0xFF;
+    buf.add16(0x0000);   // profile_id, not used anymore
 
-      if (endpoint == c_endpoint) {
-        uint8_t clusterCode = toClusterCode(cluster);
-        if (0xFF != clusterCode) { buf.add8(clusterCode); }
-      }
-    }
+    // removed clusters_in
     buf.add8(0xFF);      // end of endpoint marker
 
     // no more storage of clusters_out
@@ -227,13 +218,13 @@ void hydrateDevices(const SBuffer &buf) {
     for (uint32_t j = 0; j < endpoints; j++) {
       uint8_t ep = buf_d.get8(d++);
       uint16_t ep_profile = buf_d.get16(d);  d += 2;
-      zigbee_devices.addEndointProfile(shortaddr, ep, ep_profile);
+      zigbee_devices.addEndpoint(shortaddr, ep);
 
       // in clusters
       while (d < dev_record_len) {      // safe guard against overflow
         uint8_t ep_cluster = buf_d.get8(d++);
         if (0xFF == ep_cluster) { break; }   // end of block
-        zigbee_devices.addCluster(shortaddr, ep, fromClusterCode(ep_cluster));
+        // ignore
       }
       // out clusters
       while (d < dev_record_len) {      // safe guard against overflow

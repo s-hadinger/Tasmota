@@ -33,8 +33,7 @@ typedef struct Z_Device {
   char *                manufacturerId;
   char *                modelId;
   char *                friendlyName;
-  std::vector<uint32_t> endpoints;      // encoded as high 16 bits is endpoint, low 16 bits is ProfileId
-  std::vector<uint32_t> clusters_in;    // encoded as high 16 bits is endpoint, low 16 bits is cluster number
+  std::vector<uint8_t>  endpoints;      // encoded as high 16 bits is endpoint, low 16 bits is ProfileId
   // json buffer used for attribute reporting
   DynamicJsonBuffer    *json_buffer;
   JsonObject           *json;
@@ -80,7 +79,6 @@ typedef struct Z_Deferred {
 // - shortaddr is unique if not null
 // - longaddr is unique if not null
 // - shortaddr and longaddr cannot be both null
-// - clusters_in contains only endpoints listed in endpoints
 class Z_Devices {
 public:
   Z_Devices() {};
@@ -97,20 +95,17 @@ public:
 
   uint64_t getDeviceLongAddr(uint16_t shortaddr) const;
 
+  uint8_t findFirstEndpoint(uint16_t shortaddr) const;
+
   // Add new device, provide ShortAddr and optional longAddr
   // If it is already registered, update information, otherwise create the entry
   void updateDevice(uint16_t shortaddr, uint64_t longaddr = 0);
 
   // Add an endpoint to a device
-  void addEndoint(uint16_t shortaddr, uint8_t endpoint);
-
-  // Add endpoint profile
-  void addEndointProfile(uint16_t shortaddr, uint8_t endpoint, uint16_t profileId);
+  void addEndpoint(uint16_t shortaddr, uint8_t endpoint);
 
   // Add cluster
   void addCluster(uint16_t shortaddr, uint8_t endpoint, uint16_t cluster);
-
-  uint8_t findClusterEndpointIn(uint16_t shortaddr, uint16_t cluster);
 
   void setManufId(uint16_t shortaddr, const char * str);
   void setModelId(uint16_t shortaddr, const char * str);
@@ -220,7 +215,7 @@ int32_t Z_Devices::findEndpointInVector(const std::vector<T>  & vecOfElements, u
 
   int32_t found = 0;
   for (auto &elem : vecOfElements) {
-    if ( ((elem >> 16) & 0xFF) == element) { return found; }
+    if (elem == element) { return found; }
     found++;
   }
 
@@ -239,8 +234,7 @@ Z_Device & Z_Devices::createDeviceEntry(uint16_t shortaddr, uint64_t longaddr) {
                       nullptr,    // ManufId
                       nullptr,   // DeviceId
                       nullptr,   // FriendlyName
-                      std::vector<uint32_t>(),     // at least one endpoint
-                      std::vector<uint32_t>(),     // try not to allocate if not needed
+                      std::vector<uint8_t>(),     // endpoints
                       nullptr, nullptr,
                       shortaddr,
                       0,          // seqNumber
@@ -271,7 +265,6 @@ void Z_Devices::freeDeviceEntry(Z_Device *device) {
 void Z_Devices::shrinkToFit(uint16_t shortaddr) {
   Z_Device & device = getShortAddr(shortaddr);
   device.endpoints.shrink_to_fit();
-  device.clusters_in.shrink_to_fit();
 }
 
 //
@@ -463,64 +456,45 @@ void Z_Devices::updateDevice(uint16_t shortaddr, uint64_t longaddr) {
 //
 // Add an endpoint to a shortaddr
 //
-void Z_Devices::addEndoint(uint16_t shortaddr, uint8_t endpoint) {
+void Z_Devices::addEndpoint(uint16_t shortaddr, uint8_t endpoint) {
   if (!shortaddr) { return; }
   if (0x00 == endpoint) { return; }
-  uint32_t ep_profile = (endpoint << 16);
   Z_Device &device = getShortAddr(shortaddr);
   if (&device == nullptr) { return; }                 // don't crash if not found
   if (findEndpointInVector(device.endpoints, endpoint) < 0) {
-    device.endpoints.push_back(ep_profile);
+    device.endpoints.push_back(endpoint);
     dirty();
   }
 }
 
-void Z_Devices::addEndointProfile(uint16_t shortaddr, uint8_t endpoint, uint16_t profileId) {
-  if (!shortaddr) { return; }
-  if (0x00 == endpoint) { return; }
-  uint32_t ep_profile = (endpoint << 16) | profileId;
-  Z_Device &device = getShortAddr(shortaddr);
-  if (&device == nullptr) { return; }                 // don't crash if not found
-  int32_t found = findEndpointInVector(device.endpoints, endpoint);
-  if (found < 0) {
-    device.endpoints.push_back(ep_profile);
-    dirty();
-  } else {
-    if (device.endpoints[found] != ep_profile) {
-      device.endpoints[found] = ep_profile;
-      dirty();
-    }
-  }
-}
-
-void Z_Devices::addCluster(uint16_t shortaddr, uint8_t endpoint, uint16_t cluster) {
-  if (!shortaddr) { return; }
-  Z_Device & device = getShortAddr(shortaddr);
-  if (&device == nullptr) { return; }                 // don't crash if not found
-  uint32_t ep_cluster = (endpoint << 16) | cluster;
-  if (!findInVector(device.clusters_in, ep_cluster)) {
-    device.clusters_in.push_back(ep_cluster);
-    dirty();
-  }
-}
-
-// Look for the best endpoint match to send a command for a specific Cluster ID
-// return 0x00 if none found
-uint8_t Z_Devices::findClusterEndpointIn(uint16_t shortaddr, uint16_t cluster){
-  int32_t short_found = findShortAddr(shortaddr);
-  if (short_found < 0)  return 0;     // avoid creating an entry if the device was never seen
-  Z_Device &device = getShortAddr(shortaddr);
-  if (&device == nullptr) { return 0; }                 // don't crash if not found
-
-  int32_t found = 0;
-  for (auto &elem : device.clusters_in) {
-    if ((elem & 0xFFFF) == cluster) {
-      return (device.clusters_in[found] >> 16) & 0xFF;
-    }
-    found++;
+// Find the first endpoint of the device
+uint8_t Z_Devices::findFirstEndpoint(uint16_t shortaddr) const {
+  int32_t found = findShortAddr(shortaddr);
+  if (found < 0)  return 0;     // avoid creating an entry if the device was never seen
+  const Z_Device &device = devicesAt(found);
+  if (!device.endpoints.empty()) {
+    return device.endpoints.front();
   }
   return -1;
 }
+
+// // Look for the best endpoint match to send a command for a specific Cluster ID
+// // return 0x00 if none found
+// uint8_t Z_Devices::findClusterEndpointIn(uint16_t shortaddr, uint16_t cluster){
+//   int32_t short_found = findShortAddr(shortaddr);
+//   if (short_found < 0)  return 0;     // avoid creating an entry if the device was never seen
+//   Z_Device &device = getShortAddr(shortaddr);
+//   if (&device == nullptr) { return 0; }                 // don't crash if not found
+
+//   int32_t found = 0;
+//   for (auto &elem : device.clusters_in) {
+//     if ((elem & 0xFFFF) == cluster) {
+//       return (device.clusters_in[found] >> 16) & 0xFF;
+//     }
+//     found++;
+//   }
+//   return -1;
+// }
 
 void Z_Devices::setManufId(uint16_t shortaddr, const char * str) {
   Z_Device & device = getShortAddr(shortaddr);
@@ -1043,42 +1017,12 @@ String Z_Devices::dump(uint32_t dump_mode, uint16_t status_shortaddr) const {
 
     // If dump_mode == 2, dump a lot more details
     if (3 <= dump_mode) {
-      JsonObject& dev_endpoints = dev.createNestedObject(F("Endpoints"));
-      for (std::vector<uint32_t>::const_iterator ite = device.endpoints.begin() ; ite != device.endpoints.end(); ++ite) {
-        uint32_t ep_profile = *ite;
-        uint8_t endpoint = (ep_profile >> 16) & 0xFF;
-        uint16_t profileId = ep_profile & 0xFFFF;
+      JsonArray& dev_endpoints = dev.createNestedArray(F("Endpoints"));
+      for (std::vector<uint8_t>::const_iterator ite = device.endpoints.begin() ; ite != device.endpoints.end(); ++ite) {
+        uint32_t endpoint = *ite;
 
         snprintf_P(hex, sizeof(hex), PSTR("0x%02X"), endpoint);
-        JsonObject& ep = dev_endpoints.createNestedObject(hex);
-
-        snprintf_P(hex, sizeof(hex), PSTR("0x%04X"), profileId);
-        ep[F("ProfileId")] = hex;
-
-        int32_t found = -1;
-        for (uint32_t i = 0; i < sizeof(Z_ProfileIds) / sizeof(Z_ProfileIds[0]); i++) {
-          if (pgm_read_word(&Z_ProfileIds[i]) == profileId) {
-            found = i;
-            break;
-          }
-        }
-        if (found > 0) {
-          GetTextIndexed(hex, sizeof(hex), found, Z_ProfileNames);
-          ep[F("ProfileIdName")] = hex;
-        }
-
-        ep.createNestedArray(F("ClustersIn"));
-      }
-
-      for (std::vector<uint32_t>::const_iterator itc = device.clusters_in.begin() ; itc != device.clusters_in.end(); ++itc) {
-        uint16_t cluster = *itc & 0xFFFF;
-        uint8_t  endpoint = (*itc >> 16) & 0xFF;
-
-        snprintf_P(hex, sizeof(hex), PSTR("0x%02X"), endpoint);
-        JsonArray &cluster_arr = dev_endpoints[hex][F("ClustersIn")];
-
-        snprintf_P(hex, sizeof(hex), PSTR("0x%04X"), cluster);
-        cluster_arr.add(hex);
+        dev_endpoints.add(hex);
       }
     }
   }

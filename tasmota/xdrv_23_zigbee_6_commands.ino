@@ -289,7 +289,7 @@ void sendHueUpdate(uint16_t shortaddr, uint16_t groupaddr, uint16_t cluster, uin
   if (z_cat >= 0) {
     uint8_t endpoint = 0;
     if (!groupaddr) {
-      endpoint = zigbee_devices.findClusterEndpointIn(shortaddr, cluster);
+      endpoint = zigbee_devices.findFirstEndpoint(shortaddr);
     }
     if ((endpoint) || (groupaddr)) {   // send only if we know the endpoint
       zigbee_devices.setTimer(shortaddr, groupaddr, wait_ms, cluster, endpoint, z_cat, 0 /* value */, &Z_ReadAttrCallback);
