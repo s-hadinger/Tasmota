@@ -425,7 +425,7 @@ void CmndZbSend(void) {
   // ZigbeeSend { "devicse":"0x1234", "endpoint":"0x03", "send":{"Power":1} }
   // ZigbeeSend { "device":"0x1234", "endpoint":"0x03", "send":{"Color":"1,2"} }
   // ZigbeeSend { "device":"0x1234", "endpoint":"0x03", "send":{"Color":"0x1122,0xFFEE"} }
-  if (zigbee.init_phase) { ResponseCmndChar((D_ZIGBEE_NOT_STARTED)); return; }
+  if (zigbee.init_phase) { ResponseCmndChar_P(PSTR(D_ZIGBEE_NOT_STARTED)); return; }
   DynamicJsonBuffer jsonBuf;
   JsonObject &json = jsonBuf.parseObject(XdrvMailbox.data);
   if (!json.success()) { ResponseCmndChar_P(PSTR(D_JSON_INVALID_JSON)); return; }
