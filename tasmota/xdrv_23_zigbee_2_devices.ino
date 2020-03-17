@@ -480,24 +480,6 @@ uint8_t Z_Devices::findFirstEndpoint(uint16_t shortaddr) const {
   return device.endpoints[0];   // returns 0x00 if no endpoint
 }
 
-// // Look for the best endpoint match to send a command for a specific Cluster ID
-// // return 0x00 if none found
-// uint8_t Z_Devices::findClusterEndpointIn(uint16_t shortaddr, uint16_t cluster){
-//   int32_t short_found = findShortAddr(shortaddr);
-//   if (short_found < 0)  return 0;     // avoid creating an entry if the device was never seen
-//   Z_Device &device = getShortAddr(shortaddr);
-//   if (&device == nullptr) { return 0; }                 // don't crash if not found
-
-//   int32_t found = 0;
-//   for (auto &elem : device.clusters_in) {
-//     if ((elem & 0xFFFF) == cluster) {
-//       return (device.clusters_in[found] >> 16) & 0xFF;
-//     }
-//     found++;
-//   }
-//   return -1;
-// }
-
 void Z_Devices::setManufId(uint16_t shortaddr, const char * str) {
   Z_Device & device = getShortAddr(shortaddr);
   if (&device == nullptr) { return; }                 // don't crash if not found
@@ -1015,10 +997,6 @@ String Z_Devices::dump(uint32_t dump_mode, uint16_t status_shortaddr) const {
       if (device.manufacturerId) {
         dev[F("Manufacturer")] = device.manufacturerId;
       }
-    }
-
-    // If dump_mode == 2, dump a lot more details
-    if (3 <= dump_mode) {
       JsonArray& dev_endpoints = dev.createNestedArray(F("Endpoints"));
       for (uint32_t i = 0; i < endpoints_max; i++) {
         uint8_t endpoint = device.endpoints[i];
