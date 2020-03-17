@@ -108,12 +108,17 @@ class SBuffer hibernateDevice(const struct Z_Device &device) {
   buf.add8(0x00);     // overall length, will be updated later
   buf.add16(device.shortaddr);
   buf.add64(device.longaddr);
-  uint32_t endpoints = device.endpoints.size();
-  if (endpoints > 254) { endpoints = 254; }
-  buf.add8(endpoints);
+
+  uint32_t endpoints_count = 0;
+  for (endpoints_count = 0; endpoints_count < endpoints_max; endpoints_count++) {
+    if (0x00 == device.endpoints[endpoints_count]) { break; }
+  }
+
+  buf.add8(endpoints_count);
   // iterate on endpoints
-  for (std::vector<uint8_t>::const_iterator ite = device.endpoints.begin() ; ite != device.endpoints.end(); ++ite) {
-    uint8_t endpoint = *ite;
+  for (uint32_t i = 0; i < endpoints_max; i++) {
+    uint8_t endpoint = device.endpoints[i];
+    if (0x00 == endpoint) { break; }      // stop
 
     buf.add8(endpoint);
     buf.add16(0x0000);   // profile_id, not used anymore
@@ -233,7 +238,6 @@ void hydrateDevices(const SBuffer &buf) {
         // ignore
       }
     }
-    zigbee_devices.shrinkToFit(shortaddr);
 //AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "Device 0x%04X Memory3.shrink = %d"), shortaddr, ESP.getFreeHeap());
 
     // parse 3 strings

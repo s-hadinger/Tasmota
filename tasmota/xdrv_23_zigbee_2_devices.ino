@@ -28,12 +28,14 @@ const uint16_t kZigbeeSaveDelaySeconds = ZIGBEE_SAVE_DELAY_SECONDS;    // wait f
 
 typedef int32_t (*Z_DeviceTimer)(uint16_t shortaddr, uint16_t groupaddr, uint16_t cluster, uint8_t endpoint, uint32_t value);
 
+const size_t endpoints_max = 8;         // we limit to 8 endpoints
+
 typedef struct Z_Device {
   uint64_t              longaddr;       // 0x00 means unspecified
   char *                manufacturerId;
   char *                modelId;
   char *                friendlyName;
-  std::vector<uint8_t>  endpoints;      // encoded as high 16 bits is endpoint, low 16 bits is ProfileId
+  uint8_t               endpoints[endpoints_max];   // static array to limit memory consumption, list of endpoints until 0x00 or end of array
   // json buffer used for attribute reporting
   DynamicJsonBuffer    *json_buffer;
   JsonObject           *json;
@@ -234,7 +236,7 @@ Z_Device & Z_Devices::createDeviceEntry(uint16_t shortaddr, uint64_t longaddr) {
                       nullptr,    // ManufId
                       nullptr,   // DeviceId
                       nullptr,   // FriendlyName
-                      std::vector<uint8_t>(),     // endpoints
+                      { 0, 0, 0, 0, 0, 0, 0, 0 },     // endpoints
                       nullptr, nullptr,
                       shortaddr,
                       0,          // seqNumber
@@ -260,11 +262,6 @@ void Z_Devices::freeDeviceEntry(Z_Device *device) {
   if (device->modelId) { free(device->modelId); }
   if (device->friendlyName) { free(device->friendlyName); }
   free(device);
-}
-
-void Z_Devices::shrinkToFit(uint16_t shortaddr) {
-  Z_Device & device = getShortAddr(shortaddr);
-  device.endpoints.shrink_to_fit();
 }
 
 //
@@ -461,9 +458,16 @@ void Z_Devices::addEndpoint(uint16_t shortaddr, uint8_t endpoint) {
   if (0x00 == endpoint) { return; }
   Z_Device &device = getShortAddr(shortaddr);
   if (&device == nullptr) { return; }                 // don't crash if not found
-  if (findEndpointInVector(device.endpoints, endpoint) < 0) {
-    device.endpoints.push_back(endpoint);
-    dirty();
+
+  for (uint32_t i = 0; i < endpoints_max; i++) {
+    if (endpoint == device.endpoints[i]) {
+      return;     // endpoint already there
+    }
+    if (0 == device.endpoints[i]) {
+      device.endpoints[i] = endpoint;
+      dirty();
+      return;
+    }
   }
 }
 
@@ -472,10 +476,8 @@ uint8_t Z_Devices::findFirstEndpoint(uint16_t shortaddr) const {
   int32_t found = findShortAddr(shortaddr);
   if (found < 0)  return 0;     // avoid creating an entry if the device was never seen
   const Z_Device &device = devicesAt(found);
-  if (!device.endpoints.empty()) {
-    return device.endpoints.front();
-  }
-  return -1;
+
+  return device.endpoints[0];   // returns 0x00 if no endpoint
 }
 
 // // Look for the best endpoint match to send a command for a specific Cluster ID
@@ -1018,8 +1020,9 @@ String Z_Devices::dump(uint32_t dump_mode, uint16_t status_shortaddr) const {
     // If dump_mode == 2, dump a lot more details
     if (3 <= dump_mode) {
       JsonArray& dev_endpoints = dev.createNestedArray(F("Endpoints"));
-      for (std::vector<uint8_t>::const_iterator ite = device.endpoints.begin() ; ite != device.endpoints.end(); ++ite) {
-        uint32_t endpoint = *ite;
+      for (uint32_t i = 0; i < endpoints_max; i++) {
+        uint8_t endpoint = device.endpoints[i];
+        if (0x00 == endpoint) { break; }
 
         snprintf_P(hex, sizeof(hex), PSTR("0x%02X"), endpoint);
         dev_endpoints.add(hex);
