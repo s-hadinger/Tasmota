@@ -365,7 +365,7 @@ int32_t Z_ReceiveEndDeviceAnnonce(int32_t res, const class SBuffer &buf) {
   char hex[20];
   Uint64toHex(ieeeAddr, hex, 64);
   Response_P(PSTR("{\"" D_JSON_ZIGBEE_STATE "\":{"
-                  "\"Status\":%d,\"IEEEAddr\":\"%s\",\"ShortAddr\":\"0x%04X\""
+                  "\"Status\":%d,\"IEEEAddr\":\"0x%s\",\"ShortAddr\":\"0x%04X\""
                   ",\"PowerSource\":%s,\"ReceiveWhenIdle\":%s,\"Security\":%s}}"),
                   ZIGBEE_STATUS_DEVICE_ANNOUNCE, hex, nwkAddr,
                   (capabilities & 0x04) ? "true" : "false",
