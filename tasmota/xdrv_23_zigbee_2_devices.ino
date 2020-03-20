@@ -170,7 +170,7 @@ public:
 
 private:
   std::vector<Z_Device*>    _devices = {};
-  std::vector<Z_Deferred>   _deferred = {};   // list of deferred calls
+  std::vector<Z_Deferred*>  _deferred = {};   // list of deferred calls
   uint32_t                  _saveTimer = 0;   
   uint8_t                   _seqNumber = 0;     // global seqNumber if device is unknown
 
@@ -643,12 +643,14 @@ bool Z_Devices::getHueState(uint16_t shortaddr,
 void Z_Devices::resetTimersForDevice(uint16_t shortaddr, uint16_t groupaddr, uint8_t category) {
   // iterate the list of deferred, and remove any linked to the shortaddr
   for (auto it = _deferred.begin(); it != _deferred.end(); it++) {
+    Z_Deferred * defer = *it;
     // Notice that the iterator is decremented after it is passed 
 		// to erase() but before erase() is executed
     // see https://www.techiedelight.com/remove-elements-vector-inside-loop-cpp/
-    if ((it->shortaddr == shortaddr) && (it->groupaddr == groupaddr)) {
-      if ((0xFF == category) || (it->category == category)) {
+    if ((defer->shortaddr == shortaddr) && (defer->groupaddr == groupaddr)) {
+      if ((0xFF == category) || (defer->category == category)) {
         _deferred.erase(it--);
+        free(defer);
       }
     }
   }
@@ -662,7 +664,7 @@ void Z_Devices::setTimer(uint16_t shortaddr, uint16_t groupaddr, uint32_t wait_m
   }
 
   // Now create the new timer
-  Z_Deferred deferred = { wait_ms + millis(),   // timer
+  Z_Deferred* deferred = new Z_Deferred { wait_ms + millis(),   // timer
                           shortaddr,
                           groupaddr,
                           cluster,
@@ -677,12 +679,13 @@ void Z_Devices::setTimer(uint16_t shortaddr, uint16_t groupaddr, uint32_t wait_m
 void Z_Devices::runTimer(void) {
   // visit all timers
   for (auto it = _deferred.begin(); it != _deferred.end(); it++) {
-    Z_Deferred &defer = *it;
+    Z_Deferred * defer = *it;
 
-    uint32_t timer = defer.timer;
+    uint32_t timer = defer->timer;
     if (TimeReached(timer)) {
-      (*defer.func)(defer.shortaddr, defer.groupaddr, defer.cluster, defer.endpoint, defer.value);
+      (*defer->func)(defer->shortaddr, defer->groupaddr, defer->cluster, defer->endpoint, defer->value);
       _deferred.erase(it--);    // remove from list
+      free(defer);
     }
   }
 
