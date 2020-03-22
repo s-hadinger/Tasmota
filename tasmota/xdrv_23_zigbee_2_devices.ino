@@ -121,6 +121,7 @@ public:
   // Dump json
   String dumpLightState(uint16_t shortaddr) const;
   String dump(uint32_t dump_mode, uint16_t status_shortaddr = 0) const;
+  int32_t deviceRestore(const JsonObject &json);
 
   // Hue support
   void setHueBulbtype(uint16_t shortaddr, int8_t bulbtype);
@@ -1011,6 +1012,19 @@ String Z_Devices::dump(uint32_t dump_mode, uint16_t status_shortaddr) const {
   payload.reserve(200);
   json.printTo(payload);
   return payload;
+}
+
+// Restore a single device configuration based on json export
+// Input: json element as expported by `ZbStatus2``
+// Mandatory attribue: `Device`
+//
+// Returns:
+//  0 : Ok
+// <0 : Error
+//
+// Ex: {"Device":"0x5ADF","Name":"IKEA_Light","IEEEAddr":"0x90FD9FFFFE03B051","ModelId":"TRADFRI bulb E27 WS opal 980lm","Manufacturer":"IKEA of Sweden","Endpoints":["0x01","0xF2"]}
+int32_t Z_Devices::deviceRestore(const JsonObject &json) {
+
 }
 
 #endif // USE_ZIGBEE
