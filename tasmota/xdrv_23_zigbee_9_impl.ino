@@ -841,6 +841,7 @@ void CmndZbRestore(void) {
     ResponseCmndChar_P(PSTR("Missing parameters"));
     return;
   }
+  ResponseCmndDone();
 }
 
 // Send an attribute read command to a device, specifying cluster and list of attributes

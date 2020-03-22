@@ -105,9 +105,7 @@ public:
 
   // Add an endpoint to a device
   void addEndpoint(uint16_t shortaddr, uint8_t endpoint);
-
-  // Add cluster
-  void addCluster(uint16_t shortaddr, uint8_t endpoint, uint16_t cluster);
+  void clearEndpoints(uint16_t shortaddr);
 
   void setManufId(uint16_t shortaddr, const char * str);
   void setModelId(uint16_t shortaddr, const char * str);
@@ -448,6 +446,20 @@ void Z_Devices::updateDevice(uint16_t shortaddr, uint64_t longaddr) {
     if (shortaddr || longaddr) {
       createDeviceEntry(shortaddr, longaddr);
     }
+  }
+}
+
+//
+// Clear all endpoints
+//
+void Z_Devices::clearEndpoints(uint16_t shortaddr) {
+  if (!shortaddr) { return; }
+  Z_Device &device = getShortAddr(shortaddr);
+  if (&device == nullptr) { return; }                 // don't crash if not found
+
+  for (uint32_t i = 0; i < endpoints_max; i++) {
+    device.endpoints[i] = 0;
+    // no dirty here because it doesn't make sense to store it, does it?
   }
 }
 
@@ -995,6 +1007,9 @@ String Z_Devices::dump(uint32_t dump_mode, uint16_t status_shortaddr) const {
       if (device.modelId) {
         dev[F(D_JSON_MODEL D_JSON_ID)] = device.modelId;
       }
+      if (-1 != device.bulbtype) {
+        dev[F(D_JSON_ZIGBEE_LIGHT)] = device.bulbtype;   // sign extend, 0xFF changed as -1
+      }
       if (device.manufacturerId) {
         dev[F("Manufacturer")] = device.manufacturerId;
       }
@@ -1028,12 +1043,11 @@ int32_t Z_Devices::deviceRestore(const JsonObject &json) {
   // params
   uint16_t device = 0x0000;                 // 0x0000 is coordinator so considered invalid
   uint64_t ieeeaddr = 0x0000000000000000LL; // 0 means unknown
-  String * modelid = nullptr;
-  String * manufid = nullptr;
-  String * friendlyname = nullptr;
-  int8_t   blubtype = 0xFF;
+  const char * modelid = nullptr;
+  const char * manufid = nullptr;
+  const char * friendlyname = nullptr;
+  int8_t   bulbtype = 0xFF;
   size_t   endpoints_len = 0;
-  uint8_t* endpoints = nullptr;
 
   // read mandatory "Device"
   const JsonVariant &val_device = getCaseInsensitive(json, PSTR("Device"));
@@ -1048,22 +1062,44 @@ int32_t Z_Devices::deviceRestore(const JsonObject &json) {
   if (nullptr != &val_ieeeaddr) {
     ieeeaddr = strtoull(val_ieeeaddr.as<const char*>(), nullptr, 0);
   }
-  // const JsonVariant &val_group = getCaseInsensitive(json, PSTR("Group"));
-  // if (nullptr != &val_group) { groupaddr = strToUInt(val_group); }
-  // if (0x0000 == groupaddr) {      // if no group address, we need a device address
-  //   const JsonVariant &val_device = getCaseInsensitive(json, PSTR("Device"));
-  //   if (nullptr != &val_device) {
-  //     device = zigbee_devices.parseDeviceParam(val_device.as<char*>());
-  //     if (0xFFFF == device) { ResponseCmndChar_P(PSTR("Invalid parameter")); return; }
-  //   }
-  //   if ((nullptr == &val_device) || (0x0000 == device)) { ResponseCmndChar_P(PSTR("Unknown device")); return; }
-  // }
 
-  // const JsonVariant &val_cluster = getCaseInsensitive(json, PSTR("Cluster"));
-  // if (nullptr != &val_cluster) { cluster = strToUInt(val_cluster); }
-  // const JsonVariant &val_endpoint = getCaseInsensitive(json, PSTR("Endpoint"));
-  // if (nullptr != &val_endpoint) { endpoint = strToUInt(val_endpoint); }
+  // read "Name"
+  friendlyname = getCaseInsensitiveConstCharNull(json, PSTR("Name"));
 
+  // read "ModelId"
+  modelid = getCaseInsensitiveConstCharNull(json, PSTR("ModelId"));
+
+  // read "Manufacturer"
+  manufid = getCaseInsensitiveConstCharNull(json, PSTR("Manufacturer"));
+
+  // read "Light"
+  const JsonVariant &val_bulbtype = getCaseInsensitive(json, PSTR(D_JSON_ZIGBEE_LIGHT));
+  if (nullptr != &val_bulbtype) { bulbtype = strToUInt(val_bulbtype);; }
+
+  // update internal device information
+  updateDevice(device, ieeeaddr);
+  if (modelid) { setModelId(device, modelid); }
+  if (manufid) { setManufId(device, manufid); }
+  if (friendlyname) { setFriendlyName(device, friendlyname); }
+  if (&val_bulbtype) { setHueBulbtype(device, bulbtype); }
+
+  // read "Endpoints"
+  const JsonVariant &val_endpoints = getCaseInsensitive(json, PSTR("Endpoints"));
+  if ((nullptr != &val_endpoints) && (val_endpoints.is<JsonArray>())) {
+    const JsonArray &arr_ep = val_endpoints.as<const JsonArray&>();
+    endpoints_len = arr_ep.size();
+    clearEndpoints(device);     // clear even if array is empty
+    if (endpoints_len) {
+      for (auto ep_elt : arr_ep) {
+        uint8_t ep = strToUInt(ep_elt);
+        if (ep) {
+          addEndpoint(device, ep);
+        }
+      }
+    }
+  }
+
+  return 0;
 }
 
 #endif // USE_ZIGBEE
