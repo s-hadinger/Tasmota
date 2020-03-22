@@ -1025,6 +1025,45 @@ String Z_Devices::dump(uint32_t dump_mode, uint16_t status_shortaddr) const {
 // Ex: {"Device":"0x5ADF","Name":"IKEA_Light","IEEEAddr":"0x90FD9FFFFE03B051","ModelId":"TRADFRI bulb E27 WS opal 980lm","Manufacturer":"IKEA of Sweden","Endpoints":["0x01","0xF2"]}
 int32_t Z_Devices::deviceRestore(const JsonObject &json) {
 
+  // params
+  uint16_t device = 0x0000;                 // 0x0000 is coordinator so considered invalid
+  uint64_t ieeeaddr = 0x0000000000000000LL; // 0 means unknown
+  String * modelid = nullptr;
+  String * manufid = nullptr;
+  String * friendlyname = nullptr;
+  int8_t   blubtype = 0xFF;
+  size_t   endpoints_len = 0;
+  uint8_t* endpoints = nullptr;
+
+  // read mandatory "Device"
+  const JsonVariant &val_device = getCaseInsensitive(json, PSTR("Device"));
+  if (nullptr != &val_device) {
+    device = strToUInt(val_device);
+  } else {
+    return -1;        // missing "Device" attribute
+  }
+
+  // read "IEEEAddr" 64 bits in format "0x0000000000000000"
+  const JsonVariant &val_ieeeaddr = getCaseInsensitive(json, PSTR("IEEEAddr"));
+  if (nullptr != &val_ieeeaddr) {
+    ieeeaddr = strtoull(val_ieeeaddr.as<const char*>(), nullptr, 0);
+  }
+  // const JsonVariant &val_group = getCaseInsensitive(json, PSTR("Group"));
+  // if (nullptr != &val_group) { groupaddr = strToUInt(val_group); }
+  // if (0x0000 == groupaddr) {      // if no group address, we need a device address
+  //   const JsonVariant &val_device = getCaseInsensitive(json, PSTR("Device"));
+  //   if (nullptr != &val_device) {
+  //     device = zigbee_devices.parseDeviceParam(val_device.as<char*>());
+  //     if (0xFFFF == device) { ResponseCmndChar_P(PSTR("Invalid parameter")); return; }
+  //   }
+  //   if ((nullptr == &val_device) || (0x0000 == device)) { ResponseCmndChar_P(PSTR("Unknown device")); return; }
+  // }
+
+  // const JsonVariant &val_cluster = getCaseInsensitive(json, PSTR("Cluster"));
+  // if (nullptr != &val_cluster) { cluster = strToUInt(val_cluster); }
+  // const JsonVariant &val_endpoint = getCaseInsensitive(json, PSTR("Endpoint"));
+  // if (nullptr != &val_endpoint) { endpoint = strToUInt(val_endpoint); }
+
 }
 
 #endif // USE_ZIGBEE
