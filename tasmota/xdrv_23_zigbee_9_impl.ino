@@ -647,12 +647,15 @@ void CmndZbPing(void) {
   CmndZbProbeOrPing(false);
 }
 
+//
+// Command `ZbName`
 // Specify, read or erase a Friendly Name
+//
 void CmndZbName(void) {
   // Syntax is:
-  //  ZigbeeName <device_id>,<friendlyname>  - assign a friendly name
-  //  ZigbeeName <device_id>                 - display the current friendly name
-  //  ZigbeeName <device_id>,                - remove friendly name
+  //  ZbName <device_id>,<friendlyname>  - assign a friendly name
+  //  ZbName <device_id>                 - display the current friendly name
+  //  ZbName <device_id>,                - remove friendly name
   //
   // Where <device_id> can be: short_addr, long_addr, device_index, friendly_name
 
@@ -676,12 +679,15 @@ void CmndZbName(void) {
   }
 }
 
+//
+// Command `ZbName`
 // Specify, read or erase a ModelId, only for debug purposes
+//
 void CmndZbModelId(void) {
   // Syntax is:
-  //  ZigbeeName <device_id>,<friendlyname>  - assign a friendly name
-  //  ZigbeeName <device_id>                 - display the current friendly name
-  //  ZigbeeName <device_id>,                - remove friendly name
+  //  ZbName <device_id>,<friendlyname>  - assign a friendly name
+  //  ZbName <device_id>                 - display the current friendly name
+  //  ZbName <device_id>,                - remove friendly name
   //
   // Where <device_id> can be: short_addr, long_addr, device_index, friendly_name
 
@@ -705,6 +711,8 @@ void CmndZbModelId(void) {
   }
 }
 
+//
+// Command `ZbLight`
 // Specify, read or erase a Light type for Hue/Alexa integration
 void CmndZbLight(void) {
   // Syntax is:
@@ -738,7 +746,10 @@ void CmndZbLight(void) {
   ResponseCmndDone();
 }
 
+//
+// Command `ZbForget`
 // Remove an old Zigbee device from the list of known devices, use ZigbeeStatus to know all registered devices
+//
 void CmndZbForget(void) {
   if (zigbee.init_phase) { ResponseCmndChar_P(PSTR(D_ZIGBEE_NOT_STARTED)); return; }
   uint16_t shortaddr = zigbee_devices.parseDeviceParam(XdrvMailbox.data);
@@ -753,12 +764,13 @@ void CmndZbForget(void) {
   }
 }
 
+//
+// Command `ZbSave`
 // Save Zigbee information to flash
+//
 void CmndZbSave(void) {
   if (zigbee.init_phase) { ResponseCmndChar_P(PSTR(D_ZIGBEE_NOT_STARTED)); return; }
-
   saveZigbeeDevices();
-
   ResponseCmndDone();
 }
 
@@ -773,7 +785,7 @@ void CmndZbSave(void) {
 void CmndZbRestore(void) {
   if (zigbee.init_phase) { ResponseCmndChar_P(PSTR(D_ZIGBEE_NOT_STARTED)); return; }
   DynamicJsonBuffer jsonBuf;
-  const JsonVariant json_parsed = jsonBuf.parse((const char*)XdrvMailbox.data);   // const to force a copy of parameter
+  const JsonVariant json_parsed = jsonBuf.parse((const char*) XdrvMailbox.data);   // const to force a copy of parameter
   const JsonVariant * json = &json_parsed;    // root of restore, to be changed if needed
   bool success = false;
 
@@ -816,11 +828,14 @@ void CmndZbRestore(void) {
   ResponseCmndDone();
 }
 
+//
+// Command `ZbRead`
 // Send an attribute read command to a device, specifying cluster and list of attributes
+//
 void CmndZbRead(void) {
-  // ZigbeeRead {"Device":"0xF289","Cluster":0,"Endpoint":3,"Attr":5}
-  // ZigbeeRead {"Device":"0xF289","Cluster":"0x0000","Endpoint":"0x0003","Attr":"0x0005"}
-  // ZigbeeRead {"Device":"0xF289","Cluster":0,"Endpoint":3,"Attr":[5,6,7,4]}
+  // ZbRead {"Device":"0xF289","Cluster":0,"Endpoint":3,"Attr":5}
+  // ZbRead {"Device":"0xF289","Cluster":"0x0000","Endpoint":"0x0003","Attr":"0x0005"}
+  // ZbRead {"Device":"0xF289","Cluster":0,"Endpoint":3,"Attr":[5,6,7,4]}
   if (zigbee.init_phase) { ResponseCmndChar_P(PSTR(D_ZIGBEE_NOT_STARTED)); return; }
   DynamicJsonBuffer jsonBuf;
   JsonObject &json = jsonBuf.parseObject((const char*) XdrvMailbox.data);
@@ -854,7 +869,7 @@ void CmndZbRead(void) {
   if (nullptr != &val_attr) {
     uint16_t val = strToUInt(val_attr);
     if (val_attr.is<JsonArray>()) {
-      JsonArray& attr_arr = val_attr;
+      const JsonArray& attr_arr = val_attr.as<const JsonArray&>();
       attrs_len = attr_arr.size() * 2;
       attrs = new uint8_t[attrs_len];
 
@@ -890,7 +905,10 @@ void CmndZbRead(void) {
   if (attrs) { delete[] attrs; }
 }
 
+//
+// Command `ZbPermitJoin`
 // Allow or Deny pairing of new Zigbee devices
+//
 void CmndZbPermitJoin(void) {
   if (zigbee.init_phase) { ResponseCmndChar_P(PSTR(D_ZIGBEE_NOT_STARTED)); return; }
   uint32_t payload = XdrvMailbox.payload;
@@ -916,6 +934,9 @@ void CmndZbPermitJoin(void) {
   ResponseCmndDone();
 }
 
+//
+// Command `ZbStatus`
+//
 void CmndZbStatus(void) {
   if (ZigbeeSerial) {
     if (zigbee.init_phase) { ResponseCmndChar_P(PSTR(D_ZIGBEE_NOT_STARTED)); return; }
