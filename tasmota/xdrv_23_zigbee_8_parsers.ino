@@ -293,16 +293,12 @@ int32_t Z_DataConfirm(int32_t res, const class SBuffer &buf) {
   uint8_t           status = buf.get8(2);
   uint8_t           endpoint = buf.get8(3);
   //uint8_t           transId = buf.get8(4);    // unused
-  char              status_message[32];
 
   if (status) {   // only report errors
-    strncpy_P(status_message, (const char*) getZigbeeStatusMessage(status), sizeof(status_message));
-    status_message[sizeof(status_message)-1] = 0;   // truncate if needed, strlcpy is safer but strlcpy_P does not exist
-
     Response_P(PSTR("{\"" D_JSON_ZIGBEE_CONFIRM "\":{\"" D_CMND_ZIGBEE_ENDPOINT "\":%d"
                       ",\"" D_JSON_ZIGBEE_STATUS "\":%d"
                       ",\"" D_JSON_ZIGBEE_STATUS_MSG "\":\"%s\""
-                      "}}"), endpoint, status, status_message);
+                      "}}"), endpoint, status, getZigbeeStatusMessage(status).c_str());
     MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCL_RECEIVED));
     XdrvRulesProcess();
   }
@@ -369,10 +365,6 @@ int32_t Z_ReceiveTCDevInd(int32_t res, const class SBuffer &buf) {
 int32_t Z_BindRsp(int32_t res, const class SBuffer &buf) {
   Z_ShortAddress    nwkAddr = buf.get16(2);
   uint8_t           status = buf.get8(4);
-  char              status_message[32];
-
-  strncpy_P(status_message, (const char*) getZigbeeStatusMessage(status), sizeof(status_message));
-  status_message[sizeof(status_message)-1] = 0;   // truncate if needed, strlcpy is safer but strlcpy_P does not exist
 
   const char * friendlyName = zigbee_devices.getFriendlyName(nwkAddr);
   if (friendlyName) {
@@ -380,12 +372,12 @@ int32_t Z_BindRsp(int32_t res, const class SBuffer &buf) {
                     ",\"" D_JSON_ZIGBEE_NAME "\":\"%s\""
                     ",\"" D_JSON_ZIGBEE_STATUS "\":%d"
                     ",\"" D_JSON_ZIGBEE_STATUS_MSG "\":\"%s\""
-                    "}}"), nwkAddr, friendlyName, status, status_message);
+                    "}}"), nwkAddr, friendlyName, status, getZigbeeStatusMessage(status).c_str());
   } else {
     Response_P(PSTR("{\"" D_JSON_ZIGBEE_BIND "\":{\"" D_JSON_ZIGBEE_DEVICE "\":\"0x%04X\""
                     ",\"" D_JSON_ZIGBEE_STATUS "\":%d"
                     ",\"" D_JSON_ZIGBEE_STATUS_MSG "\":\"%s\""
-                    "}}"), nwkAddr, status, status_message);
+                    "}}"), nwkAddr, status, getZigbeeStatusMessage(status).c_str());
   }
   MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCL_RECEIVED));
   XdrvRulesProcess();
