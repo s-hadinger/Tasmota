@@ -26,7 +26,9 @@
 #endif
 const uint16_t kZigbeeSaveDelaySeconds = ZIGBEE_SAVE_DELAY_SECONDS;    // wait for x seconds
 
-typedef int32_t (*Z_DeviceTimer)(uint16_t shortaddr, uint16_t groupaddr, uint16_t cluster, uint8_t endpoint, uint32_t value);
+/*********************************************************************************************\
+ * Structures for device configuration
+\*********************************************************************************************/
 
 const size_t endpoints_max = 8;         // we limit to 8 endpoints
 
@@ -53,6 +55,12 @@ typedef struct Z_Device {
   uint16_t              x, y;           // last color [x,y]
 } Z_Device;
 
+/*********************************************************************************************\
+ * Structures for deferred callbacks
+\*********************************************************************************************/
+
+typedef int32_t (*Z_DeviceTimer)(uint16_t shortaddr, uint16_t groupaddr, uint16_t cluster, uint8_t endpoint, uint32_t value);
+
 // Category for Deferred actions, this allows to selectively remove active deferred or update them
 typedef enum Z_Def_Category {
   Z_CAT_NONE = 0,             // no category, it will happen anyways
@@ -75,6 +83,10 @@ typedef struct Z_Deferred {
   uint32_t              value;          // any raw value to use for the timer
   Z_DeviceTimer         func;           // function to call when timer occurs
 } Z_Deferred;
+
+/*********************************************************************************************\
+ * Singleton for device configuration
+\*********************************************************************************************/
 
 // All devices are stored in a Vector
 // Invariants:
@@ -192,10 +204,17 @@ private:
   void freeDeviceEntry(Z_Device *device);
 };
 
+/*********************************************************************************************\
+ * Singleton variable
+\*********************************************************************************************/
 Z_Devices zigbee_devices = Z_Devices();
 
 // Local coordinator information
 uint64_t localIEEEAddr = 0;
+
+/*********************************************************************************************\
+ * Implementation
+\*********************************************************************************************/
 
 // https://thispointer.com/c-how-to-find-an-element-in-vector-and-get-its-index/
 template < typename T>
