@@ -392,7 +392,7 @@ void CmndZbSend(void) {
   // ZbSend { "device":"0x1234", "endpoint":"0x03", "send":{"Color":"0x1122,0xFFEE"} }
   if (zigbee.init_phase) { ResponseCmndChar_P(PSTR(D_ZIGBEE_NOT_STARTED)); return; }
   DynamicJsonBuffer jsonBuf;
-  const JsonObject &json = jsonBuf.parseObject(XdrvMailbox.data);
+  const JsonObject &json = jsonBuf.parseObject((const char*) XdrvMailbox.data);
   if (!json.success()) { ResponseCmndChar_P(PSTR(D_JSON_INVALID_JSON)); return; }
 
   // params
@@ -532,15 +532,15 @@ void CmndZbSend(void) {
 }
 
 //
-//
+// Command `ZbBind`
 //
 void CmndZbBind(void) {
-  // ZbBind { "device":"0x1234", "endpoint":1, "cluster":6 }
+  // ZbBind {"Device":"<device>", "Endpoint":<endpoint>, "Cluster":<cluster>, "ToDevice":"<to_device>", "ToEndpoint":<to_endpoint>, "ToGroup":<to_group> }
 
   // local endpoint is always 1, IEEE addresses are calculated
   if (zigbee.init_phase) { ResponseCmndChar_P(PSTR(D_ZIGBEE_NOT_STARTED)); return; }
   DynamicJsonBuffer jsonBuf;
-  JsonObject &json = jsonBuf.parseObject(XdrvMailbox.data);
+  const JsonObject &json = jsonBuf.parseObject((const char*) XdrvMailbox.data);
   if (!json.success()) { ResponseCmndChar_P(PSTR(D_JSON_INVALID_JSON)); return; }
 
   // params
@@ -625,6 +625,9 @@ void CmndZbProbe(void) {
   CmndZbProbeOrPing(true);
 }
 
+//
+// Common code for `ZbProbe` and `ZbPing`
+//
 void CmndZbProbeOrPing(boolean probe) {
   if (zigbee.init_phase) { ResponseCmndChar_P(PSTR(D_ZIGBEE_NOT_STARTED)); return; }
   uint16_t shortaddr = zigbee_devices.parseDeviceParam(XdrvMailbox.data);
@@ -820,7 +823,7 @@ void CmndZbRead(void) {
   // ZigbeeRead {"Device":"0xF289","Cluster":0,"Endpoint":3,"Attr":[5,6,7,4]}
   if (zigbee.init_phase) { ResponseCmndChar_P(PSTR(D_ZIGBEE_NOT_STARTED)); return; }
   DynamicJsonBuffer jsonBuf;
-  JsonObject &json = jsonBuf.parseObject(XdrvMailbox.data);
+  JsonObject &json = jsonBuf.parseObject((const char*) XdrvMailbox.data);
   if (!json.success()) { ResponseCmndChar_P(PSTR(D_JSON_INVALID_JSON)); return; }
 
   // params
