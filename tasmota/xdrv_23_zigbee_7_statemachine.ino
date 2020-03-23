@@ -617,4 +617,85 @@ void ZigbeeStateMachine_Run(void) {
   }
 }
 
+//
+// Process a bytes buffer and call any callback that matches the received message
+//
+int32_t ZigbeeProcessInput(class SBuffer &buf) {
+  if (!zigbee.state_machine) { return -1; }     // if state machine is stopped, send 'ignore' message
+
+  // apply the receive filter, acts as 'startsWith()'
+  bool recv_filter_match = true;
+  bool recv_prefix_match = false;      // do the first 2 bytes match the response
+  if ((zigbee.recv_filter) && (zigbee.recv_filter_len > 0)) {
+    if (zigbee.recv_filter_len >= 2) {
+      recv_prefix_match = false;
+      if ( (pgm_read_byte(&zigbee.recv_filter[0]) == buf.get8(0)) &&
+           (pgm_read_byte(&zigbee.recv_filter[1]) == buf.get8(1)) ) {
+        recv_prefix_match = true;
+      }
+    }
+
+    for (uint32_t i = 0; i < zigbee.recv_filter_len; i++) {
+      if (pgm_read_byte(&zigbee.recv_filter[i]) != buf.get8(i)) {
+        recv_filter_match = false;
+        break;
+      }
+    }
+
+    //AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR(D_LOG_ZIGBEE "ZbProcessInput: recv_prefix_match = %d, recv_filter_match = %d"), recv_prefix_match, recv_filter_match);
+  }
+
+  // if there is a recv_callback, call it now
+  int32_t res = -1;         // default to ok
+                            // res  =  0   - proceed to next state
+                            // res  >  0   - proceed to the specified state
+                            // res  = -1  - silently ignore the message
+                            // res <= -2 - move to error state
+  // pre-compute the suggested value
+  if ((zigbee.recv_filter) && (zigbee.recv_filter_len > 0)) {
+    if (!recv_prefix_match) {
+      res = -1;    // ignore
+    } else {  // recv_prefix_match
+      if (recv_filter_match) {
+        res = 0;     // ok
+      } else {
+        if (zigbee.recv_until) {
+          res = -1;  // ignore until full match
+        } else {
+          res = -2;  // error, because message is expected but wrong value
+        }
+      }
+    }
+  } else {    // we don't have any filter, ignore message by default
+    res = -1;
+  }
+
+  if (recv_prefix_match) {
+    if (zigbee.recv_func) {
+      res = (*zigbee.recv_func)(res, buf);
+    }
+  }
+  if (-1 == res) {
+    // if frame was ignored up to now
+    if (zigbee.recv_unexpected) {
+      res = (*zigbee.recv_unexpected)(res, buf);
+    }
+  }
+  //AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR(D_LOG_ZIGBEE "ZbProcessInput: res = %d"), res);
+
+  // change state accordingly
+  if (0 == res) {
+    // if ok, continue execution
+    zigbee.state_waiting = false;
+  } else if (res > 0) {
+    ZigbeeGotoLabel(res);     // if >0 then go to specified label
+  } else if (-1 == res) {
+    // -1 means ignore message
+    // just do nothing
+  } else {
+    // any other negative value means error
+    ZigbeeGotoLabel(zigbee.on_error_goto);
+  }
+}
+
 #endif // USE_ZIGBEE
