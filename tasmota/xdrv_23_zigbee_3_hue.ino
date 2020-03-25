@@ -164,7 +164,7 @@ void ZigbeeHueHS(uint16_t shortaddr, uint16_t hue, uint8_t sat) {
   char param[16];
   uint8_t hue8 = changeUIntScale(hue, 0, 360, 0, 254);
   if (sat > 0xFE) { sat = 0xFE; }
-  snprintf_P(param, sizeof(param), PSTR("%02X%02X0A00"), hue8, sat);
+  snprintf_P(param, sizeof(param), PSTR("%02X%02X0000"), hue8, sat);
   uint8_t colormode = 0;      // "hs"
   zigbeeZCLSendStr(shortaddr, 0, 0, true, 0x0300, 0x06, param);
   zigbee_devices.updateHueState(shortaddr, nullptr, &colormode, nullptr, &sat, nullptr, &hue, nullptr, nullptr);
