@@ -513,6 +513,10 @@ int32_t Z_ReceiveAfIncomingMessage(int32_t res, const class SBuffer &buf) {
     // Add linkquality
     json[F(D_CMND_ZIGBEE_LINKQUALITY)] = linkquality;
 
+    // since we just receveived data from the device, it is reachable
+    zigbee_devices.resetTimersForDevice(srcaddr, 0 /* groupaddr */, Z_CAT_REACHABILITY);    // remove any reachability timer already there
+    zigbee_devices.setReachable(srcaddr, true);     // mark device as reachable
+
     if (defer_attributes) {
       // Prepare for publish
       if (zigbee_devices.jsonIsConflict(srcaddr, json)) {
@@ -602,25 +606,16 @@ int32_t Z_Query_Bulbs(uint8_t value) {
     const Z_Device &device = zigbee_devices.devicesAt(i);
 
     if (0 <= device.bulbtype) {
-      uint16_t cluster;
       uint8_t endpoint = zigbee_devices.findFirstEndpoint(device.shortaddr);
 
-      cluster = 0x0006;
       if (endpoint) {   // send only if we know the endpoint
-        zigbee_devices.setTimer(device.shortaddr, 0 /* groupaddr */, wait_ms, cluster, endpoint, Z_CAT_NONE, 0 /* value */, &Z_ReadAttrCallback);
+        zigbee_devices.setTimer(device.shortaddr, 0 /* groupaddr */, wait_ms, 0x0006, endpoint, Z_CAT_NONE, 0 /* value */, &Z_ReadAttrCallback);
         wait_ms += inter_message_ms;
-      }
-
-      cluster = 0x0008;
-      if (endpoint) {   // send only if we know the endpoint
-        zigbee_devices.setTimer(device.shortaddr, 0 /* groupaddr */, wait_ms, cluster, endpoint, Z_CAT_NONE, 0 /* value */, &Z_ReadAttrCallback);
+        zigbee_devices.setTimer(device.shortaddr, 0 /* groupaddr */, wait_ms, 0x0008, endpoint, Z_CAT_NONE, 0 /* value */, &Z_ReadAttrCallback);
         wait_ms += inter_message_ms;
-      }
-
-      cluster = 0x0300;
-      if (endpoint) {   // send only if we know the endpoint
-        zigbee_devices.setTimer(device.shortaddr, 0 /* groupaddr */, wait_ms, cluster, endpoint, Z_CAT_NONE, 0 /* value */, &Z_ReadAttrCallback);
+        zigbee_devices.setTimer(device.shortaddr, 0 /* groupaddr */, wait_ms, 0x0300, endpoint, Z_CAT_NONE, 0 /* value */, &Z_ReadAttrCallback);
         wait_ms += inter_message_ms;
+        zigbee_devices.setTimer(device.shortaddr, 0, wait_ms + Z_CAT_REACHABILITY_TIMEOUT, 0, endpoint, Z_CAT_REACHABILITY, 0 /* value */, &Z_Unreachable);
       }
     }
   }
