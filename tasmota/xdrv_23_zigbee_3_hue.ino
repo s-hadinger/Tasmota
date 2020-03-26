@@ -24,13 +24,14 @@
 
 // idx: index in the list of zigbee_devices
 void HueLightStatus1Zigbee(uint16_t shortaddr, uint8_t local_light_subtype, String *response) {
-  uint8_t  power, colormode, bri, sat;
+  bool     power, reachable;
+  uint8_t  colormode, bri, sat;
   uint16_t ct, hue;
   uint16_t x, y;
   String light_status = "";
   uint32_t echo_gen = findEchoGeneration();   // 1 for 1st gen =+ Echo Dot 2nd gen, 2 for 2nd gen and above
 
-  zigbee_devices.getHueState(shortaddr, &power, &colormode, &bri, &sat, &ct, &hue, &x, &y);
+  zigbee_devices.getHueState(shortaddr, &power, &colormode, &bri, &sat, &ct, &hue, &x, &y, &reachable);
 
   if (bri > 254)   bri = 254;    // Philips Hue bri is between 1 and 254
   if (bri < 1)     bri = 1;
@@ -123,9 +124,9 @@ void ZigbeeHueGroups(String * lights) {
 
 // Send commands
 // Power On/Off
-void ZigbeeHuePower(uint16_t shortaddr, uint8_t power) {
-  zigbeeZCLSendStr(shortaddr, 0, 0, true, 0x0006, power, "");
-  zigbee_devices.updateHueState(shortaddr, &power, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+void ZigbeeHuePower(uint16_t shortaddr, bool power) {
+  zigbeeZCLSendStr(shortaddr, 0, 0, true, 0x0006, power ? 1 : 0, "");
+  zigbee_devices.updateHueState(shortaddr, &power, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
 }
 
 // Dimmer
@@ -134,7 +135,7 @@ void ZigbeeHueDimmer(uint16_t shortaddr, uint8_t dimmer) {
   char param[8];
   snprintf_P(param, sizeof(param), PSTR("%02X0A00"), dimmer);
   zigbeeZCLSendStr(shortaddr, 0, 0, true, 0x0008, 0x04, param);
-  zigbee_devices.updateHueState(shortaddr, nullptr, nullptr, &dimmer, nullptr, nullptr, nullptr, nullptr, nullptr);
+  zigbee_devices.updateHueState(shortaddr, nullptr, nullptr, &dimmer, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
 }
 
 // CT
@@ -145,7 +146,7 @@ void ZigbeeHueCT(uint16_t shortaddr, uint16_t ct) {
   snprintf_P(param, sizeof(param), PSTR("%02X%02X0A00"), ct & 0xFF, ct >> 8);
   uint8_t colormode = 2;      // "ct"
   zigbeeZCLSendStr(shortaddr, 0, 0, true, 0x0300, 0x0A, param);
-  zigbee_devices.updateHueState(shortaddr, nullptr, &colormode, nullptr, nullptr, &ct, nullptr, nullptr, nullptr);
+  zigbee_devices.updateHueState(shortaddr, nullptr, &colormode, nullptr, nullptr, &ct, nullptr, nullptr, nullptr, nullptr);
 }
 
 // XY
@@ -156,7 +157,7 @@ void ZigbeeHueXY(uint16_t shortaddr, uint16_t x, uint16_t y) {
   snprintf_P(param, sizeof(param), PSTR("%02X%02X%02X%02X0A00"), x & 0xFF, x >> 8, y & 0xFF, y >> 8);
   uint8_t colormode = 1;      // "xy"
   zigbeeZCLSendStr(shortaddr, 0, 0, true, 0x0300, 0x07, param);
-  zigbee_devices.updateHueState(shortaddr, nullptr, &colormode, nullptr, nullptr, nullptr, nullptr, &x, &y);
+  zigbee_devices.updateHueState(shortaddr, nullptr, &colormode, nullptr, nullptr, nullptr, nullptr, &x, &y, nullptr);
 }
 
 // HueSat
@@ -167,7 +168,7 @@ void ZigbeeHueHS(uint16_t shortaddr, uint16_t hue, uint8_t sat) {
   snprintf_P(param, sizeof(param), PSTR("%02X%02X0000"), hue8, sat);
   uint8_t colormode = 0;      // "hs"
   zigbeeZCLSendStr(shortaddr, 0, 0, true, 0x0300, 0x06, param);
-  zigbee_devices.updateHueState(shortaddr, nullptr, &colormode, nullptr, &sat, nullptr, &hue, nullptr, nullptr);
+  zigbee_devices.updateHueState(shortaddr, nullptr, &colormode, nullptr, &sat, nullptr, &hue, nullptr, nullptr, nullptr);
 }
 
 void ZigbeeHandleHue(uint16_t shortaddr, uint32_t device_id, String &response) {
