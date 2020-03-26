@@ -46,7 +46,7 @@ typedef struct Z_Device {
   uint8_t               seqNumber;
   // Light information for Hue integration integration, last known values
   int8_t                bulbtype;       // number of channel for the bulb: 0-5, or 0xFF if no Hue integration
-  uint8_t               power;          // power state (boolean), MSB (0x80) stands for unreachable
+  uint8_t               power;          // power state (boolean), MSB (0x80) stands for reachable
   uint8_t               colormode;      // 0x00: Hue/Sat, 0x01: XY, 0x02: CT
   uint8_t               dimmer;         // last Dimmer value: 0-254
   uint8_t               sat;            // last Sat: 0..254
@@ -264,7 +264,7 @@ Z_Device & Z_Devices::createDeviceEntry(uint16_t shortaddr, uint64_t longaddr) {
                       0,          // seqNumber
                       // Hue support
                       -1,         // no Hue support
-                      0,          // power + reachable
+                      0x80,       // power off + reachable
                       0,          // colormode
                       0,          // dimmer
                       0,          // sat

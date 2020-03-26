@@ -24,6 +24,11 @@
 
 // idx: index in the list of zigbee_devices
 void HueLightStatus1Zigbee(uint16_t shortaddr, uint8_t local_light_subtype, String *response) {
+  static const char HUE_LIGHTS_STATUS_JSON1_SUFFIX_ZIGBEE[] PROGMEM =
+    "%s\"alert\":\"none\","
+    "\"effect\":\"none\","
+    "\"reachable\":%s}";
+
   bool     power, reachable;
   uint8_t  colormode, bri, sat;
   uint16_t ct, hue;
@@ -41,7 +46,7 @@ void HueLightStatus1Zigbee(uint16_t shortaddr, uint8_t local_light_subtype, Stri
   const size_t buf_size = 256;
   char * buf = (char*) malloc(buf_size);     // temp buffer for strings, avoid stack
 
-  snprintf_P(buf, buf_size, PSTR("{\"on\":%s,"), (power & 1) ? "true" : "false");
+  snprintf_P(buf, buf_size, PSTR("{\"on\":%s,"), power ? "true" : "false");
   // Brightness for all devices with PWM
   if ((1 == echo_gen) || (LST_SINGLE <= local_light_subtype)) { // force dimmer for 1st gen Echo
     snprintf_P(buf, buf_size, PSTR("%s\"bri\":%d,"), buf, bri);
@@ -62,7 +67,7 @@ void HueLightStatus1Zigbee(uint16_t shortaddr, uint8_t local_light_subtype, Stri
   if (LST_COLDWARM == local_light_subtype || LST_RGBW <= local_light_subtype) {  // white temp
     snprintf_P(buf, buf_size, PSTR("%s\"ct\":%d,"), buf, ct > 0 ? ct : 284);
   }
-  snprintf_P(buf, buf_size, HUE_LIGHTS_STATUS_JSON1_SUFFIX, buf);
+  snprintf_P(buf, buf_size, HUE_LIGHTS_STATUS_JSON1_SUFFIX_ZIGBEE, buf, reachable ? "true" : "false");
 
   *response += buf;
   free(buf);
