@@ -346,7 +346,8 @@ void SetLedPowerIdx(uint32_t led, uint32_t state)
     } else {
       led_power &= (0xFF ^ mask);
     }
-    DigitalWrite(GPIO_LED1 + led, bitRead(led_inverted, led) ? !state : state);
+    //DigitalWrite(GPIO_LED1 + led, bitRead(led_inverted, led) ? !state : state);
+    DigitalWritePwm(GPIO_LED1 + led, state, bitRead(led_inverted, led));
   }
 #ifdef USE_BUZZER
   if (led == 0) {
@@ -385,8 +386,12 @@ void SetLedLink(uint32_t state)
     led_inv = bitRead(led_inverted, 0);
   }
   if (led_pin < 99) {
-    if (state) { state = 1; }
-    digitalWrite(led_pin, (led_inv) ? !state : state);
+    if (!led_inv) {
+      analogWrite(led_pin, state ? 200 : 0);
+    } else {
+      analogWrite(led_pin, state ? 1000 : 1023);
+    }
+    //digitalWrite(led_pin, (led_inv) ? !state : state);
   }
 #ifdef USE_BUZZER
   BuzzerSetStateToLed(state);

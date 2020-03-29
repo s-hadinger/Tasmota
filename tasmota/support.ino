@@ -1072,6 +1072,19 @@ void DigitalWrite(uint32_t gpio_pin, uint32_t state)
   }
 }
 
+// Variant used to blend state leds at reduced power
+void DigitalWritePwm(uint32_t gpio_pin, uint32_t state, bool inverted)
+{
+//Serial.printf("DigitalWritePwm gpio_pin %d state %d inverted %d\n", gpio_pin, state, inverted);
+  if (pin[gpio_pin] < 99) {
+    if (!inverted) {
+      analogWrite(pin[gpio_pin], (state & 1) ? 200 : 0);
+    } else {
+      analogWrite(pin[gpio_pin], (state & 1) ? 1000 : 1023);
+    }
+  }
+}
+
 uint8_t ModuleNr(void)
 {
   // 0    = User module (255)
