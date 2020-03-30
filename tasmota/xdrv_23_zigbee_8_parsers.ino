@@ -388,6 +388,7 @@ int32_t Z_BindRsp(int32_t res, const class SBuffer &buf) {
 
   return -1;
 }
+
 //
 // Handle Unbind Rsp incoming message
 //
@@ -409,6 +410,64 @@ int32_t Z_UnbindRsp(int32_t res, const class SBuffer &buf) {
                     "}}"), nwkAddr, status, getZigbeeStatusMessage(status).c_str());
   }
   MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEEZCL_RECEIVED));
+  XdrvRulesProcess();
+
+  return -1;
+}
+//
+// Handle MgMt Bind Rsp incoming message
+//
+int32_t Z_MgmtBindRsp(int32_t res, const class SBuffer &buf) {
+  uint16_t    shortaddr   = buf.get16(2);
+  uint8_t     status      = buf.get8(4);
+  uint8_t     bind_total  = buf.get8(5);
+  uint8_t     bind_start  = buf.get8(6);
+  uint8_t     bind_len    = buf.get8(7);
+
+  const char * friendlyName = zigbee_devices.getFriendlyName(shortaddr);
+
+  Response_P(PSTR("{\"" D_JSON_ZIGBEE_BIND_STATE "\":{\"" D_JSON_ZIGBEE_DEVICE "\":\"0x%04X\""), shortaddr);
+  if (friendlyName) {
+    ResponseAppend_P(PSTR(",\"" D_JSON_ZIGBEE_NAME "\":\"%s\""), friendlyName);
+  }
+  ResponseAppend_P(PSTR(",\"" D_JSON_ZIGBEE_STATUS "\":%d"
+                        ",\"" D_JSON_ZIGBEE_STATUS_MSG "\":\"%s\""
+                        ",\"BindingsTotal\":%d"
+                        //",\"BindingsStart\":%d"
+                        ",\"Bindings\":["
+                        ), status, getZigbeeStatusMessage(status).c_str(), bind_total);
+
+  uint32_t idx = 8;
+  for (uint32_t i = 0; i < bind_start; i++) {
+    if (idx + 14 > buf.len()) { break; }   // overflow, frame size is between 14 and 21
+
+    //uint64_t    srcaddr   = buf.get16(idx);     // unused
+    uint8_t     srcep     = buf.get8(idx + 8);
+    uint8_t     cluster   = buf.get16(idx + 9);
+    uint8_t     addrmode  = buf.get8(idx + 11);
+    uint8_t     group     = 0x0000;
+    uint64_t    dstaddr   = 0;
+    uint8_t     dstep     = 0x00;
+    if (Z_Addr_Group == addrmode) {               // Group address mode
+      group = buf.get16(idx + 12);
+      idx += 14;
+    } else if (Z_Addr_IEEEAddress == addrmode) {  // IEEE address mode
+      dstaddr = buf.get64(idx + 12);
+      dstep = buf.get8(idx + 20);
+      idx += 21;
+    } else {
+      break;                                      // abort for any other value since we don't know the length of the field
+    }
+
+    if (i > 0) {
+      ResponseAppend_P(PSTR(","));
+    }
+    // ResponseAppend_P(PSTR("{"));
+  }
+
+  ResponseAppend_P(PSTR("]}}"));
+
+  MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEE_BIND_STATE));
   XdrvRulesProcess();
 
   return -1;
@@ -579,6 +638,7 @@ ZBM(AREQ_ZDO_SIMPLEDESCRSP, Z_AREQ | Z_ZDO, ZDO_SIMPLE_DESC_RSP)            // 4
 ZBM(AREQ_ZDO_IEEE_ADDR_RSP, Z_AREQ | Z_ZDO, ZDO_IEEE_ADDR_RSP)              // 4581
 ZBM(AREQ_ZDO_BIND_RSP, Z_AREQ | Z_ZDO, ZDO_BIND_RSP)                        // 45A1
 ZBM(AREQ_ZDO_UNBIND_RSP, Z_AREQ | Z_ZDO, ZDO_UNBIND_RSP)                    // 45A2
+ZBM(AREQ_ZDO_MGMT_BIND_RSP, Z_AREQ | Z_ZDO, ZDO_MGMT_BIND_RSP)              // 45B3
 
 // Dispatcher callbacks table
 const Z_Dispatcher Z_DispatchTable[] PROGMEM = {
@@ -592,6 +652,7 @@ const Z_Dispatcher Z_DispatchTable[] PROGMEM = {
   { AREQ_ZDO_IEEE_ADDR_RSP,       &Z_ReceiveIEEEAddr },
   { AREQ_ZDO_BIND_RSP,            &Z_BindRsp },
   { AREQ_ZDO_UNBIND_RSP,          &Z_UnbindRsp },
+  { AREQ_ZDO_MGMT_BIND_RSP,       &Z_MgmtBindRsp },
 };
 
 /*********************************************************************************************\
