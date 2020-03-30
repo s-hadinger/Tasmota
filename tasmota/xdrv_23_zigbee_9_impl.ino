@@ -35,7 +35,7 @@ const char kZbCommands[] PROGMEM = D_PRFX_ZB "|"    // prefix
   D_CMND_ZIGBEE_PROBE "|" D_CMND_ZIGBEE_READ "|" D_CMND_ZIGBEEZNPRECEIVE "|"
   D_CMND_ZIGBEE_FORGET "|" D_CMND_ZIGBEE_SAVE "|" D_CMND_ZIGBEE_NAME "|"
   D_CMND_ZIGBEE_BIND "|" D_CMND_ZIGBEE_UNBIND "|" D_CMND_ZIGBEE_PING "|" D_CMND_ZIGBEE_MODELID "|"
-  D_CMND_ZIGBEE_LIGHT "|" D_CMND_ZIGBEE_RESTORE
+  D_CMND_ZIGBEE_LIGHT "|" D_CMND_ZIGBEE_RESTORE "|" D_CMND_ZIGBEE_BIND_STATE
   ;
 
 void (* const ZigbeeCommand[])(void) PROGMEM = {
@@ -44,7 +44,7 @@ void (* const ZigbeeCommand[])(void) PROGMEM = {
   &CmndZbProbe, &CmndZbRead, &CmndZbZNPReceive,
   &CmndZbForget, &CmndZbSave, &CmndZbName,
   &CmndZbBind, &CmndZbUnbind, &CmndZbPing, &CmndZbModelId,
-  &CmndZbLight, CmndZbRestore,
+  &CmndZbLight, &CmndZbRestore, &CmndZbBindState,
   };
 
 //
@@ -643,6 +643,26 @@ void CmndZbBind(void) {
 //
 void CmndZbUnbind(void) {
   ZbBindUnbind(true);
+}
+
+//
+// Command `ZbBindState`
+//
+void CmndZbBindState(void) {
+  if (zigbee.init_phase) { ResponseCmndChar_P(PSTR(D_ZIGBEE_NOT_STARTED)); return; }
+  uint16_t shortaddr = zigbee_devices.parseDeviceParam(XdrvMailbox.data);
+  if (0x0000 == shortaddr) { ResponseCmndChar_P(PSTR("Unknown device")); return; }
+  if (0xFFFF == shortaddr) { ResponseCmndChar_P(PSTR("Invalid parameter")); return; }
+
+  SBuffer buf(10);
+  buf.add8(Z_SREQ | Z_ZDO);             // 25
+  buf.add8(ZDO_MGMT_BIND_REQ);          // 33
+  buf.add16(shortaddr);                 // shortaddr
+  buf.add8(0);                          // StartIndex = 0
+
+  ZigbeeZNPSend(buf.getBuffer(), buf.len());
+
+  ResponseCmndDone();
 }
 
 // Probe a specific device to get its endpoints and supported clusters
