@@ -438,7 +438,7 @@ int32_t Z_MgmtBindRsp(int32_t res, const class SBuffer &buf) {
                         ), status, getZigbeeStatusMessage(status).c_str(), bind_total);
 
   uint32_t idx = 8;
-  for (uint32_t i = 0; i < bind_start; i++) {
+  for (uint32_t i = 0; i < bind_len; i++) {
     if (idx + 14 > buf.len()) { break; }   // overflow, frame size is between 14 and 21
 
     //uint64_t    srcaddr   = buf.get16(idx);     // unused
@@ -456,13 +456,21 @@ int32_t Z_MgmtBindRsp(int32_t res, const class SBuffer &buf) {
       dstep = buf.get8(idx + 20);
       idx += 21;
     } else {
+      //AddLog_P2(LOG_LEVEL_INFO, PSTR("Z_MgmtBindRsp unknwon address mode %d"), addrmode);
       break;                                      // abort for any other value since we don't know the length of the field
     }
 
     if (i > 0) {
       ResponseAppend_P(PSTR(","));
     }
-    // ResponseAppend_P(PSTR("{"));
+    ResponseAppend_P(PSTR("{\"Cluster\":\"0x%04X\",\"Endpoint\":%d,"), cluster, srcep);
+    if (Z_Addr_Group == addrmode) {               // Group address mode
+      ResponseAppend_P(PSTR("\"ToGroup\":%d}"), group);
+    } else if (Z_Addr_IEEEAddress == addrmode) {  // IEEE address mode
+      char hex[20];
+      Uint64toHex(dstaddr, hex, 64);
+      ResponseAppend_P(PSTR("\"ToDevice\":\"0x%s\",\"ToEndpoint\":%d}"), hex, dstep);
+    }
   }
 
   ResponseAppend_P(PSTR("]}}"));
@@ -717,6 +725,7 @@ int32_t Z_Query_Bulbs(uint8_t value) {
   for (uint32_t i = 0; i < zigbee_devices.devicesSize(); i++) {
     const Z_Device &device = zigbee_devices.devicesAt(i);
     Z_Query_Bulb(device.shortaddr, wait_ms);
+    wait_ms += 1000;                        // add 1s between devices
   }
   return 0;                              // continue
 }
