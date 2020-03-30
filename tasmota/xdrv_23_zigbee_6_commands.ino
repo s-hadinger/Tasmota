@@ -169,7 +169,7 @@ int32_t Z_ReadAttrCallback(uint16_t shortaddr, uint16_t groupaddr, uint16_t clus
       break;
   }
   if (attrs) {
-    ZigbeeZCLSend_Raw(shortaddr, groupaddr, cluster, endpoint, ZCL_READ_ATTRIBUTES, false, attrs, attrs_len, true /* we do want a response */, zigbee_devices.getNextSeqNumber(shortaddr));
+    ZigbeeZCLSend_Raw(shortaddr, groupaddr, cluster, endpoint, ZCL_READ_ATTRIBUTES, false, 0, attrs, attrs_len, true /* we do want a response */, zigbee_devices.getNextSeqNumber(shortaddr));
   }
 }
 
