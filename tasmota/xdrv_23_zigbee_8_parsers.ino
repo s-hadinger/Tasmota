@@ -712,6 +712,7 @@ void Z_Query_Bulb(uint16_t shortaddr, uint32_t &wait_ms) {
       zigbee_devices.setTimer(shortaddr, 0 /* groupaddr */, wait_ms, 0x0300, endpoint, Z_CAT_NONE, 0 /* value */, &Z_ReadAttrCallback);
       wait_ms += inter_message_ms;
       zigbee_devices.setTimer(shortaddr, 0, wait_ms + Z_CAT_REACHABILITY_TIMEOUT, 0, endpoint, Z_CAT_REACHABILITY, 0 /* value */, &Z_Unreachable);
+      wait_ms += 1000;              // wait 1 second between devices
     }
   }
 }
@@ -725,7 +726,6 @@ int32_t Z_Query_Bulbs(uint8_t value) {
   for (uint32_t i = 0; i < zigbee_devices.devicesSize(); i++) {
     const Z_Device &device = zigbee_devices.devicesAt(i);
     Z_Query_Bulb(device.shortaddr, wait_ms);
-    wait_ms += 1000;                        // add 1s between devices
   }
   return 0;                              // continue
 }
