@@ -445,7 +445,7 @@ int32_t Z_MgmtBindRsp(int32_t res, const class SBuffer &buf) {
     uint8_t     srcep     = buf.get8(idx + 8);
     uint8_t     cluster   = buf.get16(idx + 9);
     uint8_t     addrmode  = buf.get8(idx + 11);
-    uint8_t     group     = 0x0000;
+    uint16_t    group     = 0x0000;
     uint64_t    dstaddr   = 0;
     uint8_t     dstep     = 0x00;
     if (Z_Addr_Group == addrmode) {               // Group address mode
