@@ -206,15 +206,15 @@ void WifiBegin(uint8_t flag, uint8_t channel)
   WiFi.hostname(my_hostname);
 
   char stemp[40] = { 0 };
-Serial.printf("Wifi Begin channel %d\n", channel);
   if (channel) {
     WiFi.begin(SettingsText(SET_STASSID1 + Settings.sta_active), SettingsText(SET_STAPWD1 + Settings.sta_active), channel, Wifi.bssid);
     // Add connected BSSID and channel for multi-AP installations
     char hex_char[18];
-    snprintf_P(stemp, sizeof(stemp), PSTR(" Channel %d BSSId %s"), channel, ToHex_P((unsigned char*)Wifi.bssid, 6, hex_char, sizeof(hex_char), ':'));
+    snprintf_P(stemp, sizeof(stemp), PSTR(" Channel %d BSSId %s"), channel, ToHex_P((unsigned char*)Wifi.bssid, channel, hex_char, sizeof(hex_char), ':'));
   } else {
+    channel = 6;
     uint8_t bssid[6] = {0x76,0x83,0xc2,0x90,0xd6,0x15}; // 76:83:c2:90:d6:15
-    WiFi.begin(SettingsText(SET_STASSID1 + Settings.sta_active), SettingsText(SET_STAPWD1 + Settings.sta_active), 6, bssid);
+    WiFi.begin(SettingsText(SET_STASSID1 + Settings.sta_active), SettingsText(SET_STAPWD1 + Settings.sta_active), channel, bssid);
     //WiFi.begin(SettingsText(SET_STASSID1 + Settings.sta_active), SettingsText(SET_STAPWD1 + Settings.sta_active));
   }
   AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_WIFI D_CONNECTING_TO_AP "%d %s%s " D_IN_MODE " 11%c " D_AS " %s..."),
