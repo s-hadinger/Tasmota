@@ -37,16 +37,12 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 */
 
-#include <core_version.h>
-#if defined(ARDUINO_ESP8266_RELEASE_2_6_1) || defined(ARDUINO_ESP8266_RELEASE_2_6_2) || defined(ARDUINO_ESP8266_RELEASE_2_6_3) || !defined(ARDUINO_ESP8266_RELEASE)
-#warning **** Tasmota is using a patched PWM Arduino version as planned ****
-
-
 #include <Arduino.h>
-#include "ets_sys.h"
+#include "interrupts.h"
 #include "core_esp8266_waveform.h"
 
 extern "C" {
+int startWaveformCycles(uint8_t pin, uint32_t timeHighCycles, uint32_t timeLowCycles, uint32_t runTimeCycles);
 
 // Maximum delay between IRQs
 #define MAXIRQUS (10000)
@@ -59,20 +55,34 @@ extern "C" {
 typedef struct {
   uint32_t nextServiceCycle;   // ESP cycle timer when a transition required
   uint32_t expiryCycle;        // For time-limited waveform, the cycle when this waveform must stop
-  uint32_t nextTimeHighCycles; // Copy over low->high to keep smooth waveform
-  uint32_t nextTimeLowCycles;  // Copy over high->low to keep smooth waveform
+  uint32_t timeHighCycles;     // Currently running waveform period
+  uint32_t timeLowCycles;      //
+  uint32_t gotoTimeHighCycles; // Copied over on the next period to preserve phase
+  uint32_t gotoTimeLowCycles;  //
 } Waveform;
 
 static Waveform waveform[17];        // State of all possible pins
-static volatile uint32_t waveformState = 0;   // Is the pin high or low, updated in NMI so no access outside the NMI code
-static volatile uint32_t waveformEnabled = 0; // Is it actively running, updated in NMI so no access outside the NMI code
 
-// Enable lock-free by only allowing updates to waveformState and waveformEnabled from IRQ service routine
-static volatile uint32_t waveformToEnable = 0;  // Message to the NMI handler to start a waveform on a inactive pin
-static volatile uint32_t waveformToDisable = 0; // Message to the NMI handler to disable a pin from waveform generation
+static struct WaveformState {
+  volatile uint32_t waveformState = 0;   // Is the pin high or low, updated in NMI so no access outside the NMI code
+  volatile uint32_t waveformEnabled = 0; // Is it actively running, updated in NMI so no access outside the NMI code
 
-static uint32_t (*timer1CB)() = NULL;
+  // Enable lock-free by only allowing updates to waveformState and waveformEnabled from IRQ service routine
+  volatile uint32_t waveformToEnable = 0;  // Message to the NMI handler to start a waveform on a inactive pin
+  volatile uint32_t waveformToDisable = 0; // Message to the NMI handler to disable a pin from waveform generation
 
+  volatile int32_t waveformToChange = -1;
+  volatile uint32_t waveformNewHigh = 0;
+  volatile uint32_t waveformNewLow = 0;
+
+  uint32_t (*timer1CB)() = NULL;
+
+  // Optimize the NMI inner loop by keeping track of the min and max GPIO that we
+  // are generating.  In the common case (1 PWM) these may be the same pin and
+  // we can avoid looking at the other pins.
+  int startPin = 0;
+  int endPin = 0;
+} state;
 
 // Non-speed critical bits
 #pragma GCC optimize ("Os")
@@ -104,11 +114,11 @@ static void ICACHE_RAM_ATTR deinitTimer() {
 
 // Set a callback.  Pass in NULL to stop it
 void setTimer1Callback(uint32_t (*fn)()) {
-  timer1CB = fn;
+  state.timer1CB = fn;
   if (!timerRunning && fn) {
     initTimer();
     timer1_write(microsecondsToClockCycles(1)); // Cause an interrupt post-haste
-  } else if (timerRunning && !fn && !waveformEnabled) {
+  } else if (timerRunning && !fn && !state.waveformEnabled) {
     deinitTimer();
   }
 }
@@ -117,23 +127,36 @@ void setTimer1Callback(uint32_t (*fn)()) {
 // waveform smoothly on next low->high transition.  For immediate change, stopWaveform()
 // first, then it will immediately begin.
 int startWaveform(uint8_t pin, uint32_t timeHighUS, uint32_t timeLowUS, uint32_t runTimeUS) {
+  return startWaveformCycles(pin, microsecondsToClockCycles(timeHighUS), microsecondsToClockCycles(timeLowUS), microsecondsToClockCycles(runTimeUS));
+}
+
+int startWaveformCycles(uint8_t pin, uint32_t timeHighCycles, uint32_t timeLowCycles, uint32_t runTimeCycles) {
   if ((pin > 16) || isFlashInterfacePin(pin)) {
     return false;
   }
   Waveform *wave = &waveform[pin];
-  // Adjust to shave off some of the IRQ time, approximately
-  wave->nextTimeHighCycles = microsecondsToClockCycles(timeHighUS);
-  wave->nextTimeLowCycles = microsecondsToClockCycles(timeLowUS);
-  wave->expiryCycle = runTimeUS ? GetCycleCount() + microsecondsToClockCycles(runTimeUS) : 0;
-  if (runTimeUS && !wave->expiryCycle) {
+
+  wave->expiryCycle = runTimeCycles ? GetCycleCount() + runTimeCycles : 0;
+  if (runTimeCycles && !wave->expiryCycle) {
     wave->expiryCycle = 1; // expiryCycle==0 means no timeout, so avoid setting it
   }
 
   uint32_t mask = 1<<pin;
-  if (!(waveformEnabled & mask)) {
+  if (state.waveformEnabled & mask) {
+    state.waveformNewHigh = timeHighCycles;
+    state.waveformNewLow = timeLowCycles;
+    state.waveformToChange = pin;
+    while (state.waveformToChange >= 0) {
+      delay(0); // Wait for waveform to update
+    }
+  } else { //  if (!(state.waveformEnabled & mask))
+    wave->timeHighCycles = timeHighCycles;
+    wave->timeLowCycles = timeLowCycles;
+    wave->gotoTimeHighCycles = wave->timeHighCycles;
+    wave->gotoTimeLowCycles = wave->timeLowCycles;
     // Actually set the pin high or low in the IRQ service to guarantee times
     wave->nextServiceCycle = GetCycleCount() + microsecondsToClockCycles(1);
-    waveformToEnable |= mask;
+    state.waveformToEnable |= mask;
     if (!timerRunning) {
       initTimer();
       timer1_write(microsecondsToClockCycles(10));
@@ -143,7 +166,7 @@ int startWaveform(uint8_t pin, uint32_t timeHighUS, uint32_t timeLowUS, uint32_t
         timer1_write(microsecondsToClockCycles(10));
       }
     }
-    while (waveformToEnable) {
+    while (state.waveformToEnable) {
       delay(0); // Wait for waveform to update
     }
   }
@@ -170,13 +193,6 @@ static inline ICACHE_RAM_ATTR uint32_t min_u32(uint32_t a, uint32_t b) {
   return b;
 }
 
-static inline ICACHE_RAM_ATTR int32_t max_32(int32_t a, int32_t b) {
-    if (a < b) {
-        return b;
-    }
-    return a;
-}
-
 // Stops a waveform on a pin
 int ICACHE_RAM_ATTR stopWaveform(uint8_t pin) {
   // Can't possibly need to stop anything if there is no timer active
@@ -186,18 +202,18 @@ int ICACHE_RAM_ATTR stopWaveform(uint8_t pin) {
   // If user sends in a pin >16 but <32, this will always point to a 0 bit
   // If they send >=32, then the shift will result in 0 and it will also return false
   uint32_t mask = 1<<pin;
-  if (!(waveformEnabled & mask)) {
+  if (!(state.waveformEnabled & mask)) {
     return false; // It's not running, nothing to do here
   }
-  waveformToDisable |= mask;
+  state.waveformToDisable |= mask;
   // Ensure timely service....
   if (T1L > microsecondsToClockCycles(10)) {
     timer1_write(microsecondsToClockCycles(10));
   }
-  while (waveformToDisable) {
+  while (state.waveformToDisable) {
     /* no-op */ // Can't delay() since stopWaveform may be called from an IRQ
   }
-  if (!waveformEnabled && !timer1CB) {
+  if (!state.waveformEnabled && !state.timer1CB) {
     deinitTimer();
   }
   return true;
@@ -214,36 +230,34 @@ int ICACHE_RAM_ATTR stopWaveform(uint8_t pin) {
 
 
 static ICACHE_RAM_ATTR void timer1Interrupt() {
-  // Optimize the NMI inner loop by keeping track of the min and max GPIO that we
-  // are generating.  In the common case (1 PWM) these may be the same pin and
-  // we can avoid looking at the other pins.
-  static int startPin = 0;
-  static int endPin = 0;
-
   uint32_t nextEventCycles = microsecondsToClockCycles(MAXIRQUS);
   uint32_t timeoutCycle = GetCycleCountIRQ() + microsecondsToClockCycles(14);
 
-  if (waveformToEnable || waveformToDisable) {
+  if (state.waveformToChange >=0) {
+    waveform[state.waveformToChange].gotoTimeHighCycles = state.waveformNewHigh;
+    waveform[state.waveformToChange].gotoTimeLowCycles = state.waveformNewLow;
+    state.waveformToChange = -1;
+  } else if (state.waveformToEnable || state.waveformToDisable) {
     // Handle enable/disable requests from main app.
-    waveformEnabled = (waveformEnabled & ~waveformToDisable) | waveformToEnable; // Set the requested waveforms on/off
-    waveformState &= ~waveformToEnable;  // And clear the state of any just started
-    waveformToEnable = 0;
-    waveformToDisable = 0;
+    state.waveformEnabled = (state.waveformEnabled & ~state.waveformToDisable) | state.waveformToEnable; // Set the requested waveforms on/off
+    state.waveformState &= ~state.waveformToEnable;  // And clear the state of any just started
+    state.waveformToEnable = 0;
+    state.waveformToDisable = 0;
     // Find the first GPIO being generated by checking GCC's find-first-set (returns 1 + the bit of the first 1 in an int32_t)
-    startPin = __builtin_ffs(waveformEnabled) - 1;
+    state.startPin = __builtin_ffs(state.waveformEnabled) - 1;
     // Find the last bit by subtracting off GCC's count-leading-zeros (no offset in this one)
-    endPin = 32 - __builtin_clz(waveformEnabled);
+    state.endPin = 32 - __builtin_clz(state.waveformEnabled);
   }
 
   bool done = false;
-  if (waveformEnabled) {
+  if (state.waveformEnabled) {
     do {
       nextEventCycles = microsecondsToClockCycles(MAXIRQUS);
-      for (int i = startPin; i <= endPin; i++) {
+      for (int i = state.startPin; i <= state.endPin; i++) {
         uint32_t mask = 1<<i;
 
         // If it's not on, ignore!
-        if (!(waveformEnabled & mask)) {
+        if (!(state.waveformEnabled & mask)) {
           continue;
         }
 
@@ -255,7 +269,7 @@ static ICACHE_RAM_ATTR void timer1Interrupt() {
           int32_t expiryToGo = wave->expiryCycle - now;
           if (expiryToGo < 0) {
               // Done, remove!
-              waveformEnabled &= ~mask;
+              state.waveformEnabled &= ~mask;
               if (i == 16) {
                 GP16O &= ~1;
               } else {
@@ -268,30 +282,26 @@ static ICACHE_RAM_ATTR void timer1Interrupt() {
         // Check for toggles
         int32_t cyclesToGo = wave->nextServiceCycle - now;
         if (cyclesToGo < 0) {
-          // See #7057
-          // The following is a no-op unless we have overshot by an entire waveform cycle.
-          // As modulus is an expensive operation, this code is removed for now:
-          // cyclesToGo = -((-cyclesToGo) % (wave->nextTimeHighCycles + wave->nextTimeLowCycles));
-          //
-          // Alternative version with lower CPU impact:
-          // while (-cyclesToGo > wave->nextTimeHighCycles + wave->nextTimeLowCycles) { cyclesToGo += wave->nextTimeHighCycles + wave->nextTimeLowCycles)};
-          waveformState ^= mask;
-          if (waveformState & mask) {
+          state.waveformState ^= mask;
+          if (state.waveformState & mask) {
             if (i == 16) {
               GP16O |= 1; // GPIO16 write slow as it's RMW
             } else {
               SetGPIO(mask);
             }
-            wave->nextServiceCycle += wave->nextTimeHighCycles;
-            nextEventCycles = min_u32(nextEventCycles, max_32(wave->nextTimeHighCycles + cyclesToGo, microsecondsToClockCycles(1)));
+            wave->nextServiceCycle += wave->timeHighCycles;
+            nextEventCycles = min_u32(nextEventCycles, wave->timeHighCycles);
           } else {
             if (i == 16) {
               GP16O &= ~1; // GPIO16 write slow as it's RMW
             } else {
               ClearGPIO(mask);
             }
-            wave->nextServiceCycle += wave->nextTimeLowCycles;
-            nextEventCycles = min_u32(nextEventCycles, max_32(wave->nextTimeLowCycles + cyclesToGo, microsecondsToClockCycles(1)));
+            wave->nextServiceCycle += wave->timeLowCycles;
+            nextEventCycles = min_u32(nextEventCycles, wave->timeLowCycles);
+            // Copy over next full-cycle timings
+            wave->timeHighCycles = wave->gotoTimeHighCycles;
+            wave->timeLowCycles = wave->gotoTimeLowCycles;
           }
         } else {
           uint32_t deltaCycles = wave->nextServiceCycle - now;
@@ -305,10 +315,10 @@ static ICACHE_RAM_ATTR void timer1Interrupt() {
       int32_t cyclesLeftTimeout = timeoutCycle - now;
       done = (cycleDeltaNextEvent < 0) || (cyclesLeftTimeout < 0);
     } while (!done);
-  } // if (waveformEnabled)
+  } // if (state.waveformEnabled)
 
-  if (timer1CB) {
-    nextEventCycles = min_u32(nextEventCycles, timer1CB());
+  if (state.timer1CB) {
+    nextEventCycles = min_u32(nextEventCycles, state.timer1CB());
   }
 
   if (nextEventCycles < microsecondsToClockCycles(10)) {
@@ -326,5 +336,3 @@ static ICACHE_RAM_ATTR void timer1Interrupt() {
 }
 
 };
-
-#endif  // ARDUINO_ESP8266_RELEASE
