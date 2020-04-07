@@ -46,6 +46,11 @@
 #include "ets_sys.h"
 #include "core_esp8266_waveform.h"
 
+
+int32_t CTGmin = 0;
+int32_t CTGmax = 0;
+int32_t CTGall = 0;
+
 extern "C" {
 
 // Maximum delay between IRQs
@@ -267,6 +272,9 @@ static ICACHE_RAM_ATTR void timer1Interrupt() {
 
         // Check for toggles
         int32_t cyclesToGo = wave->nextServiceCycle - now;
+        if (cyclesToGo < CTGmin) { CTGmin = cyclesToGo; }
+        if (cyclesToGo > CTGmax) { CTGmax = cyclesToGo; }
+        CTGall = wave->nextTimeHighCycles + wave->nextTimeLowCycles;
         if (cyclesToGo < 0) {
           // See #7057
           // The following is a no-op unless we have overshot by an entire waveform cycle.
@@ -275,6 +283,8 @@ static ICACHE_RAM_ATTR void timer1Interrupt() {
           //
           // Alternative version with lower CPU impact:
           // while (-cyclesToGo > wave->nextTimeHighCycles + wave->nextTimeLowCycles) { cyclesToGo += wave->nextTimeHighCycles + wave->nextTimeLowCycles)};
+          int32_t panic = (-cyclesToGo) > ((wave->nextTimeHighCycles + wave->nextTimeLowCycles) >> 2);
+          panic = 0;
           waveformState ^= mask;
           if (waveformState & mask) {
             if (i == 16) {
@@ -282,16 +292,26 @@ static ICACHE_RAM_ATTR void timer1Interrupt() {
             } else {
               SetGPIO(mask);
             }
-            wave->nextServiceCycle += wave->nextTimeHighCycles;
-            nextEventCycles = min_u32(nextEventCycles, max_32(wave->nextTimeHighCycles + cyclesToGo, microsecondsToClockCycles(1)));
+            if (panic) {
+              wave->nextServiceCycle = now + wave->nextTimeHighCycles;
+              nextEventCycles = min_u32(nextEventCycles, wave->nextTimeHighCycles);
+            } else {
+              wave->nextServiceCycle += wave->nextTimeHighCycles;
+              nextEventCycles = min_u32(nextEventCycles, max_32(wave->nextTimeHighCycles + cyclesToGo, microsecondsToClockCycles(1)));
+            }
           } else {
             if (i == 16) {
               GP16O &= ~1; // GPIO16 write slow as it's RMW
             } else {
               ClearGPIO(mask);
             }
-            wave->nextServiceCycle += wave->nextTimeLowCycles;
-            nextEventCycles = min_u32(nextEventCycles, max_32(wave->nextTimeLowCycles + cyclesToGo, microsecondsToClockCycles(1)));
+            if (panic) {
+              wave->nextServiceCycle = now + wave->nextTimeLowCycles;
+              nextEventCycles = min_u32(nextEventCycles, wave->nextTimeLowCycles);
+            } else {
+              wave->nextServiceCycle += wave->nextTimeLowCycles;
+              nextEventCycles = min_u32(nextEventCycles, max_32(wave->nextTimeLowCycles + cyclesToGo, microsecondsToClockCycles(1)));
+            }
           }
         } else {
           uint32_t deltaCycles = wave->nextServiceCycle - now;

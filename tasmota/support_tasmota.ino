@@ -739,8 +739,14 @@ void MqttPublishSensor(void)
  * Every second
 \*-------------------------------------------------------------------------------------------*/
 
+extern int32_t CTGmin, CTGmax, CTGall;
+
 void PerformEverySecond(void)
 {
+//Serial.printf("CTGmin = %d, CTGmax = %d, CTGall = %d\n", CTGmin, CTGmax, CTGall);
+  CTGmin = 0;
+  CTGmax = 0;
+  CTGall = 0;
   uptime++;
 
   if (POWER_CYCLE_TIME == uptime) {
