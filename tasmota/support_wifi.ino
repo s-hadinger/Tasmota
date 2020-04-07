@@ -713,7 +713,6 @@ extern "C" {
 #endif
 }
 
-const uint32_t kGratuitousARPInterval = 60 * 1000;    // 60 seconds
 unsigned long wifiTimer = 0;
 
 void stationKeepAliveNow(void) {
@@ -737,8 +736,15 @@ void stationKeepAliveNow(void) {
 }
 
 void wifiKeepAlive(void) {
+  uint32_t wifiTimerSec = Settings.param[P_ARP_GRATUITOUS];   // 8-bits number of seconds, or minutes if > 100
+
+  if ((WL_CONNECTED != Wifi.status) || (0 == wifiTimerSec)) { return; }   // quick exit if wifi not connected or feature disabled
+
+  if (wifiTimerSec > 100) {
+    wifiTimerSec = (wifiTimerSec - 100) * 60;                 // convert >100 as minutes, ex: 105 = 5 minutes, 110 = 10 minutes
+  }
   if (TimeReached(wifiTimer)) {
     stationKeepAliveNow();
-    SetNextTimeInterval(wifiTimer, kGratuitousARPInterval);
+    SetNextTimeInterval(wifiTimer, wifiTimerSec * 1000);
   }
 }
