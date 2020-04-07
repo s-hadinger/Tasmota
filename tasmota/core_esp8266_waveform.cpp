@@ -47,10 +47,6 @@
 #include "core_esp8266_waveform.h"
 
 
-int32_t CTGmin = 0;
-int32_t CTGmax = 0;
-int32_t CTGall = 0;
-
 extern "C" {
 
 // Maximum delay between IRQs
@@ -272,9 +268,6 @@ static ICACHE_RAM_ATTR void timer1Interrupt() {
 
         // Check for toggles
         int32_t cyclesToGo = wave->nextServiceCycle - now;
-        if (cyclesToGo < CTGmin) { CTGmin = cyclesToGo; }
-        if (cyclesToGo > CTGmax) { CTGmax = cyclesToGo; }
-        CTGall = wave->nextTimeHighCycles + wave->nextTimeLowCycles;
         if (cyclesToGo < 0) {
           // See #7057
           // The following is a no-op unless we have overshot by an entire waveform cycle.
@@ -282,9 +275,11 @@ static ICACHE_RAM_ATTR void timer1Interrupt() {
           // cyclesToGo = -((-cyclesToGo) % (wave->nextTimeHighCycles + wave->nextTimeLowCycles));
           //
           // Alternative version with lower CPU impact:
-          // while (-cyclesToGo > wave->nextTimeHighCycles + wave->nextTimeLowCycles) { cyclesToGo += wave->nextTimeHighCycles + wave->nextTimeLowCycles)};
-          int32_t panic = (-cyclesToGo) > ((wave->nextTimeHighCycles + wave->nextTimeLowCycles) >> 2);
-          panic = 0;
+          // while (-cyclesToGo > wave->nextTimeHighCycles + wave->nextTimeLowCycles) { cyclesToGo += wave->nextTimeHighCycles + wave->nextTimeLowCycles); }
+          //
+          // detect interrupt storm, for example during wifi connection.
+          // if we overshoot the cycle by more than 25%, we forget phase and keep PWM duration
+          int32_t overhoot = (-cyclesToGo) > ((wave->nextTimeHighCycles + wave->nextTimeLowCycles) >> 2);
           waveformState ^= mask;
           if (waveformState & mask) {
             if (i == 16) {
@@ -292,7 +287,7 @@ static ICACHE_RAM_ATTR void timer1Interrupt() {
             } else {
               SetGPIO(mask);
             }
-            if (panic) {
+            if (overhoot) {
               wave->nextServiceCycle = now + wave->nextTimeHighCycles;
               nextEventCycles = min_u32(nextEventCycles, wave->nextTimeHighCycles);
             } else {
@@ -305,7 +300,7 @@ static ICACHE_RAM_ATTR void timer1Interrupt() {
             } else {
               ClearGPIO(mask);
             }
-            if (panic) {
+            if (overhoot) {
               wave->nextServiceCycle = now + wave->nextTimeLowCycles;
               nextEventCycles = min_u32(nextEventCycles, wave->nextTimeLowCycles);
             } else {
