@@ -46,7 +46,6 @@
 #include "ets_sys.h"
 #include "core_esp8266_waveform.h"
 
-
 extern "C" {
 
 // Maximum delay between IRQs
@@ -279,7 +278,7 @@ static ICACHE_RAM_ATTR void timer1Interrupt() {
           //
           // detect interrupt storm, for example during wifi connection.
           // if we overshoot the cycle by more than 25%, we forget phase and keep PWM duration
-          int32_t overhoot = (-cyclesToGo) > ((wave->nextTimeHighCycles + wave->nextTimeLowCycles) >> 2);
+          int32_t overshoot = (-cyclesToGo) > ((wave->nextTimeHighCycles + wave->nextTimeLowCycles) >> 2);
           waveformState ^= mask;
           if (waveformState & mask) {
             if (i == 16) {
@@ -287,7 +286,7 @@ static ICACHE_RAM_ATTR void timer1Interrupt() {
             } else {
               SetGPIO(mask);
             }
-            if (overhoot) {
+            if (overshoot) {
               wave->nextServiceCycle = now + wave->nextTimeHighCycles;
               nextEventCycles = min_u32(nextEventCycles, wave->nextTimeHighCycles);
             } else {
@@ -300,7 +299,7 @@ static ICACHE_RAM_ATTR void timer1Interrupt() {
             } else {
               ClearGPIO(mask);
             }
-            if (overhoot) {
+            if (overshoot) {
               wave->nextServiceCycle = now + wave->nextTimeLowCycles;
               nextEventCycles = min_u32(nextEventCycles, wave->nextTimeLowCycles);
             } else {

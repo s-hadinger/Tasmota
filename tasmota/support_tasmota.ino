@@ -739,8 +739,6 @@ void MqttPublishSensor(void)
  * Every second
 \*-------------------------------------------------------------------------------------------*/
 
-extern int32_t CTGmin, CTGmax, CTGall;
-
 void PerformEverySecond(void)
 {
   uptime++;
