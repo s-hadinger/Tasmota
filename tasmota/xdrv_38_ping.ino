@@ -98,7 +98,7 @@ void PingResponsePoll(void) {
                       ",\"AvgTime\":%d"
                       "}}}"),
                       ip & 0xFF, (ip >> 8) & 0xFF, (ip >> 16) & 0xFF, ip >> 24,
-                      success ? "true" : false,
+                      success ? "true" : "false",
                       success, ping->timeout_count,
                       ping->min_time, ping->max_time,
                       success ? ping->sum_time / success : 0
@@ -113,10 +113,13 @@ void PingResponsePoll(void) {
 }
 
 void CmndPing(void) {
-  uint32_t count = 4;
-  IPAddress ip;   // = IPAddress(192,168,1,203);
+  uint32_t count = XdrvMailbox.index;
+  IPAddress ip;
 
-  if (WiFi.hostByName("192.168.1.203", ip)) {
+  RemoveSpace(XdrvMailbox.data);
+  if (count > 60) { count = 60; }
+
+  if (WiFi.hostByName(XdrvMailbox.data, ip)) {
     Ping_t *ping = new Ping_t();
     memset(ping, 0, sizeof(Ping_t ));
     ping->min_time = UINT32_MAX;
@@ -155,15 +158,6 @@ bool Xdrv38(uint8_t function)
   switch (function) {
     case FUNC_EVERY_250_MSECOND:
     PingResponsePoll();
-    break;
-    case FUNC_LOOP:
-    // if (ZigbeeSerial) { ZigbeeInputLoop(); }
-    //         if (zigbee.state_machine) {
-    //     ZigbeeStateMachine_Run();
-    //         }
-    break;
-    case FUNC_PRE_INIT:
-    //ZigbeeInit();
     break;
     case FUNC_COMMAND:
     result = DecodeCommand(kPingCommands, PingCommand);
