@@ -1058,7 +1058,7 @@ void CmndZbConfig(void) {
   char hex_precfgkey_l[20] = "0x";
   Uint64toHex(zb_precfgkey_l, &hex_precfgkey_l[2], 64);
   char hex_precfgkey_h[20] = "0x";
-  Uint64toHex(zb_precfgkey_l, &hex_precfgkey_h[2], 64);
+  Uint64toHex(zb_precfgkey_h, &hex_precfgkey_h[2], 64);
 
   // {"ZbConfig":{"Channel":11,"PanID":"0x1A63","ExtPanID":"0xCCCCCCCCCCCCCCCC","KeyL":"0x0F0D0B0907050301L","KeyH":"0x0D0C0A0806040200L"}}
   Response_P(PSTR("{\"" D_PRFX_ZB D_JSON_ZIGBEE_CONFIG "\":{"
