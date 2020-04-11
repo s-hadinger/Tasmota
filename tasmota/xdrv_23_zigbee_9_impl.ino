@@ -157,6 +157,9 @@ void ZigbeeInit(void)
     Settings.zb_channel = USE_ZIGBEE_CHANNEL;
     Settings.zb_free_byte = 0;
   }
+  // update commands with the current settings
+  Z_UpdateConfig(Settings.zb_channel, Settings.zb_pan_id, Settings.zb_ext_panid, Settings.zb_precfgkey_l, Settings.zb_precfgkey_h);
+
 // AddLog_P2(LOG_LEVEL_INFO, PSTR("ZigbeeInit Mem1 = %d"), ESP.getFreeHeap());
   zigbee.active = false;
   if ((pin[GPIO_ZIGBEE_RX] < 99) && (pin[GPIO_ZIGBEE_TX] < 99)) {
