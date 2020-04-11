@@ -1041,6 +1041,23 @@ void CmndZbConfig(void) {
     const JsonObject &json = jsonBuf.parseObject((const char*) XdrvMailbox.data);
     if (!json.success()) { ResponseCmndChar_P(PSTR(D_JSON_INVALID_JSON)); return; }
 
+    // Channel
+    const JsonVariant &val_channel = getCaseInsensitive(json, PSTR("Channel"));
+    if (nullptr != &val_channel) { zb_channel = strToUInt(val_channel); }
+    // PanID
+    const JsonVariant &val_pan_id = getCaseInsensitive(json, PSTR("PanID"));
+    if (nullptr != &val_pan_id) { zb_pan_id = strToUInt(val_pan_id); }
+    // ExtPanID
+    const JsonVariant &val_ext_pan_id = getCaseInsensitive(json, PSTR("ExtPanID"));
+    if (nullptr != &val_ext_pan_id) { zb_ext_panid = strtoull(val_ext_pan_id.as<const char*>(), nullptr, 0); }
+    // KeyL
+    const JsonVariant &val_key_l = getCaseInsensitive(json, PSTR("KeyL"));
+    if (nullptr != &val_key_l) { zb_precfgkey_l = strtoull(val_key_l.as<const char*>(), nullptr, 0); }
+    // KeyH
+    const JsonVariant &val_key_h = getCaseInsensitive(json, PSTR("KeyH"));
+    if (nullptr != &val_key_h) { zb_precfgkey_h = strtoull(val_key_h.as<const char*>(), nullptr, 0); }
+
+    // Check if a parameter was changed after all
     if ( (zb_channel      != Settings.zb_channel) ||
          (zb_pan_id       != Settings.zb_pan_id) ||
          (zb_ext_panid    != Settings.zb_ext_panid) ||
