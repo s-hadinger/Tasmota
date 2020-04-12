@@ -27,6 +27,7 @@
 - Add support for Seven Segment display using HT16K33 (#8116)
 - Add support for AS3935 Lightning Sensor by device111 (#8130)
 - Add interval to PMS5003 sensor to extend lifetime (#8128)
+- Fix prevent multiple pings to run concurrently
 
 ### 8.2.0.2 20200328
 
