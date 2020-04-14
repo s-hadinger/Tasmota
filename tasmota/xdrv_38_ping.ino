@@ -19,7 +19,7 @@
 
 #ifdef USE_PING
 
-#define PING_DEBUG
+//#define PING_DEBUG
 
 #define XDRV_38                    38
 
@@ -122,6 +122,7 @@ extern "C" {
     struct pbuf *p;
     uint16_t ping_size = sizeof(struct icmp_echo_hdr) + Ping_data_size;
 
+    ping->ping_sent = system_get_time();
     p = pbuf_alloc(PBUF_IP, ping_size, PBUF_RAM);
     if (!p) { return; }
     if ((p->len == p->tot_len) && (p->next == nullptr)) {
@@ -133,7 +134,6 @@ extern "C" {
 
       t_ping_prepare_echo(iecho, ping_size, ping);
       raw_sendto(raw, p, &ping_target);
-      ping->ping_sent = sys_now();    // TODO
     }
     pbuf_free(p);
   }
@@ -141,14 +141,11 @@ extern "C" {
   // this timer is called every x seconds to send a new packet, whatever happened to the previous packet
   static void ICACHE_FLASH_ATTR t_ping_coarse_tmr(void *arg) {
     Ping_t *ping = (Ping_t*) arg;
-    ip_addr_t ping_target;
-
-    ping_target.addr = ping->ip;
 #ifdef PING_DEBUG
     Serial.printf("t_ping_coarse_tmr ping->sent_count = %d\n", ping->sent_count); Serial.flush();
 #endif
     if (--ping->sent_count != 0){
-      ping->ping_sent = system_get_time();
+      // have we sent all packets?
       t_ping_send(t_ping_pcb, ping);
 
       sys_timeout(Ping_timeout_ms, t_ping_timeout, ping);
@@ -231,7 +228,6 @@ extern "C" {
     ping->sent_count = ping->max_count;
 
     t_ping_register_pcb();
-    ping->ping_sent = system_get_time();
     t_ping_send(t_ping_pcb, ping);
 
     sys_timeout(Ping_timeout_ms, t_ping_timeout, ping);
