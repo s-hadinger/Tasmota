@@ -19,6 +19,8 @@
 
 #ifdef USE_PING
 
+#define PING_DEBUG
+
 #define XDRV_38                    38
 
 #include "lwip/icmp.h"
@@ -79,7 +81,10 @@ extern "C" {
     return nullptr;
   }
 
+  //
+  // called after the ICMP timeout occured
   // we never received the packet, increase the timeout count
+  //
   void ICACHE_FLASH_ATTR t_ping_timeout(void* arg) {
     Ping_t *ping = (Ping_t*) arg;
     ping->timeout_count++;
@@ -87,8 +92,10 @@ extern "C" {
                       ping->ip & 0xFF, (ping->ip >> 8) & 0xFF, (ping->ip >> 16) & 0xFF, ping->ip >> 24);
   }
 
-  /** Prepare a echo ICMP request */
-  void ICACHE_FLASH_ATTR t_ping_prepare_echo(struct icmp_echo_hdr *iecho, u16_t len, Ping_t *ping) {
+  //
+  // Prepare a echo ICMP request
+  //
+  void ICACHE_FLASH_ATTR t_ping_prepare_echo(struct icmp_echo_hdr *iecho, uint16_t len, Ping_t *ping) {
     size_t data_len = len - sizeof(struct icmp_echo_hdr);
 
     ICMPH_TYPE_SET(iecho, ICMP_ECHO);
@@ -108,6 +115,9 @@ extern "C" {
     iecho->chksum = inet_chksum(iecho, len);
   }
 
+  //
+  // send the ICMP packet
+  //
   void ICACHE_FLASH_ATTR t_ping_send(struct raw_pcb *raw, Ping_t *ping) {
     struct pbuf *p;
     uint16_t ping_size = sizeof(struct icmp_echo_hdr) + Ping_data_size;
@@ -129,74 +139,59 @@ extern "C" {
   }
 
   // this timer is called every x seconds to send a new packet, whatever happened to the previous packet
-  static void ICACHE_FLASH_ATTR ping_coarse_tmr2(void *arg) {
-  return;
+  static void ICACHE_FLASH_ATTR t_ping_coarse_tmr(void *arg) {
     Ping_t *ping = (Ping_t*) arg;
-    // struct ping_option *ping_opt= NULL;
-    // struct ping_resp pingresp;
     ip_addr_t ping_target;
 
-    // LWIP_ASSERT("ping_timeout: no pcb given!", pingmsg != NULL);
     ping_target.addr = ping->ip;
-    // ping_opt = ping->ping_opt;
+#ifdef PING_DEBUG
+    Serial.printf("t_ping_coarse_tmr ping->sent_count = %d\n", ping->sent_count); Serial.flush();
+#endif
     if (--ping->sent_count != 0){
-      ping ->ping_sent = system_get_time();
+      ping->ping_sent = system_get_time();
       t_ping_send(t_ping_pcb, ping);
 
       sys_timeout(Ping_timeout_ms, t_ping_timeout, ping);
-      sys_timeout(Ping_coarse, ping_coarse_tmr2, ping);
+      sys_timeout(Ping_coarse, t_ping_coarse_tmr, ping);
     } else {
-      uint32 delay = system_relative_time(ping->ping_start);
-      delay /= Ping_coarse;
-  //		ping_seq_num = 0;
-      // if (ping_opt->sent_function == NULL){
-      //   os_printf("ping %d, timeout %d, total payload %d bytes, %d ms\n",
-      //       pingmsg->max_count, pingmsg->timeout_count, PING_DATA_SIZE*(pingmsg->max_count - pingmsg->timeout_count),delay);
-      // } else {
-        // os_bzero(&pingresp, sizeof(struct ping_resp));
-        // pingresp.total_count = pingmsg->max_count;
-        // pingresp.timeout_count = pingmsg->timeout_count;
-        // pingresp.total_bytes = PING_DATA_SIZE*(pingmsg->max_count - pingmsg->timeout_count);
-        // pingresp.total_time = delay;
-        // pingresp.ping_err = 0;
-      // }
-      sys_untimeout(ping_coarse_tmr2, ping);
-      //os_free(ping);
-
-      // TODO
-      // sent_function
+      sys_untimeout(t_ping_coarse_tmr, ping);
       ping->total_count = ping->max_count;
       ping->done = true;
-      // if (ping_opt->sent_function != NULL)
-      //   ping_opt->sent_function(ping_opt,(uint8*)&pingresp);
     }
   }
 
-  /* Ping using the raw ip */
+  //
+  // Reveived packet
+  //
   static uint8_t ICACHE_FLASH_ATTR t_ping_recv(void *arg, struct raw_pcb *pcb, struct pbuf *p, const ip_addr_t *addr) {
-    struct icmp_echo_hdr *iecho = NULL;
-Serial.printf("t_ping_recv 0\n"); Serial.flush();
     Ping_t *ping = t_ping_find(addr->addr);
 
+#ifdef PING_DEBUG
     Serial.printf("t_ping_recv, %d.%d.%d.%d\n", 
                       addr->addr & 0xFF, (addr->addr >> 8) & 0xFF, (addr->addr >> 16) & 0xFF, addr->addr >> 24);
+#endif
 
-    if (nullptr == ping) {
-      return 0;   // don't eat the packet and ignore it
+    if (nullptr == ping) {    // unknown source address
+      return 0;               // don't eat the packet and ignore it
+#ifdef PING_DEBUG
       Serial.printf("t_ping_recv ignore\n");
+#endif
     }
 
     if (pbuf_header( p, -PBUF_IP_HLEN)==0) {
+      struct icmp_echo_hdr *iecho;
       iecho = (struct icmp_echo_hdr *)p->payload;
 
       if ((iecho->id == Ping_ID) && (iecho->seqno == htons(ping->seq_num)) && iecho->type == ICMP_ER) {
+#ifdef PING_DEBUG
         Serial.printf("t_ping_recv hit\n");
+#endif
         
-        if (iecho->seqno != ping->seqno){
+        if (iecho->seqno != ping->seqno){   // debounce already received packet
           /* do some ping result processing */
-          sys_untimeout(t_ping_timeout, ping);
+          sys_untimeout(t_ping_timeout, ping);      // remove time-out handler
           uint32_t delay = system_relative_time(ping->ping_sent);
-          delay /= Ping_coarse;
+          delay /= 1000;
 
           ping->sum_time += delay;
           if (delay < ping->min_time) { ping->min_time = delay; }
@@ -240,7 +235,7 @@ Serial.printf("t_ping_recv 0\n"); Serial.flush();
     t_ping_send(t_ping_pcb, ping);
 
     sys_timeout(Ping_timeout_ms, t_ping_timeout, ping);
-    sys_timeout(Ping_coarse, ping_coarse_tmr2, ping);
+    sys_timeout(Ping_coarse, t_ping_coarse_tmr, ping);
   }
 
 }
