@@ -21,8 +21,6 @@
 
 #define XDRV_38                    38
 
-#include <vector>
-
 #include "lwip/icmp.h"
 #include "lwip/inet_chksum.h"
 #include "lwip/raw.h"
@@ -58,7 +56,6 @@ extern "C" {
     Ping_t      *next = nullptr;    // next object in linked list
     struct raw_pcb *pcb;            // pcb structure for network API
     uint16_t    count;              //
-    uint16_t    coarse_time;        // ?
     // ping_recv_function recv_function;
     // ping_sent_function sent_function;
     //ping_option opt;                // extend the ping_option structure with internal values
@@ -88,23 +85,16 @@ extern "C" {
     return nullptr;
   }
 
-  void ICACHE_FLASH_ATTR ping_timeout2(void* arg) {
+  // we never received the packet, increase the timeout count
+  void ICACHE_FLASH_ATTR t_ping_timeout(void* arg) {
     Ping_t *ping = (Ping_t*) arg;
     ping->timeout_count++;
-    // struct ping_msg *pingmsg = (struct ping_msg *)arg;
-    // pingmsg->timeout_count ++;
-    // if (pingmsg->ping_opt->recv_function == NULL){
-    //   // os_printf("ping timeout\n");
-    // } else {
-    //   struct ping_resp pingresp;
-    //   os_bzero(&pingresp, sizeof(struct ping_resp));
-    //   pingresp.ping_err = -1;
-    //   pingmsg->ping_opt->recv_function(pingmsg->ping_opt, (void*)&pingresp);
-    // }
+    Serial.printf("t_ping_timeout, %d.%d.%d.%d\n", 
+                      ping->ip & 0xFF, (ping->ip >> 8) & 0xFF, (ping->ip >> 16) & 0xFF, ping->ip >> 24);
   }
 
   /** Prepare a echo ICMP request */
-  void ICACHE_FLASH_ATTR ping_prepare_echo2(struct icmp_echo_hdr *iecho, u16_t len, Ping_t *ping) {
+  void ICACHE_FLASH_ATTR t_ping_prepare_echo(struct icmp_echo_hdr *iecho, u16_t len, Ping_t *ping) {
     size_t data_len = len - sizeof(struct icmp_echo_hdr);
 
     ICMPH_TYPE_SET(iecho, ICMP_ECHO);
@@ -124,24 +114,20 @@ extern "C" {
     iecho->chksum = inet_chksum(iecho, len);
   }
 
-  void ICACHE_FLASH_ATTR ping_send2(struct raw_pcb *raw, Ping_t *ping) {
-    struct pbuf *p = NULL;
-    struct icmp_echo_hdr *iecho = NULL;
-    size_t ping_size = sizeof(struct icmp_echo_hdr) + Ping_data_size;
+  void ICACHE_FLASH_ATTR t_ping_send(struct raw_pcb *raw, Ping_t *ping) {
+    struct pbuf *p;
+    uint16_t ping_size = sizeof(struct icmp_echo_hdr) + Ping_data_size;
 
-    //LWIP_DEBUGF( PING_DEBUG, ("ping: send "));
-    //ip_addr_debug_print(PING_DEBUG, addr);
-    //LWIP_DEBUGF( PING_DEBUG, ("\n"));
-    //LWIP_ASSERT("ping_size <= 0xffff", ping_size <= 0xffff);
-
-    p = pbuf_alloc(PBUF_IP, (uint16_t) ping_size, PBUF_RAM);
+    p = pbuf_alloc(PBUF_IP, ping_size, PBUF_RAM);
     if (!p) { return; }
-    if ((p->len == p->tot_len) && (p->next == NULL)) {
+    if ((p->len == p->tot_len) && (p->next == nullptr)) {
       ip_addr_t ping_target;
+      struct icmp_echo_hdr *iecho;
+      
       ping_target.addr = ping->ip;
       iecho = (struct icmp_echo_hdr *) p->payload;
 
-      ping_prepare_echo2(iecho, (uint16_t) ping_size, ping);
+      t_ping_prepare_echo(iecho, ping_size, ping);
       raw_sendto(raw, p, &ping_target);
       ping->ping_sent = sys_now();    // TODO
     }
@@ -150,6 +136,7 @@ extern "C" {
 
   // this timer is called every x seconds to send a new packet, whatever happened to the previous packet
   static void ICACHE_FLASH_ATTR ping_coarse_tmr2(void *arg) {
+  return;
     Ping_t *ping = (Ping_t*) arg;
     // struct ping_option *ping_opt= NULL;
     // struct ping_resp pingresp;
@@ -160,10 +147,10 @@ extern "C" {
     // ping_opt = ping->ping_opt;
     if (--ping->sent_count != 0){
       ping ->ping_sent = system_get_time();
-      ping_send2(ping->pcb, ping);
+      t_ping_send(ping->pcb, ping);
 
-      sys_timeout(Ping_timeout_ms, ping_timeout2, ping);
-      sys_timeout(ping->coarse_time, ping_coarse_tmr2, ping);
+      sys_timeout(Ping_timeout_ms, t_ping_timeout, ping);
+      sys_timeout(Ping_coarse, ping_coarse_tmr2, ping);
     } else {
       uint32 delay = system_relative_time(ping->ping_start);
       delay /= Ping_coarse;
@@ -193,16 +180,14 @@ extern "C" {
   }
 
   /* Ping using the raw ip */
-  static uint8_t ICACHE_FLASH_ATTR ping_recv2(void *arg, struct raw_pcb *pcb, struct pbuf *p, const ip_addr_t *addr) {
+  static uint8_t ICACHE_FLASH_ATTR t_ping_recv(void *arg, struct raw_pcb *pcb, struct pbuf *p, const ip_addr_t *addr) {
     struct icmp_echo_hdr *iecho = NULL;
     static u16_t seqno = 0;
     Ping_t *ping = (Ping_t*) arg;
     //struct ping_msg *pingmsg = (struct ping_msg*)arg;
 
-    // LWIP_UNUSED_ARG(arg);
-    // LWIP_UNUSED_ARG(pcb);
-    // LWIP_UNUSED_ARG(addr);
-    // LWIP_ASSERT("p != NULL", p != NULL);
+Serial.printf("t_ping_recv, %d.%d.%d.%d\n", 
+                      addr->addr & 0xFF, (addr->addr >> 8) & 0xFF, (addr->addr >> 16) & 0xFF, addr->addr >> 24);
 
     if (pbuf_header( p, -PBUF_IP_HLEN)==0) {
       iecho = (struct icmp_echo_hdr *)p->payload;
@@ -217,7 +202,7 @@ extern "C" {
         struct ip_hdr *iphdr = NULL;
         char ipaddrstr[16];
         ip_addr_t source_ip;
-        sys_untimeout(ping_timeout2, ping);
+        sys_untimeout(t_ping_timeout, ping);
         // memset(&source_ip, 0, sizeof(ip_addr_t));
         // memset((ipaddrstr, 0, sizeof(ipaddrstr)));
         os_bzero(&source_ip, sizeof(ip_addr_t));
@@ -277,43 +262,23 @@ extern "C" {
     return 0; /* don't eat the packet */
   }
 
+  bool t_ping_start(Ping_t *ping) {
+    ping->ping_start = system_get_time();
+    ping->sent_count = ping->max_count;
 
-  //static bool ICACHE_FLASH_ATTR ping_raw_init2(struct ping_msg *pingmsg) {
-  static void ICACHE_FLASH_ATTR ping_raw_init2(Ping_t *ping) {
     ping->pcb = raw_new(IP_PROTO_ICMP);
     //LWIP_ASSERT("ping_pcb != NULL", pingmsg->ping_pcb != NULL);
 
-    raw_recv(ping->pcb, ping_recv2, ping);
+    raw_recv(ping->pcb, t_ping_recv, ping);
     raw_bind(ping->pcb, IP_ADDR_ANY);
 
     ping->ping_sent = system_get_time();
-    ping_send2(ping->pcb, ping);
+    t_ping_send(ping->pcb, ping);
 
-    sys_timeout(Ping_timeout_ms, ping_timeout2, ping);
-    sys_timeout(ping->coarse_time, ping_coarse_tmr2, ping);
+    sys_timeout(Ping_timeout_ms, t_ping_timeout, ping);
+    sys_timeout(Ping_coarse, ping_coarse_tmr2, ping);
   }
 
-  bool ICACHE_FLASH_ATTR ping_start2(Ping_t *ping) {
-    // struct ping_msg *pingmsg = NULL;
-    // pingmsg = (struct ping_msg *)os_zalloc(sizeof(struct ping_msg));
-    // if (pingmsg == NULL || ping_opt == NULL)
-    //   return false;
-
-    //pingmsg->ping_opt = ping_opt;
-    if (ping->count != 0)
-      ping->max_count = ping->count;
-    else
-      ping->max_count = 4;
-
-    if (ping->coarse_time != 0)
-      ping->coarse_time = ping->coarse_time * Ping_coarse;
-    else
-      ping->coarse_time = Ping_coarse;
-
-    ping->ping_start = system_get_time();
-    ping->sent_count = ping->max_count;
-    ping_raw_init2(ping);
-  }
   // callbacks for ping
 
   // called after a ping response is received or time-out
@@ -342,8 +307,6 @@ void PingResponsePoll(void) {
   Ping_t **prev_link = &ping_head;      // previous link pointer (used to remove en entry)
 
   while (ping != nullptr) {
-  // for (auto it = pings.begin(); it != pings.end(); it++) {
-    // Ping_t *ping = *it;
     if (ping->done) {
       uint32_t success = ping->total_count - ping->timeout_count;
       uint32_t ip = ping->ip;
@@ -399,24 +362,14 @@ void CmndPing(void) {
     Ping_t *ping = new Ping_t();
     memset(ping, 0, sizeof(Ping_t ));
     ping->min_time = UINT32_MAX;
-
-    ping->count = count;
-    ping->coarse_time = 1;    // wait 1 second between messages
+    ping->max_count = count;
     ping->ip = ip;
 
-    // callbacks
-    //ping->recv_function = (ping_recv_function) ping_recv_cb;    // at each response or time-out
-    //ping->sent_function = (ping_sent_function) ping_sent_cb;    // when all packets have been sent and reveived
+    ping->next = ping_head;
+    ping_head = ping;         // insert at head
 
-    if (ping_start2(ping)) {
-      ping->next = ping_head;
-      ping_head = ping;         // insert at head
-      // pings.push_back(ping);
-      ResponseCmndDone();
-    } else {
-      ResponseCmndChar_P(PSTR("Unable to send Ping"));
-      delete ping;
-    }
+    t_ping_start(ping);
+    ResponseCmndDone();
   } else {
     ResponseCmndChar_P(PSTR("Unable to resolve IP address"));
   }
