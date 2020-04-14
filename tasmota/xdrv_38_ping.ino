@@ -36,11 +36,6 @@ void (* const PingCommand[])(void) PROGMEM = {
   &CmndPing,
   };
 
-
-
-// std::vector<Ping_t*>    pings = {};
-
-
 extern "C" {
   
   extern uint32 system_relative_time(uint32 time);
@@ -54,11 +49,7 @@ extern "C" {
   typedef struct Ping_t {
     uint32      ip;                 // important, the IP must be the first parameter
     Ping_t      *next = nullptr;    // next object in linked list
-    struct raw_pcb *pcb;            // pcb structure for network API
     uint16_t    count;              //
-    // ping_recv_function recv_function;
-    // ping_sent_function sent_function;
-    //ping_option opt;                // extend the ping_option structure with internal values
     uint16_t    total_count;        // total count if packets sent
     uint16_t    timeout_count;      // time-outs (no responses)
     uint32_t    min_time;           // minimum time in ms for a successful response
@@ -68,19 +59,22 @@ extern "C" {
     uint32_t    ping_start;
     uint16_t    sent_count;
     uint16_t    seq_num = 0;
+    uint16_t    seqno = 0;          // reject a packet already received
     uint16_t    max_count;
     bool        done;               // indicates the ping campaign is finished
   } Ping_t;
 
   Ping_t    *ping_head = nullptr;
+  struct raw_pcb *t_ping_pcb = nullptr;    // registered with first ping, deregistered after last ping, the same pcb is used for all packets
 
   // find the ping structure corresponding to the specified IP, or nullptr if not found
-  Ping_t ICACHE_FLASH_ATTR * find_ping(uint32_t ip) {
+  Ping_t ICACHE_FLASH_ATTR * t_ping_find(uint32_t ip) {
     Ping_t *ping = ping_head;
     while (ping != nullptr) {
       if (ping->ip == ip) {
         return ping;
       }
+      ping = ping->next;
     }
     return nullptr;
   }
@@ -147,7 +141,7 @@ extern "C" {
     // ping_opt = ping->ping_opt;
     if (--ping->sent_count != 0){
       ping ->ping_sent = system_get_time();
-      t_ping_send(ping->pcb, ping);
+      t_ping_send(t_ping_pcb, ping);
 
       sys_timeout(Ping_timeout_ms, t_ping_timeout, ping);
       sys_timeout(Ping_coarse, ping_coarse_tmr2, ping);
@@ -167,8 +161,7 @@ extern "C" {
         // pingresp.ping_err = 0;
       // }
       sys_untimeout(ping_coarse_tmr2, ping);
-      raw_remove(ping->pcb);
-      os_free(ping);
+      //os_free(ping);
 
       // TODO
       // sent_function
@@ -182,123 +175,74 @@ extern "C" {
   /* Ping using the raw ip */
   static uint8_t ICACHE_FLASH_ATTR t_ping_recv(void *arg, struct raw_pcb *pcb, struct pbuf *p, const ip_addr_t *addr) {
     struct icmp_echo_hdr *iecho = NULL;
-    static u16_t seqno = 0;
-    Ping_t *ping = (Ping_t*) arg;
-    //struct ping_msg *pingmsg = (struct ping_msg*)arg;
+Serial.printf("t_ping_recv 0\n"); Serial.flush();
+    Ping_t *ping = t_ping_find(addr->addr);
 
-Serial.printf("t_ping_recv, %d.%d.%d.%d\n", 
+    Serial.printf("t_ping_recv, %d.%d.%d.%d\n", 
                       addr->addr & 0xFF, (addr->addr >> 8) & 0xFF, (addr->addr >> 16) & 0xFF, addr->addr >> 24);
+
+    if (nullptr == ping) {
+      return 0;   // don't eat the packet and ignore it
+      Serial.printf("t_ping_recv ignore\n");
+    }
 
     if (pbuf_header( p, -PBUF_IP_HLEN)==0) {
       iecho = (struct icmp_echo_hdr *)p->payload;
 
-      //if ((iecho->id == Ping_ID) && (iecho->seqno == htons(tping_seq_num)) && iecho->type == ICMP_ER) {  // TODO
-      if ((iecho->id == Ping_ID) && (iecho->type == ICMP_ER)) {
-      // LWIP_DEBUGF( PING_DEBUG, ("ping: recv "));
-      // ip_addr_debug_print(PING_DEBUG, addr);
-      // LWIP_DEBUGF( PING_DEBUG, (" %"U32_F" ms\n", (sys_now()-ping_time)));
-      if (iecho->seqno != seqno){
-        /* do some ping result processing */
-        struct ip_hdr *iphdr = NULL;
-        char ipaddrstr[16];
-        ip_addr_t source_ip;
-        sys_untimeout(t_ping_timeout, ping);
-        // memset(&source_ip, 0, sizeof(ip_addr_t));
-        // memset((ipaddrstr, 0, sizeof(ipaddrstr)));
-        os_bzero(&source_ip, sizeof(ip_addr_t));
-        os_bzero(ipaddrstr, sizeof(ipaddrstr));
-        uint32_t delay = system_relative_time(ping->ping_sent);
-        delay /= Ping_coarse;
-        iphdr = (struct ip_hdr*)((u8*)iecho - PBUF_IP_HLEN);
-        source_ip.addr = iphdr->src.addr;
-        ipaddr_ntoa_r(&source_ip,ipaddrstr, sizeof(ipaddrstr));
+      if ((iecho->id == Ping_ID) && (iecho->seqno == htons(ping->seq_num)) && iecho->type == ICMP_ER) {
+        Serial.printf("t_ping_recv hit\n");
+        
+        if (iecho->seqno != ping->seqno){
+          /* do some ping result processing */
+          sys_untimeout(t_ping_timeout, ping);
+          uint32_t delay = system_relative_time(ping->ping_sent);
+          delay /= Ping_coarse;
 
-        // TODO New
+          ping->sum_time += delay;
+          if (delay < ping->min_time) { ping->min_time = delay; }
+          if (delay > ping->max_time) { ping->max_time = delay; }
 
-        ping->sum_time += delay;
-        if (delay < ping->min_time) { ping->min_time = delay; }
-        if (delay > ping->max_time) { ping->max_time = delay; }
-        // if (p_resp->ping_err >= 0) {
-        //   uint32_t resp_time = p_resp->resp_time;
-        //   ping->sum_time += resp_time;
-        //   if (resp_time < ping->min_time) { ping->min_time = resp_time; }
-        //   if (resp_time > ping->max_time) { ping->max_time = resp_time; }
-        // }
+          ping->seqno = iecho->seqno;
+        }
 
-        // if (pingmsg->ping_opt->recv_function == NULL){
-        //   os_printf("recv %s: byte = %d, time = %d ms, seq = %d\n",ipaddrstr, PING_DATA_SIZE, delay, ntohs(iecho->seqno));
-        // } else {
-        //   struct ping_resp pingresp;
-        //   os_bzero(&pingresp, sizeof(struct ping_resp));
-        //   pingresp.bytes = PING_DATA_SIZE;
-        //   pingresp.resp_time = delay;
-        //   pingresp.seqno = ntohs(iecho->seqno);
-        //   pingresp.ping_err = 0;
-        //   pingmsg->ping_opt->recv_function(pingmsg->ping_opt,(void*) &pingresp);
-        // }
-        seqno = iecho->seqno;
-      }
-
-        //PING_RESULT(1);
         pbuf_free(p);
         return 1; /* eat the packet */
       }
-  //    } else if(iecho->type == ICMP_ECHO){
-  //        struct pbuf *q = NULL;
-  //        os_printf("receive ping request:seq=%d\n", ntohs(iecho->seqno));
-  //        q = pbuf_alloc(PBUF_IP, (u16_t)p->tot_len, PBUF_RAM);
-  //        if (q!=NULL) {
-  //            pbuf_copy(q, p);
-  //            iecho = (struct icmp_echo_hdr *)q->payload;
-  //            ping_prepare_er(iecho, q->tot_len);
-  //            raw_sendto(pcb, q, addr);
-  //            pbuf_free(q);
-  //        }
-  //        pbuf_free(p);
-  //        return 1;
-  //    }
     }
 
     return 0; /* don't eat the packet */
+  }
+
+  // we are going to send a packet, make sure pcb is initialized
+  void t_ping_register_pcb(void) {
+    if (nullptr == t_ping_pcb) {
+      t_ping_pcb = raw_new(IP_PROTO_ICMP);
+
+      raw_recv(t_ping_pcb, t_ping_recv, nullptr);    // we cannot register data structure here as we can only register one
+      raw_bind(t_ping_pcb, IP_ADDR_ANY);
+    }
+  }
+
+  // we have finsihed a ping series, deallocated if no more ongoing
+  void t_ping_deregister_pcb(void) {
+    if (nullptr == ping_head) {         // deregister only if no ping is flying
+      raw_remove(t_ping_pcb);
+      t_ping_pcb = nullptr;
+    }
   }
 
   bool t_ping_start(Ping_t *ping) {
     ping->ping_start = system_get_time();
     ping->sent_count = ping->max_count;
 
-    ping->pcb = raw_new(IP_PROTO_ICMP);
-    //LWIP_ASSERT("ping_pcb != NULL", pingmsg->ping_pcb != NULL);
-
-    raw_recv(ping->pcb, t_ping_recv, ping);
-    raw_bind(ping->pcb, IP_ADDR_ANY);
-
+    t_ping_register_pcb();
     ping->ping_sent = system_get_time();
-    t_ping_send(ping->pcb, ping);
+    t_ping_send(t_ping_pcb, ping);
 
     sys_timeout(Ping_timeout_ms, t_ping_timeout, ping);
     sys_timeout(Ping_coarse, ping_coarse_tmr2, ping);
   }
 
-  // callbacks for ping
-
-  // called after a ping response is received or time-out
-  // void ICACHE_RAM_ATTR ping_recv_cb(Ping_t *ping, struct ping_resp *p_resp) {
-  //   // If successful
-  //   if (p_resp->ping_err >= 0) {
-  //     uint32_t resp_time = p_resp->resp_time;
-  //     ping->sum_time += resp_time;
-  //     if (resp_time < ping->min_time) { ping->min_time = resp_time; }
-  //     if (resp_time > ping->max_time) { ping->max_time = resp_time; }
-  //   }
-  // }
-
-  // // called after the ping campaign is finished
-  // void ICACHE_RAM_ATTR ping_sent_cb(Ping_t *ping, struct ping_resp *p_resp) {
-  //   // copy counters to build the MQTT response
-  //   ping->total_count = p_resp->total_count;
-  //   ping->timeout_count = p_resp->timeout_count;
-  //   ping->done = true;
-  // }
 }
 
 // Check if any ping requests is completed, and publish the results
@@ -359,21 +303,25 @@ void CmndPing(void) {
   if (count > 60) { count = 60; }
 
   if (WiFi.hostByName(XdrvMailbox.data, ip)) {
-    Ping_t *ping = new Ping_t();
-    memset(ping, 0, sizeof(Ping_t ));
-    ping->min_time = UINT32_MAX;
-    ping->max_count = count;
-    ping->ip = ip;
+    if (t_ping_find(ip)) {
+      ResponseCmndChar_P(PSTR("Ping already ongoing for this IP"));
+    } else {
 
-    ping->next = ping_head;
-    ping_head = ping;         // insert at head
+      Ping_t *ping = new Ping_t();
+      memset(ping, 0, sizeof(Ping_t ));
+      ping->min_time = UINT32_MAX;
+      ping->max_count = count;
+      ping->ip = ip;
 
-    t_ping_start(ping);
-    ResponseCmndDone();
+      ping->next = ping_head;
+      ping_head = ping;         // insert at head
+
+      t_ping_start(ping);
+      ResponseCmndDone();
+    }
   } else {
     ResponseCmndChar_P(PSTR("Unable to resolve IP address"));
   }
-
 }
 
 
@@ -387,7 +335,7 @@ bool Xdrv38(uint8_t function)
 
   switch (function) {
     case FUNC_EVERY_250_MSECOND:
-    PingResponsePoll();
+    PingResponsePoll();   // TODO
     break;
     case FUNC_COMMAND:
     result = DecodeCommand(kPingCommands, PingCommand);
