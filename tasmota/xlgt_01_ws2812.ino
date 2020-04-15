@@ -20,42 +20,68 @@
 #ifdef USE_LIGHT
 #ifdef USE_WS2812
 /*********************************************************************************************\
+ *  supported in xdrv_04_light.ino
+ *  LS_POWER, LS_WAKEUP, LS_CYCLEUP, LS_CYCLEDN, LS_RANDOM, LS_MAX
+ *  ------------------------------
+ *  0 = single color for LED light (default)
+ *  1 = start wake up sequence (same as Wakeup)
+ *  2 = cycle up through colors using Speed option
+ *  3 = cycle down through colors using Speed option
+ *  4 = random cycle through colors using Speed and Fade
+ * 
+\*********************************************************************************************/
+/*********************************************************************************************\
  * WS2812 RGB / RGBW Leds using NeopixelBus library
  *
  * light_scheme  WS2812  3+ Colors  1+2 Colors  Effect
  * ------------  ------  ---------  ----------  -----------------
- *  0            yes     no         no          Clock
- *  1            yes     no         no          Incandescent
- *  2            yes     no         no          RGB
- *  3            yes     no         no          Christmas
- *  4            yes     no         no          Hanukkah
- *  5            yes     no         no          Kwanzaa
- *  6            yes     no         no          Rainbow
- *  7            yes     no         no          Fire
+ *  0 ( 5)       yes     no         no          Clock
+ *  1 ( 6)       yes     no         no          Incandescent
+ *  2 ( 7)       yes     no         no          RGB
+ *  3 ( 8)       yes     no         no          Christmas
+ *  4 ( 9)       yes     no         no          Hanukkah
+ *  5 (10)       yes     no         no          Kwanzaa
+ *  6 (11)       yes     no         no          Rainbow
+ *  7 (12)       yes     no         no          Fire
  *
+\*********************************************************************************************/
+/*********************************************************************************************\
+ * 56 from WS2812FX library
+ * 
+ *  0 (13)  "Static";
+ *  1 (14)  "Blink"
+ *  2 (15)  "Breath"
+ *  ...
+ * 53 (66)  "Bicolor Chase"
+ * 54 (67)  "Tricolor Chase"
+ * 55 (68)  "ICU"
+ * 
 \*********************************************************************************************/
 
 #define XLGT_01             1
 
 const uint8_t WS2812_SCHEMES = 8;      // Number of WS2812 schemes
+const uint8_t WS2812FX_SCHEMES = 56;    // Number of WS2812FX schemes
 
 const char kWs2812Commands[] PROGMEM = "|"  // No prefix
-  D_CMND_LED "|" D_CMND_PIXELS "|" D_CMND_ROTATION "|" D_CMND_WIDTH ;
+  D_CMND_LED "|" D_CMND_PIXELS "|" D_CMND_ROTATION "|" D_CMND_WIDTH "|" D_CMND_FX_FADE "|" D_CMND_FX_STATE ;
 
 void (* const Ws2812Command[])(void) PROGMEM = {
-  &CmndLed, &CmndPixels, &CmndRotation, &CmndWidth };
+  &CmndLed, &CmndPixels, &CmndRotation, &CmndWidth, &CmndFxFade, &CmndFxState};
 
+#include <WS2812FX.h>
 #include <NeoPixelBus.h>
+WS2812FX* ws2812fx = nullptr;
 
-#if (USE_WS2812_CTYPE == NEO_GRB)
+#if (USE_WS2812_CTYPE == NEO_GRB_TYPE)
   typedef NeoGrbFeature selectedNeoFeatureType;
-#elif (USE_WS2812_CTYPE == NEO_BRG)
+#elif (USE_WS2812_CTYPE == NEO_BRG_TYPE)
   typedef NeoBrgFeature selectedNeoFeatureType;
-#elif (USE_WS2812_CTYPE == NEO_RBG)
+#elif (USE_WS2812_CTYPE == NEO_RBG_TYPE)
   typedef NeoRbgFeature selectedNeoFeatureType;
-#elif (USE_WS2812_CTYPE == NEO_RGBW)
+#elif (USE_WS2812_CTYPE == NEO_RGBW_TYPE)
   typedef NeoRgbwFeature selectedNeoFeatureType;
-#elif (USE_WS2812_CTYPE == NEO_GRBW)
+#elif (USE_WS2812_CTYPE == NEO_GRBW_TYPE)
   typedef NeoGrbwFeature selectedNeoFeatureType;
 #else   // USE_WS2812_CTYPE
   typedef NeoRgbFeature selectedNeoFeatureType;
@@ -137,7 +163,7 @@ struct WS2812 {
 
 void Ws2812StripShow(void)
 {
-#if (USE_WS2812_CTYPE > NEO_3LED)
+#if (USE_WS2812_CTYPE > NEO_3LED_TYPE)
   RgbwColor c;
 #else
   RgbColor c;
@@ -149,7 +175,7 @@ void Ws2812StripShow(void)
       c.R = ledGamma(c.R);
       c.G = ledGamma(c.G);
       c.B = ledGamma(c.B);
-#if (USE_WS2812_CTYPE > NEO_3LED)
+#if (USE_WS2812_CTYPE > NEO_3LED_TYPE)
       c.W = ledGamma(c.W);
 #endif
       strip->SetPixelColor(i, c);
@@ -167,7 +193,7 @@ int mod(int a, int b)
 
 void Ws2812UpdatePixelColor(int position, struct WsColor hand_color, float offset)
 {
-#if (USE_WS2812_CTYPE > NEO_3LED)
+#if (USE_WS2812_CTYPE > NEO_3LED_TYPE)
   RgbwColor color;
 #else
   RgbColor color;
@@ -255,7 +281,7 @@ void Ws2812Gradient(uint32_t schemenr)
  * Display a gradient of colors for the current color scheme.
  *  Repeat is the number of repetitions of the gradient (pick a multiple of 2 for smooth looping of the gradient).
  */
-#if (USE_WS2812_CTYPE > NEO_3LED)
+#if (USE_WS2812_CTYPE > NEO_3LED_TYPE)
   RgbwColor c;
   c.W = 0;
 #else
@@ -303,7 +329,7 @@ void Ws2812Bars(uint32_t schemenr)
  * Display solid bars of color for the current color scheme.
  * Width is the width of each bar in pixels/lights.
  */
-#if (USE_WS2812_CTYPE > NEO_3LED)
+#if (USE_WS2812_CTYPE > NEO_3LED_TYPE)
   RgbwColor c;
   c.W = 0;
 #else
@@ -349,7 +375,7 @@ void Ws2812Clear(void)
 
 void Ws2812SetColor(uint32_t led, uint8_t red, uint8_t green, uint8_t blue, uint8_t white)
 {
-#if (USE_WS2812_CTYPE > NEO_3LED)
+#if (USE_WS2812_CTYPE > NEO_3LED_TYPE)
   RgbwColor lcolor;
   lcolor.W = white;
 #else
@@ -378,7 +404,7 @@ char* Ws2812GetColor(uint32_t led, char* scolor)
 {
   uint8_t sl_ledcolor[4];
 
- #if (USE_WS2812_CTYPE > NEO_3LED)
+ #if (USE_WS2812_CTYPE > NEO_3LED_TYPE)
   RgbwColor lcolor = strip->GetPixelColor(led -1);
   sl_ledcolor[3] = lcolor.W;
  #else
@@ -425,9 +451,29 @@ bool Ws2812SetChannels(void)
   return true;
 }
 
+/********************************************************************************************/
+
+uint8_t brightness = 0;
+uint8_t speed = 0;
+uint8_t fade = 255;
+uint8_t width = 255;
+uint8_t fxgamma = 255;
+uint8_t fxreverse = 255;
+uint32_t fxcolor[NUM_COLORS];
+
+uint16_t convertSpeed(uint8_t value)
+{
+  uint16_t fx_speed = constrain( exp(0.28 * value), SPEED_MIN, SPEED_MAX);
+  return fx_speed;
+}
+
 void Ws2812ShowScheme(void)
 {
   uint32_t scheme = Settings.light_scheme - Ws2812.scheme_offset;
+
+  if ( ws2812fx->isRunning() && (scheme < WS2812_SCHEMES)) {
+    ws2812fx->stop();
+  }
 
   switch (scheme) {
     case 0:  // Clock
@@ -437,30 +483,132 @@ void Ws2812ShowScheme(void)
       }
       break;
     default:
-      if (1 == Settings.light_fade) {
-        Ws2812Gradient(scheme -1);
-      } else {
-        Ws2812Bars(scheme -1);
+      if ( scheme < WS2812_SCHEMES ) 
+      {
+        if (1 == Settings.light_fade) {
+          Ws2812Gradient(scheme -1);
+        } else {
+          Ws2812Bars(scheme -1);
+        }
+        Ws2812.show_next = 1;
+        break;
       }
-      Ws2812.show_next = 1;
-      break;
+      else {
+        bool changed = false;
+        scheme -= WS2812_SCHEMES;
+        if (ws2812fx->getMode() != scheme) {
+          ws2812fx->setMode(scheme);
+          changed = true;
+        }
+
+        if (speed != Settings.light_speed) {
+          speed = Settings.light_speed;
+          uint16_t fx_speed = convertSpeed(Settings.light_speed);
+          ws2812fx->setSpeed(fx_speed);
+          changed = true;
+        }
+
+        if (brightness != Settings.light_dimmer) {
+          brightness = Settings.light_dimmer;
+          uint16_t fx_brightness = changeUIntScale(Settings.light_dimmer, 0, 100, 0, 255 );
+          ws2812fx->setBrightness(fx_brightness);
+          changed = true;
+        }
+
+        if (fade != Settings.fx_fade) {
+          fade = Settings.fx_fade;
+          uint8_t opt = ws2812fx->getOptions(0) & (0xFF ^ FADE_GLACIAL);
+          opt |= (fade << 4);
+          ws2812fx->setOptions(0, opt);
+          changed = true;
+        }
+
+        if (width != Settings.light_width){
+          width = Settings.light_width;
+          uint8_t fx_width = width;
+          if (fx_width > 3) { fx_width = 3; }
+          uint8_t opt = ws2812fx->getOptions(0) & (0xFF ^ SIZE_XLARGE);
+          opt |= (fx_width << 1);
+          ws2812fx->setOptions(0, opt);
+          changed = true;
+        }
+
+        if (fxgamma != Settings.light_correction){
+          fxgamma = Settings.light_correction;
+          uint8_t opt = ws2812fx->getOptions(0) & (0xff ^ GAMMA);
+          if ( fxgamma > 0) { opt |= GAMMA; }
+          ws2812fx->setOptions(0, opt);
+          changed = true;
+        }
+
+        if (fxreverse != (Settings.light_rotation & 1)){
+          fxreverse = Settings.light_rotation & 1;
+          uint8_t opt = ws2812fx->getOptions(0) & (0xff ^ REVERSE);
+          if ( fxreverse > 0) { opt |= REVERSE; }
+          ws2812fx->setOptions(0, opt);
+          changed = true;
+        }
+
+        if (! IsSameSettingsColors()){
+          convertSettingsColors();
+          ws2812fx->setColors(0, (uint32_t*)&fxcolor);
+          changed = true;
+        }
+
+        if (changed){
+          changed = false;
+          CmndFxState();
+        }
+
+        if ( !ws2812fx->isRunning() ) {
+          ws2812fx->start();
+        }
+      }
   }
+}
+
+
+uint32_t getWsColor(uint8_t n) 
+{
+  return Settings.ws_color[n][WS_RED]<<16 | Settings.ws_color[n][WS_GREEN]<<8 | Settings.ws_color[n][WS_BLUE];
+}
+
+void convertSettingsColors( void )
+{
+  for (uint8_t i=0; i < NUM_COLORS; i++) { 
+    fxcolor[i] = getWsColor(i); 
+  }
+}
+
+bool IsSameSettingsColors(void)
+{
+  for (uint8_t i=0; i < NUM_COLORS; i++){
+    if ( getWsColor(i) != fxcolor[i]) { return false; }
+  }
+  return true;
 }
 
 void Ws2812ModuleSelected(void)
 {
   if (pin[GPIO_WS2812] < 99) {  // RGB led
 
-    // For DMA, the Pin is ignored as it uses GPIO3 due to DMA hardware use.
+    ws2812fx = new WS2812FX(Settings.light_pixels, pin[GPIO_WS2812], NEO_GRB + NEO_KHZ800);
+    ws2812fx->init();
+
     strip = new NeoPixelBus<selectedNeoFeatureType, selectedNeoSpeedType>(WS2812_MAX_LEDS, pin[GPIO_WS2812]);
     strip->Begin();
+
+    ws2812fx->setCustomShow(myCustomShow);
+    ws2812fx->setBrightness(255);
+    const uint32_t colors[] = {RED, BLACK, BLACK};
+    ws2812fx->setSegment(0, 0, Settings.light_pixels-1, FX_MODE_STATIC, colors, 2000, NO_OPTIONS);
 
     Ws2812Clear();
 
     Ws2812.scheme_offset = Light.max_scheme +1;
-    Light.max_scheme += WS2812_SCHEMES;
+    Light.max_scheme += ( WS2812_SCHEMES + WS2812FX_SCHEMES );
 
-#if (USE_WS2812_CTYPE > NEO_3LED)
+#if (USE_WS2812_CTYPE > NEO_3LED_TYPE)
     light_type = LT_RGBW;
 #else
     light_type = LT_RGB;
@@ -469,7 +617,9 @@ void Ws2812ModuleSelected(void)
   }
 }
 
-/********************************************************************************************/
+/*********************************************************************************************\
+ * Commands
+\*********************************************************************************************/
 
 void CmndLed(void)
 {
@@ -501,6 +651,9 @@ void CmndPixels(void)
     Settings.light_rotation = 0;
     Ws2812Clear();
     Light.update = true;
+
+    ws2812fx->setLength(Settings.light_pixels);
+    ws2812fx->setOptions(0, ws2812fx->getOptions(0) & (0xff ^ REVERSE) );   // reset rotation
   }
   ResponseCmndNumber(Settings.light_pixels);
 }
@@ -509,6 +662,10 @@ void CmndRotation(void)
 {
   if ((XdrvMailbox.payload >= 0) && (XdrvMailbox.payload < Settings.light_pixels)) {
     Settings.light_rotation = XdrvMailbox.payload;
+    uint8_t option = ws2812fx->getOptions(0) & (0xff ^ REVERSE);
+    if (Settings.light_rotation & 1 != 0) 
+      option |= REVERSE;  
+    ws2812fx->setOptions(0, option);
   }
   ResponseCmndNumber(Settings.light_rotation);
 }
@@ -530,6 +687,40 @@ void CmndWidth(void)
   }
 }
 
+void CmndFxFade(void)
+{
+  if ((XdrvMailbox.payload >= 0) && (XdrvMailbox.payload <= 7)) {
+    Settings.fx_fade = XdrvMailbox.payload;
+  }
+  ResponseCmndNumber(Settings.fx_fade);
+}
+
+void MqttShowXState(void)
+{
+  ResponseAppendTime();
+}
+
+void CmndFxState(void)
+{
+  mqtt_data[0] = '\0';
+  ResponseAppendTime(); 
+  LightState(1);
+  ResponseAppend_P(PSTR(",\"" D_CMND_PIXELS "\":%d"),Settings.light_pixels);
+  for(uint8_t i=0; i < NUM_COLORS; i++){
+    ResponseAppend_P(PSTR(",\"" D_CMND_COLOR "%d\":\"%02x%02x%02x\""), i+3, 
+      Settings.ws_color[i][WS_RED],Settings.ws_color[i][WS_GREEN],Settings.ws_color[i][WS_BLUE]);
+  }
+  ResponseAppend_P(PSTR(",\"" D_CMND_FX_FADE "\":%d"),Settings.fx_fade);
+  uint8_t i = Settings.light_scheme;
+  ResponseAppend_P(PSTR(",\"Name\":\"%s\""), ( (i < (LS_MAX+WS2812_SCHEMES))? "" : 
+    (const char*)ws2812fx->getModeName(i-(LS_MAX+WS2812_SCHEMES)) ) ) ;
+  ResponseJsonEnd();
+  MqttPublishPrefixTopic_P(STAT, PSTR(D_CMND_FX_STATE));
+  mqtt_data[0] = '\0';
+  
+  // AddLog_P2(LOG_LEVEL_INFO, "Options=%02x", ws2812fx->getOptions(0));
+}
+
 /*********************************************************************************************\
  * Interface
 \*********************************************************************************************/
@@ -539,6 +730,16 @@ bool Xlgt01(uint8_t function)
   bool result = false;
 
   switch (function) {
+    case FUNC_LOOP:
+      if ( Settings.light_scheme < (LS_MAX + WS2812_SCHEMES) ) {
+        if ( ws2812fx->isRunning() ) {
+          ws2812fx->stop();  
+        }
+      }
+      else {
+        ws2812fx->service();
+      }
+      break;
     case FUNC_SET_CHANNELS:
       result = Ws2812SetChannels();
       break;
@@ -553,6 +754,17 @@ bool Xlgt01(uint8_t function)
       break;
   }
   return result;
+}
+
+/*********************************************************************************************\
+ * Custom Show(), NeoPixelBus, used DMA
+\*********************************************************************************************/
+void myCustomShow(void) {
+  if(strip->CanShow()) {
+    memcpy(strip->Pixels(), ws2812fx->getPixels(), strip->PixelsSize());
+    strip->Dirty();
+    strip->Show();
+  }
 }
 
 #endif  // USE_WS2812

@@ -2717,6 +2717,9 @@ bool Xdrv04(uint8_t function)
         result = XlgtCall(FUNC_SERIAL);
         break;
       case FUNC_LOOP:
+        if (Light.power){
+          XlgtCall(FUNC_LOOP);
+        }
         if (Light.fade_running) {
           if (LightApplyFade()) {
             LightSetOutputs(Light.fade_cur_10);

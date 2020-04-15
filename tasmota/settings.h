@@ -469,7 +469,9 @@ struct SYSCFG {
   uint8_t       bri_preset_high;           // F07
   int8_t        hum_comp;                  // F08
 
-  uint8_t       free_f09[179];             // F09
+//  uint8_t       free_f09[179];             // F09
+  uint8_t       fx_fade;                   // F09
+  uint8_t       free_f0a[178];             // F0A
 
   uint32_t      keeloq_master_msb;         // FBC
   uint32_t      keeloq_master_lsb;         // FC0
