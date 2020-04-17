@@ -7,7 +7,11 @@ WS2812FX Library by @kitesurfer1404
 ## Description
 Fork of **Tasmota 8.2.0 (master)**.
 Support of **WS2812FX** library with more than 50 additional light effects.
-To eliminate influence to main Tasmota processes (such as Wi-Fi and MQTT processing), the fork was compiled with **DMA support** (env:tasmota-ws2812fx-dma), this means that DI (data input) of led strip **SHOULD** be soldered on Rx (GPIO3) pin of ESP chip. If you use Rx for serial communication, you cannot apply this; pin will be OUTPUT as a compilation result. Also because colors update of long strips (longest mine has 231 LEDs) takes too much time, and every update operation in library ws2812fx blocks interrupts (in case software send bit stream, not DMA ), this can bring system in unstable or unresponsive mess. That is why DMA is a best choice for real-time systems, it works smoothly with no affection of other system in Tasmota (I hope, no guarantee).
+To eliminate influence to main Tasmota processes (such as Wi-Fi and MQTT processing), the fork was compiled with **DMA support** (env:tasmota-ws2812fx-dma), this means that DI (data input) of led strip **SHOULD** be soldered on Rx (GPIO3) pin of ESP chip. If you use Rx for serial communication, you cannot apply this; pin will be OUTPUT as a compilation result. 
+
+However, it doesn't affect programming through USB-TTL Rx-Tx adapter; in programming mode (D0 tied to GND during power-up), Rx keeps input mode. The funny is when LED strip connected during programming, addressable LEDs getting firmware binary stream and stay different colours, mostly white. 
+
+Also because colors update of long strips (longest mine has 231 LEDs) takes too much time, and every update operation in library ws2812fx blocks interrupts (in case software send bit stream, not DMA ), this can bring system in unstable or unresponsive mess. That is why DMA is a best choice for real-time systems, it works smoothly with no affection of other system in Tasmota (I hope, no guarantee).
 
 ## Commands
 This fork use mostly of standard embedded commands of Tasmota, although use some of them own way.
