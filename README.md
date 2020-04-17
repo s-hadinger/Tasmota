@@ -20,7 +20,7 @@ All original light schemes (0 .. 12) still work as described in Tasmota document
 Hereinafter will be only (13 .. 68) schemes dependent explanations.
 
 #### ws2812fx dependent
-Library animation depends of many parameters/payloads and to achieve good results have to try every scheme on various parameters, such as speed, colors, width, fade, gamma correction etc. Ws2812fx library has 3 colors entrance, these colors used in effects rendering. For not to create new settings and variables, used standard Tasmota color settings, described in documentation about Scheme 5 (Clock).
+Library animation depends of many parameters/payloads and to achieve good results have to try every scheme on various parameters, such as speed, colors, width, fade, gamma correction etc. Ws2812fx library has 3 colors entrance, these colors used in effects rendering. For not to create new settings and variables, been used standard Tasmota color settings, described in documentation about Scheme 5 (Clock).
 
 - Some commands/parameters are standard:
 
@@ -51,6 +51,11 @@ XState   |       | report JSON state of every of this
 - Library ws2812fx need Speed in values 2..65535, so inside there is a converter who does job about conversion of standard Tasmota Speed command:
 
 ![Speed conversion image](/tools/logo/speed-conversion.jpg)
+
+Dont't want compile yourself ? Here is precompiled version
+
+https://github.com/a-roz/Tasmota/raw/ws2812fx/firmware/firmware.bin
+
 
 Good luck
 
