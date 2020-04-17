@@ -1,4 +1,56 @@
 ![Tasmota logo](/tools/logo/TASMOTA_FullLogo_Vector.svg)
+![WS2812FX library](https://raw.githubusercontent.com/kitesurfer1404/WS2812FX/master/WS2812FX_logo.png)
+
+## Description
+Fork of **Tasmota 8.2.0 (master)**.
+Support of **WS2812FX** library with more than 50 additional light effects.
+To eliminate influence to main Tasmota processes (such as Wi-Fi and MQTT processing), the fork was compiled with **DMA support** (env:tasmota-ws2812fx-dma), this means that DI (data input) of led strip **SHOULD** be soldered on Rx (GPIO3) pin of ESP chip. If you use Rx for serial communication, you cannot apply this; pin will be OUTPUT as a compilation result. Also because colors update of long strips (longest mine has 231 LEDs) takes too much time, and every update operation in library ws2812fx blocks interrupts (in case software send bit stream, not DMA ), this can bring system in unstable or unresponsive mess. That is why DMA is a best choice for real-time systems, it works smoothly with no affection of other system in Tasmota (I hope, no guarantee).
+
+## Commands
+This fork use mostly of standard embedded commands of Tasmota, although use some of them own way.
+
+#### Scheme
+Command  | Payload  | Description
+-------  | -------- | -----------
+Scheme   | 0..12    | Tasmota schemes
+Scheme   | 13..68   | WS2812FX schemes
+
+All original light schemes (0 .. 12) still work as described in Tasmota documentation.
+Hereinafter will be only (13 .. 68) schemes dependent explanations.
+
+#### ws2812fx dependent
+Library animation depends of many parameters/payloads and to achieve good results have to try every scheme on various parameters, such as speed, colors, width, fade, gamma correction etc. Ws2812fx library has 3 colors entrance, these colors used in effects rendering. For not to create new settings and variables, used standard Tasmota color settings, described in documentation about Scheme 5 (Clock).
+
+- Some commands/parameters are standard:
+
+Command  | Payload | Description
+-------  | -------- | -----------
+Pixels   | _Tasmota doc_ | LEDs count
+Dimmer   | _Tasmota doc_ | Brightness
+LedTable | _Tasmota doc_ | Gamma correction
+Speed    | _Tasmota doc_ | Animation speed
+Width    | _Tasmota doc_ | Used in animation, accepts 0..3
+Color3   | _Tasmota doc_ | Used in animation
+Color4   | _Tasmota doc_ | Used in animation
+Color5   | _Tasmota doc_ | Used in animation
+
+- Some commands deviate behavior
+
+Command  | Payload | Description
+-------  | -------- | -----------
+Rotation | any int, use bit[0]  | Animation direction
+
+- Moreover, 2 commands added, due to inability use standard Fade and to show additional state message
+
+Command  | Payload | Description
+-------  | -------- | -----------
+XFade    | 0..7  | used in animation
+XState   |       | report JSON state of every of this
+
+- Library ws2812fx need Speed in values 2..65535, so inside there is a converter who does job about conversion of standard Tasmota Speed command:
+![Speed conversion image](/tools/logo/speed-conversion.jpg)
+
+Good luck
 
 Alternative firmware for [ESP8266](https://en.wikipedia.org/wiki/ESP8266) based devices with **easy configuration using webUI, OTA updates, automation using timers or rules, expandability and entirely local control over MQTT, HTTP, Serial or KNX**.
 _Written for Arduino IDE and PlatformIO._
