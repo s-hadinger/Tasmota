@@ -48,6 +48,7 @@ XFade    | 0..7  | used in animation
 XState   |       | report JSON state of every of this
 
 - Library ws2812fx need Speed in values 2..65535, so inside there is a converter who does job about conversion of standard Tasmota Speed command:
+
 ![Speed conversion image](/tools/logo/speed-conversion.jpg)
 
 Good luck
