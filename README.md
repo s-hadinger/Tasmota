@@ -1,5 +1,6 @@
 ![Tasmota logo](/tools/logo/TASMOTA_FullLogo_Vector.svg)
 ![WS2812FX library](https://raw.githubusercontent.com/kitesurfer1404/WS2812FX/master/WS2812FX_logo.png)
+https://github.com/kitesurfer1404/WS2812FX
 
 ## Description
 Fork of **Tasmota 8.2.0 (master)**.
