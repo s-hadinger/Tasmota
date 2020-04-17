@@ -58,6 +58,9 @@ Dont't want compile yourself ? Here is precompiled version
 
 https://github.com/a-roz/Tasmota/raw/ws2812fx/firmware/firmware.bin
 
+I have tried this using OTA update. 
+1. download and install "tasmota-minimal.bin"
+2. download and install this "firmware.bin"
 
 Good luck
 
