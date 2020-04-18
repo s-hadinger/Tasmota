@@ -20,7 +20,7 @@ This fork use most of standard embedded commands of Tasmota, although use some o
 Command  | Payload  | Description
 -------  | -------- | -----------
 Scheme   | 0..12    | Tasmota schemes
-Scheme   | 13..68   | WS2812FX schemes
+Scheme   | 13..68   | WS2812FX schemes (0..55) + offset 13
 
 All original light schemes (0 .. 12) still work as described in Tasmota documentation.
 Hereinafter will be only (13 .. 68) schemes dependent explanations.
