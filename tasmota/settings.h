@@ -512,25 +512,11 @@ struct SYSCFG {
   uint8_t       bri_preset_low;            // F06
   uint8_t       bri_preset_high;           // F07
   int8_t        hum_comp;                  // F08
-  uint8_t       wifi_channel;              // F09
-  uint8_t       wifi_bssid[6];             // F0A
-  uint8_t       as3935_sensor_cfg[5];      // F10
-  As3935IntCfg  as3935_functions;          // F15
-  As3935Param   as3935_parameter;          // F16
-  uint64_t      zb_ext_panid;              // F18
-  uint64_t      zb_precfgkey_l;            // F20
-  uint64_t      zb_precfgkey_h;            // F28
-  uint16_t      zb_pan_id;                 // F30
-  uint8_t       zb_channel;                // F32
-  uint8_t       zb_free_byte;              // F33
-  uint16_t      pms_wake_interval;         // F34
-  uint8_t       config_version;            // F36
 
-  uint8_t       free_f37[129];             // F37 - Decrement if adding new Setting variables just above and below
+//  uint8_t       free_f09[179];             // F09
+  uint8_t       fx_fade;                   // F09
+  uint8_t       free_f0a[178];             // F0A
 
-  // Only 32 bit boundary variables below
-  uint16_t      pulse_counter_debounce_low;  // FB8
-  uint16_t      pulse_counter_debounce_high; // FBA
   uint32_t      keeloq_master_msb;         // FBC
   uint32_t      keeloq_master_lsb;         // FC0
   uint32_t      keeloq_serial;             // FC4
