@@ -54,6 +54,26 @@ Command  | Payload | Description
 XFade    | 0..7  | used in animation
 XState   |       | report JSON state of every of this
 
+Result of XState command:
+```
+{"Time":"2020-04-18T09:53:33",
+"POWER2":"ON",
+"Dimmer":48,
+"Color":"7A6500",
+"HSBColor":"50,100,48",
+"Channel":[48,40,0],
+"Scheme":32,
+"Width":1,
+"Fade":"OFF",
+"Speed":33,
+"LedTable":"ON",
+"Pixels":231,
+"Color3":"ff00ff",
+"Color4":"00ff00",
+"Color5":"ff0000",
+"XFade":1,
+"Name":"Twinkle"}
+```
 - Library ws2812fx need Speed in values 2..65535, so inside there is a converter who does job about conversion of standard Tasmota Speed command:
 
 ![Speed conversion image](/tools/logo/speed-conversion.jpg)
