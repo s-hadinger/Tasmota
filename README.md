@@ -14,7 +14,7 @@ However, it doesn't affect programming through USB-TTL Rx-Tx adapter; in program
 Also because colors update of long strips (longest mine has 231 LEDs) takes too much time, and every update operation in library ws2812fx blocks interrupts (in case software send bit stream, not DMA ), this can bring system in unstable or unresponsive mess. That is why DMA is a best choice for real-time systems, it works smoothly with no affection of other system in Tasmota (I hope, no guarantee).
 
 ## Commands
-This fork use mostly of standard embedded commands of Tasmota, although use some of them own way.
+This fork use most of standard embedded commands of Tasmota, although use some of them own way.
 
 #### Scheme
 Command  | Payload  | Description
