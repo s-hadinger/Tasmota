@@ -81,7 +81,8 @@ uint8_t Z_getDatatypeLen(uint8_t t) {
 
 //
 // returns if a ZCL data-type is discrete
-// 
+// Non-discrete: Zuint<x>, Zint<x>, Zsemi, Zsingle, Zdouble
+//               ZToD, Zdate, ZUTC
 //
 bool Z_isDatatypeDiscrete(uint8_t t) {
   if ( ((t >= Zuint8) && (t <= Zint64))  ||
