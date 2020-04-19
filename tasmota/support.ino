@@ -99,11 +99,7 @@ uint32_t ResetReason(void)
     REASON_DEEP_SLEEP_AWAKE = 5,  // "Deep-Sleep Wake"         wake up from deep-sleep
     REASON_EXT_SYS_RST      = 6   // "External System"         external system reset
   */
-#ifdef ESP8266
-  return resetInfo.reason;
-#else
   return ESP_ResetInfoReason();
-#endif
 }
 
 String GetResetReason(void)
@@ -1208,14 +1204,12 @@ uint8_t ValidPin(uint32_t pin, uint32_t gpio)
     return GPIO_NONE;    // Disable flash pins GPIO6, GPIO7, GPIO8 and GPIO11
   }
 
-#ifdef ESP8266
 //  if (!is_8285 && !Settings.flag3.user_esp8285_enable) {  // SetOption51 - Enable ESP8285 user GPIO's
   if ((WEMOS == Settings.module) && !Settings.flag3.user_esp8285_enable) {  // SetOption51 - Enable ESP8285 user GPIO's
     if ((pin == 9) || (pin == 10)) {
       return GPIO_NONE;  // Disable possible flash GPIO9 and GPIO10
     }
   }
-#endif  // ESP8266
 
   return gpio;
 }
