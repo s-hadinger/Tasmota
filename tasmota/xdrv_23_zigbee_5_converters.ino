@@ -79,15 +79,19 @@ uint8_t Z_getDatatypeLen(uint8_t t) {
   }
 }
 
-// typedef struct Z_DataTypeMapping {
-//   uint8_t     datatype;
-//   uint8_t     len;        // len in bytes and add 0x80 if DISCRETE
-// }
-
-// const Z_DataTypeMapping Z_types[] PROGMEM = {
-//   { Znodata,          0 },
-//   { Zdata8,          0 },
-// };
+//
+// returns if a ZCL data-type is discrete
+// 
+//
+bool Z_isDatatypeDiscrete(uint8_t t) {
+  if ( ((t >= Zuint8) && (t <= Zint64))  ||
+       ((t >= Zsemi)  && (t <= Zdouble)) ||
+       ((t >= ZToD)   && (t <= ZUTC)) ) {
+    return false;
+  } else {
+    return true;
+  }
+}
 
 typedef union ZCLHeaderFrameControl_t {
   struct {
