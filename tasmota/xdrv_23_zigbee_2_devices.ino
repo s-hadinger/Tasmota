@@ -1071,31 +1071,31 @@ int32_t Z_Devices::deviceRestore(const JsonObject &json) {
   size_t   endpoints_len = 0;
 
   // read mandatory "Device"
-  const JsonVariant &val_device = getCaseInsensitive(json, PSTR("Device"));
+  const JsonVariant &val_device = getJsonCaseInsensitive(json, PSTR("Device"));
   if (nullptr != &val_device) {
-    device = strToUInt(val_device);
+    device = jsonToUInt(val_device);
   } else {
     return -1;        // missing "Device" attribute
   }
 
   // read "IEEEAddr" 64 bits in format "0x0000000000000000"
-  const JsonVariant &val_ieeeaddr = getCaseInsensitive(json, PSTR("IEEEAddr"));
+  const JsonVariant &val_ieeeaddr = getJsonCaseInsensitive(json, PSTR("IEEEAddr"));
   if (nullptr != &val_ieeeaddr) {
     ieeeaddr = strtoull(val_ieeeaddr.as<const char*>(), nullptr, 0);
   }
 
   // read "Name"
-  friendlyname = getCaseInsensitiveConstCharNull(json, PSTR("Name"));
+  friendlyname = getJsonCaseInsensitiveConstCharNull(json, PSTR("Name"));
 
   // read "ModelId"
-  modelid = getCaseInsensitiveConstCharNull(json, PSTR("ModelId"));
+  modelid = getJsonCaseInsensitiveConstCharNull(json, PSTR("ModelId"));
 
   // read "Manufacturer"
-  manufid = getCaseInsensitiveConstCharNull(json, PSTR("Manufacturer"));
+  manufid = getJsonCaseInsensitiveConstCharNull(json, PSTR("Manufacturer"));
 
   // read "Light"
-  const JsonVariant &val_bulbtype = getCaseInsensitive(json, PSTR(D_JSON_ZIGBEE_LIGHT));
-  if (nullptr != &val_bulbtype) { bulbtype = strToUInt(val_bulbtype);; }
+  const JsonVariant &val_bulbtype = getJsonCaseInsensitive(json, PSTR(D_JSON_ZIGBEE_LIGHT));
+  if (nullptr != &val_bulbtype) { bulbtype = jsonToUInt(val_bulbtype);; }
 
   // update internal device information
   updateDevice(device, ieeeaddr);
@@ -1105,14 +1105,14 @@ int32_t Z_Devices::deviceRestore(const JsonObject &json) {
   if (&val_bulbtype) { setHueBulbtype(device, bulbtype); }
 
   // read "Endpoints"
-  const JsonVariant &val_endpoints = getCaseInsensitive(json, PSTR("Endpoints"));
+  const JsonVariant &val_endpoints = getJsonCaseInsensitive(json, PSTR("Endpoints"));
   if ((nullptr != &val_endpoints) && (val_endpoints.is<JsonArray>())) {
     const JsonArray &arr_ep = val_endpoints.as<const JsonArray&>();
     endpoints_len = arr_ep.size();
     clearEndpoints(device);     // clear even if array is empty
     if (endpoints_len) {
       for (auto ep_elt : arr_ep) {
-        uint8_t ep = strToUInt(ep_elt);
+        uint8_t ep = jsonToUInt(ep_elt);
         if (ep) {
           addEndpoint(device, ep);
         }

@@ -188,19 +188,6 @@ void ZigbeeInit(void)
  * Commands
 \*********************************************************************************************/
 
-uint32_t strToUInt(const JsonVariant &val) {
-  // if the string starts with 0x, it is considered Hex, otherwise it is an int
-  if (val.is<unsigned int>()) {
-    return val.as<unsigned int>();
-  } else {
-    if (val.is<const char*>()) {
-      String sval = val.as<String>();
-      return strtoull(sval.c_str(), nullptr, 0);
-    }
-  }
-  return 0;   // couldn't parse anything
-}
-
 // Do a factory reset of the CC2530
 const unsigned char ZIGBEE_FACTORY_RESET[] PROGMEM =
   { Z_SREQ | Z_SAPI, SAPI_WRITE_CONFIGURATION, CONF_STARTUP_OPTION, 0x01 /* len */, 0x01 /* STARTOPT_CLEAR_CONFIG */};
@@ -427,26 +414,26 @@ void CmndZbSend(void) {
   bool     clusterSpecific = true;
 
   // parse JSON
-  const JsonVariant &val_device = getCaseInsensitive(json, PSTR("Device"));
+  const JsonVariant &val_device = getJsonCaseInsensitive(json, PSTR("Device"));
   if (nullptr != &val_device) {
     device = zigbee_devices.parseDeviceParam(val_device.as<char*>());
     if (0xFFFF == device) { ResponseCmndChar_P(PSTR("Invalid parameter")); return; }
   }
   if (0x0000 == device) {     // if not found, check if we have a group
-    const JsonVariant &val_group = getCaseInsensitive(json, PSTR("Group"));
+    const JsonVariant &val_group = getJsonCaseInsensitive(json, PSTR("Group"));
     if (nullptr != &val_group) {
-      groupaddr = strToUInt(val_group);
+      groupaddr = jsonToUInt(val_group);
     } else {                  // no device nor group
       ResponseCmndChar_P(PSTR("Unknown device"));
       return;
     }
   }
 
-  const JsonVariant &val_endpoint = getCaseInsensitive(json, PSTR("Endpoint"));
-  if (nullptr != &val_endpoint) { endpoint = strToUInt(val_endpoint); }
-  const JsonVariant &val_manuf = getCaseInsensitive(json, PSTR("Manuf"));
-  if (nullptr != &val_manuf) { manuf = strToUInt(val_manuf); }
-  const JsonVariant &val_cmd = getCaseInsensitive(json, PSTR("Send"));
+  const JsonVariant &val_endpoint = getJsonCaseInsensitive(json, PSTR("Endpoint"));
+  if (nullptr != &val_endpoint) { endpoint = jsonToUInt(val_endpoint); }
+  const JsonVariant &val_manuf = getJsonCaseInsensitive(json, PSTR("Manuf"));
+  if (nullptr != &val_manuf) { manuf = jsonToUInt(val_manuf); }
+  const JsonVariant &val_cmd = getJsonCaseInsensitive(json, PSTR("Send"));
   if (nullptr != &val_cmd) {
     // probe the type of the argument
     // If JSON object, it's high level commands
@@ -582,7 +569,7 @@ void ZbBindUnbind(bool unbind) {    // false = bind, true = unbind
 
   // Information about source device: "Device", "Endpoint", "Cluster"
   //  - the source endpoint must have a known IEEE address
-  const JsonVariant &val_device = getCaseInsensitive(json, PSTR("Device"));
+  const JsonVariant &val_device = getJsonCaseInsensitive(json, PSTR("Device"));
   if (nullptr != &val_device) {
     srcDevice = zigbee_devices.parseDeviceParam(val_device.as<char*>());
     if (0xFFFF == srcDevice) { ResponseCmndChar_P(PSTR("Invalid parameter")); return; }
@@ -592,17 +579,17 @@ void ZbBindUnbind(bool unbind) {    // false = bind, true = unbind
   uint64_t srcLongAddr = zigbee_devices.getDeviceLongAddr(srcDevice);
   if (0 == srcLongAddr) { ResponseCmndChar_P(PSTR("Unknown source IEEE address")); return; }
   // look for source endpoint
-  const JsonVariant &val_endpoint = getCaseInsensitive(json, PSTR("Endpoint"));
-  if (nullptr != &val_endpoint) { endpoint = strToUInt(val_endpoint); }
+  const JsonVariant &val_endpoint = getJsonCaseInsensitive(json, PSTR("Endpoint"));
+  if (nullptr != &val_endpoint) { endpoint = jsonToUInt(val_endpoint); }
   // look for source cluster
-  const JsonVariant &val_cluster = getCaseInsensitive(json, PSTR("Cluster"));
-  if (nullptr != &val_cluster) { cluster = strToUInt(val_cluster); }
+  const JsonVariant &val_cluster = getJsonCaseInsensitive(json, PSTR("Cluster"));
+  if (nullptr != &val_cluster) { cluster = jsonToUInt(val_cluster); }
 
   // Either Device address
   // In this case the following parameters are mandatory
   //  - "ToDevice" and the device must have a known IEEE address
   //  - "ToEndpoint"
-  const JsonVariant &dst_device = getCaseInsensitive(json, PSTR("ToDevice"));
+  const JsonVariant &dst_device = getJsonCaseInsensitive(json, PSTR("ToDevice"));
   if (nullptr != &dst_device) {
     dstDevice = zigbee_devices.parseDeviceParam(dst_device.as<char*>());
     if (0xFFFF == dstDevice) { ResponseCmndChar_P(PSTR("Invalid parameter")); return; }
@@ -613,13 +600,13 @@ void ZbBindUnbind(bool unbind) {    // false = bind, true = unbind
     }
     if (0 == dstLongAddr) { ResponseCmndChar_P(PSTR("Unknown dest IEEE address")); return; }
 
-    const JsonVariant &val_toendpoint = getCaseInsensitive(json, PSTR("ToEndpoint"));
-    if (nullptr != &val_toendpoint) { toendpoint = strToUInt(val_endpoint); } else { toendpoint = endpoint; }
+    const JsonVariant &val_toendpoint = getJsonCaseInsensitive(json, PSTR("ToEndpoint"));
+    if (nullptr != &val_toendpoint) { toendpoint = jsonToUInt(val_endpoint); } else { toendpoint = endpoint; }
   }
 
   // Or Group Address - we don't need a dstEndpoint in this case
-  const JsonVariant &to_group = getCaseInsensitive(json, PSTR("ToGroup"));
-  if (nullptr != &to_group) { toGroup = strToUInt(to_group); }
+  const JsonVariant &to_group = getJsonCaseInsensitive(json, PSTR("ToGroup"));
+  if (nullptr != &to_group) { toGroup = jsonToUInt(to_group); }
 
   // make sure we don't have conflicting parameters
   if (toGroup && dstLongAddr) { ResponseCmndChar_P(PSTR("Cannot have both \"ToDevice\" and \"ToGroup\"")); return; }
@@ -862,7 +849,7 @@ void CmndZbRestore(void) {
   if (!success) { ResponseCmndChar_P(PSTR(D_JSON_INVALID_JSON)); return; }
 
   // Check is root contains `ZbStatus<x>` key, if so change the root
-  const JsonVariant * zbstatus = &startsWithCaseInsensitive(*json, PSTR("ZbStatus"));
+  const JsonVariant * zbstatus = &startsWithJsonCaseInsensitive(*json, PSTR("ZbStatus"));
   if (nullptr != zbstatus) {
     json = zbstatus;
   }
@@ -914,31 +901,31 @@ void CmndZbRead(void) {
   size_t   attrs_len = 0;
   uint8_t* attrs = nullptr;       // empty string is valid
 
-  const JsonVariant &val_device = getCaseInsensitive(json, PSTR("Device"));
+  const JsonVariant &val_device = getJsonCaseInsensitive(json, PSTR("Device"));
   if (nullptr != &val_device) {
     device = zigbee_devices.parseDeviceParam(val_device.as<char*>());
     if (0xFFFF == device) { ResponseCmndChar_P(PSTR("Invalid parameter")); return; }
   }
   if (0x0000 == device) {     // if not found, check if we have a group
-    const JsonVariant &val_group = getCaseInsensitive(json, PSTR("Group"));
+    const JsonVariant &val_group = getJsonCaseInsensitive(json, PSTR("Group"));
     if (nullptr != &val_group) {
-      groupaddr = strToUInt(val_group);
+      groupaddr = jsonToUInt(val_group);
     } else {                  // no device nor group
       ResponseCmndChar_P(PSTR("Unknown device"));
       return;
     }
   }
 
-  const JsonVariant &val_cluster = getCaseInsensitive(json, PSTR("Cluster"));
-  if (nullptr != &val_cluster) { cluster = strToUInt(val_cluster); }
-  const JsonVariant &val_endpoint = getCaseInsensitive(json, PSTR("Endpoint"));
-  if (nullptr != &val_endpoint) { endpoint = strToUInt(val_endpoint); }
-  const JsonVariant &val_manuf = getCaseInsensitive(json, PSTR("Manuf"));
-  if (nullptr != &val_manuf) { manuf = strToUInt(val_manuf); }
+  const JsonVariant &val_cluster = getJsonCaseInsensitive(json, PSTR("Cluster"));
+  if (nullptr != &val_cluster) { cluster = jsonToUInt(val_cluster); }
+  const JsonVariant &val_endpoint = getJsonCaseInsensitive(json, PSTR("Endpoint"));
+  if (nullptr != &val_endpoint) { endpoint = jsonToUInt(val_endpoint); }
+  const JsonVariant &val_manuf = getJsonCaseInsensitive(json, PSTR("Manuf"));
+  if (nullptr != &val_manuf) { manuf = jsonToUInt(val_manuf); }
 
-  const JsonVariant &val_attr = getCaseInsensitive(json, PSTR("Read"));
+  const JsonVariant &val_attr = getJsonCaseInsensitive(json, PSTR("Read"));
   if (nullptr != &val_attr) {
-    uint16_t val = strToUInt(val_attr);
+    uint16_t val = jsonToUInt(val_attr);
     if (val_attr.is<JsonArray>()) {
       const JsonArray& attr_arr = val_attr.as<const JsonArray&>();
       attrs_len = attr_arr.size() * 2;
@@ -946,7 +933,7 @@ void CmndZbRead(void) {
 
       uint32_t i = 0;
       for (auto value : attr_arr) {
-        uint16_t val = strToUInt(value);
+        uint16_t val = jsonToUInt(value);
         attrs[i++] = val & 0xFF;
         attrs[i++] = val >> 8;
       }
@@ -1042,21 +1029,21 @@ void CmndZbConfig(void) {
     if (!json.success()) { ResponseCmndChar_P(PSTR(D_JSON_INVALID_JSON)); return; }
 
     // Channel
-    const JsonVariant &val_channel = getCaseInsensitive(json, PSTR("Channel"));
-    if (nullptr != &val_channel) { zb_channel = strToUInt(val_channel); }
+    const JsonVariant &val_channel = getJsonCaseInsensitive(json, PSTR("Channel"));
+    if (nullptr != &val_channel) { zb_channel = jsonToUInt(val_channel); }
     if (zb_channel < 11) { zb_channel = 11; }
     if (zb_channel > 26) { zb_channel = 26; }
     // PanID
-    const JsonVariant &val_pan_id = getCaseInsensitive(json, PSTR("PanID"));
-    if (nullptr != &val_pan_id) { zb_pan_id = strToUInt(val_pan_id); }
+    const JsonVariant &val_pan_id = getJsonCaseInsensitive(json, PSTR("PanID"));
+    if (nullptr != &val_pan_id) { zb_pan_id = jsonToUInt(val_pan_id); }
     // ExtPanID
-    const JsonVariant &val_ext_pan_id = getCaseInsensitive(json, PSTR("ExtPanID"));
+    const JsonVariant &val_ext_pan_id = getJsonCaseInsensitive(json, PSTR("ExtPanID"));
     if (nullptr != &val_ext_pan_id) { zb_ext_panid = strtoull(val_ext_pan_id.as<const char*>(), nullptr, 0); }
     // KeyL
-    const JsonVariant &val_key_l = getCaseInsensitive(json, PSTR("KeyL"));
+    const JsonVariant &val_key_l = getJsonCaseInsensitive(json, PSTR("KeyL"));
     if (nullptr != &val_key_l) { zb_precfgkey_l = strtoull(val_key_l.as<const char*>(), nullptr, 0); }
     // KeyH
-    const JsonVariant &val_key_h = getCaseInsensitive(json, PSTR("KeyH"));
+    const JsonVariant &val_key_h = getJsonCaseInsensitive(json, PSTR("KeyH"));
     if (nullptr != &val_key_h) { zb_precfgkey_h = strtoull(val_key_h.as<const char*>(), nullptr, 0); }
 
     // Check if a parameter was changed after all

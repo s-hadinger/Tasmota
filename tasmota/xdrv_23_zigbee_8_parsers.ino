@@ -529,9 +529,9 @@ void Z_SendAFInfoRequest(uint16_t shortaddr) {
 void Z_AqaraOccupancy(uint16_t shortaddr, uint16_t cluster, uint8_t endpoint, const JsonObject &json) {
   static const uint32_t OCCUPANCY_TIMEOUT = 90 * 1000;  // 90 s
   // Read OCCUPANCY value if any
-  const JsonVariant &val_endpoint = getCaseInsensitive(json, PSTR(OCCUPANCY));
+  const JsonVariant &val_endpoint = getJsonCaseInsensitive(json, PSTR(OCCUPANCY));
   if (nullptr != &val_endpoint) {
-    uint32_t occupancy = strToUInt(val_endpoint);
+    uint32_t occupancy = jsonToUInt(val_endpoint);
 
     if (occupancy) {
       zigbee_devices.setTimer(shortaddr, 0 /* groupaddr */, OCCUPANCY_TIMEOUT, cluster, endpoint, Z_CAT_VIRTUAL_OCCUPANCY, 0, &Z_OccupancyCallback);
