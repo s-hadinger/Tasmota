@@ -684,9 +684,10 @@ bool PN532_Command(void)
     if (read_block >= 0) {
       // read
       uint8_t data[16];
-      size_t bytes_read;
+      int32_t bytes_read;
 
       bytes_read = PN532_ReadBlock(read_block, key, key, data, sizeof(data));
+      AddLog_P2f("PN532_ReadBlock -> %d", bytes_read);
 
       if (16 == bytes_read) {
         char hex[16*2+2];
@@ -775,7 +776,9 @@ bool Xsns40(uint8_t function)
   }
 #ifdef DEBUG_PN532
   if (debug_pn532[0]) {     // if buffer non-empty, dump debug buffer
-    Serial.printf(debug_pn532); Serial.flush();
+    Serial.printf(debug_pn532);
+    Serial.printf("\n");
+    Serial.flush();
     //AddLog_P2(LOG_LEVEL_DEBUG, PSTR("%s"), debug_pn532);
   }
 #endif
