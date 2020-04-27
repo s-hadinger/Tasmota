@@ -89,7 +89,7 @@ void PN532_Init(void) {
     PN532_Serial = new TasmotaSerial(pin[GPIO_PN532_RXD], pin[GPIO_PN532_TXD], 1);
     if (PN532_Serial->begin(115200)) {
       if (PN532_Serial->hardwareSerial()) { ClaimSerial(); }
-      //PN532_wakeup();
+      PN532_wakeup();
       uint32_t ver = PN532_getFirmwareVersion(); 
       if (ver) {
         PN532_setPassiveActivationRetries(0xFF);    // 0xFF = default, infinitely
@@ -318,6 +318,7 @@ AddLog_P2f(PSTR("PN532_wakeup: > 5555000000"));
 //   -12 : bad response packet
 int32_t PN532_readPassiveTargetID(uint8_t cardbaudrate, uint8_t *uid, uint16_t timeout = 50) {
   uint8_t buf[24];
+  int32_t res;
 
   buf[0] = PN532_COMMAND_INLISTPASSIVETARGET;
   buf[1] = 1;  // max 1 cards at once (we can set this to 2 later)
@@ -326,8 +327,8 @@ int32_t PN532_readPassiveTargetID(uint8_t cardbaudrate, uint8_t *uid, uint16_t t
     return -10;  // command failed
   }
   // read data packet
-  if (PN532_readResponse(buf, sizeof(buf), timeout) < 0) {
-    return -11;
+  if (res = PN532_readResponse(buf, sizeof(buf), timeout) < 0) {
+    return res;
   }
 
   /* Check some basic stuff
@@ -495,23 +496,38 @@ int32_t PN532_ReadBlock(uint32_t block, int64_t keyA, int64_t keyB, uint8_t *buf
   if (res <= 0) { return res; }    // error
   uid_len = res;
 
-  if (uid_len != 4) { return -1; }    // we only support UID of 4 bytes
+  if (uid_len != 4) {
+#ifdef DEBUG_PN532
+    AddLog_P2f(PSTR("PN532_ReadBlock bad uid_len = %d"), uid_len);
+#endif
+    return -1;
+  }    // we only support UID of 4 bytes
 
-  // TODO check order of key
   uint8_t key1[6] = {
-                    (uint8_t) ((uint64_t)keyA >>  0),
-                    (uint8_t) ((uint64_t)keyA >>  8),
-                    (uint8_t) ((uint64_t)keyA >> 16),
-                    (uint8_t) ((uint64_t)keyA >> 24),
+                    (uint8_t) ((uint64_t)keyA >> 40),
                     (uint8_t) ((uint64_t)keyA >> 32),
-                    (uint8_t) ((uint64_t)keyA >> 40)
+                    (uint8_t) ((uint64_t)keyA >> 24),
+                    (uint8_t) ((uint64_t)keyA >> 16),
+                    (uint8_t) ((uint64_t)keyA >>  8),
+                    (uint8_t) ((uint64_t)keyA >>  0)
                     };
 
-  res = mifareclassic_AuthenticateBlock(uid, uid_len, block, 1, (uint8_t*) &keyA);
+  uint8_t key2[6] = {
+                    (uint8_t) ((uint64_t)keyB >> 40),
+                    (uint8_t) ((uint64_t)keyB >> 32),
+                    (uint8_t) ((uint64_t)keyB >> 24),
+                    (uint8_t) ((uint64_t)keyB >> 16),
+                    (uint8_t) ((uint64_t)keyB >>  8),
+                    (uint8_t) ((uint64_t)keyB >>  0)
+                    };
+
+  res = mifareclassic_AuthenticateBlock(uid, uid_len, block, 1, (uint8_t*) &key1);
   if (0 != res) { return res; }
 
-  res = mifareclassic_AuthenticateBlock(uid, uid_len, block, 2, (uint8_t*) &keyB);
-  if (0 != res) { return res; }
+  if (keyB) {
+    res = mifareclassic_AuthenticateBlock(uid, uid_len, block, 2, (uint8_t*) &key2);
+    if (0 != res) { return res; }
+  }
 
   res = mifareclassic_ReadDataBlock(block, buf);
   if (0 != res) { return res; }
@@ -656,7 +672,8 @@ bool PN532_Command(void)
   if ('{' == XdrvMailbox.data[0]) {
     int32_t read_block = -1;        // which block to read
     int32_t write_block = -1;       // which block to write
-    int64_t key = -1;               // auth key, key is 48 bits, <0 if unspecified. 0xFFFFFFFFFFFF is anyways the universal key
+    int64_t keyA = -1;              // auth key, key is 48 bits, 0xFFFFFFFFFFFF is anyways the universal key
+    int64_t keyB = 0;               // auth key, key is 48 bits, =0 if unspecified
     // paramater is JSON
     DynamicJsonBuffer jsonBuf;
     const JsonObject &json = jsonBuf.parseObject((const char*) XdrvMailbox.data);
@@ -667,10 +684,15 @@ bool PN532_Command(void)
     const JsonVariant &val_write = getJsonCaseInsensitive(json, PSTR("WriteBlock"));
     if (nullptr != &val_write) { read_block = jsonToUInt(val_write); }
 
-    const JsonVariant &val_key = getJsonCaseInsensitive(json, PSTR("Key"));
-    if (nullptr != &val_key) {
-      key = strtoull(val_key.as<const char*>(), nullptr, 0);
-      if (key > 0xFFFFFFFFFFFFLL) { key = -1; }     // 48 bits only or ignore
+    const JsonVariant &val_keyA = getJsonCaseInsensitive(json, PSTR("KeyA"));
+    if (nullptr != &val_keyA) {
+      keyA = strtoull(val_keyA.as<const char*>(), nullptr, 0);
+      if (keyA > 0xFFFFFFFFFFFFLL) { keyA = -1; }     // 48 bits only or ignore
+    }
+    const JsonVariant &val_keyB = getJsonCaseInsensitive(json, PSTR("KeyA"));
+    if (nullptr != &val_keyB) {
+      keyB = strtoull(val_keyB.as<const char*>(), nullptr, 0);
+      if (keyB > 0xFFFFFFFFFFFFLL) { keyB = 0; }     // 48 bits only or ignore
     }
 
     // Check for valid numbers
@@ -686,7 +708,7 @@ bool PN532_Command(void)
       uint8_t data[16];
       int32_t bytes_read;
 
-      bytes_read = PN532_ReadBlock(read_block, key, key, data, sizeof(data));
+      bytes_read = PN532_ReadBlock(read_block, keyA, keyB, data, sizeof(data));
       AddLog_P2f("PN532_ReadBlock -> %d", bytes_read);
 
       if (16 == bytes_read) {
