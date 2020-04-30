@@ -34,12 +34,8 @@ char SET2_STR[] = {'9', '0', '1', '2', '3', '4', '5', '6', '7', '8', '.', ',', '
 
 enum {SHX_STATE_1 = 1, SHX_STATE_2};
 
-byte to_match_repeats_earlier = 1;
 byte to_match_repeats_within = 1;
-#define USE_64K_LOOKUP 0
-#if USE_64K_LOOKUP == 1
-byte lookup[65536];
-#endif
+
 #define NICE_LEN_FOR_PRIOR 7
 #define NICE_LEN_FOR_OTHER 12
 
@@ -114,59 +110,7 @@ int matchOccurance(const char *in, int len, int l, char *out, int *ol) {
   return -l;
 }
 
-// int matchLine(const char *in, int len, int l, char *out, int *ol, struct lnk_lst *prev_lines) {
-//   int last_ol = *ol;
-//   int last_len = 0;
-//   int last_dist = 0;
-//   int last_ctx = 0;
-//   int line_ctr = 0;
-//   do {
-//     int i, j, k;
-//     int line_len = strlen(prev_lines->data);
-//     for (j = 0; j < line_len; j++) {
-//       for (i = l, k = j; k < line_len && i < len; k++, i++) {
-//         if (prev_lines->data[k] != in[i])
-//           break;
-//       }
-//       if ((k - j) >= NICE_LEN_FOR_OTHER) {
-//         if (last_len) {
-//           if (j > last_dist)
-//             continue;
-//           //int saving = ((k - j) - last_len) + (last_dist - j) + (last_ctx - line_ctr);
-//           //if (saving < 0) {
-//           //  //printf("No savng: %d\n", saving);
-//           //  continue;
-//           //}
-//           *ol = last_ol;
-//         }
-//         last_len = (k - j);
-//         last_dist = j;
-//         last_ctx = line_ctr;
-//         *ol = append_bits(out, *ol, 14080, 10, 1);
-//         *ol = encodeCount(out, *ol, last_len - NICE_LEN_FOR_OTHER);
-//         *ol = encodeCount(out, *ol, last_dist);
-//         *ol = encodeCount(out, *ol, last_ctx);
-//         /*
-//         if ((*ol - last_ol) > (last_len * 4)) {
-//           last_len = 0;
-//           *ol = last_ol;
-//         }*/
-//         //printf("Len: %d, Dist: %d, Line: %d\n", last_len, last_dist, last_ctx);
-//       }
-//     }
-//     line_ctr++;
-//     prev_lines = prev_lines->previous;
-//   } while (prev_lines && prev_lines->data != NULL);
-//   if (last_len) {
-//     l += last_len;
-//     l--;
-//     return l;
-//   }
-//   return -l;
-// }
-
 int shox96_0_2_compress(const char *in, int len, char *out) {
-// int shox96_0_2_compress(const char *in, int len, char *out, struct lnk_lst *prev_lines) {
 
   char *ptr;
   byte bits;
@@ -178,9 +122,6 @@ int shox96_0_2_compress(const char *in, int len, char *out) {
 
   ol = 0;
   c_prev = 0;
-#if USE_64K_LOOKUP == 1
-  memset(lookup, 0, sizeof(lookup));
-#endif
   state = SHX_STATE_1;
   is_all_upper = 0;
   for (l=0; l<len; l++) {
@@ -202,30 +143,12 @@ int shox96_0_2_compress(const char *in, int len, char *out) {
     }
 
     if (l < (len - NICE_LEN_FOR_PRIOR) && to_match_repeats_within) {
-#if USE_64K_LOOKUP == 1
-        uint16_t to_lookup = c_in ^ in[l + 1] + ((in[l + 2] ^ in[l + 3]) << 8);
-        if (lookup[to_lookup]) {
-#endif
           l = matchOccurance(in, len, l, out, &ol);
           if (l > 0) {
             c_prev = in[l - 1];
             continue;
           }
           l = -l;
-#if USE_64K_LOOKUP == 1
-        } else
-          lookup[to_lookup] = 1;
-#endif
-    }
-    if (l < (len - NICE_LEN_FOR_OTHER) && to_match_repeats_earlier) {
-        // if (prev_lines != NULL) {
-        //   l = matchLine(in, len, l, out, &ol, prev_lines);
-        //   if (l > 0) {
-        //     c_prev = in[l - 1];
-        //     continue;
-        //   }
-        //   l = -l;
-        // }
     }
     if (state == SHX_STATE_2) {
       if (c_in == ' ' && len - 1 > l)
@@ -371,7 +294,6 @@ int readCount(const char *in, int *bit_no_p, int len) {
 }
 
 int shox96_0_2_decompress(const char *in, int len, char *out) {
-// int shox96_0_2_decompress(const char *in, int len, char *out, struct lnk_lst *prev_lines) {
 
   int dstate;
   int bit_no;

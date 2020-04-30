@@ -19,14 +19,8 @@
 #ifndef shox96_0_2_0
 #define shox96_0_2_0
 
-struct lnk_lst {
-  char *data;
-  struct lnk_lst *previous;
-};
-
-// extern int shox96_0_2_compress(const char *in, int len, char *out, struct lnk_lst *prev_lines);
-// extern int shox96_0_2_decompress(const char *in, int len, char *out, struct lnk_lst *prev_lines);
 extern int shox96_0_2_compress(const char *in, int len, char *out);
 extern int shox96_0_2_decompress(const char *in, int len, char *out);
+
 #endif
 
