@@ -67,6 +67,7 @@
 #define XDRV_10             10
 
 #include <shox96_0_2.h>
+// #include <unishox1.h>
 
 #define D_CMND_RULE "Rule"
 #define D_CMND_RULETIMER "RuleTimer"
@@ -209,8 +210,10 @@ int32_t SetRule(uint32_t idx, const char *content, uint32_t offset = 0) {
 
   int32_t len_out;
 
+
   char buf[(1+len_in) * 5 / 4];
   len_out = shox96_0_2_compress(content, len_in, buf);
+  // len_out = unishox1_compress(content, len_in, buf);
   buf[len_out] = 0;
   // extern int shox96_0_2_compress(const char *in, int len, char *out, struct lnk_lst *prev_lines);
 
@@ -219,11 +222,23 @@ int32_t SetRule(uint32_t idx, const char *content, uint32_t offset = 0) {
 
   char buf_test[(1+len_in) * 5 / 4];
   int32_t len_test = shox96_0_2_decompress(buf, len_out, buf_test);
+  // int32_t len_test = unishox1_decompress(buf, len_out, buf_test);
   buf_test[len_test] = 0;
 
   AddLog_P2(LOG_LEVEL_INFO, PSTR("RULE: decompressed size %d, %s"), len_test, strcmp(buf_test, content) ? "Error" : "Match");
   AddLog_P2(LOG_LEVEL_INFO, PSTR("RULE: %s"), buf_test);
-  
+
+
+  if (len_in < 100) {
+    char hex[len_in*2+2];
+    ToHex_P((const unsigned char*)content, len_in, hex, sizeof(hex));
+    AddLog_P2(LOG_LEVEL_INFO, PSTR("RULE in = %s"), hex);
+  }
+  if (len_test < 100) {
+    char hex[len_test*2+2];
+    ToHex_P((const unsigned char*)buf_test, len_test, hex, sizeof(hex));
+    AddLog_P2(LOG_LEVEL_INFO, PSTR("RULE in = %s"), hex);
+  }  
 
   //extern int shox96_0_2_decompress(const char *in, int len, char *out);
 

@@ -34,6 +34,9 @@ char SET2_STR[] PROGMEM = {'9', '0', '1', '2', '3', '4', '5', '6', '7', '8', '.'
 
 enum {SHX_STATE_1 = 1, SHX_STATE_2};
 
+const uint16_t TERM_CODE = 0b0011011111000000; // 0x37C0;
+const uint8_t  TERM_CODE_LEN = 10;
+
 // byte to_match_repeats_within = 1;
 
 #define NICE_LEN_FOR_PRIOR 7
@@ -196,33 +199,40 @@ int shox96_0_2_compress(const char *in, int len, char *out) {
       c_next = in[l+1];
 
     c_prev = c_in;
-    if (c_in >= 32 && c_in <= 126) {
+    if (c_in >= 32 && c_in <= 126) {    // printable char
       c_in -= 32;
       if (is_all_upper && is_upper)
         c_in += 32;
       if (c_in == 0 && state == SHX_STATE_2)
-        ol = append_bits(out, ol, 15232, 11, state);
+        ol = append_bits(out, ol, 0x3B80 /*15232*/, 11, state); // 0011 1011 100.0 = Set3 + 1100 = space
       else
         ol = append_bits(out, ol, pgm_read_word(&c_95[c_in]), pgm_read_byte(&l_95[c_in]), state);
     } else
-    if (c_in == 13 && c_next == 10) {
-      ol = append_bits(out, ol, 13824, 9, state);
-      l++;
-      c_prev = 10;
+    // TOOD : remove CRLF
+    // if (c_in == 13 && c_next == 10) {   // CR/LF
+    //   ol = append_bits(out, ol, 0x3600 /*13824*/, 9, state);
+    //   l++;  // skip next char
+    //   c_prev = 10;
+    // } else
+    if (c_in == 10) {                   // LF
+      ol = append_bits(out, ol, 0x3680 /*13952*/, 9, state);
     } else
-    if (c_in == 10) {
-      ol = append_bits(out, ol, 13952, 9, state);
+    if (c_in == 13) {                   // CR
+      ol = append_bits(out, ol, 0x2368 /*9064*/, 13, state);
     } else
-    if (c_in == 13) {
-      ol = append_bits(out, ol, 9064, 13, state);
-    } else
-    if (c_in == '\t') {
+    if (c_in == '\t') {                 // TAB
       ol = append_bits(out, ol, 9216, 7, state);
+    } else {    // TODO adding binary encoding
+      // printf("Bin:%d:%x\n", (unsigned char) c_in, (unsigned char) c_in);
+      // ol = append_bits(out, ol, 0x2000, 9, state);    // TODO check if ok.  0010 000 00 = Upper + Set1a + bin
+      ol = append_bits(out, ol, 0x3600, 9, state);    // TODO check if ok.  00 110 1100 = Set1B 1100
+      ol = encodeCount(out, ol, (unsigned char) c_in);
     }
   }
   bits = ol % 8;
   if (bits) {
-    ol = append_bits(out, ol, 14272, 8 - bits, 1);
+    ol = append_bits(out, ol, TERM_CODE, 8 - bits, 1);   // 0011 0111 1100 0000 TERM = 0011 0111 11
+    // TODO write complete TERM?
   }
   //printf("\n%ld\n", ol);
   return ol/8+(ol%8?1:0);
@@ -320,85 +330,88 @@ int shox96_0_2_decompress(const char *in, int len, char *out) {
   dstate = SHX_SET1;
   is_all_upper = 0;
 
-  len <<= 3;
+  len <<= 3;    // *8, len in bits
   out[ol] = 0;
   while (bit_no < len) {
     int h, v;
     char c;
     byte is_upper = is_all_upper;
     int orig_bit_no = bit_no;
-    v = getCodeIdx(vcode, in, len, &bit_no);
-    if (v == 199) {
+    v = getCodeIdx(vcode, in, len, &bit_no);    // read vCode
+    if (v == 199) {     // end of stream
       bit_no = orig_bit_no;
       break;
     }
-    h = dstate;
-    if (v == 0) {
-      h = getCodeIdx(hcode, in, len, &bit_no);
-      if (h == 199) {
+    h = dstate;     // Set1 or Set2
+    if (v == 0) {   // Switch which is common to Set1 and Set2, first entry
+      h = getCodeIdx(hcode, in, len, &bit_no);    // read hCode
+      if (h == 199) {   // end of stream
         bit_no = orig_bit_no;
         break;
       }
-      if (h == SHX_SET1) {
-         if (dstate == SHX_SET1) {
-           if (is_all_upper) {
+      if (h == SHX_SET1) {          // target is Set1
+         if (dstate == SHX_SET1) {  // Switch from Set1 to Set1 us UpperCase
+           if (is_all_upper) {      // if CapsLock, then back to LowerCase
              is_upper = is_all_upper = 0;
              continue;
            }
-           v = getCodeIdx(vcode, in, len, &bit_no);
-           if (v == 199) {
+           v = getCodeIdx(vcode, in, len, &bit_no);   // read again vCode
+           if (v == 199) {          // end of stream
              bit_no = orig_bit_no;
              break;
            }
            if (v == 0) {
-              h = getCodeIdx(hcode, in, len, &bit_no);
-              if (h == 199) {
+              h = getCodeIdx(hcode, in, len, &bit_no);  // read second hCode
+              if (h == 199) {     // end of stream
                 bit_no = orig_bit_no;
                 break;
               }
-              if (h == SHX_SET1) {
+              if (h == SHX_SET1) {  // If double Switch Set1, the CapsLock
                  is_all_upper = 1;
                  continue;
               }
            }
-           is_upper = 1;
+           is_upper = 1;      // anyways, still uppercase
          } else {
-            dstate = SHX_SET1;
+            dstate = SHX_SET1;  // if Set was not Set1, switch to Set1
             continue;
          }
       } else
-      if (h == SHX_SET2) {
-         if (dstate == SHX_SET1)
+      if (h == SHX_SET2) {    // If Set2, switch dstate to Set2
+         if (dstate == SHX_SET1)    // TODO: is this test useful, there are only 2 states possible
            dstate = SHX_SET2;
          continue;
       }
-      if (h != SHX_SET1) {
-        v = getCodeIdx(vcode, in, len, &bit_no);
+      if (h != SHX_SET1) {    // all other Sets (why not else)
+        v = getCodeIdx(vcode, in, len, &bit_no);    // we changed set, now read vCode for char
         if (v == 199) {
           bit_no = orig_bit_no;
           break;
         }
       }
     }
-    if (h < 64 && v < 32)
+    // TODO insert special cases here
+    if (h < 64 && v < 32)     // TODO: are these the actual limits? Not 11x7 ?
       c = pgm_read_byte(&sets[h][v]);
       // c = sets[h][v];
     if (c >= 'a' && c <= 'z') {
       if (is_upper)
-        c -= 32;
-    } else {
+        c -= 32;      // go to UpperCase for letters
+    } else {          // handle all other cases
       if (is_upper && dstate == SHX_SET1 && v == 1)
-        c = '\t';
+        c = '\t';     // If UpperCase Space, change to TAB
       if (h == SHX_SET1B) {
          switch (v) {
-           case 6:
-             out[ol++] = '\r';
-             c = '\n';
+           case 6:        // Set1B v=6, CRLF
+             // TODO we remove CRLF and put Bin instead
+             //  out[ol++] = '\r';
+             //  c = '\n';
+             c = readCount(in, &bit_no, len);
              break;
-           case 7:
+           case 7:        // Set1B v=7, CR or LF
              c = is_upper ? '\r' : '\n';
              break;
-           case 8:
+           case 8:        // Set1B v=8, Dict
              if (getBitVal(in, bit_no++, 0)) {
                int dict_len = readCount(in, &bit_no, len) + NICE_LEN_FOR_PRIOR;
                int dist = readCount(in, &bit_no, len) + NICE_LEN_FOR_PRIOR - 1;
@@ -408,14 +421,10 @@ int shox96_0_2_decompress(const char *in, int len, char *out) {
                int dict_len = readCount(in, &bit_no, len) + NICE_LEN_FOR_OTHER;
                int dist = readCount(in, &bit_no, len);
                int ctx = readCount(in, &bit_no, len);
-              //  struct lnk_lst *cur_line = prev_lines;
-              //  while (ctx--)
-              //    cur_line = cur_line->previous;
-              //  memmove(out + ol, cur_line->data + dist, dict_len);
                ol += dict_len;
              }
              continue;
-           case 9: {
+           case 9: {        // Set1B v=9, Rpt
              int count = readCount(in, &bit_no, len);
              count += 4;
              char rpt_c = out[ol - 1];
@@ -423,14 +432,24 @@ int shox96_0_2_decompress(const char *in, int len, char *out) {
                out[ol++] = rpt_c;
              continue;
            }
-           case 10:
+           case 10:         // TERM
              continue;
+
+    // if (v == 0 && h == SHX_SET1A) {
+    //   if (is_upper) {
+    //     out[ol++] = readCount(in, &bit_no, len);
+    //   } else {
+    //     ol = decodeRepeat(in, len, out, ol, &bit_no, prev_lines);
+    //   }
+    //   continue;
+    // }
          }
       }
     }
     out[ol++] = c;
   }
 
+  // TODO remove `bit_no = orig_bit_no;` when exist. It is not used anyways
   return ol;
 
 }
