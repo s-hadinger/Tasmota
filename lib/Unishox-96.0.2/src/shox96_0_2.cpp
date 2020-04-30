@@ -121,6 +121,8 @@ const uint16_t BACK2_STATE1_CODE_LEN = 4;
 #define NICE_LEN_FOR_PRIOR 7
 #define NICE_LEN_FOR_OTHER 12
 
+#define NICE_LEN 5
+
 uint16_t mask[] PROGMEM = {0x8000, 0xC000, 0xE000, 0xF000, 0xF800, 0xFC00, 0xFE00, 0xFF00};
 
 int append_bits(char *out, int ol, unsigned int code, int clen, byte state) {
@@ -180,21 +182,40 @@ int encodeCount(char *out, int ol, int count) {
   return ol;
 }
 
-int matchOccurance(const char *in, int len, int l, char *out, int *ol) {
+int matchOccurance(const char *in, int len, int l, char *out, int *ol, byte *state, byte *is_all_upper) {
   int j, k;
-  for (j = 0; j < l; j++) {
-    for (k = j; k < l && (l + k - j) < len; k++) {
-      if (in[k] != in[l + k - j])
+  int longest_dist = 0;
+  int longest_len = 0;
+  for (j = l - NICE_LEN; j >= 0; j--) {
+    for (k = l; k < len && j + k - l < l; k++) {
+      if (in[k] != in[j + k - l])
         break;
     }
-    if ((k - j) > (NICE_LEN_FOR_PRIOR - 1)) {
-      *ol = append_bits(out, *ol, 14144, 10, 1);
-      *ol = encodeCount(out, *ol, k - j - NICE_LEN_FOR_PRIOR); // len
-      *ol = encodeCount(out, *ol, l - j - NICE_LEN_FOR_PRIOR + 1); // dist
-      l += (k - j);
-      l--;
-      return l;
+    // while ((((unsigned char) in[k]) >> 6) == 2)
+    //   k--; // Skip partial UTF-8 matches
+    //if ((in[k - 1] >> 3) == 0x1E || (in[k - 1] >> 4) == 0x0E || (in[k - 1] >> 5) == 0x06)
+    //  k--;
+    if (k - l > NICE_LEN - 1) {
+      int match_len = k - l - NICE_LEN;
+      int match_dist = l - j - NICE_LEN + 1;
+      if (match_len > longest_len) {
+        longest_len = match_len;
+        longest_dist = match_dist;
+      }
     }
+  }
+  if (longest_len) {
+    if (*state == SHX_STATE_2 || *is_all_upper) {
+      *is_all_upper = 0;
+      *state = SHX_STATE_1;
+      *ol = append_bits(out, *ol, BACK2_STATE1_CODE, BACK2_STATE1_CODE_LEN, *state);
+    }
+    *ol = append_bits(out, *ol, DICT_CODE, DICT_CODE_LEN, 1);
+    *ol = encodeCount(out, *ol, longest_len);
+    *ol = encodeCount(out, *ol, longest_dist);
+    l += (longest_len + NICE_LEN);
+    l--;
+    return l;
   }
   return -l;
 }
@@ -237,7 +258,7 @@ int shox96_0_2_compress(const char *in, int len, char *out) {
     }
 
     if (l < (len - NICE_LEN_FOR_PRIOR)) {
-          l = matchOccurance(in, len, l, out, &ol);
+          l = matchOccurance(in, len, l, out, &ol, &state, &is_all_upper);
           if (l > 0) {
             continue;
           }
