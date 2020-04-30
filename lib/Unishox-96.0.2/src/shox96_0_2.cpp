@@ -26,9 +26,10 @@
 #include "shox96_0_2.h"
 
 typedef unsigned char byte;
-uint16_t c_95[95] PROGMEM = {16384, 16256, 15744, 16192, 15328, 15344, 15360, 16064, 15264, 15296, 15712, 15200, 14976, 15040, 14848, 15104, 14528, 14592, 14656, 14688, 14720, 14752, 14784, 14816, 14832, 14464, 15552, 15488, 15616, 15168, 15680, 16000, 15872, 10752,  8576,  8192,  8320,  9728,  8672,  8608,  8384, 11264,  9024,  8992, 12160,  8544, 11520, 11008,  8512,  9008, 12032, 11776, 10240,  8448,  8960,  8640,  9040,  8688,  9048, 15840, 16288, 15856, 16128, 16224, 16368, 40960,  6144,     0,  2048, 24576,  7680,  6656,  3072, 49152, 13312, 12800, 63488,  5632, 53248, 45056,  5120, 13056, 61440, 57344, 32768,  4096, 12288,  7168, 13568,  7936, 13696, 15776, 16320, 15808, 16352};
-uint8_t  l_95[95] PROGMEM = {    3,    11,    11,    11,    12,    12,     9,    10,    11,    11,    11,    11,    10,    10,     9,    10,    10,    10,    11,    11,    11,    11,    11,    12,    12,    10,    10,    10,    10,    11,    11,    10,     9,     8,    11,     9,    10,     7,    12,    11,    10,     8,    12,    12,     9,    11,     8,     8,    11,    12,     9,     8,     7,    10,    11,    11,    13,    12,    13,    12,    11,    12,    10,    11,    12,     4,     7,     5,     6,     3,     8,     7,     6,     4,     8,     8,     5,     7,     4,     4,     7,     8,     5,     4,     3,     6,     7,     7,     9,     8,     9,    11,    11,    11,    12};
-
+// uint16_t c_95[95] PROGMEM = {16384, 16256, 15744, 16192, 15328, 15344, 15360, 16064, 15264, 15296, 15712, 15200, 14976, 15040, 14848, 15104, 14528, 14592, 14656, 14688, 14720, 14752, 14784, 14816, 14832, 14464, 15552, 15488, 15616, 15168, 15680, 16000, 15872, 10752,  8576,  8192,  8320,  9728,  8672,  8608,  8384, 11264,  9024,  8992, 12160,  8544, 11520, 11008,  8512,  9008, 12032, 11776, 10240,  8448,  8960,  8640,  9040,  8688,  9048, 15840, 16288, 15856, 16128, 16224, 16368, 40960,  6144,     0,  2048, 24576,  7680,  6656,  3072, 49152, 13312, 12800, 63488,  5632, 53248, 45056,  5120, 13056, 61440, 57344, 32768,  4096, 12288,  7168, 13568,  7936, 13696, 15776, 16320, 15808, 16352};
+// uint8_t  l_95[95] PROGMEM = {    3,    11,    11,    11,    12,    12,     9,    10,    11,    11,    11,    11,    10,    10,     9,    10,    10,    10,    11,    11,    11,    11,    11,    12,    12,    10,    10,    10,    10,    11,    11,    10,     9,     8,    11,     9,    10,     7,    12,    11,    10,     8,    12,    12,     9,    11,     8,     8,    11,    12,     9,     8,     7,    10,    11,    11,    13,    12,    13,    12,    11,    12,    10,    11,    12,     4,     7,     5,     6,     3,     8,     7,     6,     4,     8,     8,     5,     7,     4,     4,     7,     8,     5,     4,     3,     6,     7,     7,     9,     8,     9,    11,    11,    11,    12};
+uint16_t c_95[95] PROGMEM = {0x4000, 0x3F80, 0x3D80, 0x3F40, 0x3BE0, 0x3BF0, 0x3C00, 0x3EC0, 0x3BA0, 0x3BC0, 0x3D60, 0x3B60, 0x3A80, 0x3AC0, 0x3A00, 0x3B00, 0x38C0, 0x3900, 0x3940, 0x3960, 0x3980, 0x39A0, 0x39C0, 0x39E0, 0x39F0, 0x3880, 0x3CC0, 0x3C80, 0x3D00, 0x3B40, 0x3D40, 0x3E80, 0x3E00, 0x2B00, 0x21C0, 0x20C0, 0x2100, 0x2600, 0x2300, 0x21E0, 0x2140, 0x2D00, 0x2358, 0x2340, 0x2080, 0x21A0, 0x2E00, 0x2C00, 0x2180, 0x2350, 0x2F80, 0x2F00, 0x2A00, 0x2160, 0x2330, 0x21F0, 0x2360, 0x2320, 0x2368, 0x3DE0, 0x3FA0, 0x3DF0, 0x3F00, 0x3F60, 0x3FF0, 0xB000, 0x1C00, 0x0C00, 0x1000, 0x6000, 0x3000, 0x1E00, 0x1400, 0xD000, 0x3580, 0x3400, 0x0800, 0x1A00, 0xE000, 0xC000, 0x1800, 0x3500, 0xF800, 0xF000, 0xA000, 0x1600, 0x3300, 0x1F00, 0x3600, 0x3200, 0x3680, 0x3DA0, 0x3FC0, 0x3DC0, 0x3FE0 };
+uint8_t  l_95[95] PROGMEM = {     3,     11,     11,     11,     12,     12,      9,     10,     11,     11,     11,     11,     10,     10,      9,     10,     10,     10,     11,     11,     11,     11,     11,     12,     12,     10,     10,     10,     10,     11,     11,     10,      9,      8,     11,     10,     10,      7,     11,     12,     11,      8,     13,     12,     10,     11,      8,      8,     11,     13,      9,      9,      8,     11,     12,     12,     13,     12,     13,     12,     11,     12,     10,     11,     12,      4,      7,      6,      6,      3,      7,      8,      7,      4,      9,      8,      6,      7,      4,      4,      7,      9,      5,      5,      4,      7,      8,      8,      9,      8,      9,     11,     11,     11,     12 };
 // uint16_t c_95[95] PROGMEM = {16384, 16256, 15744, 16192, 15328, 15344, 15360, 16064, 15264, 15296, 15712, 15200, 14976, 15040, 14848, 15104, 14528, 14592, 14656, 14688, 14720, 14752, 14784, 14816, 14832, 14464, 15552, 15488, 15616, 15168, 15680, 16000, 15872, 10752,  8576,  8192,  8320,  9728,  8672,  8608,  8384, 11264,  9024,  8992, 12160,  8544, 11520, 11008,  8512,  9008, 12032, 11776, 10240,  8448,  8960,  8640,  9040,  8688,  9048, 15840, 16288, 15856, 16128, 16224, 16368, 40960,  6144,     0,  2048, 24576,  7680,  6656,  3072, 49152, 13312, 12800, 63488,  5632, 53248, 45056,  5120, 13056, 61440, 57344, 32768,  4096, 12288,  7168, 13568,  7936, 13696, 15776, 16320, 15808, 16352};
 // uint8_t  l_95[95] PROGMEM = {    3,    11,    11,    11,    12,    12,     9,    10,    11,    11,    11,    11,    10,    10,     9,    10,    10,    10,    11,    11,    11,    11,    11,    12,    12,    10,    10,    10,    10,    11,    11,    10,     9,     8,    11,     9,    10,     7,    12,    11,    10,     8,    12,    12,     9,    11,     8,     8,    11,    12,     9,     8,     7,    10,    11,    11,    13,    12,    13,    12,    11,    12,    10,    11,    12,     4,     7,     5,     6,     3,     8,     7,     6,     4,     8,     8,     5,     7,     4,     4,     7,     8,     5,     4,     3,     6,     7,     7,     9,     8,     9,    11,    11,    11,    12};
 //unsigned char c[]    = {  ' ',   '!',   '"',   '#',   '$',   '%',   '&',  '\'',   '(',   ')',   '*',   '+',   ',',   '-',   '.',   '/',   '0',   '1',   '2',   '3',   '4',   '5',   '6',   '7',   '8',   '9',   ':',   ';',   '<',   '=',   '>',   '?',   '@',   'A',   'B',   'C',   'D',   'E',   'F',   'G',   'H',   'I',   'J',   'K',   'L',   'M',   'N',   'O',   'P',   'Q',   'R',   'S',   'T',   'U',   'V',   'W',   'X',   'Y',   'Z',   '[',  '\\',   ']',   '^',   '_',   '`',   'a',   'b',   'c',   'd',   'e',   'f',   'g',   'h',   'i',   'j',   'k',   'l',   'm',   'n',   'o',   'p',   'q',   'r',   's',   't',   'u',   'v',   'w',   'x',   'y',   'z',   '{',   '|',   '}',   '~'};
@@ -59,7 +60,7 @@ char sets[][11] PROGMEM =
 // First 2 bits 00, Next 3 bits indicate index of code from 0,
 // last 3 bits indicate code length in bits
 //                0,            1,            2,            3,            4,
-char vcode[32] PROGMEM = 
+char us_vcode[32] PROGMEM = 
                  {2 + (0 << 3), 3 + (3 << 3), 3 + (1 << 3), 4 + (6 << 3), 0,
 //                5,            6,            7,            8, 9, 10
                   4 + (4 << 3), 3 + (2 << 3), 4 + (8 << 3), 0, 0,  0,
@@ -70,7 +71,7 @@ char vcode[32] PROGMEM =
 //                24, 25, 26, 27, 28, 29, 30, 31
                    0, 0,  0,  0,  0,  0,  0,  5 + (10 << 3)};
 //                0,            1,            2, 3,            4, 5, 6, 7,
-char hcode[32] PROGMEM =
+char us_hcode[32] PROGMEM =
                  {1 + (1 << 3), 2 + (0 << 3), 0, 3 + (2 << 3), 0, 0, 0, 5 + (3 << 3),
 //                8, 9, 10, 11, 12, 13, 14, 15,
                   0, 0,  0,  0,  0,  0,  0,  5 + (5 << 3),
@@ -309,7 +310,7 @@ int shox96_0_2_compress(const char *in, int len, char *out) {
       if (c_in == 0 && state == SHX_STATE_2)
         ol = append_bits(out, ol, ST2_SPC_CODE, ST2_SPC_CODE_LEN, state);
       else
-        ol = append_bits(out, ol, c_95[c_in], l_95[c_in], state);
+        ol = append_bits(out, ol, pgm_read_word(&c_95[c_in]), pgm_read_byte(&l_95[c_in]), state);
     } else
     if (c_in == 13 && c_next == 10) {
       ol = append_bits(out, ol, CRLF_CODE, CRLF_CODE_LEN, state);     // CRLF
@@ -370,13 +371,22 @@ uint16_t adder_read[7] PROGMEM = {4, 0, 36, 164, 676, 4772,  0};
 int readCount(const char *in, int *bit_no_p, int len) {
   // const byte bit_len[7]   = {5, 2,  7,   9,  12,   16, 17};
   // const uint16_t adder[7] = {4, 0, 36, 164, 676, 4772,  0};
-  int idx = getCodeIdx(hcode, in, len, bit_no_p);
+  int idx = getCodeIdx(us_hcode, in, len, bit_no_p);
   if (idx > 6)
     return 0;
   byte bit_len_idx = pgm_read_byte(&bit_len_read[idx]);
   int count = getNumFromBits(in, *bit_no_p, bit_len_idx) + pgm_read_word(&adder_read[idx]);
   (*bit_no_p) += bit_len_idx;
   return count;
+}
+
+int decodeRepeat(const char *in, int len, char *out, int ol, int *bit_no) {
+  int dict_len = readCount(in, bit_no, len) + NICE_LEN;
+  int dist = readCount(in, bit_no, len) + NICE_LEN - 1;
+  memcpy(out + ol, out + ol - dist, dict_len);
+  ol += dict_len;
+
+  return ol;
 }
 
 int shox96_0_2_decompress(const char *in, int len, char *out) {
@@ -394,17 +404,17 @@ int shox96_0_2_decompress(const char *in, int len, char *out) {
   out[ol] = 0;
   while (bit_no < len) {
     int h, v;
-    char c;
+    char c = 0;
     byte is_upper = is_all_upper;
     int orig_bit_no = bit_no;
-    v = getCodeIdx(vcode, in, len, &bit_no);    // read vCode
+    v = getCodeIdx(us_vcode, in, len, &bit_no);    // read vCode
     if (v == 199) {     // end of stream
       bit_no = orig_bit_no;
       break;
     }
     h = dstate;     // Set1 or Set2
     if (v == 0) {   // Switch which is common to Set1 and Set2, first entry
-      h = getCodeIdx(hcode, in, len, &bit_no);    // read hCode
+      h = getCodeIdx(us_hcode, in, len, &bit_no);    // read hCode
       if (h == 199) {   // end of stream
         bit_no = orig_bit_no;
         break;
@@ -415,13 +425,13 @@ int shox96_0_2_decompress(const char *in, int len, char *out) {
              is_upper = is_all_upper = 0;
              continue;
            }
-           v = getCodeIdx(vcode, in, len, &bit_no);   // read again vCode
+           v = getCodeIdx(us_vcode, in, len, &bit_no);   // read again vCode
            if (v == 199) {          // end of stream
              bit_no = orig_bit_no;
              break;
            }
            if (v == 0) {
-              h = getCodeIdx(hcode, in, len, &bit_no);  // read second hCode
+              h = getCodeIdx(us_hcode, in, len, &bit_no);  // read second hCode
               if (h == 199) {     // end of stream
                 bit_no = orig_bit_no;
                 break;
@@ -443,17 +453,28 @@ int shox96_0_2_decompress(const char *in, int len, char *out) {
          continue;
       }
       if (h != SHX_SET1) {    // all other Sets (why not else)
-        v = getCodeIdx(vcode, in, len, &bit_no);    // we changed set, now read vCode for char
+        v = getCodeIdx(us_vcode, in, len, &bit_no);    // we changed set, now read vCode for char
         if (v == 199) {
           bit_no = orig_bit_no;
           break;
         }
       }
     }
-    // TODO insert special cases here
+
+    if (v == 0 && h == SHX_SET1A) {
+      if (is_upper) {
+        out[ol++] = readCount(in, &bit_no, len);    // binary
+      } else {
+        ol = decodeRepeat(in, len, out, ol, &bit_no);   // dist
+      }
+      continue;
+    }
+
+    if (h == SHX_SET1 && v == 3) {
+      // was Unicode, will do Binary instead
+    }
     if (h < 64 && v < 32)     // TODO: are these the actual limits? Not 11x7 ?
       c = pgm_read_byte(&sets[h][v]);
-      // c = sets[h][v];
     if (c >= 'a' && c <= 'z') {
       if (is_upper)
         c -= 32;      // go to UpperCase for letters
@@ -462,50 +483,82 @@ int shox96_0_2_decompress(const char *in, int len, char *out) {
         c = '\t';     // If UpperCase Space, change to TAB
       if (h == SHX_SET1B) {
          switch (v) {
-           case 6:        // Set1B v=6, CRLF
-             // TODO we remove CRLF and put Bin instead
-             //  out[ol++] = '\r';
-             //  c = '\n';
-             c = readCount(in, &bit_no, len);
-             break;
-           case 7:        // Set1B v=7, CR or LF
-             c = is_upper ? '\r' : '\n';
-             break;
-           case 8:        // Set1B v=8, Dict
-             if (getBitVal(in, bit_no++, 0)) {
-               int dict_len = readCount(in, &bit_no, len) + NICE_LEN_FOR_PRIOR;
-               int dist = readCount(in, &bit_no, len) + NICE_LEN_FOR_PRIOR - 1;
-               memcpy(out + ol, out + ol - dist, dict_len);
-               ol += dict_len;
+           case 9:
+             out[ol++] = '\r';
+             out[ol++] = '\n';
+             continue;
+           case 8:
+             if (is_upper) { // rpt
+               int count = readCount(in, &bit_no, len);
+               count += 4;
+               char rpt_c = out[ol - 1];
+               while (count--)
+                 out[ol++] = rpt_c;
              } else {
-               int dict_len = readCount(in, &bit_no, len) + NICE_LEN_FOR_OTHER;
-               int dist = readCount(in, &bit_no, len);
-               int ctx = readCount(in, &bit_no, len);
-               ol += dict_len;
+               out[ol++] = '\n';
              }
              continue;
-           case 9: {        // Set1B v=9, Rpt
-             int count = readCount(in, &bit_no, len);
-             count += 4;
-             char rpt_c = out[ol - 1];
-             while (count--)
-               out[ol++] = rpt_c;
+           case 10:
              continue;
-           }
-           case 10:         // TERM
-             continue;
-
-    // if (v == 0 && h == SHX_SET1A) {
-    //   if (is_upper) {
-    //     out[ol++] = readCount(in, &bit_no, len);
-    //   } else {
-    //     ol = decodeRepeat(in, len, out, ol, &bit_no, prev_lines);
-    //   }
-    //   continue;
-    // }
          }
       }
     }
+    // // // TODO insert special cases here
+    // if (h < 64 && v < 32)     // TODO: are these the actual limits? Not 11x7 ?
+    //   c = pgm_read_byte(&sets[h][v]);
+    //   // c = sets[h][v];
+    // if (c >= 'a' && c <= 'z') {
+    //   if (is_upper)
+    //     c -= 32;      // go to UpperCase for letters
+    // } else {          // handle all other cases
+    //   if (is_upper && dstate == SHX_SET1 && v == 1)
+    //     c = '\t';     // If UpperCase Space, change to TAB
+      // if (h == SHX_SET1B) {
+      //    switch (v) {
+      //      case 6:        // Set1B v=6, CRLF
+      //        // TODO we remove CRLF and put Bin instead
+      //        //  out[ol++] = '\r';
+      //        //  c = '\n';
+      //        c = readCount(in, &bit_no, len);
+      //        break;
+      //      case 7:        // Set1B v=7, CR or LF
+      //        c = is_upper ? '\r' : '\n';
+      //        break;
+      //      case 8:        // Set1B v=8, Dict
+      //        if (getBitVal(in, bit_no++, 0)) {
+      //          int dict_len = readCount(in, &bit_no, len) + NICE_LEN_FOR_PRIOR;
+      //          int dist = readCount(in, &bit_no, len) + NICE_LEN_FOR_PRIOR - 1;
+      //          memcpy(out + ol, out + ol - dist, dict_len);
+      //          ol += dict_len;
+      //        } else {
+      //          int dict_len = readCount(in, &bit_no, len) + NICE_LEN_FOR_OTHER;
+      //          int dist = readCount(in, &bit_no, len);
+      //          int ctx = readCount(in, &bit_no, len);
+      //          ol += dict_len;
+      //        }
+      //        continue;
+      //      case 9: {        // Set1B v=9, Rpt
+      //        int count = readCount(in, &bit_no, len);
+      //        count += 4;
+      //        char rpt_c = out[ol - 1];
+      //        while (count--)
+      //          out[ol++] = rpt_c;
+      //        continue;
+      //      }
+      //      case 10:         // TERM
+      //        continue;
+
+    // // if (v == 0 && h == SHX_SET1A) {
+    // //   if (is_upper) {
+    // //     out[ol++] = readCount(in, &bit_no, len);
+    // //   } else {
+    // //     ol = decodeRepeat(in, len, out, ol, &bit_no, prev_lines);
+    // //   }
+    // //   continue;
+    // // }
+    //      }
+    //   }
+    // }
     out[ol++] = c;
   }
 
