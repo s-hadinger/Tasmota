@@ -39,7 +39,7 @@ enum {SHX_STATE_1 = 1, SHX_STATE_2};
 #define NICE_LEN_FOR_PRIOR 7
 #define NICE_LEN_FOR_OTHER 12
 
-uint16_t mask[] = {0x8000, 0xC000, 0xE000, 0xF000, 0xF800, 0xFC00, 0xFE00, 0xFF00};
+uint16_t mask[] PROGMEM = {0x8000, 0xC000, 0xE000, 0xF000, 0xF800, 0xFC00, 0xFE00, 0xFF00};
 int append_bits(char *out, int ol, unsigned int code, int clen, byte state) {
 
    byte cur_bit;
@@ -60,7 +60,7 @@ int append_bits(char *out, int ol, unsigned int code, int clen, byte state) {
    while (clen > 0) {
      cur_bit = ol % 8;
      blen = (clen > 8 ? 8 : clen);
-     a_byte = (code & mask[blen - 1]) >> 8;
+     a_byte = (code & pgm_read_word(&mask[blen - 1])) >> 8;
      a_byte >>= cur_bit;
      if (blen + cur_bit > 8)
         blen = (8 - cur_bit);
@@ -75,16 +75,22 @@ int append_bits(char *out, int ol, unsigned int code, int clen, byte state) {
    return ol;
 }
 
+byte codes[7] PROGMEM = {0x01, 0x82, 0xC3, 0xE5, 0xED, 0xF5, 0xFD};
+byte bit_len[7] PROGMEM =  {2, 5,  7,   9,  12,   16,  17};
+uint16_t adder[7] PROGMEM = {0, 4, 36, 164, 676, 4772,  0};
+
 int encodeCount(char *out, int ol, int count) {
-  const byte codes[7] = {0x01, 0x82, 0xC3, 0xE5, 0xED, 0xF5, 0xFD};
-  const byte bit_len[7] =  {2, 5,  7,   9,  12,   16,  17};
-  const uint16_t adder[7] = {0, 4, 36, 164, 676, 4772,  0};
+//   const byte codes[7] = {0x01, 0x82, 0xC3, 0xE5, 0xED, 0xF5, 0xFD};
+//   const byte bit_len[7] =  {2, 5,  7,   9,  12,   16,  17};
+//   const uint16_t adder[7] = {0, 4, 36, 164, 676, 4772,  0};
   int till = 0;
   for (int i = 0; i < 6; i++) {
-    till += (1 << bit_len[i]);
+    uint32_t bit_len_i = pgm_read_byte(&bit_len[i]);
+    till += (1 << bit_len_i);
     if (count < till) {
-      ol = append_bits(out, ol, (codes[i] & 0xF8) << 8, codes[i] & 0x07, 1);
-      ol = append_bits(out, ol, (count - adder[i]) << (16 - bit_len[i]), bit_len[i], 1);
+      byte codes_i = pgm_read_byte(&codes[i]);
+      ol = append_bits(out, ol, (codes_i & 0xF8) << 8, codes_i & 0x07, 1);
+      ol = append_bits(out, ol, (count - pgm_read_word(&adder[i])) << (16 - bit_len_i), bit_len_i, 1);
       return ol;
     }
   }
