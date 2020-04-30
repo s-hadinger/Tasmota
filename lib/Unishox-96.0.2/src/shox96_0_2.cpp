@@ -114,58 +114,59 @@ int matchOccurance(const char *in, int len, int l, char *out, int *ol) {
   return -l;
 }
 
-int matchLine(const char *in, int len, int l, char *out, int *ol, struct lnk_lst *prev_lines) {
-  int last_ol = *ol;
-  int last_len = 0;
-  int last_dist = 0;
-  int last_ctx = 0;
-  int line_ctr = 0;
-  do {
-    int i, j, k;
-    int line_len = strlen(prev_lines->data);
-    for (j = 0; j < line_len; j++) {
-      for (i = l, k = j; k < line_len && i < len; k++, i++) {
-        if (prev_lines->data[k] != in[i])
-          break;
-      }
-      if ((k - j) >= NICE_LEN_FOR_OTHER) {
-        if (last_len) {
-          if (j > last_dist)
-            continue;
-          //int saving = ((k - j) - last_len) + (last_dist - j) + (last_ctx - line_ctr);
-          //if (saving < 0) {
-          //  //printf("No savng: %d\n", saving);
-          //  continue;
-          //}
-          *ol = last_ol;
-        }
-        last_len = (k - j);
-        last_dist = j;
-        last_ctx = line_ctr;
-        *ol = append_bits(out, *ol, 14080, 10, 1);
-        *ol = encodeCount(out, *ol, last_len - NICE_LEN_FOR_OTHER);
-        *ol = encodeCount(out, *ol, last_dist);
-        *ol = encodeCount(out, *ol, last_ctx);
-        /*
-        if ((*ol - last_ol) > (last_len * 4)) {
-          last_len = 0;
-          *ol = last_ol;
-        }*/
-        //printf("Len: %d, Dist: %d, Line: %d\n", last_len, last_dist, last_ctx);
-      }
-    }
-    line_ctr++;
-    prev_lines = prev_lines->previous;
-  } while (prev_lines && prev_lines->data != NULL);
-  if (last_len) {
-    l += last_len;
-    l--;
-    return l;
-  }
-  return -l;
-}
+// int matchLine(const char *in, int len, int l, char *out, int *ol, struct lnk_lst *prev_lines) {
+//   int last_ol = *ol;
+//   int last_len = 0;
+//   int last_dist = 0;
+//   int last_ctx = 0;
+//   int line_ctr = 0;
+//   do {
+//     int i, j, k;
+//     int line_len = strlen(prev_lines->data);
+//     for (j = 0; j < line_len; j++) {
+//       for (i = l, k = j; k < line_len && i < len; k++, i++) {
+//         if (prev_lines->data[k] != in[i])
+//           break;
+//       }
+//       if ((k - j) >= NICE_LEN_FOR_OTHER) {
+//         if (last_len) {
+//           if (j > last_dist)
+//             continue;
+//           //int saving = ((k - j) - last_len) + (last_dist - j) + (last_ctx - line_ctr);
+//           //if (saving < 0) {
+//           //  //printf("No savng: %d\n", saving);
+//           //  continue;
+//           //}
+//           *ol = last_ol;
+//         }
+//         last_len = (k - j);
+//         last_dist = j;
+//         last_ctx = line_ctr;
+//         *ol = append_bits(out, *ol, 14080, 10, 1);
+//         *ol = encodeCount(out, *ol, last_len - NICE_LEN_FOR_OTHER);
+//         *ol = encodeCount(out, *ol, last_dist);
+//         *ol = encodeCount(out, *ol, last_ctx);
+//         /*
+//         if ((*ol - last_ol) > (last_len * 4)) {
+//           last_len = 0;
+//           *ol = last_ol;
+//         }*/
+//         //printf("Len: %d, Dist: %d, Line: %d\n", last_len, last_dist, last_ctx);
+//       }
+//     }
+//     line_ctr++;
+//     prev_lines = prev_lines->previous;
+//   } while (prev_lines && prev_lines->data != NULL);
+//   if (last_len) {
+//     l += last_len;
+//     l--;
+//     return l;
+//   }
+//   return -l;
+// }
 
-int shox96_0_2_compress(const char *in, int len, char *out, struct lnk_lst *prev_lines) {
+int shox96_0_2_compress(const char *in, int len, char *out) {
+// int shox96_0_2_compress(const char *in, int len, char *out, struct lnk_lst *prev_lines) {
 
   char *ptr;
   byte bits;
@@ -217,14 +218,14 @@ int shox96_0_2_compress(const char *in, int len, char *out, struct lnk_lst *prev
 #endif
     }
     if (l < (len - NICE_LEN_FOR_OTHER) && to_match_repeats_earlier) {
-        if (prev_lines != NULL) {
-          l = matchLine(in, len, l, out, &ol, prev_lines);
-          if (l > 0) {
-            c_prev = in[l - 1];
-            continue;
-          }
-          l = -l;
-        }
+        // if (prev_lines != NULL) {
+        //   l = matchLine(in, len, l, out, &ol, prev_lines);
+        //   if (l > 0) {
+        //     c_prev = in[l - 1];
+        //     continue;
+        //   }
+        //   l = -l;
+        // }
     }
     if (state == SHX_STATE_2) {
       if (c_in == ' ' && len - 1 > l)
@@ -369,7 +370,8 @@ int readCount(const char *in, int *bit_no_p, int len) {
   return count;
 }
 
-int shox96_0_2_decompress(const char *in, int len, char *out, struct lnk_lst *prev_lines) {
+int shox96_0_2_decompress(const char *in, int len, char *out) {
+// int shox96_0_2_decompress(const char *in, int len, char *out, struct lnk_lst *prev_lines) {
 
   int dstate;
   int bit_no;
@@ -466,10 +468,10 @@ int shox96_0_2_decompress(const char *in, int len, char *out, struct lnk_lst *pr
                int dict_len = readCount(in, &bit_no, len) + NICE_LEN_FOR_OTHER;
                int dist = readCount(in, &bit_no, len);
                int ctx = readCount(in, &bit_no, len);
-               struct lnk_lst *cur_line = prev_lines;
-               while (ctx--)
-                 cur_line = cur_line->previous;
-               memmove(out + ol, cur_line->data + dist, dict_len);
+              //  struct lnk_lst *cur_line = prev_lines;
+              //  while (ctx--)
+              //    cur_line = cur_line->previous;
+              //  memmove(out + ol, cur_line->data + dist, dict_len);
                ol += dict_len;
              }
              continue;

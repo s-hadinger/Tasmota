@@ -66,6 +66,8 @@
 
 #define XDRV_10             10
 
+#include <shox96_0_2.h>
+
 #define D_CMND_RULE "Rule"
 #define D_CMND_RULETIMER "RuleTimer"
 #define D_CMND_EVENT "Event"
@@ -177,6 +179,56 @@ char rules_vars[MAX_RULE_VARS][33] = {{ 0 }};
 #if (MAX_RULE_MEMS>16)
 #error MAX_RULE_MEMS is bigger than 16
 #endif
+
+
+/*******************************************************************************************/
+/*
+ * Add Unishox compression to Rules
+ */
+/*******************************************************************************************/
+size_t GetRuleLen(uint32_t idx) {
+  return strlen(Settings.rules[idx]);
+}
+
+size_t GetRuleLenCompressed(uint32_t idx) {
+  return strlen(Settings.rules[idx]);
+}
+
+String GetRule(uint32_t idx) {
+  return String(Settings.rules[idx]);
+}
+
+// Returns:
+//   >= 0 : the actual stored size
+//   <0 : not enough space
+int32_t SetRule(uint32_t idx, const char *content, uint32_t offset = 0) {
+  if (nullptr == content) { content = ""; }
+  size_t len_in = strlen(content);
+
+  strlcpy(Settings.rules[idx] + offset, content, sizeof(Settings.rules[idx]));
+
+  int32_t len_out;
+
+  char buf[(1+len_in) * 5 / 4];
+  len_out = shox96_0_2_compress(content, len_in, buf);
+  buf[len_out] = 0;
+  // extern int shox96_0_2_compress(const char *in, int len, char *out, struct lnk_lst *prev_lines);
+
+  AddLog_P2(LOG_LEVEL_INFO, PSTR("RULE: size %d, size compressed %d (-%d%%)"), len_in, len_out,
+                          100 - changeUIntScale(len_out, 0, len_in, 0, 100));
+
+  char buf_test[(1+len_in) * 5 / 4];
+  int32_t len_test = shox96_0_2_decompress(buf, len_out, buf_test);
+  buf_test[len_test] = 0;
+
+  AddLog_P2(LOG_LEVEL_INFO, PSTR("RULE: decompressed size %d, %s"), len_test, strcmp(buf_test, content) ? "Error" : "Match");
+  AddLog_P2(LOG_LEVEL_INFO, PSTR("RULE: %s"), buf_test);
+  
+
+  //extern int shox96_0_2_decompress(const char *in, int len, char *out);
+
+  return strlen(content);
+}
 
 /*******************************************************************************************/
 
@@ -419,7 +471,7 @@ bool RuleSetProcess(uint8_t rule_set, String &event_saved)
 
 //AddLog_P2(LOG_LEVEL_DEBUG, PSTR("RUL: Event = %s, Rule = %s"), event_saved.c_str(), Settings.rules[rule_set]);
 
-  String rules = Settings.rules[rule_set];
+  String rules = GetRule(rule_set);
 
   Rules.trigger_count[rule_set] = 0;
   int plen = 0;
@@ -531,7 +583,7 @@ bool RulesProcessEvent(char *json_event)
 //AddLog_P2(LOG_LEVEL_DEBUG, PSTR("RUL: Event %s"), event_saved.c_str());
 
   for (uint32_t i = 0; i < MAX_RULE_SETS; i++) {
-    if (strlen(Settings.rules[i]) && bitRead(Settings.rule_enabled, i)) {
+    if (GetRuleLen(i) && bitRead(Settings.rule_enabled, i)) {
       if (RuleSetProcess(i, event_saved)) { serviced = true; }
     }
   }
@@ -547,7 +599,7 @@ void RulesInit(void)
 {
   rules_flag.data = 0;
   for (uint32_t i = 0; i < MAX_RULE_SETS; i++) {
-    if (Settings.rules[i][0] == '\0') {
+    if (0 == GetRuleLen(i)) {
       bitWrite(Settings.rule_enabled, i, 0);
       bitWrite(Settings.rule_once, i, 0);
     }
@@ -1727,7 +1779,8 @@ void CmndRule(void)
 {
   uint8_t index = XdrvMailbox.index;
   if ((index > 0) && (index <= MAX_RULE_SETS)) {
-    if ((XdrvMailbox.data_len > 0) && (XdrvMailbox.data_len < sizeof(Settings.rules[index -1]))) {
+    // if ((XdrvMailbox.data_len > 0) && (XdrvMailbox.data_len < sizeof(Settings.rules[index -1]))) {    // TODO postpone size calculation
+    if (XdrvMailbox.data_len > 0) {    // TODO postpone size calculation
       if ((XdrvMailbox.payload >= 0) && (XdrvMailbox.payload <= 10)) {
         switch (XdrvMailbox.payload) {
         case 0: // Off
@@ -1753,6 +1806,7 @@ void CmndRule(void)
           break;
         }
       } else {
+        // TODO rework Append later
         int offset = 0;
         if ('+' == XdrvMailbox.data[0]) {
           offset = strlen(Settings.rules[index -1]);
@@ -1763,7 +1817,8 @@ void CmndRule(void)
           }
         }
         if (offset != -1) {
-          strlcpy(Settings.rules[index -1] + offset, ('"' == XdrvMailbox.data[0]) ? "" : XdrvMailbox.data, sizeof(Settings.rules[index -1]));
+          SetRule(index - 1, ('"' == XdrvMailbox.data[0]) ? "" : XdrvMailbox.data, offset);
+          // strlcpy(Settings.rules[index -1] + offset, ('"' == XdrvMailbox.data[0]) ? "" : XdrvMailbox.data, sizeof(Settings.rules[index -1]));
         }
       }
       Rules.triggers[index -1] = 0;  // Reset once flag
