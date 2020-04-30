@@ -298,6 +298,7 @@ int shox96_0_2_decompress(const char *in, int len, char *out) {
   int dstate;
   int bit_no;
   byte is_all_upper;
+  
   int ol = 0;
   bit_no = 0;
   dstate = SHX_SET1;
