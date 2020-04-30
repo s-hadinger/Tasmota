@@ -40,6 +40,7 @@ enum {SHX_STATE_1 = 1, SHX_STATE_2};
 #define NICE_LEN_FOR_OTHER 12
 
 uint16_t mask[] PROGMEM = {0x8000, 0xC000, 0xE000, 0xF000, 0xF800, 0xFC00, 0xFE00, 0xFF00};
+
 int append_bits(char *out, int ol, unsigned int code, int clen, byte state) {
 
    byte cur_bit;
@@ -292,14 +293,19 @@ int getNumFromBits(const char *in, int bit_no, int count) {
    return ret;
 }
 
+
+byte bit_len_read[7] PROGMEM = {5, 2,  7,   9,  12,   16, 17};
+uint16_t adder_read[7] PROGMEM = {4, 0, 36, 164, 676, 4772,  0};
+
 int readCount(const char *in, int *bit_no_p, int len) {
-  const byte bit_len[7]   = {5, 2,  7,   9,  12,   16, 17};
-  const uint16_t adder[7] = {4, 0, 36, 164, 676, 4772,  0};
+  // const byte bit_len[7]   = {5, 2,  7,   9,  12,   16, 17};
+  // const uint16_t adder[7] = {4, 0, 36, 164, 676, 4772,  0};
   int idx = getCodeIdx(hcode, in, len, bit_no_p);
   if (idx > 6)
     return 0;
-  int count = getNumFromBits(in, *bit_no_p, bit_len[idx]) + adder[idx];
-  (*bit_no_p) += bit_len[idx];
+  byte bit_len_idx = pgm_read_byte(&bit_len_read[idx]);
+  int count = getNumFromBits(in, *bit_no_p, bit_len_idx) + pgm_read_word(&adder_read[idx]);
+  (*bit_no_p) += bit_len_idx;
   return count;
 }
 
