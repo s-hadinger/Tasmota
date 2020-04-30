@@ -26,16 +26,95 @@
 #include "shox96_0_2.h"
 
 typedef unsigned char byte;
-
 uint16_t c_95[95] PROGMEM = {16384, 16256, 15744, 16192, 15328, 15344, 15360, 16064, 15264, 15296, 15712, 15200, 14976, 15040, 14848, 15104, 14528, 14592, 14656, 14688, 14720, 14752, 14784, 14816, 14832, 14464, 15552, 15488, 15616, 15168, 15680, 16000, 15872, 10752,  8576,  8192,  8320,  9728,  8672,  8608,  8384, 11264,  9024,  8992, 12160,  8544, 11520, 11008,  8512,  9008, 12032, 11776, 10240,  8448,  8960,  8640,  9040,  8688,  9048, 15840, 16288, 15856, 16128, 16224, 16368, 40960,  6144,     0,  2048, 24576,  7680,  6656,  3072, 49152, 13312, 12800, 63488,  5632, 53248, 45056,  5120, 13056, 61440, 57344, 32768,  4096, 12288,  7168, 13568,  7936, 13696, 15776, 16320, 15808, 16352};
 uint8_t  l_95[95] PROGMEM = {    3,    11,    11,    11,    12,    12,     9,    10,    11,    11,    11,    11,    10,    10,     9,    10,    10,    10,    11,    11,    11,    11,    11,    12,    12,    10,    10,    10,    10,    11,    11,    10,     9,     8,    11,     9,    10,     7,    12,    11,    10,     8,    12,    12,     9,    11,     8,     8,    11,    12,     9,     8,     7,    10,    11,    11,    13,    12,    13,    12,    11,    12,    10,    11,    12,     4,     7,     5,     6,     3,     8,     7,     6,     4,     8,     8,     5,     7,     4,     4,     7,     8,     5,     4,     3,     6,     7,     7,     9,     8,     9,    11,    11,    11,    12};
+
+// uint16_t c_95[95] PROGMEM = {16384, 16256, 15744, 16192, 15328, 15344, 15360, 16064, 15264, 15296, 15712, 15200, 14976, 15040, 14848, 15104, 14528, 14592, 14656, 14688, 14720, 14752, 14784, 14816, 14832, 14464, 15552, 15488, 15616, 15168, 15680, 16000, 15872, 10752,  8576,  8192,  8320,  9728,  8672,  8608,  8384, 11264,  9024,  8992, 12160,  8544, 11520, 11008,  8512,  9008, 12032, 11776, 10240,  8448,  8960,  8640,  9040,  8688,  9048, 15840, 16288, 15856, 16128, 16224, 16368, 40960,  6144,     0,  2048, 24576,  7680,  6656,  3072, 49152, 13312, 12800, 63488,  5632, 53248, 45056,  5120, 13056, 61440, 57344, 32768,  4096, 12288,  7168, 13568,  7936, 13696, 15776, 16320, 15808, 16352};
+// uint8_t  l_95[95] PROGMEM = {    3,    11,    11,    11,    12,    12,     9,    10,    11,    11,    11,    11,    10,    10,     9,    10,    10,    10,    11,    11,    11,    11,    11,    12,    12,    10,    10,    10,    10,    11,    11,    10,     9,     8,    11,     9,    10,     7,    12,    11,    10,     8,    12,    12,     9,    11,     8,     8,    11,    12,     9,     8,     7,    10,    11,    11,    13,    12,    13,    12,    11,    12,    10,    11,    12,     4,     7,     5,     6,     3,     8,     7,     6,     4,     8,     8,     5,     7,     4,     4,     7,     8,     5,     4,     3,     6,     7,     7,     9,     8,     9,    11,    11,    11,    12};
 //unsigned char c[]    = {  ' ',   '!',   '"',   '#',   '$',   '%',   '&',  '\'',   '(',   ')',   '*',   '+',   ',',   '-',   '.',   '/',   '0',   '1',   '2',   '3',   '4',   '5',   '6',   '7',   '8',   '9',   ':',   ';',   '<',   '=',   '>',   '?',   '@',   'A',   'B',   'C',   'D',   'E',   'F',   'G',   'H',   'I',   'J',   'K',   'L',   'M',   'N',   'O',   'P',   'Q',   'R',   'S',   'T',   'U',   'V',   'W',   'X',   'Y',   'Z',   '[',  '\\',   ']',   '^',   '_',   '`',   'a',   'b',   'c',   'd',   'e',   'f',   'g',   'h',   'i',   'j',   'k',   'l',   'm',   'n',   'o',   'p',   'q',   'r',   's',   't',   'u',   'v',   'w',   'x',   'y',   'z',   '{',   '|',   '}',   '~'};
-char SET2_STR[] PROGMEM = {'9', '0', '1', '2', '3', '4', '5', '6', '7', '8', '.', ',', '-', '/', '=', '+', ' ', '(', ')', '$', '%', '&', ';', ':', '<', '>', '*', '"', '{', '}', '[', ']', '@', '?', '\'', '^', '#', '_', '!', '\\', '|', '~', '`', '\0'};
+// char SET2_STR[] PROGMEM = {'9', '0', '1', '2', '3', '4', '5', '6', '7', '8', '.', ',', '-', '/', '=', '+', ' ', '(', ')', '$', '%', '&', ';', ':', '<', '>', '*', '"', '{', '}', '[', ']', '@', '?', '\'', '^', '#', '_', '!', '\\', '|', '~', '`', '\0'};
 
 enum {SHX_STATE_1 = 1, SHX_STATE_2};
 
-const uint16_t TERM_CODE = 0b0011011111000000; // 0x37C0;
-const uint8_t  TERM_CODE_LEN = 10;
+
+enum {SHX_SET1 = 0, SHX_SET1A, SHX_SET1B, SHX_SET2, SHX_SET3, SHX_SET4, SHX_SET4A};
+char sets[][11] PROGMEM = 
+                  {{  0, ' ', 'e',   0, 't', 'a', 'o', 'i', 'n', 's', 'r'},
+                   {  0, 'l', 'c', 'd', 'h', 'u', 'p', 'm', 'b', 'g', 'w'},
+                   {'f', 'y', 'v', 'k', 'q', 'j', 'x', 'z',   0,   0,   0},
+                   {  0, '9', '0', '1', '2', '3', '4', '5', '6', '7', '8'},
+                   {'.', ',', '-', '/', '=', '+', ' ', '(', ')', '$', '%'},
+                   {'&', ';', ':', '<', '>', '*', '"', '{', '}', '[', ']'},
+                   {'@', '?', '\'', '^', '#', '_', '!', '\\', '|', '~', '`'}};
+                  // {{' ', ' ', 'e', 't', 'a', 'o', 'i', 'n', 's', 'r', 'l'},
+                  //  {'c', 'd', 'h', 'u', 'p', 'm', 'b', 'g', 'w', 'f', 'y'},
+                  //  {'v', 'k', 'q', 'j', 'x', 'z', ' ', ' ', ' ', ' ', ' '},
+                  //  {' ', '9', '0', '1', '2', '3', '4', '5', '6', '7', '8'},
+                  //  {'.', ',', '-', '/', '=', '+', ' ', '(', ')', '$', '%'},
+                  //  {'&', ';', ':', '<', '>', '*', '"', '{', '}', '[', ']'},
+                  //  {'@', '?', '\'', '^', '#', '_', '!', '\\', '|', '~', '`'}};
+
+// Decoder is designed for using less memory, not speed
+// Decode lookup table for code index and length
+// First 2 bits 00, Next 3 bits indicate index of code from 0,
+// last 3 bits indicate code length in bits
+//                0,            1,            2,            3,            4,
+char vcode[32] PROGMEM = 
+                 {2 + (0 << 3), 3 + (3 << 3), 3 + (1 << 3), 4 + (6 << 3), 0,
+//                5,            6,            7,            8, 9, 10
+                  4 + (4 << 3), 3 + (2 << 3), 4 + (8 << 3), 0, 0,  0,
+//                11,          12, 13,            14, 15
+                  4 + (7 << 3), 0,  4 + (5 << 3),  0,  5 + (9 << 3),
+//                16, 17, 18, 19, 20, 21, 22, 23
+                   0,  0,  0,  0,  0,  0,  0,  0,
+//                24, 25, 26, 27, 28, 29, 30, 31
+                   0, 0,  0,  0,  0,  0,  0,  5 + (10 << 3)};
+//                0,            1,            2, 3,            4, 5, 6, 7,
+char hcode[32] PROGMEM =
+                 {1 + (1 << 3), 2 + (0 << 3), 0, 3 + (2 << 3), 0, 0, 0, 5 + (3 << 3),
+//                8, 9, 10, 11, 12, 13, 14, 15,
+                  0, 0,  0,  0,  0,  0,  0,  5 + (5 << 3),
+//                16, 17, 18, 19, 20, 21, 22, 23
+                   0, 0,  0,  0,  0,  0,  0,  5 + (4 << 3),
+//                24, 25, 26, 27, 28, 29, 30, 31
+                   0, 0,  0,  0,  0,  0,  0,  5 + (6 << 3)};
+
+
+
+const uint16_t TERM_CODE = 0x37C0; // 0b0011011111000000
+const uint16_t TERM_CODE_LEN = 10;
+#define DICT_CODE 0x0000
+#define DICT_CODE_LEN 5
+#define DICT_OTHER_CODE 0x0000 // not used
+#define DICT_OTHER_CODE_LEN 6
+#define RPT_CODE 0x2370
+#define RPT_CODE_LEN 13
+const uint16_t BACK2_STATE1_CODE = 0x2000;    // 0010 = back to lower case
+const uint16_t BACK2_STATE1_CODE_LEN = 4;
+#define BACK_FROM_UNI_CODE 0xFE00
+#define BACK_FROM_UNI_CODE_LEN 8
+#define CRLF_CODE 0x3780
+#define CRLF_CODE_LEN 10
+#define LF_CODE 0x3700
+#define LF_CODE_LEN 9
+#define TAB_CODE 0x2400
+#define TAB_CODE_LEN 7
+#define UNI_CODE 0x8000
+#define UNI_CODE_LEN 3
+#define UNI_STATE_SPL_CODE 0xF800
+#define UNI_STATE_SPL_CODE_LEN 5
+#define UNI_STATE_DICT_CODE 0xFC00
+#define UNI_STATE_DICT_CODE_LEN 7
+#define CONT_UNI_CODE 0x2800
+#define CONT_UNI_CODE_LEN 7
+#define ALL_UPPER_CODE 0x2200
+#define ALL_UPPER_CODE_LEN 8
+#define SW2_STATE2_CODE 0x3800
+#define SW2_STATE2_CODE_LEN 7
+#define ST2_SPC_CODE 0x3B80
+#define ST2_SPC_CODE_LEN 11
+#define BIN_CODE 0x2000
+#define BIN_CODE_LEN 9
 
 // byte to_match_repeats_within = 1;
 
@@ -127,24 +206,29 @@ int shox96_0_2_compress(const char *in, int len, char *out) {
   byte state;
 
   int l, ll, ol;
-  char c_in, c_next, c_prev;
+  char c_in, c_next;
   byte is_upper, is_all_upper;
 
   ol = 0;
-  c_prev = 0;
   state = SHX_STATE_1;
   is_all_upper = 0;
   for (l=0; l<len; l++) {
 
     c_in = in[l];
 
-    if (l < len - 4) {
-      if (c_in == c_prev && c_in == in[l + 1] && c_in == in[l + 2] && c_in == in[l + 3]) {
+    if (l && l < len - 4) {
+      if (c_in == in[l - 1] && c_in == in[l + 1] && c_in == in[l + 2] && c_in == in[l + 3]) {   // check for repeat
         int rpt_count = l + 4;
         while (rpt_count < len && in[rpt_count] == c_in)
           rpt_count++;
         rpt_count -= l;
-        ol = append_bits(out, ol, 14208, 10, 1);
+        // TODO
+        if (state == SHX_STATE_2 || is_all_upper) {
+          is_all_upper = 0;
+          state = SHX_STATE_1;
+          ol = append_bits(out, ol, BACK2_STATE1_CODE, BACK2_STATE1_CODE_LEN, state);   // back to lower case and Set1
+        }
+        ol = append_bits(out, ol, RPT_CODE, RPT_CODE_LEN, 1);
         ol = encodeCount(out, ol, rpt_count - 4);
         l += rpt_count;
         l--;
@@ -152,127 +236,82 @@ int shox96_0_2_compress(const char *in, int len, char *out) {
       }
     }
 
-    // if (l < (len - NICE_LEN_FOR_PRIOR) && to_match_repeats_within) {
     if (l < (len - NICE_LEN_FOR_PRIOR)) {
           l = matchOccurance(in, len, l, out, &ol);
           if (l > 0) {
-            c_prev = in[l - 1];
             continue;
           }
           l = -l;
     }
-    if (state == SHX_STATE_2) {
-      if (c_in == ' ' && len - 1 > l)
-        ptr = (char *) memchr_P(SET2_STR, in[l+1], 42);
-      else
-        ptr = (char *) memchr_P(SET2_STR, c_in, 42);
-      if (ptr == NULL) {
-        state = SHX_STATE_1;
-        ol = append_bits(out, ol, 8192, 4, 1);
+    if (state == SHX_STATE_2) {     // if Set2
+      if ((c_in >= ' ' && c_in <= '@') ||
+          (c_in >= '[' && c_in <= '`') ||
+          (c_in >= '{' && c_in <= '~')) {
+      } else {
+        state = SHX_STATE_1;        // back to Set1 and lower case
+        ol = append_bits(out, ol, BACK2_STATE1_CODE, BACK2_STATE1_CODE_LEN, state);
       }
     }
+
     is_upper = 0;
     if (c_in >= 'A' && c_in <= 'Z')
       is_upper = 1;
     else {
       if (is_all_upper) {
         is_all_upper = 0;
-        ol = append_bits(out, ol, 8192, 4, state);
+        ol = append_bits(out, ol, BACK2_STATE1_CODE, BACK2_STATE1_CODE_LEN, state);
       }
     }
-    if (is_upper && !is_all_upper) {
-      for (ll=l+5; ll>=l && ll<len; ll--) {
-        if (in[ll] >= 'a' && in[ll] <= 'z')
-          break;
-      }
-      if (ll == l-1) {
-        ol = append_bits(out, ol, 8704, 8, state);
-        is_all_upper = 1;
-      }
-    }
-    if (state == SHX_STATE_1 && c_in >= '0' && c_in <= '9') {
-      ol = append_bits(out, ol, 14336, 7, state);
-      state = SHX_STATE_2;
-    }
+
     c_next = 0;
     if (l+1 < len)
       c_next = in[l+1];
 
-    c_prev = c_in;
-    if (c_in >= 32 && c_in <= 126) {    // printable char
+    if (c_in >= 32 && c_in <= 126) {
+      if (is_upper && !is_all_upper) {
+        for (ll=l+5; ll>=l && ll<len; ll--) {
+          if (in[ll] < 'A' || in[ll] > 'Z')
+            break;
+        }
+        if (ll == l-1) {
+          ol = append_bits(out, ol, ALL_UPPER_CODE, ALL_UPPER_CODE_LEN, state);   // CapsLock
+          is_all_upper = 1;
+        }
+      }
+      if (state == SHX_STATE_1 && c_in >= '0' && c_in <= '9') {
+        ol = append_bits(out, ol, SW2_STATE2_CODE, SW2_STATE2_CODE_LEN, state);   // Switch to sticky Set2
+        state = SHX_STATE_2;
+      }
       c_in -= 32;
       if (is_all_upper && is_upper)
         c_in += 32;
       if (c_in == 0 && state == SHX_STATE_2)
-        ol = append_bits(out, ol, 0x3B80 /*15232*/, 11, state); // 0011 1011 100.0 = Set3 + 1100 = space
+        ol = append_bits(out, ol, ST2_SPC_CODE, ST2_SPC_CODE_LEN, state);
       else
-        ol = append_bits(out, ol, pgm_read_word(&c_95[c_in]), pgm_read_byte(&l_95[c_in]), state);
+        ol = append_bits(out, ol, c_95[c_in], l_95[c_in], state);
     } else
-    // TOOD : remove CRLF
-    // if (c_in == 13 && c_next == 10) {   // CR/LF
-    //   ol = append_bits(out, ol, 0x3600 /*13824*/, 9, state);
-    //   l++;  // skip next char
-    //   c_prev = 10;
-    // } else
-    if (c_in == 10) {                   // LF
-      ol = append_bits(out, ol, 0x3680 /*13952*/, 9, state);
+    if (c_in == 13 && c_next == 10) {
+      ol = append_bits(out, ol, CRLF_CODE, CRLF_CODE_LEN, state);     // CRLF
+      l++;
     } else
-    if (c_in == 13) {                   // CR
-      ol = append_bits(out, ol, 0x2368 /*9064*/, 13, state);
+    if (c_in == 10) {
+      ol = append_bits(out, ol, LF_CODE, LF_CODE_LEN, state);         // LF
     } else
-    if (c_in == '\t') {                 // TAB
-      ol = append_bits(out, ol, 9216, 7, state);
-    } else {    // TODO adding binary encoding
-      // printf("Bin:%d:%x\n", (unsigned char) c_in, (unsigned char) c_in);
-      // ol = append_bits(out, ol, 0x2000, 9, state);    // TODO check if ok.  0010 000 00 = Upper + Set1a + bin
-      ol = append_bits(out, ol, 0x3600, 9, state);    // TODO check if ok.  00 110 1100 = Set1B 1100
+    if (c_in == '\t') {
+      ol = append_bits(out, ol, TAB_CODE, TAB_CODE_LEN, state);       // TAB
+    } else {
+      ol = append_bits(out, ol, BIN_CODE, BIN_CODE_LEN, state);       // Binary
       ol = encodeCount(out, ol, (unsigned char) c_in);
     }
   }
+
   bits = ol % 8;
   if (bits) {
     ol = append_bits(out, ol, TERM_CODE, 8 - bits, 1);   // 0011 0111 1100 0000 TERM = 0011 0111 11
     // TODO write complete TERM?
   }
-  //printf("\n%ld\n", ol);
   return ol/8+(ol%8?1:0);
-
 }
-
-// Decoder is designed for using less memory, not speed
-// Decode lookup table for code index and length
-// First 2 bits 00, Next 3 bits indicate index of code from 0,
-// last 3 bits indicate code length in bits
-//                0,            1,            2,            3,            4,
-char vcode[32] PROGMEM = 
-                 {2 + (0 << 3), 3 + (3 << 3), 3 + (1 << 3), 4 + (6 << 3), 0,
-//                5,            6,            7,            8, 9, 10
-                  4 + (4 << 3), 3 + (2 << 3), 4 + (8 << 3), 0, 0,  0,
-//                11,          12, 13,            14, 15
-                  4 + (7 << 3), 0,  4 + (5 << 3),  0,  5 + (9 << 3),
-//                16, 17, 18, 19, 20, 21, 22, 23
-                   0,  0,  0,  0,  0,  0,  0,  0,
-//                24, 25, 26, 27, 28, 29, 30, 31
-                   0, 0,  0,  0,  0,  0,  0,  5 + (10 << 3)};
-//                0,            1,            2, 3,            4, 5, 6, 7,
-char hcode[32] PROGMEM =
-                 {1 + (1 << 3), 2 + (0 << 3), 0, 3 + (2 << 3), 0, 0, 0, 5 + (3 << 3),
-//                8, 9, 10, 11, 12, 13, 14, 15,
-                  0, 0,  0,  0,  0,  0,  0,  5 + (5 << 3),
-//                16, 17, 18, 19, 20, 21, 22, 23
-                   0, 0,  0,  0,  0,  0,  0,  5 + (4 << 3),
-//                24, 25, 26, 27, 28, 29, 30, 31
-                   0, 0,  0,  0,  0,  0,  0,  5 + (6 << 3)};
-
-enum {SHX_SET1 = 0, SHX_SET1A, SHX_SET1B, SHX_SET2, SHX_SET3, SHX_SET4, SHX_SET4A};
-char sets[][11] PROGMEM = 
-                  {{' ', ' ', 'e', 't', 'a', 'o', 'i', 'n', 's', 'r', 'l'},
-                   {'c', 'd', 'h', 'u', 'p', 'm', 'b', 'g', 'w', 'f', 'y'},
-                   {'v', 'k', 'q', 'j', 'x', 'z', ' ', ' ', ' ', ' ', ' '},
-                   {' ', '9', '0', '1', '2', '3', '4', '5', '6', '7', '8'},
-                   {'.', ',', '-', '/', '=', '+', ' ', '(', ')', '$', '%'},
-                   {'&', ';', ':', '<', '>', '*', '"', '{', '}', '[', ']'},
-                   {'@', '?', '\'', '^', '#', '_', '!', '\\', '|', '~', '`'}};
 
 int getBitVal(const char *in, int bit_no, int count) {
    return (in[bit_no >> 3] & (0x80 >> (bit_no % 8)) ? 1 << count : 0);
