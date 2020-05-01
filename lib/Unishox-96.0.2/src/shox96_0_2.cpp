@@ -30,6 +30,7 @@
  * - removed prev_lines management to reduce code size, we don't track previous encodings
  * - using C++ const instead of #define
  * - reusing the Unicode market to encode pure binary, which is 3 bits instead of 9
+ * - reverse binary encoding to 255-byte, favoring short encoding for values above 127, typical of Unicode
  * 
  * @author Stephan Hadinger
  *
@@ -326,7 +327,7 @@ int shox96_0_2_compress(const char *in, int len, char *out) {
     } else {
       ol = append_bits(out, ol, UNI_CODE, UNI_CODE_LEN, state);       // Binary, we reuse the Unicode marker which 3 bits instead of 9
       // ol = append_bits(out, ol, BIN_CODE, BIN_CODE_LEN, state);       // Binary
-      ol = encodeCount(out, ol, (unsigned char) c_in);
+      ol = encodeCount(out, ol, (unsigned char) 255 - c_in);
     }
   }
 
@@ -466,7 +467,7 @@ int shox96_0_2_decompress(const char *in, int len, char *out) {
 
     if (v == 0 && h == SHX_SET1A) {
       if (is_upper) {
-        out[ol++] = readCount(in, &bit_no, len);    // binary
+        out[ol++] = 255 - readCount(in, &bit_no, len);    // binary
       } else {
         ol = decodeRepeat(in, len, out, ol, &bit_no);   // dist
       }
@@ -475,7 +476,7 @@ int shox96_0_2_decompress(const char *in, int len, char *out) {
 
     if (h == SHX_SET1 && v == 3) {
       // was Unicode, will do Binary instead
-      out[ol++] = readCount(in, &bit_no, len);    // binary
+      out[ol++] = 255 - readCount(in, &bit_no, len);    // binary
       continue;
     }
     if (h < 64 && v < 32)     // TODO: are these the actual limits? Not 11x7 ?
