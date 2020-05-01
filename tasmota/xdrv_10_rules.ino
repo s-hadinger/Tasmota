@@ -238,7 +238,7 @@ String GetRule(uint32_t idx) {
   if (IsRuleUncompressed(idx)) {
     return String(Settings.rules[idx]);
   } else {
-    String rule = "";
+    String rule("");
     char *rule_comp_head = &Settings.rules[idx][1];    // address of start of compressed rule
     size_t buf_len = 1 + *rule_comp_head * 4;       // size of buffer for uncompressed rule
     if (*rule_comp_head == 0) { return rule; }     // empty
@@ -260,8 +260,21 @@ String GetRule(uint32_t idx) {
 //   >= 0 : the actual stored size
 //   <0 : not enough space
 int32_t SetRule(uint32_t idx, const char *content, uint32_t offset = 0) {
-  if (nullptr == content) { content = ""; }
+  if (nullptr == content) { content = ""; }   // if nullptr, use empty string
   size_t len_in = strlen(content);
+
+  if (!Settings.flag4.compress_rules) {
+    // don't compress, just store
+    strlcpy(Settings.rules[idx] + offset, content, sizeof(Settings.rules[idx]));
+    return len_in + offset;
+  } else {
+    int32_t len_compressed;
+
+    // compress
+    Settings.rules[idx][0] = 0;     // clear first byte to mark as compressed
+    len_compressed = unishox_compress(content, len_in, &Settings.rules[idx][1], MAX_RULE_SIZE - 2);
+  }
+
 
   strlcpy(Settings.rules[idx] + offset, content, sizeof(Settings.rules[idx]));
 
