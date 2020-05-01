@@ -99,31 +99,30 @@ const uint16_t BACK2_STATE1_CODE = 0x2000;    // 0010 = back to lower case
 const uint16_t BACK2_STATE1_CODE_LEN = 4;
 const uint16_t BACK_FROM_UNI_CODE = 0xFE00;
 const uint16_t BACK_FROM_UNI_CODE_LEN = 8;
-const uint16_t CRLF_CODE = 0x3780;
-const uint16_t CRLF_CODE_LEN = 10;
+// const uint16_t CRLF_CODE = 0x3780;
+// const uint16_t CRLF_CODE_LEN = 10;
 const uint16_t LF_CODE = 0x3700;
 const uint16_t LF_CODE_LEN = 9;
 const uint16_t TAB_CODE = 0x2400;
 const uint16_t TAB_CODE_LEN = 7;
-const uint16_t UNI_CODE = 0x8000;
-const uint16_t UNI_CODE_LEN = 3;
-const uint16_t UNI_STATE_SPL_CODE = 0xF800;
-const uint16_t UNI_STATE_SPL_CODE_LEN = 5;
-const uint16_t UNI_STATE_DICT_CODE = 0xFC00;
-const uint16_t UNI_STATE_DICT_CODE_LEN = 7;
-const uint16_t CONT_UNI_CODE = 0x2800;
-const uint16_t CONT_UNI_CODE_LEN = 7;
+// const uint16_t UNI_CODE = 0x8000;        // Unicode disabled
+// const uint16_t UNI_CODE_LEN = 3;
+// const uint16_t UNI_STATE_SPL_CODE = 0xF800;
+// const uint16_t UNI_STATE_SPL_CODE_LEN = 5;
+// const uint16_t UNI_STATE_DICT_CODE = 0xFC00;
+// const uint16_t UNI_STATE_DICT_CODE_LEN = 7;
+// const uint16_t CONT_UNI_CODE = 0x2800;
+// const uint16_t CONT_UNI_CODE_LEN = 7;
 const uint16_t ALL_UPPER_CODE = 0x2200;
 const uint16_t ALL_UPPER_CODE_LEN = 8;
 const uint16_t SW2_STATE2_CODE = 0x3800;
 const uint16_t SW2_STATE2_CODE_LEN = 7;
 const uint16_t ST2_SPC_CODE = 0x3B80;
 const uint16_t ST2_SPC_CODE_LEN = 11;
-const uint16_t BIN_CODE = 0x2000;
-const uint16_t BIN_CODE_LEN = 9;
-
-#define NICE_LEN_FOR_PRIOR 7
-#define NICE_LEN_FOR_OTHER 12
+const uint16_t BIN_CODE_TASMOTA = 0x8000;
+const uint16_t BIN_CODE_TASMOTA_LEN = 3;
+// const uint16_t BIN_CODE = 0x2000;
+// const uint16_t BIN_CODE_LEN = 9;
 
 #define NICE_LEN 5
 
@@ -261,7 +260,7 @@ int shox96_0_2_compress(const char *in, int len, char *out) {
       }
     }
 
-    if (l < (len - NICE_LEN_FOR_PRIOR)) {
+    if (l < (len - NICE_LEN + 1)) {
           l = matchOccurance(in, len, l, out, &ol, &state, &is_all_upper);
           if (l > 0) {
             continue;
@@ -315,18 +314,17 @@ int shox96_0_2_compress(const char *in, int len, char *out) {
       else
         ol = append_bits(out, ol, pgm_read_word(&c_95[c_in]), pgm_read_byte(&l_95[c_in]), state);
     } else
-    if (c_in == 13 && c_next == 10) {
-      ol = append_bits(out, ol, CRLF_CODE, CRLF_CODE_LEN, state);     // CRLF
-      l++;
-    } else
+    // if (c_in == 13 && c_next == 10) {      // CRLF disabled
+    //   ol = append_bits(out, ol, CRLF_CODE, CRLF_CODE_LEN, state);     // CRLF
+    //   l++;
+    // } else
     if (c_in == 10) {
       ol = append_bits(out, ol, LF_CODE, LF_CODE_LEN, state);         // LF
     } else
     if (c_in == '\t') {
       ol = append_bits(out, ol, TAB_CODE, TAB_CODE_LEN, state);       // TAB
     } else {
-      ol = append_bits(out, ol, UNI_CODE, UNI_CODE_LEN, state);       // Binary, we reuse the Unicode marker which 3 bits instead of 9
-      // ol = append_bits(out, ol, BIN_CODE, BIN_CODE_LEN, state);       // Binary
+      ol = append_bits(out, ol, BIN_CODE_TASMOTA, BIN_CODE_TASMOTA_LEN, state);       // Binary, we reuse the Unicode marker which 3 bits instead of 9
       ol = encodeCount(out, ol, (unsigned char) 255 - c_in);
     }
   }
