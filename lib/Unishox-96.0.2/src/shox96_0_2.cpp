@@ -33,6 +33,7 @@
  * - reverse binary encoding to 255-byte, favoring short encoding for values above 127, typical of Unicode
  * - remove 2 bits encoding for Counts, since it could lead to a series of more than 8 consecutive 0-bits and output NULL char.
  *   Minimum encoding is 5 bits, which means spending 3+1=4 more bits for values in the range 0..3
+ * - removed CRLF encoding and reusing entry for RPT, saving 3 bits for repeats. Note: any CR will be binary encded
  * 
  * @author Stephan Hadinger
  *
@@ -95,8 +96,10 @@ const uint16_t DICT_CODE = 0x0000;
 const uint16_t DICT_CODE_LEN = 5;
 const uint16_t DICT_OTHER_CODE = 0x0000; // not used
 const uint16_t DICT_OTHER_CODE_LEN = 6;
-const uint16_t RPT_CODE = 0x2370;
-const uint16_t RPT_CODE_LEN = 13;
+// const uint16_t RPT_CODE = 0x2370;
+// const uint16_t RPT_CODE_LEN = 13;
+const uint16_t RPT_CODE_TASMOTA = 0x3780;
+const uint16_t RPT_CODE_TASMOTA_LEN = 10;
 const uint16_t BACK2_STATE1_CODE = 0x2000;    // 0010 = back to lower case
 const uint16_t BACK2_STATE1_CODE_LEN = 4;
 const uint16_t BACK_FROM_UNI_CODE = 0xFE00;
@@ -253,13 +256,14 @@ int shox96_0_2_compress(const char *in, int len, char *out) {
         while (rpt_count < len && in[rpt_count] == c_in)
           rpt_count++;
         rpt_count -= l;
-        // TODO
+        
         if (state == SHX_STATE_2 || is_all_upper) {
           is_all_upper = 0;
           state = SHX_STATE_1;
           ol = append_bits(out, ol, BACK2_STATE1_CODE, BACK2_STATE1_CODE_LEN, state);   // back to lower case and Set1
         }
-        ol = append_bits(out, ol, RPT_CODE, RPT_CODE_LEN, 1);
+        // ol = append_bits(out, ol, RPT_CODE, RPT_CODE_LEN, 1);
+        ol = append_bits(out, ol, RPT_CODE_TASMOTA, RPT_CODE_TASMOTA_LEN, 1);     // reusing CRLF for RPT
         ol = encodeCount(out, ol, rpt_count - 4);
         l += rpt_count;
         l--;
@@ -495,25 +499,31 @@ int shox96_0_2_decompress(const char *in, int len, char *out) {
       if (is_upper && dstate == SHX_SET1 && v == 1)
         c = '\t';     // If UpperCase Space, change to TAB
       if (h == SHX_SET1B) {
-         switch (v) {
-           case 9:
-             out[ol++] = '\r';
-             out[ol++] = '\n';
-             continue;
-           case 8:
-             if (is_upper) { // rpt
-               int count = readCount(in, &bit_no, len);
-               count += 4;
-               char rpt_c = out[ol - 1];
-               while (count--)
-                 out[ol++] = rpt_c;
-             } else {
-               out[ol++] = '\n';
-             }
-             continue;
-           case 10:       // TERM, but treated currently as a NOOP
-             continue;
-         }
+        if (8 == v) {   // was LF or RPT, now only LF
+          // if (is_upper) { // rpt
+          //   int count = readCount(in, &bit_no, len);
+          //   count += 4;
+          //   char rpt_c = out[ol - 1];
+          //   while (count--)
+          //     out[ol++] = rpt_c;
+          // } else {
+          out[ol++] = '\n';
+          // }
+          continue;
+        }
+        if (9 == v) {           // was CRLF, now RPT
+        //  out[ol++] = '\r';   // CRLF removed
+        //  out[ol++] = '\n';
+          int count = readCount(in, &bit_no, len);
+          count += 4;
+          char rpt_c = out[ol - 1];
+          while (count--)
+            out[ol++] = rpt_c;
+          continue;
+        }
+        if (10 == v) {
+          break;          // TERM, stop decoding
+        }
       }
     }
     out[ol++] = c;
