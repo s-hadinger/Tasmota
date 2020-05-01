@@ -209,9 +209,9 @@ int32_t SetRule(uint32_t idx, const char *content, uint32_t offset = 0) {
 
   int32_t len_out;
 
-
-  char buf[(1+len_in) * 5 / 4];
-  len_out = unishox_compress(content, len_in, buf);
+  char *buf = (char*) malloc((1+len_in) * 5 / 4);
+  // char buf[(1+len_in) * 5 / 4];
+  len_out = unishox_compress(content, len_in, buf, (1+len_in) * 5 / 4);
   // len_out = unishox1_compress(content, len_in, buf);
   buf[len_out] = 0;
   // extern int unishox_compress(const char *in, int len, char *out, struct lnk_lst *prev_lines);
@@ -219,8 +219,9 @@ int32_t SetRule(uint32_t idx, const char *content, uint32_t offset = 0) {
   AddLog_P2(LOG_LEVEL_INFO, PSTR("RULE: size %d, size compressed %d (-%d%%)"), len_in, len_out,
                           100 - changeUIntScale(len_out, 0, len_in, 0, 100));
 
-  char buf_test[(1+len_in) * 5 / 4];
-  int32_t len_test = unishox_decompress(buf, len_out, buf_test);
+  // char buf_test[(1+len_in) * 5 / 4];
+  char *buf_test = (char*) malloc((1+len_in) * 5 / 4);
+  int32_t len_test = unishox_decompress(buf, len_out, buf_test, (1+len_in) * 5 / 4);
   // int32_t len_test = unishox1_decompress(buf, len_out, buf_test);
   buf_test[len_test] = 0;
 
@@ -240,7 +241,8 @@ int32_t SetRule(uint32_t idx, const char *content, uint32_t offset = 0) {
   }  
 
   //extern int unishox_decompress(const char *in, int len, char *out);
-
+  free(buf);
+  free(buf_test);
   return strlen(content);
 }
 

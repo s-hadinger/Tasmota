@@ -34,6 +34,8 @@
  * - remove 2 bits encoding for Counts, since it could lead to a series of more than 8 consecutive 0-bits and output NULL char.
  *   Minimum encoding is 5 bits, which means spending 3+1=4 more bits for values in the range 0..3
  * - removed CRLF encoding and reusing entry for RPT, saving 3 bits for repeats. Note: any CR will be binary encded
+ * - add safeguard to the output size (len_out), note that the compress buffer needs to be 4 bytes larger than actual compressed output.
+ *   This is needed to avoid crash, since output can have ~30 bits
  * 
  * @author Stephan Hadinger
  *
@@ -134,7 +136,7 @@ const uint16_t BIN_CODE_TASMOTA_LEN = 3;
 // uint16_t mask[] PROGMEM = {0x8000, 0xC000, 0xE000, 0xF000, 0xF800, 0xFC00, 0xFE00, 0xFF00};
 uint8_t mask[] PROGMEM = {0x80, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC, 0xFE, 0xFF};
 
-int append_bits(char *out, int ol, unsigned int code, int clen, byte state) {
+int append_bits(char *out, size_t ol, unsigned int code, int clen, byte state) {
 
    byte cur_bit;
    byte blen;
@@ -236,7 +238,7 @@ int matchOccurance(const char *in, int len, int l, char *out, int *ol, byte *sta
   return -l;
 }
 
-int unishox_compress(const char *in, int len, char *out) {
+int32_t unishox_compress(const char *in, size_t len, char *out, size_t len_out) {
 
   char *ptr;
   byte bits;
@@ -341,6 +343,11 @@ int unishox_compress(const char *in, int len, char *out) {
       ol = append_bits(out, ol, BIN_CODE_TASMOTA, BIN_CODE_TASMOTA_LEN, state);       // Binary, we reuse the Unicode marker which 3 bits instead of 9
       ol = encodeCount(out, ol, (unsigned char) 255 - c_in);
     }
+
+    // check that we have some headroom in the output buffer
+    if (ol / 8 >= len_out - 4) {
+      return -1;      // we risk overflow and crash
+    }
   }
 
   bits = ol % 8;
@@ -422,7 +429,7 @@ int decodeRepeat(const char *in, int len, char *out, int ol, int *bit_no) {
   return ol;
 }
 
-int unishox_decompress(const char *in, int len, char *out) {
+int32_t unishox_decompress(const char *in, size_t len, char *out, size_t len_out) {
 
   int dstate;
   int bit_no;
@@ -519,6 +526,9 @@ int unishox_decompress(const char *in, int len, char *out) {
         //  out[ol++] = '\n';
           int count = readCount(in, &bit_no, len);
           count += 4;
+          if (ol + count >= len_out) {
+            return -1;        // overflow
+          }
           char rpt_c = out[ol - 1];
           while (count--)
             out[ol++] = rpt_c;
@@ -530,6 +540,10 @@ int unishox_decompress(const char *in, int len, char *out) {
       }
     }
     out[ol++] = c;
+
+    if (ol >= len_out) {
+      return -1;        // overflow
+    }
   }
 
   return ol;

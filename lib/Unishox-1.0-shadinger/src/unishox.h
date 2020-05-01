@@ -19,8 +19,8 @@
 #ifndef unishox
 #define unishox
 
-extern int unishox_compress(const char *in, int len, char *out);
-extern int unishox_decompress(const char *in, int len, char *out);
+extern int32_t unishox_compress(const char *in, size_t len, char *out, size_t len_out);
+extern int32_t unishox_decompress(const char *in, size_t len, char *out, size_t len_out);
 
 #endif
 
