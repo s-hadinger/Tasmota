@@ -163,24 +163,29 @@ int append_bits(char *out, int ol, unsigned int code, int clen, byte state) {
    return ol;
 }
 
-byte codes[7] PROGMEM = {0x01, 0x82, 0xC3, 0xE5, 0xED, 0xF5, 0xFD};
-byte bit_len[7] PROGMEM =  {2, 5,  7,   9,  12,   16,  17};
-uint16_t adder[7] PROGMEM = {0, 4, 36, 164, 676, 4772,  0};
-
-int encodeCount(char *out, int ol, int count) {
+// First five bits are code and Last three bits of codes represent length
+// removing last 2 bytes, unused, we will never have values above 600 bytes
 //   const byte codes[7] = {0x01, 0x82, 0xC3, 0xE5, 0xED, 0xF5, 0xFD};
 //   const byte bit_len[7] =  {2, 5,  7,   9,  12,   16,  17};
 //   const uint16_t adder[7] = {0, 4, 36, 164, 676, 4772,  0};
+byte codes[7] PROGMEM     = { 0x82, 0xC3, 0xE5, 0xED, 0xF5 };
+byte bit_len[7] PROGMEM   = {    5,    7,    9,   12,   16 };
+uint16_t adder[7] PROGMEM = {    0,   32,  160,  672, 4768 };  // no more used
+
+int encodeCount(char *out, int ol, int count) {
   int till = 0;
-  for (int i = 0; i < 6; i++) {
+  int base = 0;
+  for (int i = 0; i < sizeof(bit_len); i++) {
     uint32_t bit_len_i = pgm_read_byte(&bit_len[i]);
     till += (1 << bit_len_i);
     if (count < till) {
       byte codes_i = pgm_read_byte(&codes[i]);
       ol = append_bits(out, ol, (codes_i & 0xF8) << 8, codes_i & 0x07, 1);
-      ol = append_bits(out, ol, (count - pgm_read_word(&adder[i])) << (16 - bit_len_i), bit_len_i, 1);
+      // ol = append_bits(out, ol, (count - pgm_read_word(&adder[i])) << (16 - bit_len_i), bit_len_i, 1);
+      ol = append_bits(out, ol, (count - base) << (16 - bit_len_i), bit_len_i, 1);
       return ol;
     }
+    base = till;
   }
   return ol;
 }
@@ -368,15 +373,15 @@ int getNumFromBits(const char *in, int bit_no, int count) {
    return ret;
 }
 
-
-byte bit_len_read[7] PROGMEM = {5, 2,  7,   9,  12,   16, 17};
-uint16_t adder_read[7] PROGMEM = {4, 0, 36, 164, 676, 4772,  0};
+// const byte bit_len[7]   = {5, 2,  7,   9,  12,   16, 17};
+// const uint16_t adder[7] = {4, 0, 36, 164, 676, 4772,  0};
+byte bit_len_read[7] PROGMEM = {5, 2,  7,   9,  12,   16 };
+// uint16_t adder_read[7] PROGMEM = {4, 0, 36, 164, 676, 4772,  0};
+uint16_t adder_read[7] PROGMEM = {0, 0, 32, 160, 672, 4768 };
 
 int readCount(const char *in, int *bit_no_p, int len) {
-  // const byte bit_len[7]   = {5, 2,  7,   9,  12,   16, 17};
-  // const uint16_t adder[7] = {4, 0, 36, 164, 676, 4772,  0};
   int idx = getCodeIdx(us_hcode, in, len, bit_no_p);
-  if ((idx > 6) || (idx < 0))
+  if ((idx >= sizeof(bit_len_read)) || (idx < 0))
     return 0;
   byte bit_len_idx = pgm_read_byte(&bit_len_read[idx]);
   int count = getNumFromBits(in, *bit_no_p, bit_len_idx) + pgm_read_word(&adder_read[idx]);
