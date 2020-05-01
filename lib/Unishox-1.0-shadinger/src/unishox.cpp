@@ -131,7 +131,8 @@ const uint16_t BIN_CODE_TASMOTA_LEN = 3;
 
 #define NICE_LEN 5
 
-uint16_t mask[] PROGMEM = {0x8000, 0xC000, 0xE000, 0xF000, 0xF800, 0xFC00, 0xFE00, 0xFF00};
+// uint16_t mask[] PROGMEM = {0x8000, 0xC000, 0xE000, 0xF000, 0xF800, 0xFC00, 0xFE00, 0xFF00};
+uint8_t mask[] PROGMEM = {0x80, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC, 0xFE, 0xFF};
 
 int append_bits(char *out, int ol, unsigned int code, int clen, byte state) {
 
@@ -153,7 +154,9 @@ int append_bits(char *out, int ol, unsigned int code, int clen, byte state) {
    while (clen > 0) {
      cur_bit = ol % 8;
      blen = (clen > 8 ? 8 : clen);
-     a_byte = (code & pgm_read_word(&mask[blen - 1])) >> 8;
+    //  a_byte = (code & pgm_read_word(&mask[blen - 1])) >> 8;
+    //  a_byte = (code & (pgm_read_word(&mask[blen - 1]) << 8)) >> 8;
+     a_byte = (code >> 8) & pgm_read_word(&mask[blen - 1]);
      a_byte >>= cur_bit;
      if (blen + cur_bit > 8)
         blen = (8 - cur_bit);
