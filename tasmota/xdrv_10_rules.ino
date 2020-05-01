@@ -184,18 +184,76 @@ char rules_vars[MAX_RULE_VARS][33] = {{ 0 }};
 /*******************************************************************************************/
 /*
  * Add Unishox compression to Rules
+ *
+ * New compression for Rules, depends on SetOption93
+ * 
+ * To avoid memory corruption when downgrading, the format is as follows:
+ * - If `SetOption93 0`
+ *   Rule[x][] = 511 char max NULL terminated string (512 with trailing NULL)
+ *   Rule[x][0] = 0 if the Rule<x> is empty
+ *   New: in case the string is empty we also enforce:
+ *   Rule[x][1] = 0   (i.e. we have two conseutive NULLs)
+ * 
+ * - If `SetOption93 1`
+ *   The first byte of each Rule is always NULL.
+ *   Rule[x][0] = 0,  if firmware is downgraded, the rule will be considered as empty
+ * 
+ *   The second byte contains the size of uncompressed rule in 4-bytes blocks (i.e. (len+3)/4 )
+ *   Maximum rule size si 2KB (2048 bytes per rule), although there is little chances compression ratio will go down to 75%
+ *   Rule[x][1] = size uncompressed in dwords. If zero, the rule is empty.
+ * 
+ *   The remaining bytes contain the compressed rule, NULL terminated
  */
 /*******************************************************************************************/
-size_t GetRuleLen(uint32_t idx) {
-  return strlen(Settings.rules[idx]);
+
+// Returns whether the rule is uncompressed, which means the first byte is not NULL
+inline bool IsRuleUncompressed(uint32_t idx) {
+  return Settings.rules[idx];      // first byte not NULL, the rule is not empty and not compressed
 }
 
-size_t GetRuleLenCompressed(uint32_t idx) {
-  return strlen(Settings.rules[idx]);
+// Returns whether the rule is empty, which requires two consecutive NULL
+inline bool IsRuleEmpty(uint32_t idx) {
+  return (Settings.rules[idx][0] == 0) && (Settings.rules[idx][1] == 0);
+}
+
+// Returns the approximate (+3-0) length of the rule, not counting the trailing NULL
+size_t GetRuleLen(uint32_t idx) {
+  if (IsRuleUncompressed(idx)) {
+    return strlen(Settings.rules[idx]);
+  } else {                        // either empty or compressed
+    return Settings.rules[idx][1] * 4;   // cheap calculation, but not byte accurate (may overshoot by 3)
+  }
+}
+
+// Returns the actual Flash storage for the Rule, including trailing NULL
+size_t GetRuleLenStorage(uint32_t idx) {
+  if (IsRuleUncompressed(idx)) {
+    return 1 + strlen(Settings.rules[idx]);
+  } else {
+    return 2 + strlen(&Settings.rules[idx][1]); // skip first byte and get len of the compressed rule
+  }
 }
 
 String GetRule(uint32_t idx) {
-  return String(Settings.rules[idx]);
+  if (IsRuleUncompressed(idx)) {
+    return String(Settings.rules[idx]);
+  } else {
+    String rule = "";
+    char *rule_comp_head = &Settings.rules[idx][1];    // address of start of compressed rule
+    size_t buf_len = 1 + *rule_comp_head * 4;       // size of buffer for uncompressed rule
+    if (*rule_comp_head == 0) { return rule; }     // empty
+
+    char* buf = (char*) malloc(buf_len);
+    if (!buf) { return rule; }        // cannot allocate memory
+
+    size_t rule_compressed_size = strlen(rule_comp_head);
+    int32_t len_decompressed = unishox_decompress(rule_comp_head, rule_compressed_size, buf, buf_len);
+    buf[len_decompressed] = 0;
+
+    rule = buf;    
+    free(buf);
+    return rule;
+  }
 }
 
 // Returns:
