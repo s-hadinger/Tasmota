@@ -16,11 +16,11 @@
  * @author Arundale R.
  *
  */
-#ifndef shox96_0_2_0
-#define shox96_0_2_0
+#ifndef unishox
+#define unishox
 
-extern int shox96_0_2_compress(const char *in, int len, char *out);
-extern int shox96_0_2_decompress(const char *in, int len, char *out);
+extern int unishox_compress(const char *in, int len, char *out);
+extern int unishox_decompress(const char *in, int len, char *out);
 
 #endif
 

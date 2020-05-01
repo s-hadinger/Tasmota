@@ -1,8 +1,0 @@
-name=Unishox Compressor Decompressor from Sqlite3 for ESP8266
-version=96.0.2
-author=Arundale Ramanathan
-maintainer=Arun <arun@siara.cc>
-sentence=Shox96 compression
-paragraph=It is based on Unishox hybrid encoding technique.
-url=https://github.com/siara-cc/esp_arduino_sqlite3_lib
-architectures=esp8266
