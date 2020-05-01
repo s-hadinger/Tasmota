@@ -334,7 +334,6 @@ int shox96_0_2_compress(const char *in, int len, char *out) {
   bits = ol % 8;
   if (bits) {
     ol = append_bits(out, ol, TERM_CODE, 8 - bits, 1);   // 0011 0111 1100 0000 TERM = 0011 0111 11
-    // TODO write complete TERM?
   }
   return ol/8+(ol%8?1:0);
 }
@@ -343,16 +342,19 @@ int getBitVal(const char *in, int bit_no, int count) {
    return (in[bit_no >> 3] & (0x80 >> (bit_no % 8)) ? 1 << count : 0);
 }
 
+// Returns:
+// 0..11
+// or -1 if end of stream
 int getCodeIdx(char *code_type, const char *in, int len, int *bit_no_p) {
   int code = 0;
   int count = 0;
   do {
     if (*bit_no_p >= len)
-      return 199;
+      return -1;
     code += getBitVal(in, *bit_no_p, count);
     (*bit_no_p)++;
     count++;
-    char code_type_code = pgm_read_byte(&code_type[code]);
+    uint8_t code_type_code = pgm_read_byte(&code_type[code]);
     if (code_type_code && (code_type_code & 0x07) == count) {
       return code_type_code >> 3;
     }
@@ -376,7 +378,7 @@ int readCount(const char *in, int *bit_no_p, int len) {
   // const byte bit_len[7]   = {5, 2,  7,   9,  12,   16, 17};
   // const uint16_t adder[7] = {4, 0, 36, 164, 676, 4772,  0};
   int idx = getCodeIdx(us_hcode, in, len, bit_no_p);
-  if (idx > 6)
+  if ((idx > 6) || (idx < 0))
     return 0;
   byte bit_len_idx = pgm_read_byte(&bit_len_read[idx]);
   int count = getNumFromBits(in, *bit_no_p, bit_len_idx) + pgm_read_word(&adder_read[idx]);
@@ -412,40 +414,28 @@ int shox96_0_2_decompress(const char *in, int len, char *out) {
     byte is_upper = is_all_upper;
     int orig_bit_no = bit_no;
     v = getCodeIdx(us_vcode, in, len, &bit_no);    // read vCode
-    if (v == 199) {     // end of stream
-      bit_no = orig_bit_no;
-      break;
-    }
+    if (v < 0) break;     // end of stream
     h = dstate;     // Set1 or Set2
     if (v == 0) {   // Switch which is common to Set1 and Set2, first entry
       h = getCodeIdx(us_hcode, in, len, &bit_no);    // read hCode
-      if (h == 199) {   // end of stream
-        bit_no = orig_bit_no;
-        break;
-      }
+      if (h < 0) break;     // end of stream
       if (h == SHX_SET1) {          // target is Set1
          if (dstate == SHX_SET1) {  // Switch from Set1 to Set1 us UpperCase
-           if (is_all_upper) {      // if CapsLock, then back to LowerCase
-             is_upper = is_all_upper = 0;
-             continue;
-           }
-           v = getCodeIdx(us_vcode, in, len, &bit_no);   // read again vCode
-           if (v == 199) {          // end of stream
-             bit_no = orig_bit_no;
-             break;
-           }
-           if (v == 0) {
+            if (is_all_upper) {      // if CapsLock, then back to LowerCase
+              is_upper = is_all_upper = 0;
+              continue;
+            }
+            v = getCodeIdx(us_vcode, in, len, &bit_no);   // read again vCode
+            if (v < 0) break;     // end of stream
+            if (v == 0) {
               h = getCodeIdx(us_hcode, in, len, &bit_no);  // read second hCode
-              if (h == 199) {     // end of stream
-                bit_no = orig_bit_no;
-                break;
-              }
+              if (h < 0) break;     // end of stream
               if (h == SHX_SET1) {  // If double Switch Set1, the CapsLock
-                 is_all_upper = 1;
-                 continue;
+                is_all_upper = 1;
+                continue;
               }
-           }
-           is_upper = 1;      // anyways, still uppercase
+            }
+            is_upper = 1;      // anyways, still uppercase
          } else {
             dstate = SHX_SET1;  // if Set was not Set1, switch to Set1
             continue;
@@ -458,10 +448,7 @@ int shox96_0_2_decompress(const char *in, int len, char *out) {
       }
       if (h != SHX_SET1) {    // all other Sets (why not else)
         v = getCodeIdx(us_vcode, in, len, &bit_no);    // we changed set, now read vCode for char
-        if (v == 199) {
-          bit_no = orig_bit_no;
-          break;
-        }
+        if (v < 0) break;     // end of stream
       }
     }
 
@@ -504,7 +491,7 @@ int shox96_0_2_decompress(const char *in, int len, char *out) {
                out[ol++] = '\n';
              }
              continue;
-           case 10:
+           case 10:       // TERM, but treated currently as a NOOP
              continue;
          }
       }
