@@ -29,6 +29,7 @@
  * - removed all Unicode specific code to get code smaller, Unicode is rare in rules and encoded as pure binary
  * - removed prev_lines management to reduce code size, we don't track previous encodings
  * - using C++ const instead of #define
+ * - reusing the Unicode market to encode pure binary, which is 3 bits instead of 9
  * 
  * @author Stephan Hadinger
  *
@@ -323,7 +324,8 @@ int shox96_0_2_compress(const char *in, int len, char *out) {
     if (c_in == '\t') {
       ol = append_bits(out, ol, TAB_CODE, TAB_CODE_LEN, state);       // TAB
     } else {
-      ol = append_bits(out, ol, BIN_CODE, BIN_CODE_LEN, state);       // Binary
+      ol = append_bits(out, ol, UNI_CODE, UNI_CODE_LEN, state);       // Binary, we reuse the Unicode marker which 3 bits instead of 9
+      // ol = append_bits(out, ol, BIN_CODE, BIN_CODE_LEN, state);       // Binary
       ol = encodeCount(out, ol, (unsigned char) c_in);
     }
   }
@@ -473,6 +475,8 @@ int shox96_0_2_decompress(const char *in, int len, char *out) {
 
     if (h == SHX_SET1 && v == 3) {
       // was Unicode, will do Binary instead
+      out[ol++] = readCount(in, &bit_no, len);    // binary
+      continue;
     }
     if (h < 64 && v < 32)     // TODO: are these the actual limits? Not 11x7 ?
       c = pgm_read_byte(&sets[h][v]);
@@ -504,62 +508,6 @@ int shox96_0_2_decompress(const char *in, int len, char *out) {
          }
       }
     }
-    // // // TODO insert special cases here
-    // if (h < 64 && v < 32)     // TODO: are these the actual limits? Not 11x7 ?
-    //   c = pgm_read_byte(&sets[h][v]);
-    //   // c = sets[h][v];
-    // if (c >= 'a' && c <= 'z') {
-    //   if (is_upper)
-    //     c -= 32;      // go to UpperCase for letters
-    // } else {          // handle all other cases
-    //   if (is_upper && dstate == SHX_SET1 && v == 1)
-    //     c = '\t';     // If UpperCase Space, change to TAB
-      // if (h == SHX_SET1B) {
-      //    switch (v) {
-      //      case 6:        // Set1B v=6, CRLF
-      //        // TODO we remove CRLF and put Bin instead
-      //        //  out[ol++] = '\r';
-      //        //  c = '\n';
-      //        c = readCount(in, &bit_no, len);
-      //        break;
-      //      case 7:        // Set1B v=7, CR or LF
-      //        c = is_upper ? '\r' : '\n';
-      //        break;
-      //      case 8:        // Set1B v=8, Dict
-      //        if (getBitVal(in, bit_no++, 0)) {
-      //          int dict_len = readCount(in, &bit_no, len) + NICE_LEN_FOR_PRIOR;
-      //          int dist = readCount(in, &bit_no, len) + NICE_LEN_FOR_PRIOR - 1;
-      //          memcpy(out + ol, out + ol - dist, dict_len);
-      //          ol += dict_len;
-      //        } else {
-      //          int dict_len = readCount(in, &bit_no, len) + NICE_LEN_FOR_OTHER;
-      //          int dist = readCount(in, &bit_no, len);
-      //          int ctx = readCount(in, &bit_no, len);
-      //          ol += dict_len;
-      //        }
-      //        continue;
-      //      case 9: {        // Set1B v=9, Rpt
-      //        int count = readCount(in, &bit_no, len);
-      //        count += 4;
-      //        char rpt_c = out[ol - 1];
-      //        while (count--)
-      //          out[ol++] = rpt_c;
-      //        continue;
-      //      }
-      //      case 10:         // TERM
-      //        continue;
-
-    // // if (v == 0 && h == SHX_SET1A) {
-    // //   if (is_upper) {
-    // //     out[ol++] = readCount(in, &bit_no, len);
-    // //   } else {
-    // //     ol = decodeRepeat(in, len, out, ol, &bit_no, prev_lines);
-    // //   }
-    // //   continue;
-    // // }
-    //      }
-    //   }
-    // }
     out[ol++] = c;
   }
 
