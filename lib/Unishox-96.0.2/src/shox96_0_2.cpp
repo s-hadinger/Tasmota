@@ -16,6 +16,24 @@
  * @author Arundale R.
  *
  */
+
+/*
+ * 
+ * This is a highly modified and optimized version of Unishox
+ * for Tasmota, aimed at compressing `Rules` which are typically 
+ * short strings from 50 to 500 bytes.
+ * 
+ * - moved to C++ (but still C-style)
+ * - c_95[] and l_95[] are pre-computed
+ * - all arrays in PROGMEM
+ * - removed all Unicode specific code to get code smaller, Unicode is rare in rules and encoded as pure binary
+ * - removed prev_lines management to reduce code size, we don't track previous encodings
+ * - using C++ const instead of #define
+ * 
+ * @author Stephan Hadinger
+ *
+ */
+
 #include <time.h>
 #include <stdio.h>
 #include <string.h>
@@ -26,17 +44,10 @@
 #include "shox96_0_2.h"
 
 typedef unsigned char byte;
-// uint16_t c_95[95] PROGMEM = {16384, 16256, 15744, 16192, 15328, 15344, 15360, 16064, 15264, 15296, 15712, 15200, 14976, 15040, 14848, 15104, 14528, 14592, 14656, 14688, 14720, 14752, 14784, 14816, 14832, 14464, 15552, 15488, 15616, 15168, 15680, 16000, 15872, 10752,  8576,  8192,  8320,  9728,  8672,  8608,  8384, 11264,  9024,  8992, 12160,  8544, 11520, 11008,  8512,  9008, 12032, 11776, 10240,  8448,  8960,  8640,  9040,  8688,  9048, 15840, 16288, 15856, 16128, 16224, 16368, 40960,  6144,     0,  2048, 24576,  7680,  6656,  3072, 49152, 13312, 12800, 63488,  5632, 53248, 45056,  5120, 13056, 61440, 57344, 32768,  4096, 12288,  7168, 13568,  7936, 13696, 15776, 16320, 15808, 16352};
-// uint8_t  l_95[95] PROGMEM = {    3,    11,    11,    11,    12,    12,     9,    10,    11,    11,    11,    11,    10,    10,     9,    10,    10,    10,    11,    11,    11,    11,    11,    12,    12,    10,    10,    10,    10,    11,    11,    10,     9,     8,    11,     9,    10,     7,    12,    11,    10,     8,    12,    12,     9,    11,     8,     8,    11,    12,     9,     8,     7,    10,    11,    11,    13,    12,    13,    12,    11,    12,    10,    11,    12,     4,     7,     5,     6,     3,     8,     7,     6,     4,     8,     8,     5,     7,     4,     4,     7,     8,     5,     4,     3,     6,     7,     7,     9,     8,     9,    11,    11,    11,    12};
 uint16_t c_95[95] PROGMEM = {0x4000, 0x3F80, 0x3D80, 0x3F40, 0x3BE0, 0x3BF0, 0x3C00, 0x3EC0, 0x3BA0, 0x3BC0, 0x3D60, 0x3B60, 0x3A80, 0x3AC0, 0x3A00, 0x3B00, 0x38C0, 0x3900, 0x3940, 0x3960, 0x3980, 0x39A0, 0x39C0, 0x39E0, 0x39F0, 0x3880, 0x3CC0, 0x3C80, 0x3D00, 0x3B40, 0x3D40, 0x3E80, 0x3E00, 0x2B00, 0x21C0, 0x20C0, 0x2100, 0x2600, 0x2300, 0x21E0, 0x2140, 0x2D00, 0x2358, 0x2340, 0x2080, 0x21A0, 0x2E00, 0x2C00, 0x2180, 0x2350, 0x2F80, 0x2F00, 0x2A00, 0x2160, 0x2330, 0x21F0, 0x2360, 0x2320, 0x2368, 0x3DE0, 0x3FA0, 0x3DF0, 0x3F00, 0x3F60, 0x3FF0, 0xB000, 0x1C00, 0x0C00, 0x1000, 0x6000, 0x3000, 0x1E00, 0x1400, 0xD000, 0x3580, 0x3400, 0x0800, 0x1A00, 0xE000, 0xC000, 0x1800, 0x3500, 0xF800, 0xF000, 0xA000, 0x1600, 0x3300, 0x1F00, 0x3600, 0x3200, 0x3680, 0x3DA0, 0x3FC0, 0x3DC0, 0x3FE0 };
 uint8_t  l_95[95] PROGMEM = {     3,     11,     11,     11,     12,     12,      9,     10,     11,     11,     11,     11,     10,     10,      9,     10,     10,     10,     11,     11,     11,     11,     11,     12,     12,     10,     10,     10,     10,     11,     11,     10,      9,      8,     11,     10,     10,      7,     11,     12,     11,      8,     13,     12,     10,     11,      8,      8,     11,     13,      9,      9,      8,     11,     12,     12,     13,     12,     13,     12,     11,     12,     10,     11,     12,      4,      7,      6,      6,      3,      7,      8,      7,      4,      9,      8,      6,      7,      4,      4,      7,      9,      5,      5,      4,      7,      8,      8,      9,      8,      9,     11,     11,     11,     12 };
-// uint16_t c_95[95] PROGMEM = {16384, 16256, 15744, 16192, 15328, 15344, 15360, 16064, 15264, 15296, 15712, 15200, 14976, 15040, 14848, 15104, 14528, 14592, 14656, 14688, 14720, 14752, 14784, 14816, 14832, 14464, 15552, 15488, 15616, 15168, 15680, 16000, 15872, 10752,  8576,  8192,  8320,  9728,  8672,  8608,  8384, 11264,  9024,  8992, 12160,  8544, 11520, 11008,  8512,  9008, 12032, 11776, 10240,  8448,  8960,  8640,  9040,  8688,  9048, 15840, 16288, 15856, 16128, 16224, 16368, 40960,  6144,     0,  2048, 24576,  7680,  6656,  3072, 49152, 13312, 12800, 63488,  5632, 53248, 45056,  5120, 13056, 61440, 57344, 32768,  4096, 12288,  7168, 13568,  7936, 13696, 15776, 16320, 15808, 16352};
-// uint8_t  l_95[95] PROGMEM = {    3,    11,    11,    11,    12,    12,     9,    10,    11,    11,    11,    11,    10,    10,     9,    10,    10,    10,    11,    11,    11,    11,    11,    12,    12,    10,    10,    10,    10,    11,    11,    10,     9,     8,    11,     9,    10,     7,    12,    11,    10,     8,    12,    12,     9,    11,     8,     8,    11,    12,     9,     8,     7,    10,    11,    11,    13,    12,    13,    12,    11,    12,    10,    11,    12,     4,     7,     5,     6,     3,     8,     7,     6,     4,     8,     8,     5,     7,     4,     4,     7,     8,     5,     4,     3,     6,     7,     7,     9,     8,     9,    11,    11,    11,    12};
-//unsigned char c[]    = {  ' ',   '!',   '"',   '#',   '$',   '%',   '&',  '\'',   '(',   ')',   '*',   '+',   ',',   '-',   '.',   '/',   '0',   '1',   '2',   '3',   '4',   '5',   '6',   '7',   '8',   '9',   ':',   ';',   '<',   '=',   '>',   '?',   '@',   'A',   'B',   'C',   'D',   'E',   'F',   'G',   'H',   'I',   'J',   'K',   'L',   'M',   'N',   'O',   'P',   'Q',   'R',   'S',   'T',   'U',   'V',   'W',   'X',   'Y',   'Z',   '[',  '\\',   ']',   '^',   '_',   '`',   'a',   'b',   'c',   'd',   'e',   'f',   'g',   'h',   'i',   'j',   'k',   'l',   'm',   'n',   'o',   'p',   'q',   'r',   's',   't',   'u',   'v',   'w',   'x',   'y',   'z',   '{',   '|',   '}',   '~'};
-// char SET2_STR[] PROGMEM = {'9', '0', '1', '2', '3', '4', '5', '6', '7', '8', '.', ',', '-', '/', '=', '+', ' ', '(', ')', '$', '%', '&', ';', ':', '<', '>', '*', '"', '{', '}', '[', ']', '@', '?', '\'', '^', '#', '_', '!', '\\', '|', '~', '`', '\0'};
 
-enum {SHX_STATE_1 = 1, SHX_STATE_2};
-
+enum {SHX_STATE_1 = 1, SHX_STATE_2};    // removed Unicode state
 
 enum {SHX_SET1 = 0, SHX_SET1A, SHX_SET1B, SHX_SET2, SHX_SET3, SHX_SET4, SHX_SET4A};
 char sets[][11] PROGMEM = 
@@ -47,13 +58,6 @@ char sets[][11] PROGMEM =
                    {'.', ',', '-', '/', '=', '+', ' ', '(', ')', '$', '%'},
                    {'&', ';', ':', '<', '>', '*', '"', '{', '}', '[', ']'},
                    {'@', '?', '\'', '^', '#', '_', '!', '\\', '|', '~', '`'}};
-                  // {{' ', ' ', 'e', 't', 'a', 'o', 'i', 'n', 's', 'r', 'l'},
-                  //  {'c', 'd', 'h', 'u', 'p', 'm', 'b', 'g', 'w', 'f', 'y'},
-                  //  {'v', 'k', 'q', 'j', 'x', 'z', ' ', ' ', ' ', ' ', ' '},
-                  //  {' ', '9', '0', '1', '2', '3', '4', '5', '6', '7', '8'},
-                  //  {'.', ',', '-', '/', '=', '+', ' ', '(', ')', '$', '%'},
-                  //  {'&', ';', ':', '<', '>', '*', '"', '{', '}', '[', ']'},
-                  //  {'@', '?', '\'', '^', '#', '_', '!', '\\', '|', '~', '`'}};
 
 // Decoder is designed for using less memory, not speed
 // Decode lookup table for code index and length
@@ -81,43 +85,40 @@ char us_hcode[32] PROGMEM =
                    0, 0,  0,  0,  0,  0,  0,  5 + (6 << 3)};
 
 
-
 const uint16_t TERM_CODE = 0x37C0; // 0b0011011111000000
 const uint16_t TERM_CODE_LEN = 10;
-#define DICT_CODE 0x0000
-#define DICT_CODE_LEN 5
-#define DICT_OTHER_CODE 0x0000 // not used
-#define DICT_OTHER_CODE_LEN 6
-#define RPT_CODE 0x2370
-#define RPT_CODE_LEN 13
+const uint16_t DICT_CODE = 0x0000;
+const uint16_t DICT_CODE_LEN = 5;
+const uint16_t DICT_OTHER_CODE = 0x0000; // not used
+const uint16_t DICT_OTHER_CODE_LEN = 6;
+const uint16_t RPT_CODE = 0x2370;
+const uint16_t RPT_CODE_LEN = 13;
 const uint16_t BACK2_STATE1_CODE = 0x2000;    // 0010 = back to lower case
 const uint16_t BACK2_STATE1_CODE_LEN = 4;
-#define BACK_FROM_UNI_CODE 0xFE00
-#define BACK_FROM_UNI_CODE_LEN 8
-#define CRLF_CODE 0x3780
-#define CRLF_CODE_LEN 10
-#define LF_CODE 0x3700
-#define LF_CODE_LEN 9
-#define TAB_CODE 0x2400
-#define TAB_CODE_LEN 7
-#define UNI_CODE 0x8000
-#define UNI_CODE_LEN 3
-#define UNI_STATE_SPL_CODE 0xF800
-#define UNI_STATE_SPL_CODE_LEN 5
-#define UNI_STATE_DICT_CODE 0xFC00
-#define UNI_STATE_DICT_CODE_LEN 7
-#define CONT_UNI_CODE 0x2800
-#define CONT_UNI_CODE_LEN 7
-#define ALL_UPPER_CODE 0x2200
-#define ALL_UPPER_CODE_LEN 8
-#define SW2_STATE2_CODE 0x3800
-#define SW2_STATE2_CODE_LEN 7
-#define ST2_SPC_CODE 0x3B80
-#define ST2_SPC_CODE_LEN 11
-#define BIN_CODE 0x2000
-#define BIN_CODE_LEN 9
-
-// byte to_match_repeats_within = 1;
+const uint16_t BACK_FROM_UNI_CODE = 0xFE00;
+const uint16_t BACK_FROM_UNI_CODE_LEN = 8;
+const uint16_t CRLF_CODE = 0x3780;
+const uint16_t CRLF_CODE_LEN = 10;
+const uint16_t LF_CODE = 0x3700;
+const uint16_t LF_CODE_LEN = 9;
+const uint16_t TAB_CODE = 0x2400;
+const uint16_t TAB_CODE_LEN = 7;
+const uint16_t UNI_CODE = 0x8000;
+const uint16_t UNI_CODE_LEN = 3;
+const uint16_t UNI_STATE_SPL_CODE = 0xF800;
+const uint16_t UNI_STATE_SPL_CODE_LEN = 5;
+const uint16_t UNI_STATE_DICT_CODE = 0xFC00;
+const uint16_t UNI_STATE_DICT_CODE_LEN = 7;
+const uint16_t CONT_UNI_CODE = 0x2800;
+const uint16_t CONT_UNI_CODE_LEN = 7;
+const uint16_t ALL_UPPER_CODE = 0x2200;
+const uint16_t ALL_UPPER_CODE_LEN = 8;
+const uint16_t SW2_STATE2_CODE = 0x3800;
+const uint16_t SW2_STATE2_CODE_LEN = 7;
+const uint16_t ST2_SPC_CODE = 0x3B80;
+const uint16_t ST2_SPC_CODE_LEN = 11;
+const uint16_t BIN_CODE = 0x2000;
+const uint16_t BIN_CODE_LEN = 9;
 
 #define NICE_LEN_FOR_PRIOR 7
 #define NICE_LEN_FOR_OTHER 12
