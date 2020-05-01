@@ -466,7 +466,7 @@ int shox96_0_2_decompress(const char *in, int len, char *out) {
       out[ol++] = 255 - readCount(in, &bit_no, len);    // binary
       continue;
     }
-    if (h < 64 && v < 32)     // TODO: are these the actual limits? Not 11x7 ?
+    if (h < 7 && v < 11)     // TODO: are these the actual limits? Not 11x7 ?
       c = pgm_read_byte(&sets[h][v]);
     if (c >= 'a' && c <= 'z') {
       if (is_upper)
