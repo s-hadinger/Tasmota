@@ -31,6 +31,8 @@
  * - using C++ const instead of #define
  * - reusing the Unicode market to encode pure binary, which is 3 bits instead of 9
  * - reverse binary encoding to 255-byte, favoring short encoding for values above 127, typical of Unicode
+ * - remove 2 bits encoding for Counts, since it could lead to a series of more than 8 consecutive 0-bits and output NULL char.
+ *   Minimum encoding is 5 bits, which means spending 3+1=4 more bits for values in the range 0..3
  * 
  * @author Stephan Hadinger
  *
@@ -168,9 +170,9 @@ int append_bits(char *out, int ol, unsigned int code, int clen, byte state) {
 //   const byte codes[7] = {0x01, 0x82, 0xC3, 0xE5, 0xED, 0xF5, 0xFD};
 //   const byte bit_len[7] =  {2, 5,  7,   9,  12,   16,  17};
 //   const uint16_t adder[7] = {0, 4, 36, 164, 676, 4772,  0};
-byte codes[7] PROGMEM     = { 0x82, 0xC3, 0xE5, 0xED, 0xF5 };
-byte bit_len[7] PROGMEM   = {    5,    7,    9,   12,   16 };
-uint16_t adder[7] PROGMEM = {    0,   32,  160,  672, 4768 };  // no more used
+byte codes[] PROGMEM     = { 0x82, 0xC3, 0xE5, 0xED, 0xF5 };
+byte bit_len[] PROGMEM   = {    5,    7,    9,   12,   16 };
+// uint16_t adder[7] PROGMEM = {    0,   32,  160,  672, 4768 };  // no more used
 
 int encodeCount(char *out, int ol, int count) {
   int till = 0;
@@ -375,15 +377,19 @@ int getNumFromBits(const char *in, int bit_no, int count) {
 
 // const byte bit_len[7]   = {5, 2,  7,   9,  12,   16, 17};
 // const uint16_t adder[7] = {4, 0, 36, 164, 676, 4772,  0};
-byte bit_len_read[7] PROGMEM = {5, 2,  7,   9,  12,   16 };
+
+// byte bit_len[7] PROGMEM   = {    5,    7,    9,   12,   16 };
+// byte bit_len_read[7] PROGMEM = {5, 2,  7,   9,  12,   16 };
 // uint16_t adder_read[7] PROGMEM = {4, 0, 36, 164, 676, 4772,  0};
-uint16_t adder_read[7] PROGMEM = {0, 0, 32, 160, 672, 4768 };
+// uint16_t adder_read[] PROGMEM = {0, 0, 32, 160, 672, 4768 };
+uint16_t adder_read[] PROGMEM = {0, 32, 160, 672, 4768 };
 
 int readCount(const char *in, int *bit_no_p, int len) {
   int idx = getCodeIdx(us_hcode, in, len, bit_no_p);
-  if ((idx >= sizeof(bit_len_read)) || (idx < 0))
-    return 0;
-  byte bit_len_idx = pgm_read_byte(&bit_len_read[idx]);
+  if (idx >= 1) idx--;    // we skip v = 1 '0' since we no more accept 2 bits encoding
+  if ((idx >= sizeof(bit_len)) || (idx < 0)) return 0;  // unsupported or end of stream
+
+  byte bit_len_idx = pgm_read_byte(&bit_len[idx]);
   int count = getNumFromBits(in, *bit_no_p, bit_len_idx) + pgm_read_word(&adder_read[idx]);
   (*bit_no_p) += bit_len_idx;
   return count;
