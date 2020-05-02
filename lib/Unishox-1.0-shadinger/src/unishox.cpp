@@ -38,6 +38,7 @@
  *   This is needed to avoid crash, since output can have ~30 bits
  * - combined c_95[] and l_95[] to a single array to save space
  * - Changed mapping of some characters in Set3, Set4 and Set4A, favoring frequent characters in rules and javascript
+ * - Added escape mechanism to ensure we never output NULL char. The marker is 0x2A which looked rare in preliminary tests
  * 
  * @author Stephan Hadinger
  *
@@ -105,6 +106,7 @@ char us_hcode[32] PROGMEM =
 //                24, 25, 26, 27, 28, 29, 30, 31
                    0, 0,  0,  0,  0,  0,  0,  5 + (6 << 3)};
 
+const char ESCAPE_MARKER = 0x2A;   // Escape any null char
 
 const uint16_t TERM_CODE = 0x37C0; // 0b0011011111000000
 const uint16_t TERM_CODE_LEN = 10;
@@ -182,6 +184,15 @@ int append_bits(char *out, size_t ol, unsigned int code, int clen, byte state) {
         out[ol / 8] |= a_byte;
      code <<= blen;
      ol += blen;
+     if (0 == ol % 8) {
+       // we completed a full byte
+       char last_c = out[(ol / 8) - 1];
+       if ((0 == last_c) || (ESCAPE_MARKER == last_c)) {
+         out[ol / 8] = 1 + last_c;    // increment to 0x01 or 0x2B
+         out[(ol / 8) -1] = ESCAPE_MARKER;  // replace old value with marker
+         ol += 8;   // add one full byte
+       }
+     }
      clen -= blen;
    }
    return ol;
@@ -375,7 +386,11 @@ int32_t unishox_compress(const char *in, size_t len, char *out, size_t len_out) 
 }
 
 int getBitVal(const char *in, int bit_no, int count) {
-   return (in[bit_no >> 3] & (0x80 >> (bit_no % 8)) ? 1 << count : 0);
+  char c_in = in[bit_no >> 3];
+  if ((bit_no >> 3) && (ESCAPE_MARKER == in[(bit_no >> 3) - 1])) {     // if previous byte is a marker, decrement
+    c_in--;
+  }
+  return (c_in & (0x80 >> (bit_no % 8)) ? 1 << count : 0);
 }
 
 // Returns:
@@ -385,8 +400,12 @@ int getCodeIdx(char *code_type, const char *in, int len, int *bit_no_p) {
   int code = 0;
   int count = 0;
   do {
+    // detect marker
+    if (ESCAPE_MARKER == in[*bit_no_p >> 3]) {
+      *bit_no_p += 8;      // skip marker
+    }
     if (*bit_no_p >= len)
-      return -1;
+      return -1;           // invalid state
     code += getBitVal(in, *bit_no_p, count);
     (*bit_no_p)++;
     count++;
@@ -399,11 +418,14 @@ int getCodeIdx(char *code_type, const char *in, int len, int *bit_no_p) {
 }
 
 int getNumFromBits(const char *in, int bit_no, int count) {
-   int ret = 0;
-   while (count--) {
-     ret += getBitVal(in, bit_no++, count);
-   }
-   return ret;
+  int ret = 0;
+  while (count--) {
+    if (ESCAPE_MARKER == in[bit_no >> 3]) {
+      bit_no += 8;      // skip marker
+    }
+    ret += getBitVal(in, bit_no++, count);
+  }
+  return ret;
 }
 
 // const byte bit_len[7]   = {5, 2,  7,   9,  12,   16, 17};
