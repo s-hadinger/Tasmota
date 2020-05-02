@@ -36,6 +36,8 @@
  * - removed CRLF encoding and reusing entry for RPT, saving 3 bits for repeats. Note: any CR will be binary encded
  * - add safeguard to the output size (len_out), note that the compress buffer needs to be 4 bytes larger than actual compressed output.
  *   This is needed to avoid crash, since output can have ~30 bits
+ * - combined c_95[] and l_95[] to a single array to save space
+ * - Changed mapping of some characters in Set3, Set4 and Set4A, favoring frequent characters in rules and javascript
  * 
  * @author Stephan Hadinger
  *
