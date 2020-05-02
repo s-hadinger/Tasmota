@@ -154,4 +154,12 @@ int main(int argv, char *args[]) {
   }
   printf(" };\n");
 
+
+  printf("uint16_t cl_95[95] PROGMEM = {");
+  for (uint8_t i = 0; i<95; i++) {
+    if (i) { printf(", "); }
+    printf("0x%04X + %2d", c_95[i], l_95[i]);
+  }
+  printf(" };\n");
+
 }
