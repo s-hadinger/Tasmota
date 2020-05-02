@@ -209,7 +209,7 @@ char rules_vars[MAX_RULE_VARS][33] = {{ 0 }};
 // Returns whether the rule is uncompressed, which means the first byte is not NULL
 inline bool IsRuleUncompressed(uint32_t idx) {
 #ifdef USE_RULES_COMPRESSION
-  return Settings.rules[idx] ? true : false;      // first byte not NULL, the rule is not empty and not compressed
+  return Settings.rules[idx][0] ? true : false;      // first byte not NULL, the rule is not empty and not compressed
 #else
   return true;
 #endif
@@ -240,7 +240,7 @@ size_t GetRuleLenStorage(uint32_t idx) {
   if (IsRuleUncompressed(idx)) {
     return 1 + strlen(Settings.rules[idx]);
   } else {
-    return 2 + strlen(&Settings.rules[idx][1]); // skip first byte and get len of the compressed rule
+    return 2 + strlen(&Settings.rules[idx][2]); // skip first byte and get len of the compressed rule
   }
 }
 
@@ -296,8 +296,13 @@ int32_t SetRule(uint32_t idx, const char *content, uint32_t offset = 0) {
 
     // compress
     Settings.rules[idx][0] = 0;     // clear first byte to mark as compressed
-    len_compressed = unishox_compress(content, len_in, &Settings.rules[idx][1], MAX_RULE_SIZE - 2);
+    len_compressed = unishox_compress(content, len_in, &Settings.rules[idx][2], MAX_RULE_SIZE - 3);
+    // post-process
+    Settings.rules[idx][1] = (len_in + 3) / 4;    // store original length in first bytes (4 bytes chuks)
+    Settings.rules[idx][len_compressed + 2] = 0;  // add NULL termination
     AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: Compressed from %d to %d (-%d%%)"), len_in, len_compressed, 100 - changeUIntScale(len_compressed, 0, len_in, 0, 100));
+    AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: First bytes: %02X%02X%02X%02X"), Settings.rules[idx][0], Settings.rules[idx][1], Settings.rules[idx][2], Settings.rules[idx][3]);
+    AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: GetRuleLenStorage = %d"), GetRuleLenStorage(idx));
     return len_compressed;
 #endif
   }
@@ -1957,9 +1962,12 @@ void CmndRule(void)
       }
       Rules.triggers[index -1] = 0;  // Reset once flag
     }
+    // snprintf_P (mqtt_data, sizeof(mqtt_data), PSTR("{\"%s%d\":\"%s\",\"Once\":\"%s\",\"StopOnError\":\"%s\",\"Free\":%d,\"Rules\":\"%s\"}"),
+    //   XdrvMailbox.command, index, GetStateText(bitRead(Settings.rule_enabled, index -1)), GetStateText(bitRead(Settings.rule_once, index -1)),
+    //   GetStateText(bitRead(Settings.rule_stop, index -1)), sizeof(Settings.rules[index -1]) - strlen(Settings.rules[index -1]) -1, Settings.rules[index -1]);
     snprintf_P (mqtt_data, sizeof(mqtt_data), PSTR("{\"%s%d\":\"%s\",\"Once\":\"%s\",\"StopOnError\":\"%s\",\"Free\":%d,\"Rules\":\"%s\"}"),
       XdrvMailbox.command, index, GetStateText(bitRead(Settings.rule_enabled, index -1)), GetStateText(bitRead(Settings.rule_once, index -1)),
-      GetStateText(bitRead(Settings.rule_stop, index -1)), sizeof(Settings.rules[index -1]) - strlen(Settings.rules[index -1]) -1, Settings.rules[index -1]);
+      GetStateText(bitRead(Settings.rule_stop, index -1)), sizeof(Settings.rules[0]) - GetRuleLenStorage(index - 1), GetRule(index - 1).c_str());
   }
 }
 
