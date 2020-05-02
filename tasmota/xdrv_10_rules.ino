@@ -279,7 +279,7 @@ String GetRule(uint32_t idx) {
 // Returns:
 //   >= 0 : the actual stored size
 //   <0 : not enough space
-int32_t SetRule(uint32_t idx, const char *content, uint32_t offset = 0) {
+int32_t SetRule(uint32_t idx, const char *content, bool append = false) {
   if (nullptr == content) { content = ""; }   // if nullptr, use empty string
   size_t len_in = strlen(content);
 
@@ -289,16 +289,32 @@ int32_t SetRule(uint32_t idx, const char *content, uint32_t offset = 0) {
   if (1) {
 #endif
     // don't compress, just store
-    strlcpy(Settings.rules[idx] + offset, content, sizeof(Settings.rules[idx]));
-    return len_in + offset;
+    size_t offset = 0;
+    if (append) {
+      offset = strlen(Settings.rules[idx]);
+    }
+    // check size
+    if (len_in + offset < sizeof(Settings.rules[0]) - 1) {
+      strlcpy(Settings.rules[idx] + offset, content, sizeof(Settings.rules[idx]));
+      return len_in + offset;
+    } else {
+      return -1;      // not enough space
+    }
   } else {
 #ifdef USE_RULES_COMPRESSION
     int32_t len_compressed;
 
     // compress
-    Settings.rules[idx][0] = 0;     // clear first byte to mark as compressed
-    len_compressed = unishox_compress(content, len_in, &Settings.rules[idx][2], MAX_RULE_SIZE - 3);
+    if (append) {
+      String content_append = GetRule(idx);   // get original Rule and decompress it if needed
+      content_append += content;             // concat new content
+      len_in = content_append.length();       // adjust length
+      len_compressed = unishox_compress(content_append.c_str(), len_in, &Settings.rules[idx][2], MAX_RULE_SIZE - 3);
+    } else {
+      len_compressed = unishox_compress(content, len_in, &Settings.rules[idx][2], MAX_RULE_SIZE - 3);
+    }
     // post-process
+    Settings.rules[idx][0] = 0;     // clear first byte to mark as compressed
     Settings.rules[idx][1] = (len_in + 3) / 4;    // store original length in first bytes (4 bytes chuks)
     Settings.rules[idx][len_compressed + 2] = 0;  // add NULL termination
     AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: Compressed from %d to %d (-%d%%)"), len_in, len_compressed, 100 - changeUIntScale(len_compressed, 0, len_in, 0, 100));
@@ -307,48 +323,6 @@ int32_t SetRule(uint32_t idx, const char *content, uint32_t offset = 0) {
     return len_compressed;
 #endif
   }
-
-#if 0     // TODO
-  strlcpy(Settings.rules[idx] + offset, content, sizeof(Settings.rules[idx]));
-
-  int32_t len_out;
-
-  char *buf = (char*) malloc((1+len_in) * 5 / 4);
-  // char buf[(1+len_in) * 5 / 4];
-  len_out = unishox_compress(content, len_in, buf, (1+len_in) * 5 / 4);
-  // len_out = unishox1_compress(content, len_in, buf);
-  buf[len_out] = 0;
-  // extern int unishox_compress(const char *in, int len, char *out, struct lnk_lst *prev_lines);
-
-  AddLog_P2(LOG_LEVEL_INFO, PSTR("RULE: size %d, size compressed %d (-%d%%)"), len_in, len_out,
-                          100 - changeUIntScale(len_out, 0, len_in, 0, 100));
-
-  // char buf_test[(1+len_in) * 5 / 4];
-  char *buf_test = (char*) malloc((1+len_in) * 5 / 4);
-  int32_t len_test = unishox_decompress(buf, len_out, buf_test, (1+len_in) * 5 / 4);
-  // int32_t len_test = unishox1_decompress(buf, len_out, buf_test);
-  buf_test[len_test] = 0;
-
-  AddLog_P2(LOG_LEVEL_INFO, PSTR("RULE: decompressed size %d, %s"), len_test, strcmp(buf_test, content) ? "Error" : "Match");
-  AddLog_P2(LOG_LEVEL_INFO, PSTR("RULE: %s"), buf_test);
-
-
-  if (len_in < 100) {
-    char hex[len_in*2+2];
-    ToHex_P((const unsigned char*)content, len_in, hex, sizeof(hex));
-    AddLog_P2(LOG_LEVEL_INFO, PSTR("RULE in = %s"), hex);
-  }
-  if (len_test < 100) {
-    char hex[len_test*2+2];
-    ToHex_P((const unsigned char*)buf_test, len_test, hex, sizeof(hex));
-    AddLog_P2(LOG_LEVEL_INFO, PSTR("RULE in = %s"), hex);
-  }  
-
-  //extern int unishox_decompress(const char *in, int len, char *out);
-  free(buf);
-  free(buf_test);
-  return strlen(content);
-#endif
 }
 
 inline void RuleCheckCompression(void) {
@@ -1946,19 +1920,14 @@ void CmndRule(void)
           break;
         }
       } else {
-        // TODO rework Append later
-        int offset = 0;
+        bool append = false;
         if ('+' == XdrvMailbox.data[0]) {
-          offset = strlen(Settings.rules[index -1]);
-          if (XdrvMailbox.data_len < (sizeof(Settings.rules[index -1]) - offset -1)) {  // Check free space
-            XdrvMailbox.data[0] = ' ';  // Remove + and make sure at least one space is inserted
-          } else {
-            offset = -1;                // Not enough space so skip it
-          }
+          XdrvMailbox.data[0] = ' ';  // Remove + and make sure at least one space is inserted
+          append = true;
         }
-        if (offset != -1) {
-          SetRule(index - 1, ('"' == XdrvMailbox.data[0]) ? "" : XdrvMailbox.data, offset);
-          // strlcpy(Settings.rules[index -1] + offset, ('"' == XdrvMailbox.data[0]) ? "" : XdrvMailbox.data, sizeof(Settings.rules[index -1]));
+        int32_t res = SetRule(index - 1, ('"' == XdrvMailbox.data[0]) ? "" : XdrvMailbox.data, append);
+        if (res < 0) {
+          AddLog_P2(LOG_LEVEL_ERROR, PSTR("RUL: not enough space"));
         }
       }
       Rules.triggers[index -1] = 0;  // Reset once flag
