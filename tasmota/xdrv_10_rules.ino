@@ -208,8 +208,8 @@ char rules_vars[MAX_RULE_VARS][33] = {{ 0 }};
 
 // Returns whether the rule is uncompressed, which means the first byte is not NULL
 inline bool IsRuleUncompressed(uint32_t idx) {
-#ifdef UES_RULES_COMPRESSION
-  return Settings.rules[idx];      // first byte not NULL, the rule is not empty and not compressed
+#ifdef USE_RULES_COMPRESSION
+  return Settings.rules[idx] ? true : false;      // first byte not NULL, the rule is not empty and not compressed
 #else
   return true;
 #endif
@@ -217,7 +217,7 @@ inline bool IsRuleUncompressed(uint32_t idx) {
 
 // Returns whether the rule is empty, which requires two consecutive NULL
 inline bool IsRuleEmpty(uint32_t idx) {
-#ifdef UES_RULES_COMPRESSION
+#ifdef USE_RULES_COMPRESSION
   return (Settings.rules[idx][0] == 0) && (Settings.rules[idx][1] == 0) ? true : false;
 #else
   return (Settings.rules[idx][0] == 0) ? true : false;
@@ -226,7 +226,7 @@ inline bool IsRuleEmpty(uint32_t idx) {
 
 // Returns the approximate (+3-0) length of the rule, not counting the trailing NULL
 size_t GetRuleLen(uint32_t idx) {
-  // no need to use #ifdef UES_RULES_COMPRESSION, the compiler will optimize since first test is always true
+  // no need to use #ifdef USE_RULES_COMPRESSION, the compiler will optimize since first test is always true
   if (IsRuleUncompressed(idx)) {
     return strlen(Settings.rules[idx]);
   } else {                        // either empty or compressed
@@ -236,7 +236,7 @@ size_t GetRuleLen(uint32_t idx) {
 
 // Returns the actual Flash storage for the Rule, including trailing NULL
 size_t GetRuleLenStorage(uint32_t idx) {
-  // no need to use #ifdef UES_RULES_COMPRESSION, the compiler will optimize since first test is always true
+  // no need to use #ifdef USE_RULES_COMPRESSION, the compiler will optimize since first test is always true
   if (IsRuleUncompressed(idx)) {
     return 1 + strlen(Settings.rules[idx]);
   } else {
@@ -252,7 +252,7 @@ String GetRule(uint32_t idx) {
   if (IsRuleUncompressed(idx)) {
     return String(Settings.rules[idx]);
   } else {
-#ifdef UES_RULES_COMPRESSION    // we still do #ifdef to make sure we don't link unnecessary code
+#ifdef USE_RULES_COMPRESSION    // we still do #ifdef to make sure we don't link unnecessary code
     String rule("");
     char *rule_comp_head = &Settings.rules[idx][1];    // address of start of compressed rule
     size_t buf_len = 1 + *rule_comp_head * 4;       // size of buffer for uncompressed rule
@@ -282,7 +282,7 @@ int32_t SetRule(uint32_t idx, const char *content, uint32_t offset = 0) {
   if (nullptr == content) { content = ""; }   // if nullptr, use empty string
   size_t len_in = strlen(content);
 
-#ifdef UES_RULES_COMPRESSION
+#ifdef USE_RULES_COMPRESSION
   if (!Settings.flag4.compress_rules) {
 #else
   if (1) {
@@ -291,12 +291,14 @@ int32_t SetRule(uint32_t idx, const char *content, uint32_t offset = 0) {
     strlcpy(Settings.rules[idx] + offset, content, sizeof(Settings.rules[idx]));
     return len_in + offset;
   } else {
-#ifdef UES_RULES_COMPRESSION
+#ifdef USE_RULES_COMPRESSION
     int32_t len_compressed;
 
     // compress
     Settings.rules[idx][0] = 0;     // clear first byte to mark as compressed
     len_compressed = unishox_compress(content, len_in, &Settings.rules[idx][1], MAX_RULE_SIZE - 2);
+    AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: Compressed from %d to %d (-%d%%)"), len_in, len_compressed, 100 - changeUIntScale(len_compressed, 0, len_in, 0, 100));
+    return len_compressed;
 #endif
   }
 
@@ -340,6 +342,24 @@ int32_t SetRule(uint32_t idx, const char *content, uint32_t offset = 0) {
   free(buf);
   free(buf_test);
   return strlen(content);
+#endif
+}
+
+inline void RuleCheckCompression(void) {
+#ifdef USE_RULES_COMPRESSION
+  for (uint32_t i = 0; i < MAX_RULE_SETS; i++) {
+    bool needs_compress;            // does the rule need to be compressed?
+    bool needs_uncompress;          // does the rule need to be uncompressed?
+
+    needs_compress   = (Settings.flag4.compress_rules && Settings.rules[i][0]);   // needs compression and uncompressed
+    needs_uncompress = (!Settings.flag4.compress_rules && (!Settings.rules[i][0]) && (Settings.rules[i][1]));  // no compression, first byte null, second byte not null
+    // if the compression flag is on, and some rules are not yet compressed, compress them
+    if (needs_compress || needs_uncompress) {
+      // just re-store the rule, it will adapt accordingly
+      String rule = GetRule(i);
+      SetRule(i, rule.c_str());
+    }
+  }
 #endif
 }
 
@@ -710,6 +730,7 @@ bool RulesProcess(void)
 
 void RulesInit(void)
 {
+  RuleCheckCompression();
   rules_flag.data = 0;
   for (uint32_t i = 0; i < MAX_RULE_SETS; i++) {
     if (0 == GetRuleLen(i)) {
