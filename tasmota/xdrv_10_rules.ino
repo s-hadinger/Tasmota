@@ -314,7 +314,7 @@ int32_t SetRule(uint32_t idx, const char *content, bool append = false) {
       len_in = content_append.length();       // adjust length
       len_compressed = unishox_compress(content_append.c_str(), len_in, buf_out, MAX_RULE_SIZE + 8);
     } else {
-      len_compressed = unishox_compress(content, len_in, &Settings.rules[idx][2], MAX_RULE_SIZE + 8);
+      len_compressed = unishox_compress(content_append.c_str(), len_in, buf_out, MAX_RULE_SIZE + 8);
     }
     if ((len_compressed >= 0) && (len_compressed < MAX_RULE_SIZE - 2)) {
       // size is ok, copy to Settings
