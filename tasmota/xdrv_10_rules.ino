@@ -244,6 +244,10 @@ size_t GetRuleLenStorage(uint32_t idx) {
   }
 }
 
+//
+// Read rule in memory, uncompress if needed
+//
+// Returns: String() object
 String GetRule(uint32_t idx) {
   if (IsRuleUncompressed(idx)) {
     return String(Settings.rules[idx]);
@@ -254,15 +258,18 @@ String GetRule(uint32_t idx) {
     size_t buf_len = 1 + *rule_comp_head * 4;       // size of buffer for uncompressed rule
     if (*rule_comp_head == 0) { return rule; }     // empty
 
-    char* buf = (char*) malloc(buf_len);
-    if (!buf) { return rule; }        // cannot allocate memory
+    // We use a nasty trick here. To avoid allocating twice the buffer,
+    // we first extend the buffer of the String object to the target size (maybe overshooting by 4 bytes)
+    // store blindly in this buffer,
+    // and finally assign the raw string to the String, which happens to work: String uses memmove(), so overlapping works
+    rule.reserve(buf_len);
+    char* buf = rule.begin();
 
     size_t rule_compressed_size = strlen(rule_comp_head);
     int32_t len_decompressed = unishox_decompress(rule_comp_head, rule_compressed_size, buf, buf_len);
     buf[len_decompressed] = 0;
 
-    rule = buf;    
-    free(buf);
+    rule = buf;       // assigne the raw string to the String object (in reality re-writing the same data in the same place)
     return rule;
 #endif
   }
