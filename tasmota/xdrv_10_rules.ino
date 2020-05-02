@@ -254,8 +254,8 @@ String GetRule(uint32_t idx) {
   } else {
 #ifdef USE_RULES_COMPRESSION    // we still do #ifdef to make sure we don't link unnecessary code
     String rule("");
-    char *rule_comp_head = &Settings.rules[idx][1];    // address of start of compressed rule
-    size_t buf_len = 1 + *rule_comp_head * 4;       // size of buffer for uncompressed rule
+    char *rule_comp_head = &Settings.rules[idx][2];    // address of start of compressed rule
+    size_t buf_len = 1 + Settings.rules[idx][1] * 4;       // size of buffer for uncompressed rule
     if (*rule_comp_head == 0) { return rule; }     // empty
 
     // We use a nasty trick here. To avoid allocating twice the buffer,
@@ -269,6 +269,7 @@ String GetRule(uint32_t idx) {
     int32_t len_decompressed = unishox_decompress(rule_comp_head, rule_compressed_size, buf, buf_len);
     buf[len_decompressed] = 0;
 
+    // AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: Rawdecompressed: %s"), buf);
     rule = buf;       // assigne the raw string to the String object (in reality re-writing the same data in the same place)
     return rule;
 #endif
@@ -301,8 +302,8 @@ int32_t SetRule(uint32_t idx, const char *content, uint32_t offset = 0) {
     Settings.rules[idx][1] = (len_in + 3) / 4;    // store original length in first bytes (4 bytes chuks)
     Settings.rules[idx][len_compressed + 2] = 0;  // add NULL termination
     AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: Compressed from %d to %d (-%d%%)"), len_in, len_compressed, 100 - changeUIntScale(len_compressed, 0, len_in, 0, 100));
-    AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: First bytes: %02X%02X%02X%02X"), Settings.rules[idx][0], Settings.rules[idx][1], Settings.rules[idx][2], Settings.rules[idx][3]);
-    AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: GetRuleLenStorage = %d"), GetRuleLenStorage(idx));
+    // AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: First bytes: %02X%02X%02X%02X"), Settings.rules[idx][0], Settings.rules[idx][1], Settings.rules[idx][2], Settings.rules[idx][3]);
+    // AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: GetRuleLenStorage = %d"), GetRuleLenStorage(idx));
     return len_compressed;
 #endif
   }
