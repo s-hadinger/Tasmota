@@ -303,23 +303,32 @@ int32_t SetRule(uint32_t idx, const char *content, bool append = false) {
   } else {
 #ifdef USE_RULES_COMPRESSION
     int32_t len_compressed;
+    // allocate temp buffer so we don't nuke the rule if it's too big to fit
+    char *buf_out = (char*) malloc(MAX_RULE_SIZE + 8);    // take some margin
+    if (!buf_out) { return -1; }      // fail if couldn't allocate
 
     // compress
     if (append) {
       String content_append = GetRule(idx);   // get original Rule and decompress it if needed
       content_append += content;             // concat new content
       len_in = content_append.length();       // adjust length
-      len_compressed = unishox_compress(content_append.c_str(), len_in, &Settings.rules[idx][2], MAX_RULE_SIZE - 3);
+      len_compressed = unishox_compress(content_append.c_str(), len_in, buf_out, MAX_RULE_SIZE + 8);
     } else {
-      len_compressed = unishox_compress(content, len_in, &Settings.rules[idx][2], MAX_RULE_SIZE - 3);
+      len_compressed = unishox_compress(content, len_in, &Settings.rules[idx][2], MAX_RULE_SIZE + 8);
     }
-    // post-process
-    Settings.rules[idx][0] = 0;     // clear first byte to mark as compressed
-    Settings.rules[idx][1] = (len_in + 3) / 4;    // store original length in first bytes (4 bytes chuks)
-    Settings.rules[idx][len_compressed + 2] = 0;  // add NULL termination
-    AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: Compressed from %d to %d (-%d%%)"), len_in, len_compressed, 100 - changeUIntScale(len_compressed, 0, len_in, 0, 100));
-    // AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: First bytes: %02X%02X%02X%02X"), Settings.rules[idx][0], Settings.rules[idx][1], Settings.rules[idx][2], Settings.rules[idx][3]);
-    // AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: GetRuleLenStorage = %d"), GetRuleLenStorage(idx));
+    if ((len_compressed >= 0) && (len_compressed < MAX_RULE_SIZE - 2)) {
+      // size is ok, copy to Settings
+      Settings.rules[idx][0] = 0;     // clear first byte to mark as compressed
+      Settings.rules[idx][1] = (len_in + 3) / 4;    // store original length in first bytes (4 bytes chuks)
+      memcpy(&Settings.rules[idx][2], buf_out, len_compressed);
+      Settings.rules[idx][len_compressed + 2] = 0;  // add NULL termination
+      AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: Compressed from %d to %d (-%d%%)"), len_in, len_compressed, 100 - changeUIntScale(len_compressed, 0, len_in, 0, 100));
+      // AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: First bytes: %02X%02X%02X%02X"), Settings.rules[idx][0], Settings.rules[idx][1], Settings.rules[idx][2], Settings.rules[idx][3]);
+      // AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: GetRuleLenStorage = %d"), GetRuleLenStorage(idx));
+    } else {
+      len_compressed = -1;    // fail
+    }
+    free(buf_out);
     return len_compressed;
 #endif
   }
