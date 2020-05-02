@@ -208,16 +208,25 @@ char rules_vars[MAX_RULE_VARS][33] = {{ 0 }};
 
 // Returns whether the rule is uncompressed, which means the first byte is not NULL
 inline bool IsRuleUncompressed(uint32_t idx) {
+#ifdef UES_RULES_COMPRESSION
   return Settings.rules[idx];      // first byte not NULL, the rule is not empty and not compressed
+#else
+  return true;
+#endif
 }
 
 // Returns whether the rule is empty, which requires two consecutive NULL
 inline bool IsRuleEmpty(uint32_t idx) {
-  return (Settings.rules[idx][0] == 0) && (Settings.rules[idx][1] == 0);
+#ifdef UES_RULES_COMPRESSION
+  return (Settings.rules[idx][0] == 0) && (Settings.rules[idx][1] == 0) ? true : false;
+#else
+  return (Settings.rules[idx][0] == 0) ? true : false;
+#endif
 }
 
 // Returns the approximate (+3-0) length of the rule, not counting the trailing NULL
 size_t GetRuleLen(uint32_t idx) {
+  // no need to use #ifdef UES_RULES_COMPRESSION, the compiler will optimize since first test is always true
   if (IsRuleUncompressed(idx)) {
     return strlen(Settings.rules[idx]);
   } else {                        // either empty or compressed
@@ -227,6 +236,7 @@ size_t GetRuleLen(uint32_t idx) {
 
 // Returns the actual Flash storage for the Rule, including trailing NULL
 size_t GetRuleLenStorage(uint32_t idx) {
+  // no need to use #ifdef UES_RULES_COMPRESSION, the compiler will optimize since first test is always true
   if (IsRuleUncompressed(idx)) {
     return 1 + strlen(Settings.rules[idx]);
   } else {
@@ -238,6 +248,7 @@ String GetRule(uint32_t idx) {
   if (IsRuleUncompressed(idx)) {
     return String(Settings.rules[idx]);
   } else {
+#ifdef UES_RULES_COMPRESSION    // we still do #ifdef to make sure we don't link unnecessary code
     String rule("");
     char *rule_comp_head = &Settings.rules[idx][1];    // address of start of compressed rule
     size_t buf_len = 1 + *rule_comp_head * 4;       // size of buffer for uncompressed rule
@@ -253,6 +264,7 @@ String GetRule(uint32_t idx) {
     rule = buf;    
     free(buf);
     return rule;
+#endif
   }
 }
 
@@ -263,19 +275,25 @@ int32_t SetRule(uint32_t idx, const char *content, uint32_t offset = 0) {
   if (nullptr == content) { content = ""; }   // if nullptr, use empty string
   size_t len_in = strlen(content);
 
+#ifdef UES_RULES_COMPRESSION
   if (!Settings.flag4.compress_rules) {
+#else
+  if (1) {
+#endif
     // don't compress, just store
     strlcpy(Settings.rules[idx] + offset, content, sizeof(Settings.rules[idx]));
     return len_in + offset;
   } else {
+#ifdef UES_RULES_COMPRESSION
     int32_t len_compressed;
 
     // compress
     Settings.rules[idx][0] = 0;     // clear first byte to mark as compressed
     len_compressed = unishox_compress(content, len_in, &Settings.rules[idx][1], MAX_RULE_SIZE - 2);
+#endif
   }
 
-
+#if 0     // TODO
   strlcpy(Settings.rules[idx] + offset, content, sizeof(Settings.rules[idx]));
 
   int32_t len_out;
@@ -315,6 +333,7 @@ int32_t SetRule(uint32_t idx, const char *content, uint32_t offset = 0) {
   free(buf);
   free(buf_test);
   return strlen(content);
+#endif
 }
 
 /*******************************************************************************************/
