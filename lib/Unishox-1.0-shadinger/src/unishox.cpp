@@ -351,7 +351,7 @@ int32_t unishox_compress(const char *in, size_t len, char *out, size_t len_out) 
       if (is_all_upper && is_upper)
         c_in += 32;
       if (c_in == 0 && state == SHX_STATE_2)
-        ol = append_bits(out, ol, ST2_SPC_CODE, ST2_SPC_CODE_LEN, state);
+        ol = append_bits(out, ol, ST2_SPC_CODE, ST2_SPC_CODE_LEN, state);       // space from Set2 ionstead of Set1
       else {
         // ol = append_bits(out, ol, pgm_read_word(&c_95[c_in]), pgm_read_byte(&l_95[c_in]), state);  // original version with c/l in split arrays
         uint16_t cl = pgm_read_word(&cl_95[c_in]);
