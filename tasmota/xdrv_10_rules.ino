@@ -247,6 +247,7 @@ size_t GetRuleLenStorage(uint32_t idx) {
   }
 }
 
+// internal function, do the actual decompression
 void GetRule_decompress(String &rule, const char *rule_head) {
   size_t buf_len = 1 + *rule_head * 8;       // size of buffer for uncompressed rule
   rule_head++;                               // advance to the actual compressed buffer
@@ -261,8 +262,7 @@ void GetRule_decompress(String &rule, const char *rule_head) {
   int32_t len_decompressed = unishox_decompress(rule_head, strlen(rule_head), buf, buf_len);
   buf[len_decompressed] = 0;
 
-  // TODO
-  AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: Rawdecompressed: %d"), len_decompressed);
+  // AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: Rawdecompressed: %d"), len_decompressed);
   rule = buf;       // assigne the raw string to the String object (in reality re-writing the same data in the same place)
 }
 
@@ -294,6 +294,7 @@ String GetRule(uint32_t idx) {
   }
 }
 
+// internal function, comrpess rule and store a cached version uncompressed (except if SetOption94 1)
 int32_t SetRule_compress(uint32_t idx, const char *in, size_t in_len, char *out, size_t out_len) {
   int32_t len_compressed;
   len_compressed = unishox_compress(in, in_len, out, out_len);
@@ -346,19 +347,9 @@ int32_t SetRule(uint32_t idx, const char *content, bool append = false) {
       String content_append = GetRule(idx);   // get original Rule and decompress it if needed
       content_append += content;             // concat new content
       len_in = content_append.length();       // adjust length
-      // len_compressed = unishox_compress(content_append.c_str(), len_in, buf_out, MAX_RULE_SIZE + 8);
       len_compressed = SetRule_compress(idx, content_append.c_str(), len_in, buf_out, MAX_RULE_SIZE + 8);
     } else {
-      // len_compressed = unishox_compress(content, len_in, buf_out, MAX_RULE_SIZE + 8);
       len_compressed = SetRule_compress(idx, content, len_in, buf_out, MAX_RULE_SIZE + 8);
-      // buf_out[len_compressed] = 0;
-      // Serial.printf("RUL: compressed %d actual %d\n", len_compressed, strlen(buf_out));
-
-      // char *buf_temp = (char*) malloc(2048);
-      // int32_t check_uncomp = unishox_decompress(buf_out, len_compressed, buf_temp, 2048);
-      // AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: check decompressed len %d"), check_uncomp);
-
-      // free(buf_temp);
     }
 
     // count frequency of each byte value
@@ -386,10 +377,10 @@ int32_t SetRule(uint32_t idx, const char *content, bool append = false) {
       memcpy(&Settings.rules[idx][2], buf_out, len_compressed);
       Settings.rules[idx][len_compressed + 2] = 0;  // add NULL termination
       AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: Compressed from %d to %d (-%d%%)"), len_in, len_compressed, 100 - changeUIntScale(len_compressed, 0, len_in, 0, 100));
-      AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: First bytes: %02X%02X%02X%02X"), Settings.rules[idx][0], Settings.rules[idx][1], Settings.rules[idx][2], Settings.rules[idx][3]);
-      AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: GetRuleLenStorage = %d"), GetRuleLenStorage(idx));
+      // AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: First bytes: %02X%02X%02X%02X"), Settings.rules[idx][0], Settings.rules[idx][1], Settings.rules[idx][2], Settings.rules[idx][3]);
+      // AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: GetRuleLenStorage = %d"), GetRuleLenStorage(idx));
     } else {
-      len_compressed = -1;    // fail
+      len_compressed = -1;    // failed
       // clear rule cache, so it will be reloaded from Settings
       k_rules[idx] = (const char *) nullptr;
     }
