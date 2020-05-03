@@ -206,6 +206,9 @@ char rules_vars[MAX_RULE_VARS][33] = {{ 0 }};
  */
 /*******************************************************************************************/
 
+// Statically allocate one String per rule
+String k_rules[MAX_RULE_SETS] = { String(), String(), String() };   // Strings are created valid and empty
+
 // Returns whether the rule is uncompressed, which means the first byte is not NULL
 inline bool IsRuleUncompressed(uint32_t idx) {
 #ifdef USE_RULES_COMPRESSION
@@ -244,6 +247,25 @@ size_t GetRuleLenStorage(uint32_t idx) {
   }
 }
 
+void GetRule_decompress(String &rule, const char *rule_head) {
+  size_t buf_len = 1 + *rule_head * 8;       // size of buffer for uncompressed rule
+  rule_head++;                               // advance to the actual compressed buffer
+
+  // We use a nasty trick here. To avoid allocating twice the buffer,
+  // we first extend the buffer of the String object to the target size (maybe overshooting by 8 bytes)
+  // store blindly in this buffer,
+  // and finally assign the raw string to the String, which happens to work: String uses memmove(), so overlapping works
+  rule.reserve(buf_len);
+  char* buf = rule.begin();
+
+  int32_t len_decompressed = unishox_decompress(rule_head, strlen(rule_head), buf, buf_len);
+  buf[len_decompressed] = 0;
+
+  // TODO
+  AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: Rawdecompressed: %d"), len_decompressed);
+  rule = buf;       // assigne the raw string to the String object (in reality re-writing the same data in the same place)
+}
+
 //
 // Read rule in memory, uncompress if needed
 //
@@ -253,27 +275,39 @@ String GetRule(uint32_t idx) {
     return String(Settings.rules[idx]);
   } else {
 #ifdef USE_RULES_COMPRESSION    // we still do #ifdef to make sure we don't link unnecessary code
+
     String rule("");
-    char *rule_comp_head = &Settings.rules[idx][2];    // address of start of compressed rule
-    size_t buf_len = 1 + Settings.rules[idx][1] * 8;       // size of buffer for uncompressed rule
-    if (*rule_comp_head == 0) { return rule; }     // empty
+    if (Settings.rules[idx][2] == 0) { return rule; }     // the rule is empty
 
-    // We use a nasty trick here. To avoid allocating twice the buffer,
-    // we first extend the buffer of the String object to the target size (maybe overshooting by 8 bytes)
-    // store blindly in this buffer,
-    // and finally assign the raw string to the String, which happens to work: String uses memmove(), so overlapping works
-    rule.reserve(buf_len);
-    char* buf = rule.begin();
-
-    size_t rule_compressed_size = strlen(rule_comp_head);
-    int32_t len_decompressed = unishox_decompress(rule_comp_head, rule_compressed_size, buf, buf_len);
-    buf[len_decompressed] = 0;
-
-    // AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: Rawdecompressed: %s"), buf);
-    rule = buf;       // assigne the raw string to the String object (in reality re-writing the same data in the same place)
+    // If the cache is empty, we need to decompress from Settings
+    if (0 == k_rules[idx].length() ) {
+      GetRule_decompress(rule, &Settings.rules[idx][1]);
+      if (!Settings.flag4.compress_rules_cpu) {
+        k_rules[idx] = rule;        // keep a copy for next time
+      }
+    } else {
+      // we have a valid copy
+      rule = k_rules[idx];
+    }
     return rule;
 #endif
   }
+}
+
+int32_t SetRule_compress(uint32_t idx, const char *in, size_t in_len, char *out, size_t out_len) {
+  int32_t len_compressed;
+  len_compressed = unishox_compress(in, in_len, out, out_len);
+
+  if (len_compressed >= 0) {
+    // check if we need to store in cache
+    k_rules[idx] = (const char*) nullptr;   // first clear previous string and disallocate buffers
+    if (!Settings.flag4.compress_rules_cpu) {
+      // keep copy in cache
+      k_rules[idx] = in;
+    }
+  }
+
+  return len_compressed;
 }
 
 // Returns:
@@ -312,10 +346,12 @@ int32_t SetRule(uint32_t idx, const char *content, bool append = false) {
       String content_append = GetRule(idx);   // get original Rule and decompress it if needed
       content_append += content;             // concat new content
       len_in = content_append.length();       // adjust length
-      len_compressed = unishox_compress(content_append.c_str(), len_in, buf_out, MAX_RULE_SIZE + 8);
+      // len_compressed = unishox_compress(content_append.c_str(), len_in, buf_out, MAX_RULE_SIZE + 8);
+      len_compressed = SetRule_compress(idx, content_append.c_str(), len_in, buf_out, MAX_RULE_SIZE + 8);
     } else {
-      len_compressed = unishox_compress(content, len_in, buf_out, MAX_RULE_SIZE + 8);
-      buf_out[len_compressed] = 0;
+      // len_compressed = unishox_compress(content, len_in, buf_out, MAX_RULE_SIZE + 8);
+      len_compressed = SetRule_compress(idx, content, len_in, buf_out, MAX_RULE_SIZE + 8);
+      // buf_out[len_compressed] = 0;
       // Serial.printf("RUL: compressed %d actual %d\n", len_compressed, strlen(buf_out));
 
       // char *buf_temp = (char*) malloc(2048);
@@ -354,6 +390,8 @@ int32_t SetRule(uint32_t idx, const char *content, bool append = false) {
       AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: GetRuleLenStorage = %d"), GetRuleLenStorage(idx));
     } else {
       len_compressed = -1;    // fail
+      // clear rule cache, so it will be reloaded from Settings
+      k_rules[idx] = (const char *) nullptr;
     }
     free(buf_out);
     return len_compressed;
