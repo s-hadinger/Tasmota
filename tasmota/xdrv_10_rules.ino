@@ -198,7 +198,7 @@ char rules_vars[MAX_RULE_VARS][33] = {{ 0 }};
  *   The first byte of each Rule is always NULL.
  *   Rule[x][0] = 0,  if firmware is downgraded, the rule will be considered as empty
  * 
- *   The second byte contains the size of uncompressed rule in 4-bytes blocks (i.e. (len+3)/4 )
+ *   The second byte contains the size of uncompressed rule in 8-bytes blocks (i.e. (len+7)/8 )
  *   Maximum rule size si 2KB (2048 bytes per rule), although there is little chances compression ratio will go down to 75%
  *   Rule[x][1] = size uncompressed in dwords. If zero, the rule is empty.
  * 
@@ -230,7 +230,7 @@ size_t GetRuleLen(uint32_t idx) {
   if (IsRuleUncompressed(idx)) {
     return strlen(Settings.rules[idx]);
   } else {                        // either empty or compressed
-    return Settings.rules[idx][1] * 4;   // cheap calculation, but not byte accurate (may overshoot by 3)
+    return Settings.rules[idx][1] * 8;   // cheap calculation, but not byte accurate (may overshoot by 7)
   }
 }
 
@@ -255,11 +255,11 @@ String GetRule(uint32_t idx) {
 #ifdef USE_RULES_COMPRESSION    // we still do #ifdef to make sure we don't link unnecessary code
     String rule("");
     char *rule_comp_head = &Settings.rules[idx][2];    // address of start of compressed rule
-    size_t buf_len = 1 + Settings.rules[idx][1] * 4;       // size of buffer for uncompressed rule
+    size_t buf_len = 1 + Settings.rules[idx][1] * 8;       // size of buffer for uncompressed rule
     if (*rule_comp_head == 0) { return rule; }     // empty
 
     // We use a nasty trick here. To avoid allocating twice the buffer,
-    // we first extend the buffer of the String object to the target size (maybe overshooting by 4 bytes)
+    // we first extend the buffer of the String object to the target size (maybe overshooting by 8 bytes)
     // store blindly in this buffer,
     // and finally assign the raw string to the String, which happens to work: String uses memmove(), so overlapping works
     rule.reserve(buf_len);
@@ -315,16 +315,43 @@ int32_t SetRule(uint32_t idx, const char *content, bool append = false) {
       len_compressed = unishox_compress(content_append.c_str(), len_in, buf_out, MAX_RULE_SIZE + 8);
     } else {
       len_compressed = unishox_compress(content, len_in, buf_out, MAX_RULE_SIZE + 8);
+      buf_out[len_compressed] = 0;
+      // Serial.printf("RUL: compressed %d actual %d\n", len_compressed, strlen(buf_out));
+
+      // char *buf_temp = (char*) malloc(2048);
+      // int32_t check_uncomp = unishox_decompress(buf_out, len_compressed, buf_temp, 2048);
+      // AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: check decompressed len %d"), check_uncomp);
+
+      // free(buf_temp);
     }
+
+    // count frequency of each byte value
+    // {
+    //   static uint16_t freq[256];
+
+    //   memset(freq, 0, sizeof(freq));    // clear
+    //   for (uint i = 0; i < len_compressed; i++) {
+    //     freq[buf_out[i]]++;
+    //   }
+    //   for (uint32_t i = 0; i < 16; i++) {
+    //     Serial.printf("0x%02X: ", i * 16);
+    //     for (uint32_t j = 0; j < 16; j++) {
+    //       Serial.printf("%3d ", freq[i*16+j]);
+    //     }
+    //     Serial.printf("\n");
+    //   }
+    //   // Empirically, 0x2A looks rare 0b00101010
+    // }
+
     if ((len_compressed >= 0) && (len_compressed < MAX_RULE_SIZE - 2)) {
       // size is ok, copy to Settings
       Settings.rules[idx][0] = 0;     // clear first byte to mark as compressed
-      Settings.rules[idx][1] = (len_in + 3) / 4;    // store original length in first bytes (4 bytes chuks)
+      Settings.rules[idx][1] = (len_in + 7) / 8;    // store original length in first bytes (4 bytes chuks)
       memcpy(&Settings.rules[idx][2], buf_out, len_compressed);
       Settings.rules[idx][len_compressed + 2] = 0;  // add NULL termination
       AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: Compressed from %d to %d (-%d%%)"), len_in, len_compressed, 100 - changeUIntScale(len_compressed, 0, len_in, 0, 100));
-      // AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: First bytes: %02X%02X%02X%02X"), Settings.rules[idx][0], Settings.rules[idx][1], Settings.rules[idx][2], Settings.rules[idx][3]);
-      // AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: GetRuleLenStorage = %d"), GetRuleLenStorage(idx));
+      AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: First bytes: %02X%02X%02X%02X"), Settings.rules[idx][0], Settings.rules[idx][1], Settings.rules[idx][2], Settings.rules[idx][3]);
+      AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: GetRuleLenStorage = %d"), GetRuleLenStorage(idx));
     } else {
       len_compressed = -1;    // fail
     }
