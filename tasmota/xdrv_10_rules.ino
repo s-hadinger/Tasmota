@@ -269,7 +269,7 @@ void GetRule_decompress(String &rule, const char *rule_head) {
 //
 // Read rule in memory, uncompress if needed
 //
-// Returns: String() object
+// Returns: String() object containing a copy of the rule (rule processing is destructive and will change the String)
 String GetRule(uint32_t idx) {
   if (IsRuleUncompressed(idx)) {
     return String(Settings.rules[idx]);
@@ -299,7 +299,7 @@ int32_t SetRule_compress(uint32_t idx, const char *in, size_t in_len, char *out,
   int32_t len_compressed;
   len_compressed = unishox_compress(in, in_len, out, out_len);
 
-  if (len_compressed >= 0) {
+  if (len_compressed >= 0) {                // negative means compression failed because of buffer too small
     // check if we need to store in cache
     k_rules[idx] = (const char*) nullptr;   // first clear previous string and disallocate buffers
     if (!Settings.flag4.compress_rules_cpu) {
@@ -307,7 +307,6 @@ int32_t SetRule_compress(uint32_t idx, const char *in, size_t in_len, char *out,
       k_rules[idx] = in;
     }
   }
-
   return len_compressed;
 }
 
