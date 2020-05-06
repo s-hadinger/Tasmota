@@ -84,12 +84,22 @@ float JulianischesDatum(void)
   return 2400000.5f + 365.0f*Jahr - 679004.0f + Gregor + (int)(30.6001f * (Monat +1)) + Tag + 0.5f;
 }
 
+// Forces a float value between two ranges, and adds or substract the range until we fit
+float ForceRangef(float f, float a, float b) {
+  if (b <= a) { return a; }       // inconsistent, do what we can
+  float range = b - a;
+  float x = f - a;                // now range of x should be 0..range
+  x = fmodf(x, range);            // actual range is now -range..range
+  if (x < 0.0f) { x += range; }   // actual range is now 0..range
+  return x + a;                   // returns range a..b
+}
+
 float InPi(float x)
 {
-  int n = (int)(x / pi2);
-  x = x - n*pi2;
-  if (x < 0) x += pi2;
-  return x;
+  return ForceRangef(x, 0.0f, pi2);
+  // x = fmodf(x, pi2);
+  // if (x < 0) x += pi2;
+  // return x;
 }
 
 float eps(float T)
@@ -100,20 +110,22 @@ float eps(float T)
 
 float BerechneZeitgleichung(float *DK,float T)
 {
-  float RA_Mittel = 18.71506921f + 2400.0513369f*T +(2.5862e-5f - 1.72e-9f*T)*T*T;
+  // float RA_Mittel = 18.71506921f + 2400.0513369f*T +(2.5862e-5f - 1.72e-9f*T)*T*T;
+  float RA_Mittel = 18.71506921f + T * (2400.0513369f + T * (2.5862e-5f - 1.72e-9f * T));
   float M = InPi(pi2 * (0.993133f + 99.997361f*T));
-  float L = InPi(pi2 * (0.7859453f + M/pi2 + (6893.0f*sinf(M)+72.0f*sinf(2.0f*M)+6191.2f*T) / 1296.0e3f));
+  float L = InPi(pi2 * (0.7859453f + M/pi2 + (6893.0f*sinf(M) + 72.0f*sinf(M+M) + 6191.2f*T) / 1296.0e3f));
   float e = eps(T);
   float RA = atanf(tanf(L)*cosf(e));
-  if (RA < 0.0) RA += pi;
+  if (RA < 0.0f) RA += pi;
   if (L > pi) RA += pi;
-  RA = 24.0*RA/pi2;
+  RA = RA * (24.0f/pi2);
   *DK = asinf(sinf(e)*sinf(L));
   // Damit 0<=RA_Mittel<24
-  RA_Mittel = 24.0f * InPi(pi2*RA_Mittel/24.0f)/pi2;
-  float dRA = RA_Mittel - RA;
-  if (dRA < -12.0f) dRA += 24.0f;
-  if (dRA > 12.0f) dRA -= 24.0f;
+  RA_Mittel = ForceRangef(RA_Mittel, 0.0f, 24.0f);
+  // RA_Mittel = (24.0f/pi2) * InPi(RA_Mittel / (pi2/24.0f));
+  float dRA = ForceRangef(RA_Mittel - RA, -12.0f, 12.0f);
+  // if (dRA < -12.0f) dRA += 24.0f;
+  // if (dRA > 12.0f) dRA -= 24.0f;
   dRA = dRA * 1.0027379f;
   return dRA;
 }
@@ -144,42 +156,17 @@ void DuskTillDawn(uint8_t *hour_up,uint8_t *minute_up, uint8_t *hour_down, uint8
   float UntergangOrtszeit = 12.0f + Zeitdifferenz - Zeitgleichung;
   float AufgangWeltzeit = AufgangOrtszeit - GeographischeLaenge / 15.0f;
   float UntergangWeltzeit = UntergangOrtszeit - GeographischeLaenge / 15.0f;
-  float Aufgang = AufgangWeltzeit + Zeitzone;         // In Stunden
-  if (Aufgang < 0.0f) {
-    Aufgang += 24.0f;
-  } else {
-    if (Aufgang >= 24.0f) Aufgang -= 24.0f;
-  }
-  float Untergang = UntergangWeltzeit + Zeitzone;
-  if (Untergang < 0.0f) {
-    Untergang += 24.0f;
-  } else {
-    if (Untergang >= 24.0f) Untergang -= 24.0f;
-  }
-  int AufgangMinuten = (int)(60.0f*(Aufgang - (int)Aufgang)+0.5f);
+  float Aufgang = AufgangWeltzeit + Zeitzone + (1/120.0f);         // In Stunden, with rounding to nearest minute (1/60 * .5)
+
+  Aufgang = ForceRangef(Aufgang, 0.0f, 24.0f);        // force 0 <= x < 24.0
   int AufgangStunden = (int)Aufgang;
-  if (AufgangMinuten >= 60.0f) {
-    AufgangMinuten -= 60.0f;
-    AufgangStunden++;
-  } else {
-    if (AufgangMinuten < 0.0f) {
-      AufgangMinuten += 60.0f;
-      AufgangStunden--;
-      if (AufgangStunden < 0.0f) AufgangStunden += 24.0f;
-    }
-  }
-  int UntergangMinuten = (int)(60.0f*(Untergang - (int)Untergang)+0.5f);
+  int AufgangMinuten = (int)(60.0f * fmodf(Aufgang, 1.0f));
+  float Untergang = UntergangWeltzeit + Zeitzone;
+
+  Untergang = ForceRangef(Untergang, 0.0f, 24.0f);
   int UntergangStunden = (int)Untergang;
-  if (UntergangMinuten >= 60.0f) {
-    UntergangMinuten -= 60.0f;
-    UntergangStunden++;
-  } else {
-    if (UntergangMinuten<0) {
-      UntergangMinuten += 60.0f;
-      UntergangStunden--;
-      if (UntergangStunden < 0.0f) UntergangStunden += 24.0f;
-    }
-  }
+  int UntergangMinuten = (int)(60.0f * fmodf(Untergang, 1.0f));
+
   *hour_up = AufgangStunden;
   *minute_up = AufgangMinuten;
   *hour_down = UntergangStunden;
