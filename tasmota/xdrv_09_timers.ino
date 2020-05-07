@@ -94,18 +94,16 @@ float ForceRangef(float f, float a, float b) {
   return x + a;                   // returns range a..b
 }
 
+// Force value in the 0..pi2 range
 float InPi(float x)
 {
   return ForceRangef(x, 0.0f, pi2);
-  // x = fmodf(x, pi2);
-  // if (x < 0) x += pi2;
-  // return x;
 }
 
 float eps(float T)
 {
   // Neigung der Erdachse
-  return RAD * (23.43929111f + (-46.8150f*T - 0.00059f*T*T + 0.001813f*T*T*T)/3600.0f);
+  return RAD * (23.43929111f + T * (-46.8150f + T * (-0.00059f + 0.001813f * T)) / 3600.0f);
 }
 
 float BerechneZeitgleichung(float *DK,float T)
