@@ -256,23 +256,28 @@ void MqttDataHandler(char* mqtt_topic, uint8_t* mqtt_data, unsigned int data_len
   // Save MQTT data ASAP as it's data is discarded by PubSubClient with next publish as used in MQTTlog
   char topic[TOPSZ];
   strlcpy(topic, mqtt_topic, sizeof(topic));
-  mqtt_data[data_len] = 0;
-  char data[data_len +1];
-  memcpy(data, mqtt_data, sizeof(data));
+  // mqtt_data[data_len] = 0;
+  char *data = (char*) malloc(data_len + 1);
+  if (data) {
+    // char data[data_len +1];
+    memcpy(data, mqtt_data, sizeof(data));
+    data[data_len] = 0;     // add NULL terminator
 
-  AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR(D_LOG_MQTT D_RECEIVED_TOPIC " \"%s\", " D_DATA_SIZE " %d, " D_DATA " \"%s\""), topic, data_len, data);
-//  if (LOG_LEVEL_DEBUG_MORE <= seriallog_level) { Serial.println(data); }
+    AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR(D_LOG_MQTT D_RECEIVED_TOPIC " \"%s\", " D_DATA_SIZE " %d, " D_DATA " \"%s\""), topic, data_len, data);
+  //  if (LOG_LEVEL_DEBUG_MORE <= seriallog_level) { Serial.println(data); }
 
-  // MQTT pre-processing
-  XdrvMailbox.index = strlen(topic);
-  XdrvMailbox.data_len = data_len;
-  XdrvMailbox.topic = topic;
-  XdrvMailbox.data = (char*)data;
-  if (XdrvCall(FUNC_MQTT_DATA)) { return; }
+    // MQTT pre-processing
+    XdrvMailbox.index = strlen(topic);
+    XdrvMailbox.data_len = data_len;
+    XdrvMailbox.topic = topic;
+    XdrvMailbox.data = (char*)data;
+    if (XdrvCall(FUNC_MQTT_DATA)) { return; }
 
-  ShowSource(SRC_MQTT);
+    ShowSource(SRC_MQTT);
 
-  CommandHandler(topic, data, data_len);
+    CommandHandler(topic, data, data_len);
+    free(data);
+  }
 }
 
 /*********************************************************************************************/
@@ -296,7 +301,7 @@ void MqttUnsubscribe(const char *topic)
 
 void MqttPublishLogging(const char *mxtime)
 {
-  char saved_mqtt_data = (char*) malloc(strlen(mqtt_data) +1);
+  char *saved_mqtt_data = (char*) malloc(strlen(mqtt_data) +1);
   if (saved_mqtt_data) {
     memcpy(saved_mqtt_data, mqtt_data, sizeof(saved_mqtt_data));
 
