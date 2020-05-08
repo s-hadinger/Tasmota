@@ -298,6 +298,7 @@ String GetRule(uint32_t idx) {
 }
 
 // internal function, comrpess rule and store a cached version uncompressed (except if SetOption94 1)
+// If out == nullptr, we are in dry-run mode, so don't keep rule in cache
 int32_t SetRule_compress(uint32_t idx, const char *in, size_t in_len, char *out, size_t out_len) {
   int32_t len_compressed;
   len_compressed = unishox_compress(in, in_len, out, out_len);
@@ -305,7 +306,7 @@ int32_t SetRule_compress(uint32_t idx, const char *in, size_t in_len, char *out,
   if (len_compressed >= 0) {                // negative means compression failed because of buffer too small, we leave the rule untouched
     // check if we need to store in cache
     k_rules[idx] = (const char*) nullptr;   // Assign the String to nullptr, clears previous string and disallocate internal buffers of String object
-    if (!Settings.flag4.compress_rules_cpu) {
+    if ((!Settings.flag4.compress_rules_cpu) && out) {      // if out == nullptr, don't store cache
       // keep copy in cache
       k_rules[idx] = in;
     }
@@ -338,6 +339,17 @@ int32_t SetRule(uint32_t idx, const char *content, bool append = false) {
 
   if (!needsCompress) {                       // the rule fits uncompressed, so just copy it
     strlcpy(Settings.rules[idx] + offset, content, sizeof(Settings.rules[idx]));
+
+#ifdef USE_RULES_COMPRESSION
+    // do a dry-run compression to display how much it would be compressed
+    int32_t len_compressed, len_uncompressed;
+
+    len_uncompressed = strlen(Settings.rules[idx]);
+    len_compressed = unishox_compress(Settings.rules[idx], len_uncompressed, nullptr /* dry-run */, MAX_RULE_SIZE + 8);
+    AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: Stored uncompressed, would compress from %d to %d (-%d%%)"), len_uncompressed, len_compressed, 100 - changeUIntScale(len_compressed, 0, len_uncompressed, 0, 100));
+
+#endif // USE_RULES_COMPRESSION
+
     return len_in + offset;
   } else {
 #ifdef USE_RULES_COMPRESSION
