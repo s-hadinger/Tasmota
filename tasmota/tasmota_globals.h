@@ -93,7 +93,7 @@ extern "C" void resetPins();
 #endif
 
 #ifndef MQTT_MAX_PACKET_SIZE
-#define MQTT_MAX_PACKET_SIZE        2200       // Bytes
+#define MQTT_MAX_PACKET_SIZE        1200       // Bytes
 #endif
 #ifndef MQTT_KEEPALIVE
 #define MQTT_KEEPALIVE              30         // Seconds
