@@ -195,19 +195,22 @@ char rules_vars[MAX_RULE_VARS][33] = {{ 0 }};
  *   Rule[x][1] = 0   (i.e. we have two conseutive NULLs)
  * 
  * - If `SetOption93 1`
- *   The first byte of each Rule is always NULL.
- *   Rule[x][0] = 0,  if firmware is downgraded, the rule will be considered as empty
+ *   If the rule is smaller than 511, it is stored uncompressed. Rule[x][0] is not null.
+ *   If the rule is empty, Rule[x][0] = 0 and Rule[x][1] = 0;
+ *   If the rule is bigger than 511, it is stored compressed
+ *      The first byte of each Rule is always NULL.
+ *      Rule[x][0] = 0,  if firmware is downgraded, the rule will be considered as empty
  * 
- *   The second byte contains the size of uncompressed rule in 8-bytes blocks (i.e. (len+7)/8 )
- *   Maximum rule size si 2KB (2048 bytes per rule), although there is little chances compression ratio will go down to 75%
- *   Rule[x][1] = size uncompressed in dwords. If zero, the rule is empty.
+ *      The second byte contains the size of uncompressed rule in 8-bytes blocks (i.e. (len+7)/8 )
+ *      Maximum rule size si 2KB (2048 bytes per rule), although there is little chances compression ratio will go down to 75%
+ *      Rule[x][1] = size uncompressed in dwords. If zero, the rule is empty.
  * 
- *   The remaining bytes contain the compressed rule, NULL terminated
+ *      The remaining bytes contain the compressed rule, NULL terminated
  */
 /*******************************************************************************************/
 
 // Statically allocate one String per rule
-String k_rules[MAX_RULE_SETS] = { String(), String(), String() };   // Strings are created valid and empty
+String k_rules[MAX_RULE_SETS] = { String(), String(), String() };   // Strings are created empty
 
 // Returns whether the rule is uncompressed, which means the first byte is not NULL
 inline bool IsRuleUncompressed(uint32_t idx) {
@@ -249,21 +252,21 @@ size_t GetRuleLenStorage(uint32_t idx) {
 
 // internal function, do the actual decompression
 void GetRule_decompress(String &rule, const char *rule_head) {
-  size_t buf_len = 1 + *rule_head * 8;       // size of buffer for uncompressed rule
+  size_t buf_len = 1 + *rule_head * 8;       // the first byte contains size of buffer for uncompressed rule / 8, buf_len may overshoot by 7
   rule_head++;                               // advance to the actual compressed buffer
 
   // We use a nasty trick here. To avoid allocating twice the buffer,
-  // we first extend the buffer of the String object to the target size (maybe overshooting by 8 bytes)
-  // store blindly in this buffer,
+  // we first extend the buffer of the String object to the target size (maybe overshooting by 7 bytes)
+  // then we decompress in this buffer,
   // and finally assign the raw string to the String, which happens to work: String uses memmove(), so overlapping works
   rule.reserve(buf_len);
   char* buf = rule.begin();
 
   int32_t len_decompressed = unishox_decompress(rule_head, strlen(rule_head), buf, buf_len);
-  buf[len_decompressed] = 0;
+  buf[len_decompressed] = 0;    // add NULL terminator
 
   // AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: Rawdecompressed: %d"), len_decompressed);
-  rule = buf;       // assigne the raw string to the String object (in reality re-writing the same data in the same place)
+  rule = buf;       // assign the raw string to the String object (in reality re-writing the same data in the same place)
 }
 
 //
@@ -299,9 +302,9 @@ int32_t SetRule_compress(uint32_t idx, const char *in, size_t in_len, char *out,
   int32_t len_compressed;
   len_compressed = unishox_compress(in, in_len, out, out_len);
 
-  if (len_compressed >= 0) {                // negative means compression failed because of buffer too small
+  if (len_compressed >= 0) {                // negative means compression failed because of buffer too small, we leave the rule untouched
     // check if we need to store in cache
-    k_rules[idx] = (const char*) nullptr;   // first clear previous string and disallocate buffers
+    k_rules[idx] = (const char*) nullptr;   // Assign the String to nullptr, clears previous string and disallocate internal buffers of String object
     if (!Settings.flag4.compress_rules_cpu) {
       // keep copy in cache
       k_rules[idx] = in;
@@ -316,24 +319,26 @@ int32_t SetRule_compress(uint32_t idx, const char *in, size_t in_len, char *out,
 int32_t SetRule(uint32_t idx, const char *content, bool append = false) {
   if (nullptr == content) { content = ""; }   // if nullptr, use empty string
   size_t len_in = strlen(content);
+  bool needsCompress = false;
+  size_t offset = 0;
 
-#ifdef USE_RULES_COMPRESSION
-  if (!Settings.flag4.compress_rules) {
-#else
-  if (1) {
-#endif
-    // don't compress, just store
-    size_t offset = 0;
-    if (append) {
+  if (len_in >= MAX_RULE_SIZE) {              // if input is more than 512, it will not fit uncompressed
+    needsCompress = true;
+  }
+  if (append) {
+    if (IsRuleUncompressed(idx) || IsRuleEmpty(idx)) {  // if already uncompressed (so below 512) and append mode, check if it still fits uncompressed
       offset = strlen(Settings.rules[idx]);
-    }
-    // check size
-    if (len_in + offset < sizeof(Settings.rules[0]) - 1) {
-      strlcpy(Settings.rules[idx] + offset, content, sizeof(Settings.rules[idx]));
-      return len_in + offset;
+      if (len_in + offset >= MAX_RULE_SIZE) {
+        needsCompress = true;
+      }
     } else {
-      return -1;      // not enough space
+      needsCompress = true;                 // we append to a non-empty compressed rule, so it won't fit uncompressed
     }
+  }
+
+  if (!needsCompress) {                       // the rule fits uncompressed, so just copy it
+    strlcpy(Settings.rules[idx] + offset, content, sizeof(Settings.rules[idx]));
+    return len_in + offset;
   } else {
 #ifdef USE_RULES_COMPRESSION
     int32_t len_compressed;
@@ -351,24 +356,6 @@ int32_t SetRule(uint32_t idx, const char *content, bool append = false) {
       len_compressed = SetRule_compress(idx, content, len_in, buf_out, MAX_RULE_SIZE + 8);
     }
 
-    // count frequency of each byte value
-    // {
-    //   static uint16_t freq[256];
-
-    //   memset(freq, 0, sizeof(freq));    // clear
-    //   for (uint i = 0; i < len_compressed; i++) {
-    //     freq[buf_out[i]]++;
-    //   }
-    //   for (uint32_t i = 0; i < 16; i++) {
-    //     Serial.printf("0x%02X: ", i * 16);
-    //     for (uint32_t j = 0; j < 16; j++) {
-    //       Serial.printf("%3d ", freq[i*16+j]);
-    //     }
-    //     Serial.printf("\n");
-    //   }
-    //   // Empirically, 0x2A looks rare 0b00101010
-    // }
-
     if ((len_compressed >= 0) && (len_compressed < MAX_RULE_SIZE - 2)) {
       // size is ok, copy to Settings
       Settings.rules[idx][0] = 0;     // clear first byte to mark as compressed
@@ -385,26 +372,12 @@ int32_t SetRule(uint32_t idx, const char *content, bool append = false) {
     }
     free(buf_out);
     return len_compressed;
-#endif
-  }
-}
 
-inline void RuleCheckCompression(void) {
-#ifdef USE_RULES_COMPRESSION
-  for (uint32_t i = 0; i < MAX_RULE_SETS; i++) {
-    bool needs_compress;            // does the rule need to be compressed?
-    bool needs_uncompress;          // does the rule need to be uncompressed?
-
-    needs_compress   = (Settings.flag4.compress_rules && Settings.rules[i][0]);   // needs compression and uncompressed
-    needs_uncompress = (!Settings.flag4.compress_rules && (!Settings.rules[i][0]) && (Settings.rules[i][1]));  // no compression, first byte null, second byte not null
-    // if the compression flag is on, and some rules are not yet compressed, compress them
-    if (needs_compress || needs_uncompress) {
-      // just re-store the rule, it will adapt accordingly
-      String rule = GetRule(i);
-      SetRule(i, rule.c_str());
-    }
+#else  // USE_RULES_COMPRESSION
+    return -1;                                // the rule does not fit and we can't compress
+#endif // USE_RULES_COMPRESSION
   }
-#endif
+
 }
 
 /*******************************************************************************************/
@@ -774,7 +747,6 @@ bool RulesProcess(void)
 
 void RulesInit(void)
 {
-  RuleCheckCompression();
   rules_flag.data = 0;
   for (uint32_t i = 0; i < MAX_RULE_SETS; i++) {
     if (0 == GetRuleLen(i)) {
