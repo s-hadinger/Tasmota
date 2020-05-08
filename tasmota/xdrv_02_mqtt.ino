@@ -296,16 +296,19 @@ void MqttUnsubscribe(const char *topic)
 
 void MqttPublishLogging(const char *mxtime)
 {
-  char saved_mqtt_data[strlen(mqtt_data) +1];
-  memcpy(saved_mqtt_data, mqtt_data, sizeof(saved_mqtt_data));
+  char saved_mqtt_data = (char*) malloc(strlen(mqtt_data) +1);
+  if (saved_mqtt_data) {
+    memcpy(saved_mqtt_data, mqtt_data, sizeof(saved_mqtt_data));
 
-//    ResponseTime_P(PSTR(",\"Log\":{\"%s\"}}"), log_data);  // Will fail as some messages contain JSON
-  Response_P(PSTR("%s%s"), mxtime, log_data);            // No JSON and ugly!!
-  char stopic[TOPSZ];
-  GetTopic_P(stopic, STAT, mqtt_topic, PSTR("LOGGING"));
-  MqttPublishLib(stopic, false);
+  //    ResponseTime_P(PSTR(",\"Log\":{\"%s\"}}"), log_data);  // Will fail as some messages contain JSON
+    Response_P(PSTR("%s%s"), mxtime, log_data);            // No JSON and ugly!!
+    char stopic[TOPSZ];
+    GetTopic_P(stopic, STAT, mqtt_topic, PSTR("LOGGING"));
+    MqttPublishLib(stopic, false);
 
-  memcpy(mqtt_data, saved_mqtt_data, sizeof(saved_mqtt_data));
+    memcpy(mqtt_data, saved_mqtt_data, sizeof(saved_mqtt_data));
+    free(saved_mqtt_data);
+  }
 }
 
 void MqttPublish(const char* topic, bool retained)
