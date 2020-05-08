@@ -70,6 +70,8 @@ uint32_t DecodeLightId(uint32_t hue_id);
 
 #include "FS.h"
 #include "SPIFFS.h"
+
+
 void SaveFile(const char *name,const uint8_t *buf,uint32_t len) {
   File file = SPIFFS.open(name, FILE_WRITE);
   if (!file) return;
@@ -1179,6 +1181,28 @@ chknext:
             }
           }
         }
+#ifdef ESP32
+        if (!strncmp(vname,"core",4)) {
+          fvar=xPortGetCoreID();
+          goto exit;
+        }
+#ifdef USE_SCRIPT_TASK
+        if (!strncmp(vname,"ct(",3)) {
+          lp+=3;
+          lp=GetNumericResult(lp,OPER_EQU,&fvar,0);
+          while (*lp==' ') lp++;
+          float fvar1;
+          lp=GetNumericResult(lp,OPER_EQU,&fvar1,0);
+          while (*lp==' ') lp++;
+          float fvar2;
+          lp=GetNumericResult(lp,OPER_EQU,&fvar2,0);
+          lp++;
+          fvar=scripter_create_task(fvar,fvar1,fvar2);
+          len=0;
+          goto exit;
+        }
+#endif
+#endif
         break;
       case 'd':
         if (!strncmp(vname,"day",3)) {
@@ -1703,6 +1727,12 @@ chknext:
           fvar=999;
           goto exit;
         }
+#ifdef ESP32
+        if (!strncmp(vname,"pheap",5)) {
+          fvar=ESP.getFreePsram();
+          goto exit;
+        }
+#endif
         if (!strncmp(vname,"prefix1",7)) {
           if (sp) strlcpy(sp,SettingsText(SET_MQTTPREFIX1),glob_script_mem.max_ssize);
           goto strexit;
@@ -2048,7 +2078,14 @@ chknext:
                 fvar=wc_set_motion_detect(fvar2);
               }
               break;
-
+#ifdef USE_FACE_DETECT
+            case 7:
+              { float fvar2;
+                lp=GetNumericResult(lp,OPER_EQU,&fvar2,0);
+                fvar=wc_set_face_detect(fvar2);
+              }
+              break;
+#endif
             default:
               fvar=0;
           }
@@ -5078,6 +5115,47 @@ bool RulesProcessEvent(char *json_event) {
   if (bitRead(Settings.rule_enabled, 0)) Run_Scripter(">E",2,json_event);
 }
 
+#ifdef ESP32
+#ifdef USE_SCRIPT_TASK
+uint16_t task_timer1;
+uint16_t task_timer2;
+
+void script_task1(void *arg) {
+  while (1) {
+    delay(task_timer1);
+    Run_Scripter(">t1",3,0);
+  }
+}
+
+void script_task2(void *arg) {
+  while (1) {
+    delay(task_timer2);
+    Run_Scripter(">t2",3,0);
+  }
+}
+#ifndef STASK_STACK
+#define STASK_STACK 4096
+#endif
+
+#ifndef STASK_PRIO
+#define STASK_PRIO 5
+#endif
+
+uint32_t scripter_create_task(uint32_t num, uint32_t time, uint32_t core) {
+  //return 0;
+  BaseType_t res=0;
+  if (core>1) {core = 1;}
+  if (num == 1) {
+    res = xTaskCreatePinnedToCore(script_task1, "T 1", STASK_STACK, NULL, STASK_PRIO, NULL, core);
+    task_timer1=time;
+  } else {
+    res = xTaskCreatePinnedToCore(script_task2, "T 2", STASK_STACK, NULL, STASK_PRIO, NULL, core);
+    task_timer2=time;
+  }
+  return res;
+}
+#endif // USE_SCRIPT_TASK
+#endif // ESP32
 /*********************************************************************************************\
  * Interface
 \*********************************************************************************************/
@@ -5224,10 +5302,13 @@ bool Xdrv10(uint8_t function)
     case FUNC_WEB_ADD_BUTTON:
       WSContentSend_P(HTTP_BTN_MENU_RULES);
       break;
+#ifdef USE_SCRIPT_WEB_DISPLAY
     case FUNC_WEB_ADD_MAIN_BUTTON:
-      ScriptWebShow('&');
+      if (bitRead(Settings.rule_enabled, 0)) {
+        ScriptWebShow('&');
+      }
       break;
-
+#endif // USE_SCRIPT_WEB_DISPLAY
     case FUNC_WEB_ADD_HANDLER:
       Webserver->on("/" WEB_HANDLE_SCRIPT, HandleScriptConfiguration);
       Webserver->on("/ta",HTTP_POST, HandleScriptTextareaConfiguration);
