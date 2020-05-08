@@ -170,30 +170,32 @@ int append_bits(char *out, size_t ol, unsigned int code, int clen, byte state) {
       //}
    }
    while (clen > 0) {
-     cur_bit = ol % 8;
-     blen = (clen > 8 ? 8 : clen);
+      cur_bit = ol % 8;
+      blen = (clen > 8 ? 8 : clen);
     //  a_byte = (code & pgm_read_word(&mask[blen - 1])) >> 8;
     //  a_byte = (code & (pgm_read_word(&mask[blen - 1]) << 8)) >> 8;
-     a_byte = (code >> 8) & pgm_read_word(&mask[blen - 1]);
-     a_byte >>= cur_bit;
-     if (blen + cur_bit > 8)
+      a_byte = (code >> 8) & pgm_read_word(&mask[blen - 1]);
+      a_byte >>= cur_bit;
+      if (blen + cur_bit > 8)
         blen = (8 - cur_bit);
-     if (cur_bit == 0)
-        out[ol / 8] = a_byte;
-     else
-        out[ol / 8] |= a_byte;
-     code <<= blen;
-     ol += blen;
-     if (0 == ol % 8) {
-       // we completed a full byte
-       char last_c = out[(ol / 8) - 1];
-       if ((0 == last_c) || (ESCAPE_MARKER == last_c)) {
-         out[ol / 8] = 1 + last_c;    // increment to 0x01 or 0x2B
-         out[(ol / 8) -1] = ESCAPE_MARKER;  // replace old value with marker
-         ol += 8;   // add one full byte
-       }
-     }
-     clen -= blen;
+      if (out) {                // if out == nullptr, then we are in dry-run mode
+        if (cur_bit == 0)
+          out[ol / 8] = a_byte;
+        else
+          out[ol / 8] |= a_byte;
+      }
+      code <<= blen;
+      ol += blen;
+      if ((out) && (0 == ol % 8)) {           // if out == nullptr, dry-run mode. We miss the escaping of characters in the length
+        // we completed a full byte
+        char last_c = out[(ol / 8) - 1];
+        if ((0 == last_c) || (ESCAPE_MARKER == last_c)) {
+          out[ol / 8] = 1 + last_c;           // increment to 0x01 or 0x2B
+          out[(ol / 8) -1] = ESCAPE_MARKER;   // replace old value with marker
+          ol += 8;   // add one full byte
+        }
+      }
+      clen -= blen;
    }
    return ol;
 }
@@ -263,6 +265,15 @@ int matchOccurance(const char *in, int len, int l, char *out, int *ol, byte *sta
   return -l;
 }
 
+// Compress a buffer.
+// Inputs:
+//   - in: non-null pointer to a buffer of bytes to be compressed. Progmem is not valid. Null bytes are valid.
+//   - len: size of the input buffer. 0 is valid for empty buffer
+//   - out: pointer to output buffer. out is nullptr, the compressor does a dry-run and reports the compressed size without writing bytes
+//   - len_out: length in bytes of the output buffer.
+// Output:
+//   - if >= 0: size of the compressed buffer. The output buffer does not contain NULL bytes, and it is not NULL terminated
+//   - if < 0: an error occured, most certainly the output buffer was not large enough
 int32_t unishox_compress(const char *in, size_t len, char *out, size_t len_out) {
 
   char *ptr;
