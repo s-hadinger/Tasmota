@@ -343,6 +343,9 @@ int32_t SetRule(uint32_t idx, const char *content, bool append = false) {
 
   if (!needsCompress) {                       // the rule fits uncompressed, so just copy it
     strlcpy(Settings.rules[idx] + offset, content, sizeof(Settings.rules[idx]));
+    if (0 == Settings.rules[idx][0]) {
+      Settings.rules[idx][1] = 0;         // make sure empty is a double NULL char
+    }
 
 #ifdef USE_RULES_COMPRESSION
     // do a dry-run compression to display how much it would be compressed
