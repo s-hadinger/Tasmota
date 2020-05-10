@@ -47,6 +47,7 @@
  *   on button1#state do publish cmnd/ring2/power %value% endon on button2#state do publish cmnd/strip1/power %value% endon
  *   on switch1#state do power2 %value% endon
  *   on analog#a0div10 do publish cmnd/ring2/dimmer %value% endon
+ *   on loadavg<50 do power 2 endon
  *
  * Notes:
  *   Spaces after <on>, around <do> and before <endon> are mandatory
@@ -186,25 +187,25 @@ char rules_vars[MAX_RULE_VARS][33] = {{ 0 }};
  * Add Unishox compression to Rules
  *
  * New compression for Rules, depends on SetOption93
- * 
+ *
  * To avoid memory corruption when downgrading, the format is as follows:
  * - If `SetOption93 0`
  *   Rule[x][] = 511 char max NULL terminated string (512 with trailing NULL)
  *   Rule[x][0] = 0 if the Rule<x> is empty
  *   New: in case the string is empty we also enforce:
  *   Rule[x][1] = 0   (i.e. we have two conseutive NULLs)
- * 
+ *
  * - If `SetOption93 1`
  *   If the rule is smaller than 511, it is stored uncompressed. Rule[x][0] is not null.
  *   If the rule is empty, Rule[x][0] = 0 and Rule[x][1] = 0;
  *   If the rule is bigger than 511, it is stored compressed
  *      The first byte of each Rule is always NULL.
  *      Rule[x][0] = 0,  if firmware is downgraded, the rule will be considered as empty
- * 
+ *
  *      The second byte contains the size of uncompressed rule in 8-bytes blocks (i.e. (len+7)/8 )
- *      Maximum rule size si 2KB (2048 bytes per rule), although there is little chances compression ratio will go down to 75%
+ *      Maximum rule size is 2KB (2048 bytes per rule), although there is little chances compression ratio will go down to 75%
  *      Rule[x][1] = size uncompressed in dwords. If zero, the rule is empty.
- * 
+ *
  *      The remaining bytes contain the compressed rule, NULL terminated
  */
 /*******************************************************************************************/
@@ -244,12 +245,15 @@ size_t GetRuleLen(uint32_t idx) {
 
 // Returns the actual Flash storage for the Rule, including trailing NULL
 size_t GetRuleLenStorage(uint32_t idx) {
-  // no need to use #ifdef USE_RULES_COMPRESSION, the compiler will optimize since first test is always true
-  if (IsRuleUncompressed(idx)) {
-    return 1 + strlen(Settings.rules[idx]);
+#ifdef USE_RULES_COMPRESSION
+  if (Settings.rules[idx][0] || !Settings.rules[idx][1]) {    // if first byte is non-NULL it is uncompressed, if second byte is NULL, then it's either uncompressed or empty
+    return 1 + strlen(Settings.rules[idx]);   // uncompressed or empty
   } else {
-    return 2 + strlen(&Settings.rules[idx][2]); // skip first byte and get len of the compressed rule
+    return 2 + strlen(&Settings.rules[idx][1]); // skip first byte and get len of the compressed rule
   }
+#else
+  return 1 + strlen(Settings.rules[idx]);
+#endif
 }
 
 // internal function, do the actual decompression
@@ -282,7 +286,7 @@ String GetRule(uint32_t idx) {
 #ifdef USE_RULES_COMPRESSION    // we still do #ifdef to make sure we don't link unnecessary code
 
     String rule("");
-    if (Settings.rules[idx][2] == 0) { return rule; }     // the rule is empty
+    if (Settings.rules[idx][1] == 0) { return rule; }     // the rule is empty
 
     // If the cache is empty, we need to decompress from Settings
     if (0 == k_rules[idx].length() ) {
@@ -343,14 +347,19 @@ int32_t SetRule(uint32_t idx, const char *content, bool append = false) {
 
   if (!needsCompress) {                       // the rule fits uncompressed, so just copy it
     strlcpy(Settings.rules[idx] + offset, content, sizeof(Settings.rules[idx]));
+    if (0 == Settings.rules[idx][0]) {
+      Settings.rules[idx][1] = 0;
+    }
 
 #ifdef USE_RULES_COMPRESSION
-    // do a dry-run compression to display how much it would be compressed
-    int32_t len_compressed, len_uncompressed;
+    if (0 != len_in + offset) {
+      // do a dry-run compression to display how much it would be compressed
+      int32_t len_compressed, len_uncompressed;
 
-    len_uncompressed = strlen(Settings.rules[idx]);
-    len_compressed = unishox_compress(Settings.rules[idx], len_uncompressed, nullptr /* dry-run */, MAX_RULE_SIZE + 8);
-    AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: Stored uncompressed, would compress from %d to %d (-%d%%)"), len_uncompressed, len_compressed, 100 - changeUIntScale(len_compressed, 0, len_uncompressed, 0, 100));
+      len_uncompressed = strlen(Settings.rules[idx]);
+      len_compressed = unishox_compress(Settings.rules[idx], len_uncompressed, nullptr /* dry-run */, MAX_RULE_SIZE + 8);
+      AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: Stored uncompressed, would compress from %d to %d (-%d%%)"), len_uncompressed, len_compressed, 100 - changeUIntScale(len_compressed, 0, len_uncompressed, 0, 100));
+    }
 
 #endif // USE_RULES_COMPRESSION
 
@@ -408,19 +417,20 @@ bool RulesRuleMatch(uint8_t rule_set, String &event, String &rule)
   char stemp[10];
 
   // Step1: Analyse rule
-  int pos = rule.indexOf('#');
-  if (pos == -1) { return false; }                     // No # sign in rule
-
-  String rule_task = rule.substring(0, pos);           // "INA219" or "SYSTEM"
+  String rule_expr = rule;                             // "TELE-INA219#CURRENT>0.100"
   if (Rules.teleperiod) {
-    int ppos = rule_task.indexOf("TELE-");             // "TELE-INA219" or "INA219"
+    int ppos = rule_expr.indexOf("TELE-");             // "TELE-INA219#CURRENT>0.100" or "INA219#CURRENT>0.100"
     if (ppos == -1) { return false; }                  // No pre-amble in rule
-    rule_task = rule.substring(5, pos);                // "INA219" or "SYSTEM"
+    rule_expr = rule.substring(5);                     // "INA219#CURRENT>0.100" or "SYSTEM#BOOT"
   }
 
-  String rule_expr = rule.substring(pos +1);           // "CURRENT>0.100" or "BOOT" or "%var1%" or "MINUTE|5"
   String rule_name, rule_param;
-  int8_t compareOperator = parseCompareExpression(rule_expr, rule_name, rule_param);    //Parse the compare expression.Return operator and the left, right part of expression
+  int8_t compareOperator = parseCompareExpression(rule_expr, rule_name, rule_param);  // Parse the compare expression.Return operator and the left, right part of expression
+
+  // rule_name  = "INA219#CURRENT"
+  // rule_param = "0.100" or "%VAR1%"
+
+//AddLog_P2(LOG_LEVEL_DEBUG, PSTR("RUL: expr %s, name %s, param %s"), rule_expr.c_str(), rule_name.c_str(), rule_param.c_str());
 
   char rule_svalue[80] = { 0 };
   float rule_value = 0;
@@ -468,11 +478,12 @@ bool RulesRuleMatch(uint8_t rule_set, String &event, String &rule)
     if (temp_value > -1) {
       rule_value = temp_value;
     } else {
-      rule_value = CharToFloat((char*)rule_svalue);   // 0.1      - This saves 9k code over toFLoat()!
+      rule_value = CharToFloat((char*)rule_svalue);    // 0.1      - This saves 9k code over toFLoat()!
     }
   }
 
-  // Step2: Search rule_task and rule_name
+  // Step2: Search rule_name
+  int pos;
   int rule_name_idx = 0;
   if ((pos = rule_name.indexOf("[")) > 0) {            // "SUBTYPE1#CURRENT[1]"
     rule_name_idx = rule_name.substring(pos +1).toInt();
@@ -485,10 +496,7 @@ bool RulesRuleMatch(uint8_t rule_set, String &event, String &rule)
   StaticJsonBuffer<1024> jsonBuf;
   JsonObject &root = jsonBuf.parseObject(event);
   if (!root.success()) { return false; }               // No valid JSON data
-  if (!root[rule_task].success()) { return false; }    // No rule_task in JSON data
-
-  JsonObject &obj1 = root[rule_task];
-  JsonObject *obj = &obj1;
+  JsonObject *obj = &root;
   String subtype;
   uint32_t i = 0;
   while ((pos = rule_name.indexOf("#")) > 0) {         // "SUBTYPE1#SUBTYPE2#CURRENT"
@@ -507,8 +515,8 @@ bool RulesRuleMatch(uint8_t rule_set, String &event, String &rule)
     str_value = (*obj)[rule_name];                     // "CURRENT"
   }
 
-//AddLog_P2(LOG_LEVEL_DEBUG, PSTR("RUL: Task %s, Name %s, Value |%s|, TrigCnt %d, TrigSt %d, Source %s, Json %s"),
-//  rule_task.c_str(), rule_name.c_str(), rule_svalue, Rules.trigger_count[rule_set], bitRead(Rules.triggers[rule_set], Rules.trigger_count[rule_set]), event.c_str(), (str_value) ? str_value : "none");
+//AddLog_P2(LOG_LEVEL_DEBUG, PSTR("RUL: Name %s, Value |%s|, TrigCnt %d, TrigSt %d, Source %s, Json %s"),
+//  rule_name.c_str(), rule_svalue, Rules.trigger_count[rule_set], bitRead(Rules.triggers[rule_set], Rules.trigger_count[rule_set]), event.c_str(), (str_value) ? str_value : "none");
 
   Rules.event_value = str_value;                       // Prepare %value%
 
@@ -1979,7 +1987,7 @@ void CmndRule(void)
         }
         int32_t res = SetRule(index - 1, ('"' == XdrvMailbox.data[0]) ? "" : XdrvMailbox.data, append);
         if (res < 0) {
-          AddLog_P2(LOG_LEVEL_ERROR, PSTR("RUL: not enough space"));
+          AddLog_P2(LOG_LEVEL_ERROR, PSTR("RUL: Not enough space"));
         }
       }
       Rules.triggers[index -1] = 0;  // Reset once flag
