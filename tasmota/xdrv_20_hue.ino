@@ -144,11 +144,9 @@ const char HUE_LIGHTS_STATUS_JSON1_SUFFIX[] PROGMEM =
 const char HUE_LIGHTS_STATUS_JSON2[] PROGMEM =
   ",\"type\":\"Extended color light\","
   "\"name\":\"%s\","
-  "\"modelid\":\"LCT007\","
-  "\"productname\":\"%s\","
+  "\"modelid\":\"%s\","
   "\"manufacturername\":\"%s\","
-  "\"uniqueid\":\"%s\","
-  "\"swversion\":\"5.50.1.19085\"}";
+  "\"uniqueid\":\"%s\"}";
 const char HUE_GROUP0_STATUS_JSON[] PROGMEM =
   "{\"name\":\"Group 0\","
    "\"lights\":[{l1],"
@@ -360,7 +358,7 @@ bool HueActive(uint8_t device) {
 
 void HueLightStatus2(uint8_t device, String *response)
 {
-  const size_t buf_size = 320;
+  const size_t buf_size = 300;
   char * buf = (char*) malloc(buf_size);
   const size_t max_name_len = 32;
   char fname[max_name_len + 1];
