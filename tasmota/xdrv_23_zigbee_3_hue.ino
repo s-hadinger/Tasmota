@@ -79,12 +79,23 @@ void HueLightStatus2Zigbee(uint16_t shortaddr, String *response)
   char * buf = (char*) malloc(buf_size);
 
   const char * friendlyName = zigbee_devices.getFriendlyName(shortaddr);
+  const char * modelId = zigbee_devices.getModelId(shortaddr);
+  const char * manufacturerId = zigbee_devices.getManufacturerId(shortaddr);
   char shortaddrname[8];
   snprintf_P(shortaddrname, sizeof(shortaddrname), PSTR("0x%04X"), shortaddr);
 
+  // snprintf_P(buf, buf_size, HUE_LIGHTS_STATUS_JSON2,
+  //             (friendlyName) ? escapeJSONString(friendlyName).c_str() : shortaddrname,
+  //             (nullptr) ? escapeJSONString(modelId).c_str() : PSTR("LCT007"),
+  //             (manufacturerId) ? escapeJSONString(manufacturerId).c_str() : PSTR("Tasmota"),
+  //             GetHueDeviceId(shortaddr).c_str());
+
   snprintf_P(buf, buf_size, HUE_LIGHTS_STATUS_JSON2,
-              (friendlyName) ? friendlyName : shortaddrname,
+              (modelId) ? escapeJSONString(modelId).c_str() : PSTR("Extended color light"),
+              (friendlyName) ? escapeJSONString(friendlyName).c_str() : shortaddrname,
+              (manufacturerId) ? escapeJSONString(manufacturerId).c_str() : PSTR("Tasmota"),
               GetHueDeviceId(shortaddr).c_str());
+              
   *response += buf;
   free(buf);
 }

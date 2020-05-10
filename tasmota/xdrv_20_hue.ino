@@ -142,9 +142,10 @@ const char HUE_LIGHTS_STATUS_JSON1_SUFFIX[] PROGMEM =
   "\"effect\":\"none\","
   "\"reachable\":true}";
 const char HUE_LIGHTS_STATUS_JSON2[] PROGMEM =
-  ",\"type\":\"Extended color light\","
+  ",\"type\":\"%s\","
   "\"name\":\"%s\","
   "\"modelid\":\"LCT007\","
+  "\"manufacturername\":\"%s\","
   "\"uniqueid\":\"%s\","
   "\"swversion\":\"5.50.1.19085\"}";
 const char HUE_GROUP0_STATUS_JSON[] PROGMEM =
@@ -376,7 +377,11 @@ void HueLightStatus2(uint8_t device, String *response)
     }
     fname[fname_len] = 0x00;
   }
-  snprintf_P(buf, buf_size, HUE_LIGHTS_STATUS_JSON2, fname, GetHueDeviceId(device).c_str());
+  snprintf_P(buf, buf_size, HUE_LIGHTS_STATUS_JSON2,
+            escapeJSONString(fname).c_str(),
+            escapeJSONString(Settings.user_template_name).c_str(),
+            PSTR("Tasmota"),
+            GetHueDeviceId(device).c_str());
   *response += buf;
   free(buf);
 }
