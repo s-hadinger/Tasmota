@@ -1989,7 +1989,8 @@ void CmndRule(void)
     //   GetStateText(bitRead(Settings.rule_stop, index -1)), sizeof(Settings.rules[index -1]) - strlen(Settings.rules[index -1]) -1, Settings.rules[index -1]);
     snprintf_P (mqtt_data, sizeof(mqtt_data), PSTR("{\"%s%d\":\"%s\",\"Once\":\"%s\",\"StopOnError\":\"%s\",\"Free\":%d,\"Rules\":\"%s\"}"),
       XdrvMailbox.command, index, GetStateText(bitRead(Settings.rule_enabled, index -1)), GetStateText(bitRead(Settings.rule_once, index -1)),
-      GetStateText(bitRead(Settings.rule_stop, index -1)), sizeof(Settings.rules[0]) - GetRuleLenStorage(index - 1), GetRule(index - 1).c_str());
+      GetStateText(bitRead(Settings.rule_stop, index -1)), sizeof(Settings.rules[0]) - GetRuleLenStorage(index - 1),
+      escapeJSONString(GetRule(index - 1).c_str()).c_str());
   }
 }
 
