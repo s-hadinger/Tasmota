@@ -334,7 +334,7 @@ int32_t Z_ReceiveStateChange(int32_t res, const class SBuffer &buf) {
     XdrvRulesProcess();
   }
 
-  return -1;
+  return res;
 }
 
 //
