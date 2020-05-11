@@ -80,6 +80,7 @@ enum Zigbee_StateMachine_Instruction_Set {
 
   // 12 bytes instructions
   ZGB_INSTR_12_BYTES = 0xF0,
+  ZGB_INSTR_WAIT_UNTIL_CALL,            // wait until the specified message is received and call function upon receive, ignore all others
   ZGB_INSTR_WAIT_RECV_CALL,             // wait for a filtered message and call function upon receive
 };
 
@@ -99,7 +100,8 @@ enum Zigbee_StateMachine_Instruction_Set {
 #define ZI_SEND(m)          { .i = { ZGB_INSTR_SEND, sizeof(m), 0x0000} }, { .p = (const void*)(m) },
 #define ZI_WAIT_RECV(x, m)  { .i = { ZGB_INSTR_WAIT_RECV, sizeof(m), (x)} }, { .p = (const void*)(m) },
 #define ZI_WAIT_UNTIL(x, m) { .i = { ZGB_INSTR_WAIT_UNTIL, sizeof(m), (x)} }, { .p = (const void*)(m) },
-#define ZI_WAIT_RECV_FUNC(x, m, f) { .i = { ZGB_INSTR_WAIT_RECV_CALL, sizeof(m), (x)} }, { .p = (const void*)(m) }, { .p = (const void*)(f) },
+#define ZI_WAIT_UNTIL_FUNC(x, m, f) { .i = { ZGB_INSTR_WAIT_UNTIL_CALL, sizeof(m), (x)} }, { .p = (const void*)(m) }, { .p = (const void*)(f) },
+#define ZI_WAIT_RECV_FUNC(x, m, f)  { .i = { ZGB_INSTR_WAIT_RECV_CALL, sizeof(m), (x)} },  { .p = (const void*)(m) }, { .p = (const void*)(f) },
 
 // Labels used in the State Machine -- internal only
 const uint8_t  ZIGBEE_LABEL_INIT_COORD = 10;     // Start ZNP as coordinator
@@ -394,7 +396,9 @@ void Z_UpdateConfig(uint8_t zb_channel, uint16_t zb_pan_id, uint64_t zb_ext_pani
 }
 
 const char kCheckingDeviceConfiguration[] PROGMEM = D_LOG_ZIGBEE "checking device configuration";
-const char kConfigured[] PROGMEM = "Configured, starting coordinator";
+const char kConfiguredCoord[] PROGMEM = "Configured, starting coordinator";
+const char kConfiguredRouter[] PROGMEM = "Configured, starting router";
+const char kConfiguredDevice[] PROGMEM = "Configured, starting end-device";
 const char kStarted[] PROGMEM = "Started";
 const char kZigbeeStarted[] PROGMEM = D_LOG_ZIGBEE "Zigbee started";
 const char kResetting[] PROGMEM = "Resetting configuration";
@@ -446,7 +450,7 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     // all is good, we can start
 
   ZI_LABEL(ZIGBEE_LABEL_START_COORD)                // START ZNP App
-    ZI_MQTT_STATE(ZIGBEE_STATUS_STARTING, kConfigured)
+    ZI_MQTT_STATE(ZIGBEE_STATUS_STARTING, kConfiguredCoord)
     ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_ABORT)
     // Z_ZDO:startupFromApp
     //ZI_LOG(LOG_LEVEL_INFO, D_LOG_ZIGBEE "starting zigbee coordinator")
@@ -532,13 +536,13 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     ZI_WAIT_RECV(1000, ZBS_LOGTYPE_ROUTER)        // it should be coordinator
 
   ZI_LABEL(ZIGBEE_LABEL_START_ROUTER)              // Init as a router
-    ZI_MQTT_STATE(ZIGBEE_STATUS_STARTING, kConfigured)
+    ZI_MQTT_STATE(ZIGBEE_STATUS_STARTING, kConfiguredRouter)
     ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_ABORT)
     ZI_SEND(ZBS_AF_REGISTER_ALL)                  // Z_AF register for endpoint 01, profile 0x0104 Home Automation
     ZI_WAIT_RECV(1000, ZBR_AF_REGISTER)
     ZI_SEND(ZBS_STARTUPFROMAPP)                   // start router
     ZI_WAIT_RECV(2000, ZBR_STARTUPFROMAPP)        // wait for sync ack of command
-    ZI_WAIT_UNTIL(0xFFFF, AREQ_STARTUPFROMAPP_ROUTER)      // wait for async message that coordinator started
+    ZI_WAIT_UNTIL_FUNC(0xFFFF, AREQ_STARTUPFROMAPP_ROUTER, &Z_ReceiveStateChange)      // wait for async message that coordinator started
     ZI_SEND(ZBS_GETDEVICEINFO)                    // GetDeviceInfo
     ZI_WAIT_RECV_FUNC(2000, ZBR_GETDEVICEINFO, &Z_ReceiveDeviceInfo)
     ZI_GOTO(ZIGBEE_LABEL_READY)
@@ -577,13 +581,13 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     ZI_WAIT_RECV(1000, ZBS_LOGTYPE_DEVICE)        // it should be coordinator
 
   ZI_LABEL(ZIGBEE_LABEL_START_DEVICE)              // Init as a router
-    ZI_MQTT_STATE(ZIGBEE_STATUS_STARTING, kConfigured)
+    ZI_MQTT_STATE(ZIGBEE_STATUS_STARTING, kConfiguredDevice)
     ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_ABORT)
     ZI_SEND(ZBS_AF_REGISTER_ALL)                  // Z_AF register for endpoint 01, profile 0x0104 Home Automation
     ZI_WAIT_RECV(1000, ZBR_AF_REGISTER)
     ZI_SEND(ZBS_STARTUPFROMAPP)                   // start router
     ZI_WAIT_RECV(2000, ZBR_STARTUPFROMAPP)        // wait for sync ack of command
-    ZI_WAIT_UNTIL(0xFFFF, AREQ_STARTUPFROMAPP_DEVICE)      // wait forever for async message that coordinator started
+    ZI_WAIT_UNTIL_FUNC(0xFFFF, AREQ_STARTUPFROMAPP_ROUTER, &Z_ReceiveStateChange)       // wait forever for async message that coordinator started
     ZI_SEND(ZBS_GETDEVICEINFO)                    // GetDeviceInfo
     ZI_WAIT_RECV_FUNC(2000, ZBR_GETDEVICEINFO, &Z_ReceiveDeviceInfo)
     ZI_GOTO(ZIGBEE_LABEL_READY)
@@ -797,11 +801,17 @@ void ZigbeeStateMachine_Run(void) {
       case ZGB_ON_RECV_UNEXPECTED:
         zigbee.recv_unexpected = (ZB_RecvMsgFunc) cur_ptr1;
         break;
+      case ZGB_INSTR_WAIT_UNTIL_CALL:
+        zigbee.recv_until = true;   // and reuse ZGB_INSTR_WAIT_RECV
       case ZGB_INSTR_WAIT_RECV_CALL:
         zigbee.recv_filter = (uint8_t *) cur_ptr1;
         zigbee.recv_filter_len = cur_d8; // len
         zigbee.recv_func   = (ZB_RecvMsgFunc)  cur_ptr2;
-        zigbee.next_timeout = now + cur_d16;
+        if (0xFFFF == cur_d16) {
+          zigbee.next_timeout = 0;    // forever
+        } else {
+          zigbee.next_timeout = now + cur_d16;
+        }
         zigbee.state_waiting = true;
         break;
     }
