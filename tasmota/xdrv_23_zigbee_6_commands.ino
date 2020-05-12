@@ -49,13 +49,14 @@ ZF(ResetAlarm) ZF(ResetAllAlarms)
 ZF(HueSat) ZF(Color)
 ZF(ShutterOpen) ZF(ShutterClose) ZF(ShutterStop) ZF(ShutterLift) ZF(ShutterTilt) ZF(Shutter)
 //ZF(Occupancy)
-ZF(DimmerMove) ZF(DimmerStep)
-ZF(HueMove) ZF(HueStep) ZF(SatMove) ZF(SatStep) ZF(ColorMove) ZF(ColorStep)
+ZF(DimmerMove) ZF(DimmerStep) ZF(DimmerStepUp) ZF(DimmerStepDown)
+ZF(HueMove) ZF(HueStep) ZF(SatMove) ZF(SatStep) ZF(ColorMove) ZF(ColorStep) ZF(ColorTempStep) ZF(ColorTempStepUp) ZF(ColorTempStepDown) 
 ZF(ArrowClick) ZF(ArrowHold) ZF(ArrowRelease) ZF(ZoneStatusChange)
 
-ZF(xxxx00) ZF(xxxx) ZF(01xxxx) ZF(00) ZF(01) ZF() ZF(xxxxyy) ZF(00190200) ZF(01190200) ZF(xxyyyy) ZF(xx)
+ZF(xxxx00) ZF(xxxx) ZF(01xxxx) ZF(03xxxx) ZF(00) ZF(01) ZF() ZF(xxxxyy) ZF(00190200) ZF(01190200) ZF(xxyyyy) ZF(xx)
 ZF(xx000A00) ZF(xx0A00) ZF(xxyy0A00) ZF(xxxxyyyy0A00) ZF(xxxx0A00) ZF(xx0A)
 ZF(xx190A00) ZF(xx19) ZF(xx190A) ZF(xxxxyyyy) ZF(xxxxyyzz) ZF(xxyyzzzz) ZF(xxyyyyzz)
+ZF(00xx) ZF(01xx)
 
 // Cluster specific commands
 // Note: the table is both for sending commands, but also displaying received commands
@@ -103,6 +104,8 @@ const Z_CommandConverter Z_Commands[] PROGMEM = {
   // Decoders only - normally not used to send, and names may be masked by previous definitions
   { Z(Dimmer),         0x0008, 0x00, 0x01,   Z(xx) },
   { Z(DimmerMove),     0x0008, 0x01, 0x01,   Z(xx0A) },
+  { Z(DimmerStepUp),   0x0008, 0x02, 0x01,   Z(00xx) },
+  { Z(DimmerStepDown), 0x0008, 0x02, 0x01,   Z(01xx) },
   { Z(DimmerStep),     0x0008, 0x02, 0x01,   Z(xx190A00) },
   { Z(DimmerMove),     0x0008, 0x05, 0x01,   Z(xx0A) },
   { Z(DimmerUp),       0x0008, 0x06, 0x01,   Z(00) },
@@ -114,6 +117,9 @@ const Z_CommandConverter Z_Commands[] PROGMEM = {
   { Z(SatStep),        0x0300, 0x05, 0x01,   Z(xx190A) },
   { Z(ColorMove),      0x0300, 0x08, 0x01,   Z(xxxxyyyy) },
   { Z(ColorStep),      0x0300, 0x09, 0x01,   Z(xxxxyyyy0A00) },
+  { Z(ColorTempStepUp),  0x0300, 0x4C, 0x01,   Z(01xxxx) },     //xxxx = step
+  { Z(ColorTempStepDown),0x0300, 0x4C, 0x01,   Z(03xxxx) },     //xxxx = step
+  { Z(ColorTempStep),  0x0300, 0x4C, 0x01,   Z(xxyyyy) },     //xx = 0x01 up, 0x03 down, yyyy = step
   // Tradfri
   { Z(ArrowClick),     0x0005, 0x07, 0x01,   Z(xx) },         // xx == 0x01 = left, 0x00 = right
   { Z(ArrowHold),      0x0005, 0x08, 0x01,   Z(xx) },         // xx == 0x01 = left, 0x00 = right
