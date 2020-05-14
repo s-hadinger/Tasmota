@@ -1012,8 +1012,8 @@ String Z_Devices::dump(uint32_t dump_mode, uint16_t status_shortaddr) const {
     uint16_t shortaddr = device.shortaddr;
     char hex[22];
 
-    // ignore non-current device, if specified device is non-zero
-    if ((status_shortaddr) && (status_shortaddr != shortaddr)) { continue; }
+    // ignore non-current device, if device specified
+    if ((0xFFFF != status_shortaddr) && (status_shortaddr != shortaddr)) { continue; }
 
     JsonObject& dev = devices.createNestedObject();
 
