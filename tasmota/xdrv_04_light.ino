@@ -855,13 +855,11 @@ void LightStateClass::RgbToXy(uint8_t i_r, uint8_t i_g, uint8_t i_b, float *r_x,
   float y = 0.32902f;
 
   if (i_r + i_b + i_g > 0) {
-    float rgb[3];
-    rgb[0] = (float)i_r / 255.0f;
-    rgb[1] = (float)i_g / 255.0f;
-    rgb[2] = (float)i_b / 255.0f;
+    float rgb[3] = { (float)i_r, (float)i_g, (float)i_b };
     // https://gist.github.com/popcorn245/30afa0f98eea1c2fd34d
     // Gamma correction
-    for (uint16_t i = 0; i < 3; i++) {
+    for (uint32_t i = 0; i < 3; i++) {
+      rgb[i] = rgb[i] / 255.0f;
       rgb[i] = (rgb[i] > 0.04045f) ? POW((rgb[i] + 0.055f) / (1.0f + 0.055f), 2.4f) : (rgb[i] / 12.92f);
     }
     // rgb[0] = (rgb[0] > 0.04045f) ? POW((rgb[0] + 0.055f) / (1.0f + 0.055f), 2.4f) : (rgb[0] / 12.92f);
