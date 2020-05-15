@@ -842,11 +842,11 @@ void LightStateClass::HsToRgb(uint16_t hue, uint8_t sat, uint8_t *r_r, uint8_t *
 void mat3x3(const float *mat33, const float *vec3, float *res3) {
   for (uint32_t i = 0; i < 3; i++) {
     const float * v = vec3;
-    float * r = res3;
-    *r = 0.0f;
+    *res3 = 0.0f;
     for (uint32_t j = 0; j < 3; j++) {
-      *r++ += *mat33++ * *v++;
+      *res3 += *mat33++ * *v++;
     }
+    res3++;
   }
 }
 
