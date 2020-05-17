@@ -157,43 +157,43 @@ uint8_t mask[] PROGMEM = {0x80, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC, 0xFE, 0xFF};
 
 void Unishox::append_bits(unsigned int code, int clen) {
 
-   byte cur_bit;
-   byte blen;
-   unsigned char a_byte;
+  byte cur_bit;
+  byte blen;
+  unsigned char a_byte;
 
-   if (state == SHX_STATE_2) {
-      // remove change state prefix
-      if ((code >> 9) == 0x1C) {
-         code <<= 7;
-         clen -= 7;
+  if (state == SHX_STATE_2) {
+    // remove change state prefix
+    if ((code >> 9) == 0x1C) {
+        code <<= 7;
+        clen -= 7;
+    }
+  }
+  while (clen > 0) {
+    cur_bit = ol % 8;
+    blen = (clen > 8 ? 8 : clen);
+    a_byte = (code >> 8) & pgm_read_word(&mask[blen - 1]);
+    a_byte >>= cur_bit;
+    if (blen + cur_bit > 8)
+      blen = (8 - cur_bit);
+    if (out) {                // if out == nullptr, then we are in dry-run mode
+      if (cur_bit == 0)
+        out[ol >> 3] = a_byte;
+      else
+        out[ol >> 3] |= a_byte;
+    }
+    code <<= blen;
+    ol += blen;
+    if ((out) && (0 == ol % 8)) {           // if out == nullptr, dry-run mode. We miss the escaping of characters in the length
+      // we completed a full byte
+      char last_c = out[(ol / 8) - 1];
+      if ((0 == last_c) || (ESCAPE_MARKER == last_c)) {
+        out[ol >> 3] = 1 + last_c;           // increment to 0x01 or 0x2B
+        out[(ol >>3) -1] = ESCAPE_MARKER;   // replace old value with marker
+        ol += 8;   // add one full byte
       }
-   }
-   while (clen > 0) {
-      cur_bit = ol % 8;
-      blen = (clen > 8 ? 8 : clen);
-      a_byte = (code >> 8) & pgm_read_word(&mask[blen - 1]);
-      a_byte >>= cur_bit;
-      if (blen + cur_bit > 8)
-        blen = (8 - cur_bit);
-      if (out) {                // if out == nullptr, then we are in dry-run mode
-        if (cur_bit == 0)
-          out[ol / 8] = a_byte;
-        else
-          out[ol / 8] |= a_byte;
-      }
-      code <<= blen;
-      ol += blen;
-      if ((out) && (0 == ol % 8)) {           // if out == nullptr, dry-run mode. We miss the escaping of characters in the length
-        // we completed a full byte
-        char last_c = out[(ol / 8) - 1];
-        if ((0 == last_c) || (ESCAPE_MARKER == last_c)) {
-          out[ol / 8] = 1 + last_c;           // increment to 0x01 or 0x2B
-          out[(ol / 8) -1] = ESCAPE_MARKER;   // replace old value with marker
-          ol += 8;   // add one full byte
-        }
-      }
-      clen -= blen;
-   }
+    }
+    clen -= blen;
+  }
 }
 
 // First five bits are code and Last three bits of codes represent length
@@ -357,19 +357,12 @@ int32_t Unishox::unishox_compress(const char *p_in, size_t p_len, char *p_out, s
       if (c_in == 0 && state == SHX_STATE_2)
         append_bits(ST2_SPC_CODE, ST2_SPC_CODE_LEN);       // space from Set2 ionstead of Set1
       else {
-        // ol = append_bits(out, ol, pgm_read_word(&c_95[c_in]), pgm_read_byte(&l_95[c_in]), state);  // original version with c/l in split arrays
         uint16_t cl = pgm_read_word(&cl_95[c_in]);
         append_bits(cl & 0xFFF0, cl & 0x000F);
       }
-    } else
-    // if (c_in == 13 && c_next == 10) {      // CRLF disabled
-    //   ol = append_bits(out, ol, CRLF_CODE, CRLF_CODE_LEN, state);     // CRLF
-    //   l++;
-    // } else
-    if (c_in == 10) {
+    } else if (c_in == 10) {
       append_bits(LF_CODE, LF_CODE_LEN);         // LF
-    } else
-    if (c_in == '\t') {
+    } else if (c_in == '\t') {
       append_bits(TAB_CODE, TAB_CODE_LEN);       // TAB
     } else {
       append_bits(BIN_CODE_TASMOTA, BIN_CODE_TASMOTA_LEN);       // Binary, we reuse the Unicode marker which 3 bits instead of 9
