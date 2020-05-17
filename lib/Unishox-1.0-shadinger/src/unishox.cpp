@@ -167,10 +167,6 @@ void Unishox::append_bits(unsigned int code, int clen) {
          code <<= 7;
          clen -= 7;
       }
-      //if (code == 14272 && clen == 10) {
-      //   code = 9084;
-      //   clen = 14;
-      //}
    }
    while (clen > 0) {
       cur_bit = ol % 8;

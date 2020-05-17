@@ -43,7 +43,7 @@ private:
   int32_t getNumFromBits(int32_t count);
 
   int32_t l;
-  int32_t ol;
+  uint32_t ol;
   int32_t bit_no;
   int32_t dstate;
   uint8_t state;
