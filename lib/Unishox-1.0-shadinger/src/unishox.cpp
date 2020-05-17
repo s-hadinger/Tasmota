@@ -155,7 +155,7 @@ uint8_t mask[] PROGMEM = {0x80, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC, 0xFE, 0xFF};
 
 
 
-int append_bits(char *out, size_t ol, unsigned int code, int clen, byte state) {
+void Unishox::append_bits(unsigned int code, int clen) {
 
    byte cur_bit;
    byte blen;
@@ -175,8 +175,6 @@ int append_bits(char *out, size_t ol, unsigned int code, int clen, byte state) {
    while (clen > 0) {
       cur_bit = ol % 8;
       blen = (clen > 8 ? 8 : clen);
-    //  a_byte = (code & pgm_read_word(&mask[blen - 1])) >> 8;
-    //  a_byte = (code & (pgm_read_word(&mask[blen - 1]) << 8)) >> 8;
       a_byte = (code >> 8) & pgm_read_word(&mask[blen - 1]);
       a_byte >>= cur_bit;
       if (blen + cur_bit > 8)
@@ -200,7 +198,6 @@ int append_bits(char *out, size_t ol, unsigned int code, int clen, byte state) {
       }
       clen -= blen;
    }
-   return ol;
 }
 
 // First five bits are code and Last three bits of codes represent length
@@ -220,9 +217,9 @@ void Unishox::encodeCount(int32_t count) {
     till += (1 << bit_len_i);
     if (count < till) {
       byte codes_i = pgm_read_byte(&codes[i]);
-      ol = append_bits(out, ol, (codes_i & 0xF8) << 8, codes_i & 0x07, 1);
+      append_bits((codes_i & 0xF8) << 8, codes_i & 0x07);
       // ol = append_bits(out, ol, (count - pgm_read_word(&adder[i])) << (16 - bit_len_i), bit_len_i, 1);
-      ol = append_bits(out, ol, (count - base) << (16 - bit_len_i), bit_len_i, 1);
+      append_bits((count - base) << (16 - bit_len_i), bit_len_i);
       return;
     }
     base = till;
@@ -252,9 +249,9 @@ bool Unishox::matchOccurance(void) {
     if (state == SHX_STATE_2 || is_all_upper) {
       is_all_upper = 0;
       state = SHX_STATE_1;
-      ol = append_bits(out, ol, BACK2_STATE1_CODE, BACK2_STATE1_CODE_LEN, state);
+      append_bits(BACK2_STATE1_CODE, BACK2_STATE1_CODE_LEN);
     }
-    ol = append_bits(out, ol, DICT_CODE, DICT_CODE_LEN, state);
+    append_bits(DICT_CODE, DICT_CODE_LEN);
     encodeCount(longest_len);
     encodeCount(longest_dist);
     l += (longest_len + NICE_LEN);
@@ -303,10 +300,10 @@ int32_t Unishox::unishox_compress(const char *p_in, size_t p_len, char *p_out, s
         if (state == SHX_STATE_2 || is_all_upper) {
           is_all_upper = 0;
           state = SHX_STATE_1;
-          ol = append_bits(out, ol, BACK2_STATE1_CODE, BACK2_STATE1_CODE_LEN, state);   // back to lower case and Set1
+          append_bits(BACK2_STATE1_CODE, BACK2_STATE1_CODE_LEN);   // back to lower case and Set1
         }
         // ol = append_bits(out, ol, RPT_CODE, RPT_CODE_LEN, 1);
-        ol = append_bits(out, ol, RPT_CODE_TASMOTA, RPT_CODE_TASMOTA_LEN, 1);     // reusing CRLF for RPT
+        append_bits(RPT_CODE_TASMOTA, RPT_CODE_TASMOTA_LEN);     // reusing CRLF for RPT
         encodeCount(rpt_count - 4);
         l += rpt_count;
         l--;
@@ -325,7 +322,7 @@ int32_t Unishox::unishox_compress(const char *p_in, size_t p_len, char *p_out, s
           (c_in >= '{' && c_in <= '~')) {
       } else {
         state = SHX_STATE_1;        // back to Set1 and lower case
-        ol = append_bits(out, ol, BACK2_STATE1_CODE, BACK2_STATE1_CODE_LEN, state);
+        append_bits(BACK2_STATE1_CODE, BACK2_STATE1_CODE_LEN);
       }
     }
 
@@ -335,7 +332,7 @@ int32_t Unishox::unishox_compress(const char *p_in, size_t p_len, char *p_out, s
     else {
       if (is_all_upper) {
         is_all_upper = 0;
-        ol = append_bits(out, ol, BACK2_STATE1_CODE, BACK2_STATE1_CODE_LEN, state);
+        append_bits(BACK2_STATE1_CODE, BACK2_STATE1_CODE_LEN);
       }
     }
 
@@ -350,23 +347,23 @@ int32_t Unishox::unishox_compress(const char *p_in, size_t p_len, char *p_out, s
             break;
         }
         if (ll == l-1) {
-          ol = append_bits(out, ol, ALL_UPPER_CODE, ALL_UPPER_CODE_LEN, state);   // CapsLock
+          append_bits(ALL_UPPER_CODE, ALL_UPPER_CODE_LEN);   // CapsLock
           is_all_upper = 1;
         }
       }
       if (state == SHX_STATE_1 && c_in >= '0' && c_in <= '9') {
-        ol = append_bits(out, ol, SW2_STATE2_CODE, SW2_STATE2_CODE_LEN, state);   // Switch to sticky Set2
+        append_bits(SW2_STATE2_CODE, SW2_STATE2_CODE_LEN);   // Switch to sticky Set2
         state = SHX_STATE_2;
       }
       c_in -= 32;
       if (is_all_upper && is_upper)
         c_in += 32;
       if (c_in == 0 && state == SHX_STATE_2)
-        ol = append_bits(out, ol, ST2_SPC_CODE, ST2_SPC_CODE_LEN, state);       // space from Set2 ionstead of Set1
+        append_bits(ST2_SPC_CODE, ST2_SPC_CODE_LEN);       // space from Set2 ionstead of Set1
       else {
         // ol = append_bits(out, ol, pgm_read_word(&c_95[c_in]), pgm_read_byte(&l_95[c_in]), state);  // original version with c/l in split arrays
         uint16_t cl = pgm_read_word(&cl_95[c_in]);
-        ol = append_bits(out, ol, cl & 0xFFF0, cl & 0x000F, state);
+        append_bits(cl & 0xFFF0, cl & 0x000F);
       }
     } else
     // if (c_in == 13 && c_next == 10) {      // CRLF disabled
@@ -374,12 +371,12 @@ int32_t Unishox::unishox_compress(const char *p_in, size_t p_len, char *p_out, s
     //   l++;
     // } else
     if (c_in == 10) {
-      ol = append_bits(out, ol, LF_CODE, LF_CODE_LEN, state);         // LF
+      append_bits(LF_CODE, LF_CODE_LEN);         // LF
     } else
     if (c_in == '\t') {
-      ol = append_bits(out, ol, TAB_CODE, TAB_CODE_LEN, state);       // TAB
+      append_bits(TAB_CODE, TAB_CODE_LEN);       // TAB
     } else {
-      ol = append_bits(out, ol, BIN_CODE_TASMOTA, BIN_CODE_TASMOTA_LEN, state);       // Binary, we reuse the Unicode marker which 3 bits instead of 9
+      append_bits(BIN_CODE_TASMOTA, BIN_CODE_TASMOTA_LEN);       // Binary, we reuse the Unicode marker which 3 bits instead of 9
       encodeCount((unsigned char) 255 - c_in);
     }
 
@@ -391,7 +388,8 @@ int32_t Unishox::unishox_compress(const char *p_in, size_t p_len, char *p_out, s
 
   bits = ol % 8;
   if (bits) {
-    ol = append_bits(out, ol, TERM_CODE, 8 - bits, 1);   // 0011 0111 1100 0000 TERM = 0011 0111 11
+    state = SHX_STATE_1;
+    append_bits(TERM_CODE, 8 - bits);   // 0011 0111 1100 0000 TERM = 0011 0111 11
   }
   return ol/8+(ol%8?1:0);
 }

@@ -32,7 +32,7 @@ public:
 
 private:
 
-  // int32_t append_bits(unsigned int code, int clen);
+  void append_bits(unsigned int code, int clen);
   void encodeCount(int32_t count);
   bool matchOccurance(void);
 
