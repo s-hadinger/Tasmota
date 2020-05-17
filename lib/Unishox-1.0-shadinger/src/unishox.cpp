@@ -277,15 +277,18 @@ int matchOccurance(const char *in, int len, int l, char *out, int *ol, byte *sta
 // Output:
 //   - if >= 0: size of the compressed buffer. The output buffer does not contain NULL bytes, and it is not NULL terminated
 //   - if < 0: an error occured, most certainly the output buffer was not large enough
-int32_t unishox_compress(const char *in, size_t len, char *out, size_t len_out) {
+int32_t Unishox::unishox_compress(const char *p_in, size_t p_len, char *p_out, size_t p_len_out) {
+  in = p_in;
+  len = p_len;
+  out = p_out;
+  len_out = p_len_out;
 
   char *ptr;
   byte bits;
-  byte state;
 
-  int l, ll, ol;
+  int ll;
   char c_in, c_next;
-  byte is_upper, is_all_upper;
+  byte is_upper;
 
   ol = 0;
   state = SHX_STATE_1;

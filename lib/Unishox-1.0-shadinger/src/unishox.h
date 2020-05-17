@@ -28,8 +28,11 @@ public:
   Unishox() {};
 
   int32_t unishox_decompress(const char *in, size_t len, char *out, size_t len_out);
+  int32_t unishox_compress(const char *in, size_t len, char *out, size_t len_out);
 
 private:
+
+  // int32_t append_bits(unsigned int code, int clen);
 
   int32_t getBitVal(void);
   int32_t getCodeIdx(const char *code_type);

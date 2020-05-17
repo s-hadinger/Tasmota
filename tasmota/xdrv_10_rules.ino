@@ -311,7 +311,7 @@ String GetRule(uint32_t idx) {
 // If out == nullptr, we are in dry-run mode, so don't keep rule in cache
 int32_t SetRule_compress(uint32_t idx, const char *in, size_t in_len, char *out, size_t out_len) {
   int32_t len_compressed;
-  len_compressed = unishox_compress(in, in_len, out, out_len);
+  len_compressed = compressor.unishox_compress(in, in_len, out, out_len);
 
   if (len_compressed >= 0) {                // negative means compression failed because of buffer too small, we leave the rule untouched
     // check if we need to store in cache
@@ -360,7 +360,7 @@ int32_t SetRule(uint32_t idx, const char *content, bool append = false) {
       int32_t len_compressed, len_uncompressed;
 
       len_uncompressed = strlen(Settings.rules[idx]);
-      len_compressed = unishox_compress(Settings.rules[idx], len_uncompressed, nullptr /* dry-run */, MAX_RULE_SIZE + 8);
+      len_compressed = compressor.unishox_compress(Settings.rules[idx], len_uncompressed, nullptr /* dry-run */, MAX_RULE_SIZE + 8);
       AddLog_P2(LOG_LEVEL_INFO, PSTR("RUL: Stored uncompressed, would compress from %d to %d (-%d%%)"), len_uncompressed, len_compressed, 100 - changeUIntScale(len_compressed, 0, len_uncompressed, 0, 100));
     }
 
