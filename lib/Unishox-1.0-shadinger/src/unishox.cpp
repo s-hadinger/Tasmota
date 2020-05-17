@@ -153,6 +153,8 @@ const uint16_t BIN_CODE_TASMOTA_LEN = 3;
 // uint16_t mask[] PROGMEM = {0x8000, 0xC000, 0xE000, 0xF000, 0xF800, 0xFC00, 0xFE00, 0xFF00};
 uint8_t mask[] PROGMEM = {0x80, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC, 0xFE, 0xFF};
 
+
+
 int append_bits(char *out, size_t ol, unsigned int code, int clen, byte state) {
 
    byte cur_bit;
@@ -480,13 +482,13 @@ int decodeRepeat(const char *in, int len, char *out, int ol, int *bit_no) {
   return ol;
 }
 
-int32_t unishox_decompress(const char *in, size_t len, char *out, size_t len_out) {
+int32_t Unishox::unishox_decompress(const char *p_in, size_t p_len, char *p_out, size_t p_len_out) {
+  in = p_in;
+  len = p_len;
+  out = p_out;
+  len_out = p_len_out;
 
-  int dstate;
-  int bit_no;
-  byte is_all_upper;
-
-  int ol = 0;
+  ol = 0;
   bit_no = 0;
   dstate = SHX_SET1;
   is_all_upper = 0;

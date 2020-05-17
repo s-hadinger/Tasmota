@@ -20,7 +20,29 @@
 #define unishox
 
 extern int32_t unishox_compress(const char *in, size_t len, char *out, size_t len_out);
-extern int32_t unishox_decompress(const char *in, size_t len, char *out, size_t len_out);
+//extern int32_t unishox_decompress(const char *in, size_t len, char *out, size_t len_out);
+
+class Unishox {
+
+public:
+  Unishox() {};
+
+  int32_t unishox_decompress(const char *in, size_t len, char *out, size_t len_out);
+
+private:
+  int32_t l;
+  int32_t ol;
+  int32_t bit_no;
+  int32_t dstate;
+  uint8_t state;
+  uint8_t is_all_upper;
+
+  // buffers
+  const char *  in;
+  size_t        len;
+  char *        out;
+  size_t        len_out;
+};
 
 #endif
 
