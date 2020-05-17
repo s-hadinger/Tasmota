@@ -30,6 +30,13 @@ public:
   int32_t unishox_decompress(const char *in, size_t len, char *out, size_t len_out);
 
 private:
+
+  int32_t getBitVal(void);
+  int32_t getCodeIdx(const char *code_type);
+  int32_t readCount(void);
+  void decodeRepeat(void);
+  int32_t getNumFromBits(int32_t count);
+
   int32_t l;
   int32_t ol;
   int32_t bit_no;

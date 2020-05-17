@@ -399,29 +399,29 @@ int32_t unishox_compress(const char *in, size_t len, char *out, size_t len_out) 
   return ol/8+(ol%8?1:0);
 }
 
-int getBitVal(const char *in, int bit_no, int count) {
+int32_t Unishox::getBitVal(void) {
   char c_in = in[bit_no >> 3];
   if ((bit_no >> 3) && (ESCAPE_MARKER == in[(bit_no >> 3) - 1])) {     // if previous byte is a marker, decrement
     c_in--;
   }
-  return (c_in & (0x80 >> (bit_no % 8)) ? 1 << count : 0);
+  return (c_in & (0x80 >> (bit_no % 8)) ? 1 : 0);
 }
 
 // Returns:
 // 0..11
 // or -1 if end of stream
-int getCodeIdx(char *code_type, const char *in, int len, int *bit_no_p) {
-  int code = 0;
-  int count = 0;
+int Unishox::getCodeIdx(const char *code_type) {
+  int32_t code = 0;
+  int32_t count = 0;
   do {
     // detect marker
-    if (ESCAPE_MARKER == in[*bit_no_p >> 3]) {
-      *bit_no_p += 8;      // skip marker
+    if (ESCAPE_MARKER == in[bit_no>> 3]) {
+      bit_no += 8;      // skip marker
     }
-    if (*bit_no_p >= len)
+    if (bit_no >= len)
       return -1;           // invalid state
-    code += getBitVal(in, *bit_no_p, count);
-    (*bit_no_p)++;
+    code += getBitVal() << count;
+    bit_no++;
     count++;
     uint8_t code_type_code = pgm_read_byte(&code_type[code]);
     if (code_type_code && (code_type_code & 0x07) == count) {
@@ -431,13 +431,13 @@ int getCodeIdx(char *code_type, const char *in, int len, int *bit_no_p) {
   return 1; // skip if code not found
 }
 
-int getNumFromBits(const char *in, int bit_no, int count) {
+int32_t Unishox::getNumFromBits(int32_t count) {
   int ret = 0;
   while (count--) {
     if (ESCAPE_MARKER == in[bit_no >> 3]) {
       bit_no += 8;      // skip marker
     }
-    ret += getBitVal(in, bit_no++, count);
+    ret += getBitVal() << count;
   }
   return ret;
 }
@@ -454,8 +454,8 @@ int getNumFromBits(const char *in, int bit_no, int count) {
 // uint16_t adder_read[] PROGMEM = {0, 32, 160, 672, 4768 };
 
 // Code size optimized, recalculate adder[] like in encodeCount
-int readCount(const char *in, int *bit_no_p, int len) {
-  int idx = getCodeIdx(us_hcode, in, len, bit_no_p);
+int32_t Unishox::readCount(void) {
+  int idx = getCodeIdx(us_hcode);
   if (idx >= 1) idx--;    // we skip v = 1 (code '0') since we no more accept 2 bits encoding
   if ((idx >= sizeof(bit_len)) || (idx < 0)) return 0;  // unsupported or end of stream
 
@@ -467,19 +467,17 @@ int readCount(const char *in, int *bit_no_p, int len) {
     bit_len_idx = pgm_read_byte(&bit_len[i]);
     till += (1 << bit_len_idx);
   }
-  int count = getNumFromBits(in, *bit_no_p, bit_len_idx) + base;
+  int count = getNumFromBits(bit_len_idx) + base;
 
-  (*bit_no_p) += bit_len_idx;
+  bit_no += bit_len_idx;
   return count;
 }
 
-int decodeRepeat(const char *in, int len, char *out, int ol, int *bit_no) {
-  int dict_len = readCount(in, bit_no, len) + NICE_LEN;
-  int dist = readCount(in, bit_no, len) + NICE_LEN - 1;
+void Unishox::decodeRepeat(void) {
+  int dict_len = readCount() + NICE_LEN;
+  int dist = readCount() + NICE_LEN - 1;
   memcpy(out + ol, out + ol - dist, dict_len);
   ol += dict_len;
-
-  return ol;
 }
 
 int32_t Unishox::unishox_decompress(const char *p_in, size_t p_len, char *p_out, size_t p_len_out) {
@@ -500,11 +498,11 @@ int32_t Unishox::unishox_decompress(const char *p_in, size_t p_len, char *p_out,
     char c = 0;
     byte is_upper = is_all_upper;
     int orig_bit_no = bit_no;
-    v = getCodeIdx(us_vcode, in, len, &bit_no);    // read vCode
+    v = getCodeIdx(us_vcode);    // read vCode
     if (v < 0) break;     // end of stream
     h = dstate;     // Set1 or Set2
     if (v == 0) {   // Switch which is common to Set1 and Set2, first entry
-      h = getCodeIdx(us_hcode, in, len, &bit_no);    // read hCode
+      h = getCodeIdx(us_hcode);    // read hCode
       if (h < 0) break;     // end of stream
       if (h == SHX_SET1) {          // target is Set1
          if (dstate == SHX_SET1) {  // Switch from Set1 to Set1 us UpperCase
@@ -512,10 +510,10 @@ int32_t Unishox::unishox_decompress(const char *p_in, size_t p_len, char *p_out,
               is_upper = is_all_upper = 0;
               continue;
             }
-            v = getCodeIdx(us_vcode, in, len, &bit_no);   // read again vCode
+            v = getCodeIdx(us_vcode);   // read again vCode
             if (v < 0) break;     // end of stream
             if (v == 0) {
-              h = getCodeIdx(us_hcode, in, len, &bit_no);  // read second hCode
+              h = getCodeIdx(us_hcode);  // read second hCode
               if (h < 0) break;     // end of stream
               if (h == SHX_SET1) {  // If double Switch Set1, the CapsLock
                 is_all_upper = 1;
@@ -534,23 +532,23 @@ int32_t Unishox::unishox_decompress(const char *p_in, size_t p_len, char *p_out,
          continue;
       }
       if (h != SHX_SET1) {    // all other Sets (why not else)
-        v = getCodeIdx(us_vcode, in, len, &bit_no);    // we changed set, now read vCode for char
+        v = getCodeIdx(us_vcode);    // we changed set, now read vCode for char
         if (v < 0) break;     // end of stream
       }
     }
 
     if (v == 0 && h == SHX_SET1A) {
       if (is_upper) {
-        out[ol++] = 255 - readCount(in, &bit_no, len);    // binary
+        out[ol++] = 255 - readCount();    // binary
       } else {
-        ol = decodeRepeat(in, len, out, ol, &bit_no);   // dist
+        decodeRepeat();   // dist
       }
       continue;
     }
 
     if (h == SHX_SET1 && v == 3) {
       // was Unicode, will do Binary instead
-      out[ol++] = 255 - readCount(in, &bit_no, len);    // binary
+      out[ol++] = 255 - readCount();    // binary
       continue;
     }
     if (h < 7 && v < 11)     // TODO: are these the actual limits? Not 11x7 ?
@@ -577,7 +575,7 @@ int32_t Unishox::unishox_decompress(const char *p_in, size_t p_len, char *p_out,
         if (9 == v) {           // was CRLF, now RPT
         //  out[ol++] = '\r';   // CRLF removed
         //  out[ol++] = '\n';
-          int count = readCount(in, &bit_no, len);
+          int count = readCount();
           count += 4;
           if (ol + count >= len_out) {
             return -1;        // overflow
