@@ -38,9 +38,11 @@ private:
 
   uint32_t getNextBit(void);
   int32_t getCodeIdx(const char *code_type);
-  int32_t readCount(void);
+  uint32_t readCount(void);
   void decodeRepeat(void);
   int32_t getNumFromBits(uint32_t count);
+
+  inline void writeOut(char c) { out[ol++] = c; }
 
   int32_t l;
   uint32_t ol;

@@ -397,7 +397,7 @@ uint32_t Unishox::getNextBit(void) {
 // Returns:
 // 0..11
 // or -1 if end of stream
-int Unishox::getCodeIdx(const char *code_type) {
+int32_t Unishox::getCodeIdx(const char *code_type) {
   int32_t code = 0;
   int32_t count = 0;
   do {
@@ -410,7 +410,7 @@ int Unishox::getCodeIdx(const char *code_type) {
       return code_type_code >> 3;
     }
   } while (count < 5);
-  return 1; // skip if code not found
+  return -1; // skip if code not found
 }
 
 int32_t Unishox::getNumFromBits(uint32_t count) {
@@ -433,8 +433,8 @@ int32_t Unishox::getNumFromBits(uint32_t count) {
 // uint16_t adder_read[] PROGMEM = {0, 32, 160, 672, 4768 };
 
 // Code size optimized, recalculate adder[] like in encodeCount
-int32_t Unishox::readCount(void) {
-  int idx = getCodeIdx(us_hcode);
+uint32_t Unishox::readCount(void) {
+  int32_t idx = getCodeIdx(us_hcode);
   if (idx >= 1) idx--;    // we skip v = 1 (code '0') since we no more accept 2 bits encoding
   if ((idx >= sizeof(bit_len)) || (idx < 0)) return 0;  // unsupported or end of stream
 
@@ -452,8 +452,8 @@ int32_t Unishox::readCount(void) {
 }
 
 void Unishox::decodeRepeat(void) {
-  int dict_len = readCount() + NICE_LEN;
-  int dist = readCount() + NICE_LEN - 1;
+  uint32_t dict_len = readCount() + NICE_LEN;
+  uint32_t dist = readCount() + NICE_LEN - 1;
   memcpy(out + ol, out + ol - dist, dict_len);
   ol += dict_len;
 }
@@ -473,7 +473,7 @@ int32_t Unishox::unishox_decompress(const char *p_in, size_t p_len, char *p_out,
   len <<= 3;    // *8, len in bits
   out[ol] = 0;
   while (bit_no < len) {
-    int h, v;
+    int32_t h, v;
     char c = 0;
     byte is_upper = is_all_upper;
     v = getCodeIdx(us_vcode);    // read vCode
@@ -539,22 +539,11 @@ int32_t Unishox::unishox_decompress(const char *p_in, size_t p_len, char *p_out,
         c = '\t';     // If UpperCase Space, change to TAB
       if (h == SHX_SET1B) {
         if (8 == v) {   // was LF or RPT, now only LF
-          // if (is_upper) { // rpt
-          //   int count = readCount(in, &bit_no, len);
-          //   count += 4;
-          //   char rpt_c = out[ol - 1];
-          //   while (count--)
-          //     out[ol++] = rpt_c;
-          // } else {
           out[ol++] = '\n';
-          // }
           continue;
         }
         if (9 == v) {           // was CRLF, now RPT
-        //  out[ol++] = '\r';   // CRLF removed
-        //  out[ol++] = '\n';
-          int count = readCount();
-          count += 4;
+          uint32_t count = readCount() + 4;
           if (ol + count >= len_out) {
             return -1;        // overflow
           }
@@ -576,5 +565,4 @@ int32_t Unishox::unishox_decompress(const char *p_in, size_t p_len, char *p_out,
   }
 
   return ol;
-
 }
