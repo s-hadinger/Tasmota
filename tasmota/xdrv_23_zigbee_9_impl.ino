@@ -415,7 +415,7 @@ void CmndZbSend(void) {
 
   // params
   static char delim[] = ", ";     // delimiters for parameters
-  uint16_t device = 0x0000;       // 0x0000 is local, so considered invalid
+  uint16_t device = BAD_SHORTADDR;       // 0x0000 is local, so considered invalid
   uint16_t groupaddr = 0x0000;    // group address
   uint8_t  endpoint = 0x00;       // 0x00 is invalid for the dst endpoint
   uint16_t manuf = 0x0000;        // Manuf Id in ZCL frame
@@ -432,7 +432,7 @@ void CmndZbSend(void) {
     device = zigbee_devices.parseDeviceParam(val_device.as<char*>());
     if (BAD_SHORTADDR == device) { ResponseCmndChar_P(PSTR("Invalid parameter")); return; }
   }
-  if (0x0000 == device) {     // if not found, check if we have a group
+  if (BAD_SHORTADDR == device) {     // if not found, check if we have a group
     const JsonVariant &val_group = getCaseInsensitive(json, PSTR("Group"));
     if (nullptr != &val_group) {
       groupaddr = strToUInt(val_group);
@@ -953,7 +953,7 @@ void CmndZbRead(void) {
 
   if ((0 == endpoint) && (device)) {    // try to compute the endpoint
     endpoint = zigbee_devices.findFirstEndpoint(device);
-    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZbSend: guessing endpoint 0x%02X"), endpoint);
+    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZbRead: guessing endpoint 0x%02X"), endpoint);
   }
   if (BAD_SHORTADDR == device) {
     endpoint = 0xFF;    // endpoint not used for group addresses
