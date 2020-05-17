@@ -33,6 +33,8 @@ public:
 private:
 
   // int32_t append_bits(unsigned int code, int clen);
+  void encodeCount(int32_t count);
+  bool matchOccurance(void);
 
   int32_t getBitVal(void);
   int32_t getCodeIdx(const char *code_type);

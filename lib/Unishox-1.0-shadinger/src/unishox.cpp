@@ -212,7 +212,7 @@ byte codes[] PROGMEM     = { 0x82, 0xC3, 0xE5, 0xED, 0xF5 };
 byte bit_len[] PROGMEM   = {    5,    7,    9,   12,   16 };
 // uint16_t adder[7] PROGMEM = {    0,   32,  160,  672, 4768 };  // no more used
 
-int encodeCount(char *out, int ol, int count) {
+void Unishox::encodeCount(int32_t count) {
   int till = 0;
   int base = 0;
   for (int i = 0; i < sizeof(bit_len); i++) {
@@ -223,14 +223,14 @@ int encodeCount(char *out, int ol, int count) {
       ol = append_bits(out, ol, (codes_i & 0xF8) << 8, codes_i & 0x07, 1);
       // ol = append_bits(out, ol, (count - pgm_read_word(&adder[i])) << (16 - bit_len_i), bit_len_i, 1);
       ol = append_bits(out, ol, (count - base) << (16 - bit_len_i), bit_len_i, 1);
-      return ol;
+      return;
     }
     base = till;
   }
-  return ol;
+  return;
 }
 
-int matchOccurance(const char *in, int len, int l, char *out, int *ol, byte *state, byte *is_all_upper) {
+bool Unishox::matchOccurance(void) {
   int j, k;
   int longest_dist = 0;
   int longest_len = 0;
@@ -239,10 +239,6 @@ int matchOccurance(const char *in, int len, int l, char *out, int *ol, byte *sta
       if (in[k] != in[j + k - l])
         break;
     }
-    // while ((((unsigned char) in[k]) >> 6) == 2)
-    //   k--; // Skip partial UTF-8 matches
-    //if ((in[k - 1] >> 3) == 0x1E || (in[k - 1] >> 4) == 0x0E || (in[k - 1] >> 5) == 0x06)
-    //  k--;
     if (k - l > NICE_LEN - 1) {
       int match_len = k - l - NICE_LEN;
       int match_dist = l - j - NICE_LEN + 1;
@@ -253,19 +249,19 @@ int matchOccurance(const char *in, int len, int l, char *out, int *ol, byte *sta
     }
   }
   if (longest_len) {
-    if (*state == SHX_STATE_2 || *is_all_upper) {
-      *is_all_upper = 0;
-      *state = SHX_STATE_1;
-      *ol = append_bits(out, *ol, BACK2_STATE1_CODE, BACK2_STATE1_CODE_LEN, *state);
+    if (state == SHX_STATE_2 || is_all_upper) {
+      is_all_upper = 0;
+      state = SHX_STATE_1;
+      ol = append_bits(out, ol, BACK2_STATE1_CODE, BACK2_STATE1_CODE_LEN, state);
     }
-    *ol = append_bits(out, *ol, DICT_CODE, DICT_CODE_LEN, 1);
-    *ol = encodeCount(out, *ol, longest_len);
-    *ol = encodeCount(out, *ol, longest_dist);
+    ol = append_bits(out, ol, DICT_CODE, DICT_CODE_LEN, state);
+    encodeCount(longest_len);
+    encodeCount(longest_dist);
     l += (longest_len + NICE_LEN);
     l--;
-    return l;
+    return true;
   }
-  return -l;
+  return false;
 }
 
 // Compress a buffer.
@@ -311,7 +307,7 @@ int32_t Unishox::unishox_compress(const char *p_in, size_t p_len, char *p_out, s
         }
         // ol = append_bits(out, ol, RPT_CODE, RPT_CODE_LEN, 1);
         ol = append_bits(out, ol, RPT_CODE_TASMOTA, RPT_CODE_TASMOTA_LEN, 1);     // reusing CRLF for RPT
-        ol = encodeCount(out, ol, rpt_count - 4);
+        encodeCount(rpt_count - 4);
         l += rpt_count;
         l--;
         continue;
@@ -319,11 +315,9 @@ int32_t Unishox::unishox_compress(const char *p_in, size_t p_len, char *p_out, s
     }
 
     if (l < (len - NICE_LEN + 1)) {
-          l = matchOccurance(in, len, l, out, &ol, &state, &is_all_upper);
-          if (l > 0) {
-            continue;
-          }
-          l = -l;
+      if (matchOccurance()) {
+        continue;
+      }
     }
     if (state == SHX_STATE_2) {     // if Set2
       if ((c_in >= ' ' && c_in <= '@') ||
@@ -386,7 +380,7 @@ int32_t Unishox::unishox_compress(const char *p_in, size_t p_len, char *p_out, s
       ol = append_bits(out, ol, TAB_CODE, TAB_CODE_LEN, state);       // TAB
     } else {
       ol = append_bits(out, ol, BIN_CODE_TASMOTA, BIN_CODE_TASMOTA_LEN, state);       // Binary, we reuse the Unicode marker which 3 bits instead of 9
-      ol = encodeCount(out, ol, (unsigned char) 255 - c_in);
+      encodeCount((unsigned char) 255 - c_in);
     }
 
     // check that we have some headroom in the output buffer
