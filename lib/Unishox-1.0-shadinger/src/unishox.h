@@ -36,15 +36,17 @@ private:
   void encodeCount(int32_t count);
   bool matchOccurance(void);
 
-  int32_t getBitVal(void);
+  uint32_t getNextBit(void);
   int32_t getCodeIdx(const char *code_type);
   int32_t readCount(void);
   void decodeRepeat(void);
-  int32_t getNumFromBits(int32_t count);
+  int32_t getNumFromBits(uint32_t count);
 
   int32_t l;
   uint32_t ol;
   int32_t bit_no;
+  uint32_t byte_no;
+  unsigned char byte_in;
   int32_t dstate;
   uint8_t state;
   uint8_t is_all_upper;

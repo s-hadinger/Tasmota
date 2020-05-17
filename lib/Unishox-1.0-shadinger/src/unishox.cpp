@@ -383,12 +383,15 @@ int32_t Unishox::unishox_compress(const char *p_in, size_t p_len, char *p_out, s
   return ol/8+(ol%8?1:0);
 }
 
-int32_t Unishox::getBitVal(void) {
-  char c_in = in[bit_no >> 3];
-  if ((bit_no >> 3) && (ESCAPE_MARKER == in[(bit_no >> 3) - 1])) {     // if previous byte is a marker, decrement
-    c_in--;
+uint32_t Unishox::getNextBit(void) {
+  if (8 == bit_no) {
+    byte_in = in[byte_no++];
+    if (ESCAPE_MARKER == byte_in) {
+      byte_in = in[byte_no++] - 1;
+    }
+    bit_no = 0;
   }
-  return (c_in & (0x80 >> (bit_no % 8)) ? 1 : 0);
+  return byte_in & (0x80 >> bit_no++) ? 1 : 0;
 }
 
 // Returns:
@@ -398,14 +401,9 @@ int Unishox::getCodeIdx(const char *code_type) {
   int32_t code = 0;
   int32_t count = 0;
   do {
-    // detect marker
-    if (ESCAPE_MARKER == in[bit_no>> 3]) {
-      bit_no += 8;      // skip marker
-    }
     if (bit_no >= len)
       return -1;           // invalid state
-    code += getBitVal() << count;
-    bit_no++;
+    code += getNextBit() << count;
     count++;
     uint8_t code_type_code = pgm_read_byte(&code_type[code]);
     if (code_type_code && (code_type_code & 0x07) == count) {
@@ -415,13 +413,10 @@ int Unishox::getCodeIdx(const char *code_type) {
   return 1; // skip if code not found
 }
 
-int32_t Unishox::getNumFromBits(int32_t count) {
+int32_t Unishox::getNumFromBits(uint32_t count) {
   int ret = 0;
   while (count--) {
-    if (ESCAPE_MARKER == in[bit_no >> 3]) {
-      bit_no += 8;      // skip marker
-    }
-    ret += getBitVal() << count;
+    ret += getNextBit() << count;
   }
   return ret;
 }
@@ -453,7 +448,6 @@ int32_t Unishox::readCount(void) {
   }
   int count = getNumFromBits(bit_len_idx) + base;
 
-  bit_no += bit_len_idx;
   return count;
 }
 
@@ -471,7 +465,8 @@ int32_t Unishox::unishox_decompress(const char *p_in, size_t p_len, char *p_out,
   len_out = p_len_out;
 
   ol = 0;
-  bit_no = 0;
+  bit_no = 8;   // force load of first byte, pretending we expired the last one
+  byte_no = 0;
   dstate = SHX_SET1;
   is_all_upper = 0;
 
@@ -481,7 +476,6 @@ int32_t Unishox::unishox_decompress(const char *p_in, size_t p_len, char *p_out,
     int h, v;
     char c = 0;
     byte is_upper = is_all_upper;
-    int orig_bit_no = bit_no;
     v = getCodeIdx(us_vcode);    // read vCode
     if (v < 0) break;     // end of stream
     h = dstate;     // Set1 or Set2
