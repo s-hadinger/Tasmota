@@ -208,7 +208,7 @@ byte bit_len[] PROGMEM   = {    5,    7,    9,   12,   16 };
 void Unishox::encodeCount(int32_t count) {
   int till = 0;
   int base = 0;
-  for (int i = 0; i < sizeof(bit_len); i++) {
+  for (uint32_t i = 0; i < sizeof(bit_len); i++) {
     uint32_t bit_len_i = pgm_read_byte(&bit_len[i]);
     till += (1 << bit_len_i);
     if (count < till) {
@@ -224,17 +224,17 @@ void Unishox::encodeCount(int32_t count) {
 }
 
 bool Unishox::matchOccurance(void) {
-  int j, k;
-  int longest_dist = 0;
-  int longest_len = 0;
+  int32_t j, k;
+  uint32_t longest_dist = 0;
+  uint32_t longest_len = 0;
   for (j = l - NICE_LEN; j >= 0; j--) {
     for (k = l; k < len && j + k - l < l; k++) {
       if (in[k] != in[j + k - l])
         break;
     }
     if (k - l > NICE_LEN - 1) {
-      int match_len = k - l - NICE_LEN;
-      int match_dist = l - j - NICE_LEN + 1;
+      uint32_t match_len = k - l - NICE_LEN;
+      uint32_t match_dist = l - j - NICE_LEN + 1;
       if (match_len > longest_len) {
         longest_len = match_len;
         longest_dist = match_dist;
@@ -250,8 +250,7 @@ bool Unishox::matchOccurance(void) {
     append_bits(DICT_CODE, DICT_CODE_LEN);
     encodeCount(longest_len);
     encodeCount(longest_dist);
-    l += (longest_len + NICE_LEN);
-    l--;
+    l += longest_len + NICE_LEN - 1;
     return true;
   }
   return false;
@@ -301,8 +300,7 @@ int32_t Unishox::unishox_compress(const char *p_in, size_t p_len, char *p_out, s
         // ol = append_bits(out, ol, RPT_CODE, RPT_CODE_LEN, 1);
         append_bits(RPT_CODE_TASMOTA, RPT_CODE_TASMOTA_LEN);     // reusing CRLF for RPT
         encodeCount(rpt_count - 4);
-        l += rpt_count;
-        l--;
+        l += rpt_count - 1;
         continue;
       }
     }
