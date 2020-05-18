@@ -37,7 +37,7 @@ private:
   bool matchOccurance(void);
 
   uint32_t getNextBit(void);
-  int32_t getCodeIdx(const char *code_type);
+  int32_t getCodeIdx(const uint8_t *code_type);
   uint32_t readCount(void);
   void decodeRepeat(void);
   int32_t getNumFromBits(uint32_t count);

@@ -392,24 +392,164 @@ uint32_t Unishox::getNextBit(void) {
   return byte_in & (0x80 >> bit_no++) ? 1 : 0;
 }
 
+// Set up a small state machine:
+// For each step, read the next bit and act as follows:
+// 8-bit + 8-bits
+// First  byte: if bit is 0, either goto next step or output value (if MSB 1)
+// Second byte: if bit is 1, either goto next step or output value (if MSB 1)
+
+static const uint8_t GOTO = 0x10;
+static const uint8_t READ_BIT = 0x80;
+static const uint8_t BIT_1    = 0x40;
+static const uint8_t BIT_0    = 0x00;
+
+static const uint8_t unishox_h[] PROGMEM = {
+  // step 0
+  READ_BIT | BIT_0 | 1,   // 0 -> 1
+  // step 1 - 1x
+  READ_BIT | BIT_0 | 0,   // 10 -> 0
+  // step 2 - 11x
+  READ_BIT | BIT_0 | 2,   // 110 -> 2
+  // step 3 - 111x
+  READ_BIT | BIT_1 | GOTO + 6,
+  // step 4 - 1110x
+  READ_BIT | BIT_0 | 3,   // 11100 -> 3
+  // step 5 - 11101
+             BIT_1 | 4,   // 11101 -> 4
+  // step 6 - 1111x
+  READ_BIT | BIT_0 | 5,   // 11110 -> 5
+  // step 7 - 11111
+             BIT_1 | 6    // 11111 -> 6
+};
+
+static const uint8_t unishox_v[] PROGMEM = {
+  // step 0
+  READ_BIT | BIT_1 | GOTO + 4,    // 1x
+  // step 1 - 0x
+  READ_BIT | BIT_0 | 0,           // 00 - 0
+  // step 2 - 01x
+  READ_BIT | BIT_0 | 1,           // 010 - 1
+  // step 3 - 011
+             BIT_1 | 2,           // 011 - 2
+  // step 4 - 1x
+  READ_BIT | BIT_1 | GOTO + 8,    // 11x
+  // step 5 - 10x
+  READ_BIT | BIT_0 | 3,           // 100 - 3
+  // step 6 - 101x
+  READ_BIT | BIT_0 | 4,           // 1010 - 4
+  // step 7 - 1011
+             BIT_1 | 5,           // 1011 - 5
+  // step 8 - 11x
+  READ_BIT | BIT_1 | GOTO + 11,   // 111x
+  // step 9 - 110x
+  READ_BIT | BIT_0 | 6,           // 1100 - 6
+  // step 10 - 1101
+             BIT_1 | 7,           // 1101 - 7
+  // step 11 - 111x
+  READ_BIT | BIT_0 | 8,           // 1110 - 8
+  // step 12 - 1111x
+  READ_BIT | BIT_0 | 9,           // 11110 - 9
+  // step 13 - 11111
+             BIT_1 | 10           // 11111 - 10
+};
+
+int32_t Unishox::getCodeIdx(const uint8_t *codes) {
+  uint32_t step = 0;
+  uint8_t  cmd;
+  uint32_t bit;
+
+  while (true) {
+    cmd = pgm_read_byte(&codes[step]);
+    if (cmd & READ_BIT) { bit = getNextBit(); }
+    // does the bit match the command
+    bool match = (cmd & BIT_1) ? bit : !bit;
+    if (match) {
+      if (cmd & GOTO) {
+        step = cmd & 0x0F;    // goto
+      } else {
+        return cmd & 0x0F;    // we found the code
+      }
+    } else {
+      step++;
+    }
+  }
+}
+
+
+// static const uint8_t unishx_h[] PROGMEM = {
+//   // step 0
+//   1 /* 0 */,      GOTO + 1,
+//   // step 1 - 1x
+//   0 /* 10 */,     GOTO + 2,
+//   // step 2 - 11x
+//   2 /* 110 */,    GOTO + 3,
+//   // step 3 - 111x
+//   GOTO 4 /* 1110x */, GOTO + 5 /* 1111x */,
+//   // step 4 - 1110x
+//   3 /* 11100 */, 4 /* 11101 */,
+//   // step 5 - 1111x
+//   5 /* 11110 */, 6 /* 11111 */
+// };
+
+// int32_t Unishox::getHCodeIdx(void) {
+//   if (0 == getNextSeqNumber()) return 1;      // 0      - 1x
+//   if (1 == getNextSeqNumber()) return 0;      // 10     - 11x
+//   if (0 == getNextSeqNumber()) return 2;      // 110    - 111x
+//   uint32_t v = getNextSeqNumber() << 1 | getNextSeqNumber();
+//   if (0 == v) return 3;
+//   if (1 == v) return 4;
+//   if (2 == v) return 5;
+//   return 6;
+// }
+
+// int32_t Unishox::getVCodeIdx(void) {
+//   uint32_t v = getNextSeqNumber() << 1 | getNextSeqNumber();
+//   if (0 == v) return 0;                     // 00
+//   if (1 == v) {                             // 01x
+//     if (0 == getNextSeqNumber()) return 1;  // 010
+//     return 2;                               // 011
+//   }
+//   if (2 == v)  {                            // 10x
+//     if (0 == getNextSeqNumber()) return 3;  // 100      - 101x
+//     if (0 == getNextSeqNumber()) return 4;  // 1010
+//     return 5;                               // 1011
+//   }
+//   // v == 3                                 // 11x
+//   if (0 == getNextSeqNumber()) {
+
+//   }
+
+
+
+
+//   if (0 == getNextSeqNumber()) return 1;      // 0      - 1x
+//   if (1 == getNextSeqNumber()) return 0;      // 10     - 11x
+//   if (0 == getNextSeqNumber()) return 2;      // 110    - 111x
+//   uint32_t v = getNextSeqNumber() << 1 | getNextSeqNumber();
+//   if (0 == v) return 3;
+//   if (1 == v) return 4;
+//   if (2 == v) return 5;
+//   return 6;
+// }
+
 // Returns:
 // 0..11
 // or -1 if end of stream
-int32_t Unishox::getCodeIdx(const char *code_type) {
-  int32_t code = 0;
-  int32_t count = 0;
-  do {
-    if (bit_no >= len)
-      return -1;           // invalid state
-    code += getNextBit() << count;
-    count++;
-    uint8_t code_type_code = pgm_read_byte(&code_type[code]);
-    if (code_type_code && (code_type_code & 0x07) == count) {
-      return code_type_code >> 3;
-    }
-  } while (count < 5);
-  return -1; // skip if code not found
-}
+// int32_t Unishox::getCodeIdx_old(const char *code_type) {
+//   int32_t code = 0;
+//   int32_t count = 0;
+//   do {
+//     if (bit_no >= len)
+//       return -1;           // invalid state
+//     code += getNextBit() << count;
+//     count++;
+//     uint8_t code_type_code = pgm_read_byte(&code_type[code]);
+//     if (code_type_code && (code_type_code & 0x07) == count) {
+//       return code_type_code >> 3;
+//     }
+//   } while (count < 5);
+//   return -1; // skip if code not found
+// }
 
 int32_t Unishox::getNumFromBits(uint32_t count) {
   int ret = 0;
@@ -432,7 +572,7 @@ int32_t Unishox::getNumFromBits(uint32_t count) {
 
 // Code size optimized, recalculate adder[] like in encodeCount
 uint32_t Unishox::readCount(void) {
-  int32_t idx = getCodeIdx(us_hcode);
+  int32_t idx = getCodeIdx(unishox_h);
   if (idx >= 1) idx--;    // we skip v = 1 (code '0') since we no more accept 2 bits encoding
   if ((idx >= sizeof(bit_len)) || (idx < 0)) return 0;  // unsupported or end of stream
 
@@ -474,11 +614,11 @@ int32_t Unishox::unishox_decompress(const char *p_in, size_t p_len, char *p_out,
     int32_t h, v;
     char c = 0;
     byte is_upper = is_all_upper;
-    v = getCodeIdx(us_vcode);    // read vCode
+    v = getCodeIdx(unishox_v);    // read vCode
     if (v < 0) break;     // end of stream
     h = dstate;     // Set1 or Set2
     if (v == 0) {   // Switch which is common to Set1 and Set2, first entry
-      h = getCodeIdx(us_hcode);    // read hCode
+      h = getCodeIdx(unishox_h);    // read hCode
       if (h < 0) break;     // end of stream
       if (h == SHX_SET1) {          // target is Set1
          if (dstate == SHX_SET1) {  // Switch from Set1 to Set1 us UpperCase
@@ -486,10 +626,10 @@ int32_t Unishox::unishox_decompress(const char *p_in, size_t p_len, char *p_out,
               is_upper = is_all_upper = 0;
               continue;
             }
-            v = getCodeIdx(us_vcode);   // read again vCode
+            v = getCodeIdx(unishox_v);   // read again vCode
             if (v < 0) break;     // end of stream
             if (v == 0) {
-              h = getCodeIdx(us_hcode);  // read second hCode
+              h = getCodeIdx(unishox_h);  // read second hCode
               if (h < 0) break;     // end of stream
               if (h == SHX_SET1) {  // If double Switch Set1, the CapsLock
                 is_all_upper = 1;
@@ -508,7 +648,7 @@ int32_t Unishox::unishox_decompress(const char *p_in, size_t p_len, char *p_out,
          continue;
       }
       if (h != SHX_SET1) {    // all other Sets (why not else)
-        v = getCodeIdx(us_vcode);    // we changed set, now read vCode for char
+        v = getCodeIdx(unishox_v);    // we changed set, now read vCode for char
         if (v < 0) break;     // end of stream
       }
     }
