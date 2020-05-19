@@ -1,7 +1,16 @@
 ## Unreleased (development)
 
+### 8.3.1.1 20200518
+
+## Released
+
+### 8.3.1 20200518
+
+- Release Fred
+
 ### 8.3.0.2 20200517
 
+- Change Hass discovery from using template name to new Device name (#8462)
 - Add command ``DeviceName`` defaults to FriendlyName1 and replaces FriendlyName1 in GUI
 
 ### 8.3.0.1 20200514
