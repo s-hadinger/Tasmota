@@ -69,9 +69,12 @@ uint32_t EncodeLightId(uint8_t relay_id);
 uint32_t DecodeLightId(uint32_t hue_id);
 
 #ifdef USE_SCRIPT_COMPRESSION
-#include <unishox.h>
+// #include <unishox.h>
 
-Unishox compressor;   // singleton
+// Unishox compressor;   // singleton
+#include <unishox_scripter.h>
+
+Unishox_scripter compressor;   // singleton
 #define SCRIPT_COMPRESS compressor.unishox_compress
 #define SCRIPT_DECOMPRESS compressor.unishox_decompress
 #ifndef UNISHOXRSIZE

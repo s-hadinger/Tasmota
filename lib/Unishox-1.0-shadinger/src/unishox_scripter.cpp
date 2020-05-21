@@ -44,6 +44,9 @@
  *
  */
 
+// Specific version for scripter, swaps LF and BIN
+// LF are very frequent is scripts and takes 3 bits instead of 9, but unicode characters now takes 6 bits more to encode
+
 #include <time.h>
 #include <stdio.h>
 #include <string.h>
@@ -52,7 +55,7 @@
 #include <stdint.h>
 
 #include <pgmspace.h>
-#include "unishox.h"
+#include "unishox_scripter.h"
 
 typedef unsigned char byte;
 // we squeeze both c_95[] and l_95[] in a sinle array.
@@ -125,8 +128,15 @@ static const uint16_t BACK_FROM_UNI_CODE = 0xFE00;
 static const uint16_t BACK_FROM_UNI_CODE_LEN = 8;
 // const uint16_t CRLF_CODE = 0x3780;
 // const uint16_t CRLF_CODE_LEN = 10;
-static const uint16_t LF_CODE = 0x3700;
-static const uint16_t LF_CODE_LEN = 9;
+// static const uint16_t LF_CODE = 0x3700;
+// static const uint16_t LF_CODE_LEN = 9;
+// invert BIN and LF
+static const uint16_t LF_CODE = 0x8000;
+static const uint16_t LF_CODE_LEN = 3;
+static const uint16_t BIN_CODE_TASMOTA = 0x3700;
+static const uint16_t BIN_CODE_TASMOTA_LEN = 9;
+// static const uint16_t BIN_CODE_TASMOTA = 0x8000;
+// static const uint16_t BIN_CODE_TASMOTA_LEN = 3;
 static const uint16_t TAB_CODE = 0x2400;
 static const uint16_t TAB_CODE_LEN = 7;
 // const uint16_t UNI_CODE = 0x8000;        // Unicode disabled
@@ -143,8 +153,6 @@ static const uint16_t SW2_STATE2_CODE = 0x3800;
 static const uint16_t SW2_STATE2_CODE_LEN = 7;
 static const uint16_t ST2_SPC_CODE = 0x3B80;
 static const uint16_t ST2_SPC_CODE_LEN = 11;
-static const uint16_t BIN_CODE_TASMOTA = 0x8000;
-static const uint16_t BIN_CODE_TASMOTA_LEN = 3;
 // const uint16_t BIN_CODE = 0x2000;
 // const uint16_t BIN_CODE_LEN = 9;
 
@@ -155,7 +163,7 @@ static const uint8_t mask[] PROGMEM = {0x80, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC, 0xFE,
 
 
 
-void Unishox::append_bits(unsigned int code, int clen) {
+void Unishox_scripter::append_bits(unsigned int code, int clen) {
 
   byte cur_bit;
   byte blen;
@@ -205,7 +213,7 @@ byte codes[] PROGMEM     = { 0x82, 0xC3, 0xE5, 0xED, 0xF5 };
 byte bit_len[] PROGMEM   = {    5,    7,    9,   12,   16 };
 // uint16_t adder[7] PROGMEM = {    0,   32,  160,  672, 4768 };  // no more used
 
-void Unishox::encodeCount(int32_t count) {
+void Unishox_scripter::encodeCount(int32_t count) {
   int till = 0;
   int base = 0;
   for (uint32_t i = 0; i < sizeof(bit_len); i++) {
@@ -223,7 +231,7 @@ void Unishox::encodeCount(int32_t count) {
   return;
 }
 
-bool Unishox::matchOccurance(void) {
+bool Unishox_scripter::matchOccurance(void) {
   int32_t j, k;
   uint32_t longest_dist = 0;
   uint32_t longest_len = 0;
@@ -265,7 +273,7 @@ bool Unishox::matchOccurance(void) {
 // Output:
 //   - if >= 0: size of the compressed buffer. The output buffer does not contain NULL bytes, and it is not NULL terminated
 //   - if < 0: an error occured, most certainly the output buffer was not large enough
-int32_t Unishox::unishox_compress(const char *p_in, size_t p_len, char *p_out, size_t p_len_out) {
+int32_t Unishox_scripter::unishox_compress(const char *p_in, size_t p_len, char *p_out, size_t p_len_out) {
   in = p_in;
   len = p_len;
   out = p_out;
@@ -381,7 +389,7 @@ int32_t Unishox::unishox_compress(const char *p_in, size_t p_len, char *p_out, s
   return ol/8+(ol%8?1:0);
 }
 
-uint32_t Unishox::getNextBit(void) {
+uint32_t Unishox_scripter::getNextBit(void) {
   if (8 == bit_no) {
     byte_in = in[byte_no++];
     if (ESCAPE_MARKER == byte_in) {
@@ -395,7 +403,7 @@ uint32_t Unishox::getNextBit(void) {
 // Returns:
 // 0..11
 // or -1 if end of stream
-int32_t Unishox::getCodeIdx(const char *code_type) {
+int32_t Unishox_scripter::getCodeIdx(const char *code_type) {
   int32_t code = 0;
   int32_t count = 0;
   do {
@@ -411,7 +419,7 @@ int32_t Unishox::getCodeIdx(const char *code_type) {
   return -1; // skip if code not found
 }
 
-int32_t Unishox::getNumFromBits(uint32_t count) {
+int32_t Unishox_scripter::getNumFromBits(uint32_t count) {
   int ret = 0;
   while (count--) {
     ret += getNextBit() << count;
@@ -431,7 +439,7 @@ int32_t Unishox::getNumFromBits(uint32_t count) {
 // uint16_t adder_read[] PROGMEM = {0, 32, 160, 672, 4768 };
 
 // Code size optimized, recalculate adder[] like in encodeCount
-uint32_t Unishox::readCount(void) {
+uint32_t Unishox_scripter::readCount(void) {
   int32_t idx = getCodeIdx(us_hcode);
   if ((1 == idx) || (idx >= sizeof(bit_len)) || (idx < 0)) return 0;  // unsupported or end of stream
   if (idx >= 1) idx--;    // we skip v = 1 (code '0') since we no more accept 2 bits encoding
@@ -449,7 +457,7 @@ uint32_t Unishox::readCount(void) {
   return count;
 }
 
-void Unishox::decodeRepeat(void) {
+void Unishox_scripter::decodeRepeat(void) {
   uint32_t dict_len = readCount() + NICE_LEN;
   uint32_t dist = readCount() + NICE_LEN - 1;
   if (ol + dict_len < len_out) {
@@ -458,7 +466,7 @@ void Unishox::decodeRepeat(void) {
   }
 }
 
-int32_t Unishox::unishox_decompress(const char *p_in, size_t p_len, char *p_out, size_t p_len_out) {
+int32_t Unishox_scripter::unishox_decompress(const char *p_in, size_t p_len, char *p_out, size_t p_len_out) {
   in = p_in;
   len = p_len;
   out = p_out;
@@ -526,7 +534,8 @@ int32_t Unishox::unishox_decompress(const char *p_in, size_t p_len, char *p_out,
 
     if (h == SHX_SET1 && v == 3) {
       // was Unicode, will do Binary instead
-      out[ol++] = 255 - readCount();    // binary
+      // out[ol++] = 255 - readCount();    // binary
+      out[ol++] = '\n';       // LF
       continue;
     }
     if (h < 7 && v < 11)     // TODO: are these the actual limits? Not 11x7 ?
@@ -538,8 +547,9 @@ int32_t Unishox::unishox_decompress(const char *p_in, size_t p_len, char *p_out,
       if (is_upper && dstate == SHX_SET1 && v == 1)
         c = '\t';     // If UpperCase Space, change to TAB
       if (h == SHX_SET1B) {
-        if (8 == v) {   // was LF or RPT, now only LF
-          out[ol++] = '\n';
+        if (8 == v) {   // was LF or RPT, now only BIN
+          out[ol++] = 255 - readCount();    // binary
+          // out[ol++] = '\n';
           continue;
         }
         if (9 == v) {           // was CRLF, now RPT
