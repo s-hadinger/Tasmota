@@ -256,7 +256,7 @@ int32_t Z_Devices::findEndpointInVector(const std::vector<T>  & vecOfElements, u
 // entry with same shortaddr or longaddr exists.
 //
 Z_Device & Z_Devices::createDeviceEntry(uint16_t shortaddr, uint64_t longaddr) {
-  if (!shortaddr && !longaddr) { return *(Z_Device*) nullptr; }      // it is not legal to create an enrty with both short/long addr null
+  if ((BAD_SHORTADDR == shortaddr) && !longaddr) { return *(Z_Device*) nullptr; }      // it is not legal to create this entry
   //Z_Device* device_alloc = (Z_Device*) malloc(sizeof(Z_Device));
   Z_Device* device_alloc = new Z_Device{
                       longaddr,

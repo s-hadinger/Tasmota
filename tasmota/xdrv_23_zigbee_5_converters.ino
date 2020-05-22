@@ -168,6 +168,7 @@ public:
   static void generateAttributeName(const JsonObject& json, uint16_t cluster, uint16_t attr, char *key, size_t key_len);
   void parseRawAttributes(JsonObject& json, uint8_t offset = 0);
   void parseReadAttributes(JsonObject& json, uint8_t offset = 0);
+  void parseReadAttributesResponse(JsonObject& json, uint8_t offset = 0);
   void parseResponse(void);
   void parseClusterSpecificCommand(JsonObject& json, uint8_t offset = 0);
   void postProcessAttributes(uint16_t shortaddr, JsonObject& json);
@@ -242,6 +243,72 @@ uint8_t toPercentageCR2032(uint32_t voltage) {
   return percentage;
 }
 
+//
+// Appends the attribute value to Write or to Report
+// Adds to buf:
+// - 2 bytes: attribute identigier
+// - 1 byte: attribute type
+// - n bytes: value (typically between 1 and 4 bytes, or bigger for strings)
+// returns number of bytes of attribute, or <0 if error
+int32_t encodeSingleAttribute(class SBuffer &buf, const JsonVariant &val, uint16_t attr, uint8_t attrtype) {
+  uint32_t len = Z_getDatatypeLen(attrtype);    // pre-compute lenght, overloaded for variable length attributes
+  if (0 == len) {
+    return -1;        // unknown type or variable length that needs specific encoding
+  }
+
+  uint32_t u32 = val.as<uint32_t>();
+  int32_t  i32 = val.as<int32_t>();
+  float    f32 = val.as<float>();
+
+  buf.add16(attr);        // prepend with attribute identifier
+  buf.add8(attrtype);     // prepend with attribute type
+
+  switch (attrtype) {
+    // unsigned 8
+    case Zbool:      // bool
+    case Zuint8:      // uint8
+    case Zenum8:      // enum8
+    case Zdata8:      // data8
+    case Zmap8:      // map8
+      buf.add8(u32);
+      break;
+    // unsigned 16
+    case Zuint16:      // uint16
+    case Zenum16:      // enum16
+    case Zdata16:      // data16
+    case Zmap16:      // map16
+      buf.add16(u32);
+      break;
+    // unisgned 32
+    case Zuint32:      // uint32
+    case Zdata32:      // data32
+    case Zmap32:      // map32
+      buf.add32(u32);
+      break;
+
+    // signed 8
+    case Zint8:      // int8
+      buf.add8(i32);
+      break;
+    case Zint16:      // int16
+      buf.add16(i32);
+      break;
+    case Zint32:      // int32
+      buf.add32(i32);
+      break;
+
+    case Zsingle:      // float
+      uint32_t *f_ptr;
+      buf.add32( *((uint32_t*)&val) );    // cast float as uint32_t
+      break;
+
+    default:
+      // remove the attribute type we just added
+      buf.setLen(buf.len() - 3);
+      return -1;
+  }
+  return len + 3;
+}
 
 uint32_t parseSingleAttribute(JsonObject& json, char *attrid_str, class SBuffer &buf,
                               uint32_t offset, uint32_t buflen) {
@@ -482,8 +549,27 @@ void ZCLFrame::parseRawAttributes(JsonObject& json, uint8_t offset) {
   }
 }
 
-// ZCL_READ_ATTRIBUTES_RESPONSE
+// ZCL_READ_ATTRIBUTES
+// TODO
 void ZCLFrame::parseReadAttributes(JsonObject& json, uint8_t offset) {
+  uint32_t i = offset;
+  uint32_t len = _payload.len();
+
+  json[F("Cluster")] = _cluster_id;
+
+  while (len - i >= 2) {
+    JsonArray &attr_list = json.createNestedArray(F("Read"));
+    JsonArray &attr_list_names = json.createNestedArray(F("ReadNames"));
+    
+    uint16_t attrid = _payload.get16(i);
+    attr_list.add(attrid);
+
+    i += 2;
+  }
+}
+
+// ZCL_READ_ATTRIBUTES_RESPONSE
+void ZCLFrame::parseReadAttributesResponse(JsonObject& json, uint8_t offset) {
   uint32_t i = offset;
   uint32_t len = _payload.len();
 
