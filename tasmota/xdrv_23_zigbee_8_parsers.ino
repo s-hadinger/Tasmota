@@ -674,6 +674,8 @@ int32_t Z_ReceiveAfIncomingMessage(int32_t res, const class SBuffer &buf) {
     AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_ZIGBEE D_JSON_ZIGBEEZCL_RAW_RECEIVED ": {\"0x%04X\":%s}"), srcaddr, msg.c_str());
 
     zcl_received.postProcessAttributes(srcaddr, json);
+    // Add Device address
+    json[F(D_JSON_ZIGBEE_DEVICE)] = shortaddr;
     // Add Endpoint
     json[F(D_CMND_ZIGBEE_ENDPOINT)] = srcendpoint;
     // Add Group if non-zero
