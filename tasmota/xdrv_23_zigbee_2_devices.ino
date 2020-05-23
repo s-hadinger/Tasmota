@@ -916,7 +916,7 @@ uint16_t Z_Devices::parseDeviceParam(const char * param, bool short_must_be_know
     if ((XdrvMailbox.payload > 0) && (XdrvMailbox.payload <= 99)) {
       shortaddr = zigbee_devices.isKnownIndex(XdrvMailbox.payload - 1);
     }
-  } else if ((dataBuf[0] == '0') && (dataBuf[1] == 'x')) {
+  } else if ((dataBuf[0] == '0') && ((dataBuf[1] == 'x') || (dataBuf[1] == 'X'))) {
     // starts with 0x
     if (strlen(dataBuf) < 18) {
       // expect a short address
