@@ -2036,7 +2036,7 @@ void CmndRule(void)
       XdrvMailbox.command, index, GetStateText(bitRead(Settings.rule_enabled, index -1)), GetStateText(bitRead(Settings.rule_once, index -1)),
       GetStateText(bitRead(Settings.rule_stop, index -1)),
       rule_len, MAX_RULE_SIZE - GetRuleLenStorage(index - 1),
-      escapeJSONString(rule.c_str()).c_str());
+      EscapeJSONString(rule.c_str()).c_str());
   }
 }
 
