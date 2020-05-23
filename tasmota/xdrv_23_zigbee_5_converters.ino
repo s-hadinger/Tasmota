@@ -79,6 +79,490 @@ uint8_t Z_getDatatypeLen(uint8_t t) {
   }
 }
 
+
+// return value:
+// 0 = keep initial value
+// 1 = remove initial value
+typedef int32_t (*Z_AttrConverter)(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const String &new_name, uint16_t cluster, uint16_t attr);
+typedef struct Z_AttributeConverter {
+  uint8_t  type;
+  uint8_t  cluster_short;
+  uint16_t attribute;
+  const char * name;
+  Z_AttrConverter func;
+} Z_AttributeConverter;
+
+// Cluster numbers are store in 8 bits format to save space,
+// the following tables allows the conversion from 8 bits index Cx...
+// to the 16 bits actual cluster number
+enum Cx_cluster_short {
+  Cx0000, Cx0001, Cx0002, Cx0003, Cx0004, Cx0005, Cx0006, Cx0007,
+  Cx0008, Cx0009, Cx000A, Cx000B, Cx000C, Cx000D, Cx000E, Cx000F,
+  Cx0010, Cx0011, Cx0012, Cx0013, Cx0014, Cx001A, Cx0020, Cx0100,
+  Cx0101, Cx0102, Cx0300, Cx0400, Cx0401, Cx0402, Cx0403, Cx0404,
+  Cx0405, Cx0406, Cx0B01, Cx0B05,
+};
+
+const uint16_t Cx_cluster[] PROGMEM = {
+  0x0000, 0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x0007,
+  0x0008, 0x0009, 0x000A, 0x000B, 0x000C, 0x000D, 0x000E, 0x000F,
+  0x0010, 0x0011, 0x0012, 0x0013, 0x0014, 0x001A, 0x0020, 0x0100,
+  0x0101, 0x0102, 0x0300, 0x0400, 0x0401, 0x0402, 0x0403, 0x0404,
+  0x0405, 0x0406, 0x0B01, 0x0B05,
+};
+
+uint16_t CxToCluster(uint8_t cx) {
+  if (cx < ARRAY_SIZE(Cx_cluster)) {
+    return pgm_read_word(&Cx_cluster[cx]);
+  }
+  return 0xFFFF;
+}
+
+ZF(ZCLVersion) ZF(AppVersion) ZF(StackVersion) ZF(HWVersion) ZF(Manufacturer) ZF(ModelId)
+ZF(DateCode) ZF(PowerSource) ZF(SWBuildID) ZF(Power) ZF(SwitchType) ZF(Dimmer)
+ZF(MainsVoltage) ZF(MainsFrequency) ZF(BatteryVoltage) ZF(BatteryPercentage)
+ZF(CurrentTemperature) ZF(MinTempExperienced) ZF(MaxTempExperienced) ZF(OverTempTotalDwell)
+ZF(SceneCount) ZF(CurrentScene) ZF(CurrentGroup) ZF(SceneValid)
+ZF(AlarmCount) ZF(Time) ZF(TimeStatus) ZF(TimeZone) ZF(DstStart) ZF(DstEnd)
+ZF(DstShift) ZF(StandardTime) ZF(LocalTime) ZF(LastSetTime) ZF(ValidUntilTime)
+
+ZF(LocationType) ZF(LocationMethod) ZF(LocationAge) ZF(QualityMeasure) ZF(NumberOfDevices)
+
+ZF(AnalogInActiveText) ZF(AnalogInDescription) ZF(AnalogInInactiveText) ZF(AnalogInMaxValue)
+ZF(AnalogInMinValue) ZF(AnalogInOutOfService) ZF(AqaraRotate) ZF(AnalogInPriorityArray)
+ZF(AnalogInReliability) ZF(AnalogInRelinquishDefault) ZF(AnalogInResolution) ZF(AnalogInStatusFlags)
+ZF(AnalogInEngineeringUnits) ZF(AnalogInApplicationType) ZF(Aqara_FF05)
+
+ZF(AnalogOutDescription) ZF(AnalogOutMaxValue) ZF(AnalogOutMinValue) ZF(AnalogOutOutOfService)
+ZF(AnalogOutValue) ZF(AnalogOutPriorityArray) ZF(AnalogOutReliability) ZF(AnalogOutRelinquishDefault)
+ZF(AnalogOutResolution) ZF(AnalogOutStatusFlags) ZF(AnalogOutEngineeringUnits) ZF(AnalogOutApplicationType)
+
+ZF(AnalogDescription) ZF(AnalogOutOfService) ZF(AnalogValue) ZF(AnalogPriorityArray) ZF(AnalogReliability)
+ZF(AnalogRelinquishDefault) ZF(AnalogStatusFlags) ZF(AnalogEngineeringUnits) ZF(AnalogApplicationType)
+
+ZF(BinaryInActiveText) ZF(BinaryInDescription) ZF(BinaryInInactiveText) ZF(BinaryInOutOfService)
+ZF(BinaryInPolarity) ZF(BinaryInValue) ZF(BinaryInPriorityArray) ZF(BinaryInReliability)
+ZF(BinaryInStatusFlags) ZF(BinaryInApplicationType)
+
+ZF(BinaryOutActiveText) ZF(BinaryOutDescription) ZF(BinaryOutInactiveText) ZF(BinaryOutMinimumOffTime)
+ZF(BinaryOutMinimumOnTime) ZF(BinaryOutOutOfService) ZF(BinaryOutPolarity) ZF(BinaryOutValue)
+ZF(BinaryOutPriorityArray) ZF(BinaryOutReliability) ZF(BinaryOutRelinquishDefault) ZF(BinaryOutStatusFlags)
+ZF(BinaryOutApplicationType)
+
+ZF(BinaryActiveText) ZF(BinaryDescription) ZF(BinaryInactiveText) ZF(BinaryMinimumOffTime)
+ZF(BinaryMinimumOnTime) ZF(BinaryOutOfService) ZF(BinaryValue) ZF(BinaryPriorityArray) ZF(BinaryReliability)
+ZF(BinaryRelinquishDefault) ZF(BinaryStatusFlags) ZF(BinaryApplicationType)
+
+ZF(MultiInStateText) ZF(MultiInDescription) ZF(MultiInNumberOfStates) ZF(MultiInOutOfService)
+ZF(MultiInValue) ZF(MultiInReliability) ZF(MultiInStatusFlags) ZF(MultiInApplicationType)
+
+ZF(MultiOutStateText) ZF(MultiOutDescription) ZF(MultiOutNumberOfStates) ZF(MultiOutOutOfService)
+ZF(MultiOutValue) ZF(MultiOutPriorityArray) ZF(MultiOutReliability) ZF(MultiOutRelinquishDefault)
+ZF(MultiOutStatusFlags) ZF(MultiOutApplicationType)
+
+ZF(MultiStateText) ZF(MultiDescription) ZF(MultiNumberOfStates) ZF(MultiOutOfService) ZF(MultiValue)
+ZF(MultiReliability) ZF(MultiRelinquishDefault) ZF(MultiStatusFlags) ZF(MultiApplicationType)
+
+ZF(TotalProfileNum) ZF(MultipleScheduling) ZF(EnergyFormatting) ZF(EnergyRemote) ZF(ScheduleMode)
+
+ZF(CheckinInterval) ZF(LongPollInterval) ZF(ShortPollInterval) ZF(FastPollTimeout) ZF(CheckinIntervalMin)
+ZF(LongPollIntervalMin) ZF(FastPollTimeoutMax)
+
+ZF(PhysicalClosedLimit) ZF(MotorStepSize) ZF(Status) ZF(ClosedLimit) ZF(Mode)
+
+ZF(LockState) ZF(LockType) ZF(ActuatorEnabled) ZF(DoorState) ZF(DoorOpenEvents)
+ZF(DoorClosedEvents) ZF(OpenPeriod)
+
+ZF(AqaraVibrationMode) ZF(AqaraVibrationsOrAngle) ZF(AqaraVibration505) ZF(AqaraAccelerometer)
+
+ZF(WindowCoveringType) ZF(PhysicalClosedLimitLift) ZF(PhysicalClosedLimitTilt) ZF(CurrentPositionLift)
+ZF(CurrentPositionTilt) ZF(NumberofActuationsLift) ZF(NumberofActuationsTilt) ZF(ConfigStatus)
+ZF(CurrentPositionLiftPercentage) ZF(CurrentPositionTiltPercentage) ZF(InstalledOpenLimitLift)
+ZF(InstalledClosedLimitLift) ZF(InstalledOpenLimitTilt) ZF(InstalledClosedLimitTilt) ZF(VelocityLift)
+ZF(AccelerationTimeLift) ZF(DecelerationTimeLift) ZF(IntermediateSetpointsLift)
+ZF(IntermediateSetpointsTilt)
+
+ZF(Hue) ZF(Sat) ZF(RemainingTime) ZF(X) ZF(Y) ZF(DriftCompensation) ZF(CompensationText) ZF(CT)
+ZF(ColorMode) ZF(NumberOfPrimaries) ZF(Primary1X) ZF(Primary1Y) ZF(Primary1Intensity) ZF(Primary2X)
+ZF(Primary2Y) ZF(Primary2Intensity) ZF(Primary3X) ZF(Primary3Y) ZF(Primary3Intensity) ZF(WhitePointX)
+ZF(WhitePointY) ZF(ColorPointRX) ZF(ColorPointRY) ZF(ColorPointRIntensity) ZF(ColorPointGX) ZF(ColorPointGY)
+ZF(ColorPointGIntensity) ZF(ColorPointBX) ZF(ColorPointBY) ZF(ColorPointBIntensity)
+
+ZF(Illuminance) ZF(IlluminanceMinMeasuredValue) ZF(IlluminanceMaxMeasuredValue) ZF(IlluminanceTolerance)
+ZF(IlluminanceLightSensorType) ZF(IlluminanceLevelStatus) ZF(IlluminanceTargetLevel)
+
+ZF(Temperature) ZF(TemperatureMinMeasuredValue) ZF(TemperatureMaxMeasuredValue) ZF(TemperatureTolerance)
+
+ZF(PressureUnit) ZF(Pressure) ZF(PressureMinMeasuredValue) ZF(PressureMaxMeasuredValue) ZF(PressureTolerance)
+ZF(PressureScaledValue) ZF(PressureMinScaledValue) ZF(PressureMaxScaledValue) ZF(PressureScaledTolerance)
+ZF(PressureScale)
+
+ZF(FlowRate) ZF(FlowMinMeasuredValue) ZF(FlowMaxMeasuredValue) ZF(FlowTolerance)
+
+ZF(Humidity) ZF(HumidityMinMeasuredValue) ZF(HumidityMaxMeasuredValue) ZF(HumidityTolerance)
+
+ZF(Occupancy) ZF(OccupancySensorType)
+
+ZF(CompanyName) ZF(MeterTypeID) ZF(DataQualityID) ZF(CustomerName) ZF(Model) ZF(PartNumber)
+ZF(SoftwareRevision) ZF(POD) ZF(AvailablePower) ZF(PowerThreshold) ZF(ProductRevision) ZF(UtilityName)
+
+ZF(NumberOfResets) ZF(PersistentMemoryWrites) ZF(LastMessageLQI) ZF(LastMessageRSSI)
+// list of post-processing directives
+const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
+  { Zuint8,   Cx0000, 0x0000,  Z(ZCLVersion),           &Z_Copy },
+  { Zuint8,   Cx0000, 0x0001,  Z(AppVersion),           &Z_Copy },
+  { Zuint8,   Cx0000, 0x0002,  Z(StackVersion),         &Z_Copy },
+  { Zuint8,   Cx0000, 0x0003,  Z(HWVersion),            &Z_Copy },
+  { Zstring,  Cx0000, 0x0004,  Z(Manufacturer),         &Z_ManufKeep },    // record Manufacturer
+  { Zstring,  Cx0000, 0x0005,  Z(ModelId), &Z_ModelKeep },    // record Model
+  { Zstring,  Cx0000, 0x0006,  Z(DateCode),             &Z_Copy },
+  { Zenum8,   Cx0000, 0x0007,  Z(PowerSource),          &Z_Copy },
+  { Zstring,  Cx0000, 0x4000,  Z(SWBuildID),            &Z_Copy },
+  { Zunk,     Cx0000, 0xFFFF,  nullptr,                &Z_Remove },    // Remove all other values
+  // Cmd 0x0A - Cluster 0x0000, attribute 0xFF01 - proprietary
+  { Zmap8,    Cx0000, 0xFF01,  nullptr,                &Z_AqaraSensor },    // Occupancy (map8)
+
+  // Power Configuration cluster
+  { Zuint16,  Cx0001, 0x0000,  Z(MainsVoltage),         &Z_Copy },
+  { Zuint8,   Cx0001, 0x0001,  Z(MainsFrequency),       &Z_Copy },
+  { Zuint8,   Cx0001, 0x0020,  Z(BatteryVoltage),       &Z_FloatDiv10 },
+  { Zuint8,   Cx0001, 0x0021,  Z(BatteryPercentage),    &Z_FloatDiv2 },
+
+  // Device Temperature Configuration cluster
+  { Zint16,   Cx0002, 0x0000,  Z(CurrentTemperature),   &Z_Copy },
+  { Zint16,   Cx0002, 0x0001,  Z(MinTempExperienced),   &Z_Copy },
+  { Zint16,   Cx0002, 0x0002,  Z(MaxTempExperienced),   &Z_Copy },
+  { Zuint16,  Cx0002, 0x0003,  Z(OverTempTotalDwell),   &Z_Copy },
+
+  // Scenes cluster
+  { Zuint8,   Cx0005, 0x0000,  Z(SceneCount),           &Z_Copy },
+  { Zuint8,   Cx0005, 0x0001,  Z(CurrentScene),         &Z_Copy },
+  { Zuint16,  Cx0005, 0x0002,  Z(CurrentGroup),         &Z_Copy },
+  { Zbool,    Cx0005, 0x0003,  Z(SceneValid),           &Z_Copy },
+  //{ Zmap8,    Cx0005, 0x0004,  Z(NameSupport),           &Z_Copy },
+
+  // On/off cluster
+  { Zbool,    Cx0006,    0x0000,  Z(Power),                &Z_Copy },
+  { Zbool,    Cx0006,    0x8000,  Z(Power),                &Z_Copy },   // See 7280
+
+  // On/Off Switch Configuration cluster
+  { Zenum8,   Cx0007, 0x0000,  Z(SwitchType),           &Z_Copy },
+
+  // Level Control cluster
+  { Zuint8,   Cx0008, 0x0000,  Z(Dimmer),               &Z_Copy },
+  // { Zuint16, Cx0008, 0x0001,  Z(RemainingTime",        &Z_Copy },
+  // { Zuint16, Cx0008, 0x0010,  Z(OnOffTransitionTime",  &Z_Copy },
+  // { Zuint8, Cx0008, 0x0011,  Z(OnLevel",              &Z_Copy },
+  // { Zuint16, Cx0008, 0x0012,  Z(OnTransitionTime",     &Z_Copy },
+  // { Zuint16, Cx0008, 0x0013,  Z(OffTransitionTime",    &Z_Copy },
+  // { Zuint16, Cx0008, 0x0014,  Z(DefaultMoveRate",      &Z_Copy },
+
+  // Alarms cluster
+  { Zuint16,  Cx0009, 0x0000,  Z(AlarmCount),           &Z_Copy },
+
+  // Time cluster
+  { ZUTC,     Cx000A, 0x0000,  Z(Time),                 &Z_Copy },
+  { Zmap8,    Cx000A, 0x0001,  Z(TimeStatus),           &Z_Copy },
+  { Zint32,   Cx000A, 0x0002,  Z(TimeZone),             &Z_Copy },
+  { Zuint32,  Cx000A, 0x0003,  Z(DstStart),             &Z_Copy },
+  { Zuint32,  Cx000A, 0x0004,  Z(DstEnd),             &Z_Copy },
+  { Zint32,   Cx000A, 0x0005,  Z(DstShift),             &Z_Copy },
+  { Zuint32,  Cx000A, 0x0006,  Z(StandardTime),         &Z_Copy },
+  { Zuint32,  Cx000A, 0x0007,  Z(LocalTime),            &Z_Copy },
+  { ZUTC,     Cx000A, 0x0008,  Z(LastSetTime),          &Z_Copy },
+  { ZUTC,     Cx000A, 0x0009,  Z(ValidUntilTime),       &Z_Copy },
+
+  // RSSI Location cluster
+  { Zdata8,   Cx000B, 0x0000,  Z(LocationType),         &Z_Copy },
+  { Zenum8,   Cx000B, 0x0001,  Z(LocationMethod),       &Z_Copy },
+  { Zuint16,  Cx000B, 0x0002,  Z(LocationAge),          &Z_Copy },
+  { Zuint8,   Cx000B, 0x0003,  Z(QualityMeasure),       &Z_Copy },
+  { Zuint8,   Cx000B, 0x0004,  Z(NumberOfDevices),      &Z_Copy },
+
+  // Analog Input cluster
+  // { 0xFF, Cx000C, 0x0004,  Z(AnalogInActiveText),   &Z_Copy },
+  { Zstring,  Cx000C, 0x001C,  Z(AnalogInDescription),  &Z_Copy },
+  // { 0xFF, Cx000C, 0x002E,  Z(AnalogInInactiveText), &Z_Copy },
+  { Zsingle,  Cx000C, 0x0041,  Z(AnalogInMaxValue),     &Z_Copy },
+  { Zsingle,  Cx000C, 0x0045,  Z(AnalogInMinValue),     &Z_Copy },
+  { Zbool,    Cx000C, 0x0051,  Z(AnalogInOutOfService), &Z_Copy },
+  { Zsingle,  Cx000C, 0x0055,  Z(AqaraRotate),          &Z_Copy },
+  // { 0xFF, Cx000C, 0x0057,  Z(AnalogInPriorityArray),&Z_Copy },
+  { Zenum8,   Cx000C, 0x0067,  Z(AnalogInReliability),  &Z_Copy },
+  // { 0xFF, Cx000C, 0x0068,  Z(AnalogInRelinquishDefault),&Z_Copy },
+  { Zsingle,  Cx000C, 0x006A,  Z(AnalogInResolution),   &Z_Copy },
+  { Zmap8,    Cx000C, 0x006F,  Z(AnalogInStatusFlags),  &Z_Copy },
+  { Zenum16,  Cx000C, 0x0075,  Z(AnalogInEngineeringUnits),&Z_Copy },
+  { Zuint32,  Cx000C, 0x0100,  Z(AnalogInApplicationType),&Z_Copy },
+  { Zuint16,  Cx000C, 0xFF05,  Z(Aqara_FF05),           &Z_Copy },
+
+  // Analog Output cluster
+  { Zstring,  Cx000D, 0x001C,  Z(AnalogOutDescription), &Z_Copy },
+  { Zsingle,  Cx000D, 0x0041,  Z(AnalogOutMaxValue),    &Z_Copy },
+  { Zsingle,  Cx000D, 0x0045,  Z(AnalogOutMinValue),    &Z_Copy },
+  { Zbool,    Cx000D, 0x0051,  Z(AnalogOutOutOfService),&Z_Copy },
+  { Zsingle,  Cx000D, 0x0055,  Z(AnalogOutValue),       &Z_Copy },
+  // { Zunk,     Cx000D, 0x0057,  Z(AnalogOutPriorityArray),&Z_Copy },
+  { Zenum8,   Cx000D, 0x0067,  Z(AnalogOutReliability), &Z_Copy },
+  { Zsingle,  Cx000D, 0x0068,  Z(AnalogOutRelinquishDefault),&Z_Copy },
+  { Zsingle,  Cx000D, 0x006A,  Z(AnalogOutResolution),  &Z_Copy },
+  { Zmap8,    Cx000D, 0x006F,  Z(AnalogOutStatusFlags), &Z_Copy },
+  { Zenum16,  Cx000D, 0x0075,  Z(AnalogOutEngineeringUnits),&Z_Copy },
+  { Zuint32,  Cx000D, 0x0100,  Z(AnalogOutApplicationType),&Z_Copy },
+
+  // Analog Value cluster
+  { Zstring,  Cx000E, 0x001C,  Z(AnalogDescription),    &Z_Copy },
+  { Zbool,    Cx000E, 0x0051,  Z(AnalogOutOfService),   &Z_Copy },
+  { Zsingle,  Cx000E, 0x0055,  Z(AnalogValue),          &Z_Copy },
+  { Zunk,     Cx000E, 0x0057,  Z(AnalogPriorityArray),  &Z_Copy },
+  { Zenum8,   Cx000E, 0x0067,  Z(AnalogReliability),    &Z_Copy },
+  { Zsingle,  Cx000E, 0x0068,  Z(AnalogRelinquishDefault),&Z_Copy },
+  { Zmap8,    Cx000E, 0x006F,  Z(AnalogStatusFlags),    &Z_Copy },
+  { Zenum16,  Cx000E, 0x0075,  Z(AnalogEngineeringUnits),&Z_Copy },
+  { Zuint32,  Cx000E, 0x0100,  Z(AnalogApplicationType),&Z_Copy },
+
+  // Binary Input cluster
+  { Zstring,  Cx000F, 0x0004,  Z(BinaryInActiveText),  &Z_Copy },
+  { Zstring,  Cx000F, 0x001C,  Z(BinaryInDescription), &Z_Copy },
+  { Zstring,  Cx000F, 0x002E,  Z(BinaryInInactiveText),&Z_Copy },
+  { Zbool,    Cx000F, 0x0051,  Z(BinaryInOutOfService),&Z_Copy },
+  { Zenum8,   Cx000F, 0x0054,  Z(BinaryInPolarity),    &Z_Copy },
+  { Zstring,  Cx000F, 0x0055,  Z(BinaryInValue),       &Z_Copy },
+  // { 0xFF, Cx000F, 0x0057,  Z(BinaryInPriorityArray),&Z_Copy },
+  { Zenum8,   Cx000F, 0x0067,  Z(BinaryInReliability), &Z_Copy },
+  { Zmap8,    Cx000F, 0x006F,  Z(BinaryInStatusFlags), &Z_Copy },
+  { Zuint32,  Cx000F, 0x0100,  Z(BinaryInApplicationType),&Z_Copy },
+
+  // Binary Output cluster
+  { Zstring,  Cx0010, 0x0004,  Z(BinaryOutActiveText),  &Z_Copy },
+  { Zstring,  Cx0010, 0x001C,  Z(BinaryOutDescription), &Z_Copy },
+  { Zstring,  Cx0010, 0x002E,  Z(BinaryOutInactiveText),&Z_Copy },
+  { Zuint32,  Cx0010, 0x0042,  Z(BinaryOutMinimumOffTime),&Z_Copy },
+  { Zuint32,  Cx0010, 0x0043,  Z(BinaryOutMinimumOnTime),&Z_Copy },
+  { Zbool,    Cx0010, 0x0051,  Z(BinaryOutOutOfService),&Z_Copy },
+  { Zenum8,   Cx0010, 0x0054,  Z(BinaryOutPolarity),    &Z_Copy },
+  { Zbool,    Cx0010, 0x0055,  Z(BinaryOutValue),       &Z_Copy },
+  // { Zunk,     Cx0010, 0x0057,  Z(BinaryOutPriorityArray),&Z_Copy },
+  { Zenum8,   Cx0010, 0x0067,  Z(BinaryOutReliability), &Z_Copy },
+  { Zbool,    Cx0010, 0x0068,  Z(BinaryOutRelinquishDefault),&Z_Copy },
+  { Zmap8,    Cx0010, 0x006F,  Z(BinaryOutStatusFlags), &Z_Copy },
+  { Zuint32,  Cx0010, 0x0100,  Z(BinaryOutApplicationType),&Z_Copy },
+
+  // Binary Value cluster
+  { Zstring,  Cx0011, 0x0004,  Z(BinaryActiveText),     &Z_Copy },
+  { Zstring,  Cx0011, 0x001C,  Z(BinaryDescription),    &Z_Copy },
+  { Zstring,  Cx0011, 0x002E,  Z(BinaryInactiveText),   &Z_Copy },
+  { Zuint32,  Cx0011, 0x0042,  Z(BinaryMinimumOffTime), &Z_Copy },
+  { Zuint32,  Cx0011, 0x0043,  Z(BinaryMinimumOnTime),  &Z_Copy },
+  { Zbool,    Cx0011, 0x0051,  Z(BinaryOutOfService),   &Z_Copy },
+  { Zbool,    Cx0011, 0x0055,  Z(BinaryValue),          &Z_Copy },
+  // { Zunk,     Cx0011, 0x0057,  Z(BinaryPriorityArray),  &Z_Copy },
+  { Zenum8,   Cx0011, 0x0067,  Z(BinaryReliability),    &Z_Copy },
+  { Zbool,    Cx0011, 0x0068,  Z(BinaryRelinquishDefault),&Z_Copy },
+  { Zmap8,    Cx0011, 0x006F,  Z(BinaryStatusFlags),    &Z_Copy },
+  { Zuint32,  Cx0011, 0x0100,  Z(BinaryApplicationType),&Z_Copy },
+
+  // Multistate Input cluster
+  // { Zunk,     Cx0012, 0x000E,  Z(MultiInStateText),     &Z_Copy },
+  { Zstring,  Cx0012, 0x001C,  Z(MultiInDescription),   &Z_Copy },
+  { Zuint16,  Cx0012, 0x004A,  Z(MultiInNumberOfStates),&Z_Copy },
+  { Zbool,    Cx0012, 0x0051,  Z(MultiInOutOfService),  &Z_Copy },
+  { Zuint16,  Cx0012, 0x0055,  Z(MultiInValue),         &Z_AqaraCube },
+  { Zenum8,   Cx0012, 0x0067,  Z(MultiInReliability),   &Z_Copy },
+  { Zmap8,    Cx0012, 0x006F,  Z(MultiInStatusFlags),   &Z_Copy },
+  { Zuint32,  Cx0012, 0x0100,  Z(MultiInApplicationType),&Z_Copy },
+
+  // Multistate output
+  // { Zunk,     Cx0013, 0x000E,  Z(MultiOutStateText),    &Z_Copy },
+  { Zstring,  Cx0013, 0x001C,  Z(MultiOutDescription),  &Z_Copy },
+  { Zuint16,  Cx0013, 0x004A,  Z(MultiOutNumberOfStates),&Z_Copy },
+  { Zbool,    Cx0013, 0x0051,  Z(MultiOutOutOfService), &Z_Copy },
+  { Zuint16,  Cx0013, 0x0055,  Z(MultiOutValue),        &Z_Copy },
+  // { Zunk,     Cx0013, 0x0057,  Z(MultiOutPriorityArray),&Z_Copy },
+  { Zenum8,   Cx0013, 0x0067,  Z(MultiOutReliability),  &Z_Copy },
+  { Zuint16,  Cx0013, 0x0068,  Z(MultiOutRelinquishDefault),&Z_Copy },
+  { Zmap8,    Cx0013, 0x006F,  Z(MultiOutStatusFlags),  &Z_Copy },
+  { Zuint32,  Cx0013, 0x0100,  Z(MultiOutApplicationType),&Z_Copy },
+
+  // Multistate Value cluster
+  // { Zunk,     Cx0014, 0x000E,  Z(MultiStateText),       &Z_Copy },
+  { Zstring,  Cx0014, 0x001C,  Z(MultiDescription),     &Z_Copy },
+  { Zuint16,  Cx0014, 0x004A,  Z(MultiNumberOfStates),  &Z_Copy },
+  { Zbool,    Cx0014, 0x0051,  Z(MultiOutOfService),    &Z_Copy },
+  { Zuint16,  Cx0014, 0x0055,  Z(MultiValue),           &Z_Copy },
+  { Zenum8,   Cx0014, 0x0067,  Z(MultiReliability),     &Z_Copy },
+  { Zuint16,  Cx0014, 0x0068,  Z(MultiRelinquishDefault),&Z_Copy },
+  { Zmap8,    Cx0014, 0x006F,  Z(MultiStatusFlags),     &Z_Copy },
+  { Zuint32,  Cx0014, 0x0100,  Z(MultiApplicationType), &Z_Copy },
+
+  // Power Profile cluster
+  { Zuint8,   Cx001A, 0x0000,  Z(TotalProfileNum),      &Z_Copy },
+  { Zbool,    Cx001A, 0x0001,  Z(MultipleScheduling),   &Z_Copy },
+  { Zmap8,    Cx001A, 0x0002,  Z(EnergyFormatting),     &Z_Copy },
+  { Zbool,    Cx001A, 0x0003,  Z(EnergyRemote),         &Z_Copy },
+  { Zmap8,    Cx001A, 0x0004,  Z(ScheduleMode),         &Z_Copy },
+
+  // Poll Control cluster
+  { Zuint32,  Cx0020, 0x0000,  Z(CheckinInterval),      &Z_Copy },
+  { Zuint32,  Cx0020, 0x0001,  Z(LongPollInterval),     &Z_Copy },
+  { Zuint16,  Cx0020, 0x0002,  Z(ShortPollInterval),    &Z_Copy },
+  { Zuint16,  Cx0020, 0x0003,  Z(FastPollTimeout),      &Z_Copy },
+  { Zuint32,  Cx0020, 0x0004,  Z(CheckinIntervalMin),   &Z_Copy },
+  { Zuint32,  Cx0020, 0x0005,  Z(LongPollIntervalMin),  &Z_Copy },
+  { Zuint16,  Cx0020, 0x0006,  Z(FastPollTimeoutMax),   &Z_Copy },
+
+  // Shade Configuration cluster
+  { Zuint16,  Cx0100, 0x0000,  Z(PhysicalClosedLimit),  &Z_Copy },
+  { Zuint8,   Cx0100, 0x0001,  Z(MotorStepSize),        &Z_Copy },
+  { Zmap8,    Cx0100, 0x0002,  Z(Status),               &Z_Copy },
+  { Zuint16,  Cx0100, 0x0010,  Z(ClosedLimit),          &Z_Copy },
+  { Zenum8,   Cx0100, 0x0011,  Z(Mode),                 &Z_Copy },
+
+  // Door Lock cluster
+  { Zenum8,   Cx0101, 0x0000,  Z(LockState),            &Z_Copy },
+  { Zenum8,   Cx0101, 0x0001,  Z(LockType),             &Z_Copy },
+  { Zbool,    Cx0101, 0x0002,  Z(ActuatorEnabled),      &Z_Copy },
+  { Zenum8,   Cx0101, 0x0003,  Z(DoorState),            &Z_Copy },
+  { Zuint32,  Cx0101, 0x0004,  Z(DoorOpenEvents),       &Z_Copy },
+  { Zuint32,  Cx0101, 0x0005,  Z(DoorClosedEvents),     &Z_Copy },
+  { Zuint16,  Cx0101, 0x0006,  Z(OpenPeriod),           &Z_Copy },
+
+  // Aqara Lumi Vibration Sensor
+  { Zuint16,  Cx0101, 0x0055,  Z(AqaraVibrationMode),   &Z_AqaraVibration },
+  { Zuint16,  Cx0101, 0x0503,  Z(AqaraVibrationsOrAngle), &Z_Copy },
+  { Zuint32,  Cx0101, 0x0505,  Z(AqaraVibration505),    &Z_Copy },
+  { Zuint48,  Cx0101, 0x0508,  Z(AqaraAccelerometer),   &Z_AqaraVibration },
+
+  // Window Covering cluster
+  { Zenum8,   Cx0102, 0x0000,  Z(WindowCoveringType),   &Z_Copy },
+  { Zuint16,  Cx0102, 0x0001,  Z(PhysicalClosedLimitLift),&Z_Copy },
+  { Zuint16,  Cx0102, 0x0002,  Z(PhysicalClosedLimitTilt),&Z_Copy },
+  { Zuint16,  Cx0102, 0x0003,  Z(CurrentPositionLift),  &Z_Copy },
+  { Zuint16,  Cx0102, 0x0004,  Z(CurrentPositionTilt),  &Z_Copy },
+  { Zuint16,  Cx0102, 0x0005,  Z(NumberofActuationsLift),&Z_Copy },
+  { Zuint16,  Cx0102, 0x0006,  Z(NumberofActuationsTilt),&Z_Copy },
+  { Zmap8,    Cx0102, 0x0007,  Z(ConfigStatus),         &Z_Copy },
+  { Zuint8,   Cx0102, 0x0008,  Z(CurrentPositionLiftPercentage),&Z_Copy },
+  { Zuint8,   Cx0102, 0x0009,  Z(CurrentPositionTiltPercentage),&Z_Copy },
+  { Zuint16,  Cx0102, 0x0010,  Z(InstalledOpenLimitLift),&Z_Copy },
+  { Zuint16,  Cx0102, 0x0011,  Z(InstalledClosedLimitLift),&Z_Copy },
+  { Zuint16,  Cx0102, 0x0012,  Z(InstalledOpenLimitTilt),&Z_Copy },
+  { Zuint16,  Cx0102, 0x0013,  Z(InstalledClosedLimitTilt),&Z_Copy },
+  { Zuint16,  Cx0102, 0x0014,  Z(VelocityLift),         &Z_Copy },
+  { Zuint16,  Cx0102, 0x0015,  Z(AccelerationTimeLift),&Z_Copy },
+  { Zuint16,  Cx0102, 0x0016,  Z(DecelerationTimeLift), &Z_Copy },
+  { Zmap8,    Cx0102, 0x0017,  Z(Mode),                 &Z_Copy },
+  { Zoctstr,  Cx0102, 0x0018,  Z(IntermediateSetpointsLift),&Z_Copy },
+  { Zoctstr,  Cx0102, 0x0019,  Z(IntermediateSetpointsTilt),&Z_Copy },
+
+  // Color Control cluster
+  { Zuint8,   Cx0300, 0x0000,  Z(Hue),                  &Z_Copy },
+  { Zuint8,   Cx0300, 0x0001,  Z(Sat),                  &Z_Copy },
+  { Zuint16,  Cx0300, 0x0002,  Z(RemainingTime),        &Z_Copy },
+  { Zuint16,  Cx0300, 0x0003,  Z(X),                    &Z_Copy },
+  { Zuint16,  Cx0300, 0x0004,  Z(Y),                    &Z_Copy },
+  { Zenum8,   Cx0300, 0x0005,  Z(DriftCompensation),    &Z_Copy },
+  { Zstring,  Cx0300, 0x0006,  Z(CompensationText),     &Z_Copy },
+  { Zuint16,  Cx0300, 0x0007,  Z(CT),                   &Z_Copy },
+  { Zenum8,   Cx0300, 0x0008,  Z(ColorMode),            &Z_Copy },
+  { Zuint8,   Cx0300, 0x0010,  Z(NumberOfPrimaries),    &Z_Copy },
+  { Zuint16,  Cx0300, 0x0011,  Z(Primary1X),            &Z_Copy },
+  { Zuint16,  Cx0300, 0x0012,  Z(Primary1Y),            &Z_Copy },
+  { Zuint8,   Cx0300, 0x0013,  Z(Primary1Intensity),    &Z_Copy },
+  { Zuint16,  Cx0300, 0x0015,  Z(Primary2X),            &Z_Copy },
+  { Zuint16,  Cx0300, 0x0016,  Z(Primary2Y),            &Z_Copy },
+  { Zuint8,   Cx0300, 0x0017,  Z(Primary2Intensity),    &Z_Copy },
+  { Zuint16,  Cx0300, 0x0019,  Z(Primary3X),            &Z_Copy },
+  { Zuint16,  Cx0300, 0x001A,  Z(Primary3Y),            &Z_Copy },
+  { Zuint8,   Cx0300, 0x001B,  Z(Primary3Intensity),    &Z_Copy },
+  { Zuint16,  Cx0300, 0x0030,  Z(WhitePointX),          &Z_Copy },
+  { Zuint16,  Cx0300, 0x0031,  Z(WhitePointY),          &Z_Copy },
+  { Zuint16,  Cx0300, 0x0032,  Z(ColorPointRX),         &Z_Copy },
+  { Zuint16,  Cx0300, 0x0033,  Z(ColorPointRY),         &Z_Copy },
+  { Zuint8,   Cx0300, 0x0034,  Z(ColorPointRIntensity), &Z_Copy },
+  { Zuint16,  Cx0300, 0x0036,  Z(ColorPointGX),         &Z_Copy },
+  { Zuint16,  Cx0300, 0x0037,  Z(ColorPointGY),         &Z_Copy },
+  { Zuint8,   Cx0300, 0x0038,  Z(ColorPointGIntensity), &Z_Copy },
+  { Zuint16,  Cx0300, 0x003A,  Z(ColorPointBX),         &Z_Copy },
+  { Zuint16,  Cx0300, 0x003B,  Z(ColorPointBY),         &Z_Copy },
+  { Zuint8,   Cx0300, 0x003C,  Z(ColorPointBIntensity), &Z_Copy },
+
+  // Illuminance Measurement cluster
+  { Zuint16,  Cx0400, 0x0000,  Z(Illuminance),           &Z_Copy },    // Illuminance (in Lux)
+  { Zuint16,  Cx0400, 0x0001,  Z(IlluminanceMinMeasuredValue),     &Z_Copy },    //
+  { Zuint16,  Cx0400, 0x0002,  Z(IlluminanceMaxMeasuredValue),     &Z_Copy },    //
+  { Zuint16,  Cx0400, 0x0003,  Z(IlluminanceTolerance),            &Z_Copy },    //
+  { Zenum8,   Cx0400, 0x0004,  Z(IlluminanceLightSensorType),      &Z_Copy },    //
+  { Zunk,     Cx0400, 0xFFFF,  nullptr,                &Z_Remove },    // Remove all other values
+
+  // Illuminance Level Sensing cluster
+  { Zenum8,   Cx0401, 0x0000,  Z(IlluminanceLevelStatus),          &Z_Copy },    // Illuminance (in Lux)
+  { Zenum8,   Cx0401, 0x0001,  Z(IlluminanceLightSensorType),      &Z_Copy },    // LightSensorType
+  { Zuint16,  Cx0401, 0x0010,  Z(IlluminanceTargetLevel),          &Z_Copy },    //
+  { Zunk,     Cx0401, 0xFFFF,  nullptr,                &Z_Remove },    // Remove all other values
+
+  // Temperature Measurement cluster
+  { Zint16,   Cx0402, 0x0000,  Z(Temperature),          &Z_FloatDiv100 },   // Temperature
+  { Zint16,   Cx0402, 0x0001,  Z(TemperatureMinMeasuredValue),     &Z_FloatDiv100 },    //
+  { Zint16,   Cx0402, 0x0002,  Z(TemperatureMaxMeasuredValue),     &Z_FloatDiv100 },    //
+  { Zuint16,  Cx0402, 0x0003,  Z(TemperatureTolerance),            &Z_FloatDiv100 },    //
+  { Zunk,     Cx0402, 0xFFFF,  nullptr,                &Z_Remove },     // Remove all other values
+
+  // Pressure Measurement cluster
+  { Zunk,     Cx0403, 0x0000,  Z(PressureUnit),                 &Z_AddPressureUnit },     // Pressure Unit
+  { Zint16,   Cx0403, 0x0000,  Z(Pressure),                     &Z_Copy },     // Pressure
+  { Zint16,   Cx0403, 0x0001,  Z(PressureMinMeasuredValue),     &Z_Copy },    //
+  { Zint16,   Cx0403, 0x0002,  Z(PressureMaxMeasuredValue),     &Z_Copy },    //
+  { Zuint16,  Cx0403, 0x0003,  Z(PressureTolerance),            &Z_Copy },    //
+  { Zint16,   Cx0403, 0x0010,  Z(PressureScaledValue),          &Z_Copy },    //
+  { Zint16,   Cx0403, 0x0011,  Z(PressureMinScaledValue),       &Z_Copy },    //
+  { Zint16,   Cx0403, 0x0012,  Z(PressureMaxScaledValue),       &Z_Copy },    //
+  { Zuint16,  Cx0403, 0x0013,  Z(PressureScaledTolerance),      &Z_Copy },    //
+  { Zint8,    Cx0403, 0x0014,  Z(PressureScale),                &Z_Copy },    //
+  { Zunk,     Cx0403, 0xFFFF,  nullptr,                &Z_Remove },     // Remove all other Pressure values
+
+  // Flow Measurement cluster
+  { Zuint16,  Cx0404, 0x0000,  Z(FlowRate),             &Z_FloatDiv10 },    // Flow (in m3/h)
+  { Zuint16,  Cx0404, 0x0001,  Z(FlowMinMeasuredValue), &Z_Copy },    //
+  { Zuint16,  Cx0404, 0x0002,  Z(FlowMaxMeasuredValue), &Z_Copy },    //
+  { Zuint16,  Cx0404, 0x0003,  Z(FlowTolerance),        &Z_Copy },    //
+  { Zunk,     Cx0404, 0xFFFF,  nullptr,                &Z_Remove },    // Remove all other values
+
+  // Relative Humidity Measurement cluster
+  { Zuint16,  Cx0405, 0x0000,  Z(Humidity),             &Z_FloatDiv100 },   // Humidity
+  { Zuint16,  Cx0405, 0x0001,  Z(HumidityMinMeasuredValue),     &Z_Copy },    //
+  { Zuint16,  Cx0405, 0x0002,  Z(HumidityMaxMeasuredValue),     &Z_Copy },    //
+  { Zuint16,  Cx0405, 0x0003,  Z(HumidityTolerance),            &Z_Copy },    //
+  { Zunk,     Cx0405, 0xFFFF,  nullptr,                &Z_Remove },     // Remove all other values
+
+  // Occupancy Sensing cluster
+  { Zmap8,    Cx0406, 0x0000,  Z(Occupancy),            &Z_Copy },    // Occupancy (map8)
+  { Zenum8,   Cx0406, 0x0001,  Z(OccupancySensorType),  &Z_Copy },    // OccupancySensorType
+  { Zunk,     Cx0406, 0xFFFF,  nullptr,                &Z_Remove },    // Remove all other values
+
+  // Meter Identification cluster
+  { Zstring,  Cx0B01, 0x0000,  Z(CompanyName),          &Z_Copy },
+  { Zuint16,  Cx0B01, 0x0001,  Z(MeterTypeID),          &Z_Copy },
+  { Zuint16,  Cx0B01, 0x0004,  Z(DataQualityID),        &Z_Copy },
+  { Zstring,  Cx0B01, 0x0005,  Z(CustomerName),         &Z_Copy },
+  { Zoctstr,  Cx0B01, 0x0006,  Z(Model),                &Z_Copy },
+  { Zoctstr,  Cx0B01, 0x0007,  Z(PartNumber),           &Z_Copy },
+  { Zoctstr,  Cx0B01, 0x0008,  Z(ProductRevision),      &Z_Copy },
+  { Zoctstr,  Cx0B01, 0x000A,  Z(SoftwareRevision),     &Z_Copy },
+  { Zstring,  Cx0B01, 0x000B,  Z(UtilityName),          &Z_Copy },
+  { Zstring,  Cx0B01, 0x000C,  Z(POD),                  &Z_Copy },
+  { Zint24,   Cx0B01, 0x000D,  Z(AvailablePower),       &Z_Copy },
+  { Zint24,   Cx0B01, 0x000E,  Z(PowerThreshold),       &Z_Copy },
+
+  // Diagnostics cluster
+  { Zuint16,  Cx0B05, 0x0000,  Z(NumberOfResets),       &Z_Copy },
+  { Zuint16,  Cx0B05, 0x0001,  Z(PersistentMemoryWrites),&Z_Copy },
+  { Zuint8,   Cx0B05, 0x011C,  Z(LastMessageLQI),       &Z_Copy },
+  { Zuint8,   Cx0B05, 0x011D,  Z(LastMessageRSSI),      &Z_Copy },
+
+};
+
+
 typedef union ZCLHeaderFrameControl_t {
   struct {
     uint8_t frame_type : 2;           // 00 = across entire profile, 01 = cluster specific
@@ -564,6 +1048,17 @@ void ZCLFrame::parseReadAttributes(JsonObject& json, uint8_t offset) {
     uint16_t attrid = _payload.get16(i);
     attr_list.add(attrid);
 
+    // find the attribute name
+    for (uint32_t i = 0; i < ARRAY_SIZE(Z_PostProcess); i++) {
+      const Z_AttributeConverter *converter = &Z_PostProcess[i];
+      uint16_t conv_cluster = CxToCluster(pgm_read_byte(&converter->cluster_short));
+      uint16_t conv_attribute = pgm_read_word(&converter->attribute);
+
+      if ((conv_cluster == _cluster_id) && (conv_attribute == attrid)) {
+        attr_list_names.add((const __FlashStringHelper*) converter->name);
+        break;
+      }
+    }
     i += 2;
   }
 }
@@ -635,488 +1130,6 @@ void ZCLFrame::parseClusterSpecificCommand(JsonObject& json, uint8_t offset) {
   convertClusterSpecific(json, _cluster_id, _cmd_id, _frame_control.b.direction, _payload);
   sendHueUpdate(_srcaddr, _groupaddr, _cluster_id, _cmd_id, _frame_control.b.direction);
 }
-
-// return value:
-// 0 = keep initial value
-// 1 = remove initial value
-typedef int32_t (*Z_AttrConverter)(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const String &new_name, uint16_t cluster, uint16_t attr);
-typedef struct Z_AttributeConverter {
-  uint8_t  type;
-  uint8_t  cluster_short;
-  uint16_t attribute;
-  const char * name;
-  Z_AttrConverter func;
-} Z_AttributeConverter;
-
-// Cluster numbers are store in 8 bits format to save space,
-// the following tables allows the conversion from 8 bits index Cx...
-// to the 16 bits actual cluster number
-enum Cx_cluster_short {
-  Cx0000, Cx0001, Cx0002, Cx0003, Cx0004, Cx0005, Cx0006, Cx0007,
-  Cx0008, Cx0009, Cx000A, Cx000B, Cx000C, Cx000D, Cx000E, Cx000F,
-  Cx0010, Cx0011, Cx0012, Cx0013, Cx0014, Cx001A, Cx0020, Cx0100,
-  Cx0101, Cx0102, Cx0300, Cx0400, Cx0401, Cx0402, Cx0403, Cx0404,
-  Cx0405, Cx0406, Cx0B01, Cx0B05,
-};
-
-const uint16_t Cx_cluster[] PROGMEM = {
-  0x0000, 0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x0007,
-  0x0008, 0x0009, 0x000A, 0x000B, 0x000C, 0x000D, 0x000E, 0x000F,
-  0x0010, 0x0011, 0x0012, 0x0013, 0x0014, 0x001A, 0x0020, 0x0100,
-  0x0101, 0x0102, 0x0300, 0x0400, 0x0401, 0x0402, 0x0403, 0x0404,
-  0x0405, 0x0406, 0x0B01, 0x0B05,
-};
-
-uint16_t CxToCluster(uint8_t cx) {
-  if (cx < ARRAY_SIZE(Cx_cluster)) {
-    return pgm_read_word(&Cx_cluster[cx]);
-  }
-  return 0xFFFF;
-}
-
-ZF(ZCLVersion) ZF(AppVersion) ZF(StackVersion) ZF(HWVersion) ZF(Manufacturer) ZF(ModelId)
-ZF(DateCode) ZF(PowerSource) ZF(SWBuildID) ZF(Power) ZF(SwitchType) ZF(Dimmer)
-ZF(MainsVoltage) ZF(MainsFrequency) ZF(BatteryVoltage) ZF(BatteryPercentage)
-ZF(CurrentTemperature) ZF(MinTempExperienced) ZF(MaxTempExperienced) ZF(OverTempTotalDwell)
-ZF(SceneCount) ZF(CurrentScene) ZF(CurrentGroup) ZF(SceneValid)
-ZF(AlarmCount) ZF(Time) ZF(TimeStatus) ZF(TimeZone) ZF(DstStart) ZF(DstEnd)
-ZF(DstShift) ZF(StandardTime) ZF(LocalTime) ZF(LastSetTime) ZF(ValidUntilTime)
-
-ZF(LocationType) ZF(LocationMethod) ZF(LocationAge) ZF(QualityMeasure) ZF(NumberOfDevices)
-
-ZF(AnalogInActiveText) ZF(AnalogInDescription) ZF(AnalogInInactiveText) ZF(AnalogInMaxValue)
-ZF(AnalogInMinValue) ZF(AnalogInOutOfService) ZF(AqaraRotate) ZF(AnalogInPriorityArray)
-ZF(AnalogInReliability) ZF(AnalogInRelinquishDefault) ZF(AnalogInResolution) ZF(AnalogInStatusFlags)
-ZF(AnalogInEngineeringUnits) ZF(AnalogInApplicationType) ZF(Aqara_FF05)
-
-ZF(AnalogOutDescription) ZF(AnalogOutMaxValue) ZF(AnalogOutMinValue) ZF(AnalogOutOutOfService)
-ZF(AnalogOutValue) ZF(AnalogOutPriorityArray) ZF(AnalogOutReliability) ZF(AnalogOutRelinquishDefault)
-ZF(AnalogOutResolution) ZF(AnalogOutStatusFlags) ZF(AnalogOutEngineeringUnits) ZF(AnalogOutApplicationType)
-
-ZF(AnalogDescription) ZF(AnalogOutOfService) ZF(AnalogValue) ZF(AnalogPriorityArray) ZF(AnalogReliability)
-ZF(AnalogRelinquishDefault) ZF(AnalogStatusFlags) ZF(AnalogEngineeringUnits) ZF(AnalogApplicationType)
-
-ZF(BinaryInActiveText) ZF(BinaryInDescription) ZF(BinaryInInactiveText) ZF(BinaryInOutOfService)
-ZF(BinaryInPolarity) ZF(BinaryInValue) ZF(BinaryInPriorityArray) ZF(BinaryInReliability)
-ZF(BinaryInStatusFlags) ZF(BinaryInApplicationType)
-
-ZF(BinaryOutActiveText) ZF(BinaryOutDescription) ZF(BinaryOutInactiveText) ZF(BinaryOutMinimumOffTime)
-ZF(BinaryOutMinimumOnTime) ZF(BinaryOutOutOfService) ZF(BinaryOutPolarity) ZF(BinaryOutValue)
-ZF(BinaryOutPriorityArray) ZF(BinaryOutReliability) ZF(BinaryOutRelinquishDefault) ZF(BinaryOutStatusFlags)
-ZF(BinaryOutApplicationType)
-
-ZF(BinaryActiveText) ZF(BinaryDescription) ZF(BinaryInactiveText) ZF(BinaryMinimumOffTime)
-ZF(BinaryMinimumOnTime) ZF(BinaryOutOfService) ZF(BinaryValue) ZF(BinaryPriorityArray) ZF(BinaryReliability)
-ZF(BinaryRelinquishDefault) ZF(BinaryStatusFlags) ZF(BinaryApplicationType)
-
-ZF(MultiInStateText) ZF(MultiInDescription) ZF(MultiInNumberOfStates) ZF(MultiInOutOfService)
-ZF(MultiInValue) ZF(MultiInReliability) ZF(MultiInStatusFlags) ZF(MultiInApplicationType)
-
-ZF(MultiOutStateText) ZF(MultiOutDescription) ZF(MultiOutNumberOfStates) ZF(MultiOutOutOfService)
-ZF(MultiOutValue) ZF(MultiOutPriorityArray) ZF(MultiOutReliability) ZF(MultiOutRelinquishDefault)
-ZF(MultiOutStatusFlags) ZF(MultiOutApplicationType)
-
-ZF(MultiStateText) ZF(MultiDescription) ZF(MultiNumberOfStates) ZF(MultiOutOfService) ZF(MultiValue)
-ZF(MultiReliability) ZF(MultiRelinquishDefault) ZF(MultiStatusFlags) ZF(MultiApplicationType)
-
-ZF(TotalProfileNum) ZF(MultipleScheduling) ZF(EnergyFormatting) ZF(EnergyRemote) ZF(ScheduleMode)
-
-ZF(CheckinInterval) ZF(LongPollInterval) ZF(ShortPollInterval) ZF(FastPollTimeout) ZF(CheckinIntervalMin)
-ZF(LongPollIntervalMin) ZF(FastPollTimeoutMax)
-
-ZF(PhysicalClosedLimit) ZF(MotorStepSize) ZF(Status) ZF(ClosedLimit) ZF(Mode)
-
-ZF(LockState) ZF(LockType) ZF(ActuatorEnabled) ZF(DoorState) ZF(DoorOpenEvents)
-ZF(DoorClosedEvents) ZF(OpenPeriod)
-
-ZF(AqaraVibrationMode) ZF(AqaraVibrationsOrAngle) ZF(AqaraVibration505) ZF(AqaraAccelerometer)
-
-ZF(WindowCoveringType) ZF(PhysicalClosedLimitLift) ZF(PhysicalClosedLimitTilt) ZF(CurrentPositionLift)
-ZF(CurrentPositionTilt) ZF(NumberofActuationsLift) ZF(NumberofActuationsTilt) ZF(ConfigStatus)
-ZF(CurrentPositionLiftPercentage) ZF(CurrentPositionTiltPercentage) ZF(InstalledOpenLimitLift)
-ZF(InstalledClosedLimitLift) ZF(InstalledOpenLimitTilt) ZF(InstalledClosedLimitTilt) ZF(VelocityLift)
-ZF(AccelerationTimeLift) ZF(DecelerationTimeLift) ZF(IntermediateSetpointsLift)
-ZF(IntermediateSetpointsTilt)
-
-ZF(Hue) ZF(Sat) ZF(RemainingTime) ZF(X) ZF(Y) ZF(DriftCompensation) ZF(CompensationText) ZF(CT)
-ZF(ColorMode) ZF(NumberOfPrimaries) ZF(Primary1X) ZF(Primary1Y) ZF(Primary1Intensity) ZF(Primary2X)
-ZF(Primary2Y) ZF(Primary2Intensity) ZF(Primary3X) ZF(Primary3Y) ZF(Primary3Intensity) ZF(WhitePointX)
-ZF(WhitePointY) ZF(ColorPointRX) ZF(ColorPointRY) ZF(ColorPointRIntensity) ZF(ColorPointGX) ZF(ColorPointGY)
-ZF(ColorPointGIntensity) ZF(ColorPointBX) ZF(ColorPointBY) ZF(ColorPointBIntensity)
-
-ZF(Illuminance) ZF(IlluminanceMinMeasuredValue) ZF(IlluminanceMaxMeasuredValue) ZF(IlluminanceTolerance)
-ZF(IlluminanceLightSensorType) ZF(IlluminanceLevelStatus) ZF(IlluminanceTargetLevel)
-
-ZF(Temperature) ZF(TemperatureMinMeasuredValue) ZF(TemperatureMaxMeasuredValue) ZF(TemperatureTolerance)
-
-ZF(PressureUnit) ZF(Pressure) ZF(PressureMinMeasuredValue) ZF(PressureMaxMeasuredValue) ZF(PressureTolerance)
-ZF(PressureScaledValue) ZF(PressureMinScaledValue) ZF(PressureMaxScaledValue) ZF(PressureScaledTolerance)
-ZF(PressureScale)
-
-ZF(FlowRate) ZF(FlowMinMeasuredValue) ZF(FlowMaxMeasuredValue) ZF(FlowTolerance)
-
-ZF(Humidity) ZF(HumidityMinMeasuredValue) ZF(HumidityMaxMeasuredValue) ZF(HumidityTolerance)
-
-ZF(Occupancy) ZF(OccupancySensorType)
-
-ZF(CompanyName) ZF(MeterTypeID) ZF(DataQualityID) ZF(CustomerName) ZF(Model) ZF(PartNumber)
-ZF(SoftwareRevision) ZF(POD) ZF(AvailablePower) ZF(PowerThreshold) ZF(ProductRevision) ZF(UtilityName)
-
-ZF(NumberOfResets) ZF(PersistentMemoryWrites) ZF(LastMessageLQI) ZF(LastMessageRSSI)
-// list of post-processing directives
-const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
-  { Zuint8,   Cx0000, 0x0000,  Z(ZCLVersion),           &Z_Copy },
-  { Zuint8,   Cx0000, 0x0001,  Z(AppVersion),           &Z_Copy },
-  { Zuint8,   Cx0000, 0x0002,  Z(StackVersion),         &Z_Copy },
-  { Zuint8,   Cx0000, 0x0003,  Z(HWVersion),            &Z_Copy },
-  { Zstring,  Cx0000, 0x0004,  Z(Manufacturer),         &Z_ManufKeep },    // record Manufacturer
-  { Zstring,  Cx0000, 0x0005,  Z(ModelId), &Z_ModelKeep },    // record Model
-  { Zstring,  Cx0000, 0x0006,  Z(DateCode),             &Z_Copy },
-  { Zenum8,   Cx0000, 0x0007,  Z(PowerSource),          &Z_Copy },
-  { Zstring,  Cx0000, 0x4000,  Z(SWBuildID),            &Z_Copy },
-  { Zunk,     Cx0000, 0xFFFF,  nullptr,                &Z_Remove },    // Remove all other values
-  // Cmd 0x0A - Cluster 0x0000, attribute 0xFF01 - proprietary
-  { Zmap8,    Cx0000, 0xFF01,  nullptr,                &Z_AqaraSensor },    // Occupancy (map8)
-
-  // Power Configuration cluster
-  { Zuint16,  Cx0001, 0x0000,  Z(MainsVoltage),         &Z_Copy },
-  { Zuint8,   Cx0001, 0x0001,  Z(MainsFrequency),       &Z_Copy },
-  { Zuint8,   Cx0001, 0x0020,  Z(BatteryVoltage),       &Z_FloatDiv10 },
-  { Zuint8,   Cx0001, 0x0021,  Z(BatteryPercentage),    &Z_FloatDiv2 },
-
-  // Device Temperature Configuration cluster
-  { Zint16,   Cx0002, 0x0000,  Z(CurrentTemperature),   &Z_Copy },
-  { Zint16,   Cx0002, 0x0001,  Z(MinTempExperienced),   &Z_Copy },
-  { Zint16,   Cx0002, 0x0002,  Z(MaxTempExperienced),   &Z_Copy },
-  { Zuint16,  Cx0002, 0x0003,  Z(OverTempTotalDwell),   &Z_Copy },
-
-  // Scenes cluster
-  { Zuint8,   Cx0005, 0x0000,  Z(SceneCount),           &Z_Copy },
-  { Zuint8,   Cx0005, 0x0001,  Z(CurrentScene),         &Z_Copy },
-  { Zuint16,  Cx0005, 0x0002,  Z(CurrentGroup),         &Z_Copy },
-  { Zbool,    Cx0005, 0x0003,  Z(SceneValid),           &Z_Copy },
-  //{ Zmap8,    Cx0005, 0x0004,  Z(NameSupport),           &Z_Copy },
-
-  // On/off cluster
-  { Zbool,    Cx0006,    0x0000,  Z(Power),                &Z_Copy },
-  { Zbool,    Cx0006,    0x8000,  Z(Power),                &Z_Copy },   // See 7280
-
-  // On/Off Switch Configuration cluster
-  { Zenum8,   Cx0007, 0x0000,  Z(SwitchType),           &Z_Copy },
-
-  // Level Control cluster
-  { Zuint8,   Cx0008, 0x0000,  Z(Dimmer),               &Z_Copy },
-  // { Zuint16, Cx0008, 0x0001,  Z(RemainingTime",        &Z_Copy },
-  // { Zuint16, Cx0008, 0x0010,  Z(OnOffTransitionTime",  &Z_Copy },
-  // { Zuint8, Cx0008, 0x0011,  Z(OnLevel",              &Z_Copy },
-  // { Zuint16, Cx0008, 0x0012,  Z(OnTransitionTime",     &Z_Copy },
-  // { Zuint16, Cx0008, 0x0013,  Z(OffTransitionTime",    &Z_Copy },
-  // { Zuint16, Cx0008, 0x0014,  Z(DefaultMoveRate",      &Z_Copy },
-
-  // Alarms cluster
-  { Zuint16,  Cx0009, 0x0000,  Z(AlarmCount),           &Z_Copy },
-
-  // Time cluster
-  { ZUTC,     Cx000A, 0x0000,  Z(Time),                 &Z_Copy },
-  { Zmap8,    Cx000A, 0x0001,  Z(TimeStatus),           &Z_Copy },
-  { Zint32,   Cx000A, 0x0002,  Z(TimeZone),             &Z_Copy },
-  { Zuint32,  Cx000A, 0x0003,  Z(DstStart),             &Z_Copy },
-  { Zuint32,  Cx000A, 0x0004,  Z(DstEnd),             &Z_Copy },
-  { Zint32,   Cx000A, 0x0005,  Z(DstShift),             &Z_Copy },
-  { Zuint32,  Cx000A, 0x0006,  Z(StandardTime),         &Z_Copy },
-  { Zuint32,  Cx000A, 0x0007,  Z(LocalTime),            &Z_Copy },
-  { ZUTC,     Cx000A, 0x0008,  Z(LastSetTime),          &Z_Copy },
-  { ZUTC,     Cx000A, 0x0009,  Z(ValidUntilTime),       &Z_Copy },
-
-  // RSSI Location cluster
-  { Zdata8,   Cx000B, 0x0000,  Z(LocationType),         &Z_Copy },
-  { Zenum8,   Cx000B, 0x0001,  Z(LocationMethod),       &Z_Copy },
-  { Zuint16,  Cx000B, 0x0002,  Z(LocationAge),          &Z_Copy },
-  { Zuint8,   Cx000B, 0x0003,  Z(QualityMeasure),       &Z_Copy },
-  { Zuint8,   Cx000B, 0x0004,  Z(NumberOfDevices),      &Z_Copy },
-
-  // Analog Input cluster
-  // { 0xFF, Cx000C, 0x0004,  Z(AnalogInActiveText),   &Z_Copy },
-  { Zstring,  Cx000C, 0x001C,  Z(AnalogInDescription),  &Z_Copy },
-  // { 0xFF, Cx000C, 0x002E,  Z(AnalogInInactiveText), &Z_Copy },
-  { Zsingle,  Cx000C, 0x0041,  Z(AnalogInMaxValue),     &Z_Copy },
-  { Zsingle,  Cx000C, 0x0045,  Z(AnalogInMinValue),     &Z_Copy },
-  { Zbool,    Cx000C, 0x0051,  Z(AnalogInOutOfService), &Z_Copy },
-  { Zsingle,  Cx000C, 0x0055,  Z(AqaraRotate),          &Z_Copy },
-  // { 0xFF, Cx000C, 0x0057,  Z(AnalogInPriorityArray),&Z_Copy },
-  { Zenum8,   Cx000C, 0x0067,  Z(AnalogInReliability),  &Z_Copy },
-  // { 0xFF, Cx000C, 0x0068,  Z(AnalogInRelinquishDefault),&Z_Copy },
-  { Zsingle,  Cx000C, 0x006A,  Z(AnalogInResolution),   &Z_Copy },
-  { Zmap8,    Cx000C, 0x006F,  Z(AnalogInStatusFlags),  &Z_Copy },
-  { Zenum16,  Cx000C, 0x0075,  Z(AnalogInEngineeringUnits),&Z_Copy },
-  { Zuint32,  Cx000C, 0x0100,  Z(AnalogInApplicationType),&Z_Copy },
-  { Zuint16,  Cx000C, 0xFF05,  Z(Aqara_FF05),           &Z_Copy },
-
-  // Analog Output cluster
-  { Zstring,  Cx000D, 0x001C,  Z(AnalogOutDescription), &Z_Copy },
-  { Zsingle,  Cx000D, 0x0041,  Z(AnalogOutMaxValue),    &Z_Copy },
-  { Zsingle,  Cx000D, 0x0045,  Z(AnalogOutMinValue),    &Z_Copy },
-  { Zbool,    Cx000D, 0x0051,  Z(AnalogOutOutOfService),&Z_Copy },
-  { Zsingle,  Cx000D, 0x0055,  Z(AnalogOutValue),       &Z_Copy },
-  // { Zunk,     Cx000D, 0x0057,  Z(AnalogOutPriorityArray),&Z_Copy },
-  { Zenum8,   Cx000D, 0x0067,  Z(AnalogOutReliability), &Z_Copy },
-  { Zsingle,  Cx000D, 0x0068,  Z(AnalogOutRelinquishDefault),&Z_Copy },
-  { Zsingle,  Cx000D, 0x006A,  Z(AnalogOutResolution),  &Z_Copy },
-  { Zmap8,    Cx000D, 0x006F,  Z(AnalogOutStatusFlags), &Z_Copy },
-  { Zenum16,  Cx000D, 0x0075,  Z(AnalogOutEngineeringUnits),&Z_Copy },
-  { Zuint32,  Cx000D, 0x0100,  Z(AnalogOutApplicationType),&Z_Copy },
-
-  // Analog Value cluster
-  { Zstring,  Cx000E, 0x001C,  Z(AnalogDescription),    &Z_Copy },
-  { Zbool,    Cx000E, 0x0051,  Z(AnalogOutOfService),   &Z_Copy },
-  { Zsingle,  Cx000E, 0x0055,  Z(AnalogValue),          &Z_Copy },
-  { Zunk,     Cx000E, 0x0057,  Z(AnalogPriorityArray),  &Z_Copy },
-  { Zenum8,   Cx000E, 0x0067,  Z(AnalogReliability),    &Z_Copy },
-  { Zsingle,  Cx000E, 0x0068,  Z(AnalogRelinquishDefault),&Z_Copy },
-  { Zmap8,    Cx000E, 0x006F,  Z(AnalogStatusFlags),    &Z_Copy },
-  { Zenum16,  Cx000E, 0x0075,  Z(AnalogEngineeringUnits),&Z_Copy },
-  { Zuint32,  Cx000E, 0x0100,  Z(AnalogApplicationType),&Z_Copy },
-
-  // Binary Input cluster
-  { Zstring,  Cx000F, 0x0004,  Z(BinaryInActiveText),  &Z_Copy },
-  { Zstring,  Cx000F, 0x001C,  Z(BinaryInDescription), &Z_Copy },
-  { Zstring,  Cx000F, 0x002E,  Z(BinaryInInactiveText),&Z_Copy },
-  { Zbool,    Cx000F, 0x0051,  Z(BinaryInOutOfService),&Z_Copy },
-  { Zenum8,   Cx000F, 0x0054,  Z(BinaryInPolarity),    &Z_Copy },
-  { Zstring,  Cx000F, 0x0055,  Z(BinaryInValue),       &Z_Copy },
-  // { 0xFF, Cx000F, 0x0057,  Z(BinaryInPriorityArray),&Z_Copy },
-  { Zenum8,   Cx000F, 0x0067,  Z(BinaryInReliability), &Z_Copy },
-  { Zmap8,    Cx000F, 0x006F,  Z(BinaryInStatusFlags), &Z_Copy },
-  { Zuint32,  Cx000F, 0x0100,  Z(BinaryInApplicationType),&Z_Copy },
-
-  // Binary Output cluster
-  { Zstring,  Cx0010, 0x0004,  Z(BinaryOutActiveText),  &Z_Copy },
-  { Zstring,  Cx0010, 0x001C,  Z(BinaryOutDescription), &Z_Copy },
-  { Zstring,  Cx0010, 0x002E,  Z(BinaryOutInactiveText),&Z_Copy },
-  { Zuint32,  Cx0010, 0x0042,  Z(BinaryOutMinimumOffTime),&Z_Copy },
-  { Zuint32,  Cx0010, 0x0043,  Z(BinaryOutMinimumOnTime),&Z_Copy },
-  { Zbool,    Cx0010, 0x0051,  Z(BinaryOutOutOfService),&Z_Copy },
-  { Zenum8,   Cx0010, 0x0054,  Z(BinaryOutPolarity),    &Z_Copy },
-  { Zbool,    Cx0010, 0x0055,  Z(BinaryOutValue),       &Z_Copy },
-  // { Zunk,     Cx0010, 0x0057,  Z(BinaryOutPriorityArray),&Z_Copy },
-  { Zenum8,   Cx0010, 0x0067,  Z(BinaryOutReliability), &Z_Copy },
-  { Zbool,    Cx0010, 0x0068,  Z(BinaryOutRelinquishDefault),&Z_Copy },
-  { Zmap8,    Cx0010, 0x006F,  Z(BinaryOutStatusFlags), &Z_Copy },
-  { Zuint32,  Cx0010, 0x0100,  Z(BinaryOutApplicationType),&Z_Copy },
-
-  // Binary Value cluster
-  { Zstring,  Cx0011, 0x0004,  Z(BinaryActiveText),     &Z_Copy },
-  { Zstring,  Cx0011, 0x001C,  Z(BinaryDescription),    &Z_Copy },
-  { Zstring,  Cx0011, 0x002E,  Z(BinaryInactiveText),   &Z_Copy },
-  { Zuint32,  Cx0011, 0x0042,  Z(BinaryMinimumOffTime), &Z_Copy },
-  { Zuint32,  Cx0011, 0x0043,  Z(BinaryMinimumOnTime),  &Z_Copy },
-  { Zbool,    Cx0011, 0x0051,  Z(BinaryOutOfService),   &Z_Copy },
-  { Zbool,    Cx0011, 0x0055,  Z(BinaryValue),          &Z_Copy },
-  // { Zunk,     Cx0011, 0x0057,  Z(BinaryPriorityArray),  &Z_Copy },
-  { Zenum8,   Cx0011, 0x0067,  Z(BinaryReliability),    &Z_Copy },
-  { Zbool,    Cx0011, 0x0068,  Z(BinaryRelinquishDefault),&Z_Copy },
-  { Zmap8,    Cx0011, 0x006F,  Z(BinaryStatusFlags),    &Z_Copy },
-  { Zuint32,  Cx0011, 0x0100,  Z(BinaryApplicationType),&Z_Copy },
-
-  // Multistate Input cluster
-  // { Zunk,     Cx0012, 0x000E,  Z(MultiInStateText),     &Z_Copy },
-  { Zstring,  Cx0012, 0x001C,  Z(MultiInDescription),   &Z_Copy },
-  { Zuint16,  Cx0012, 0x004A,  Z(MultiInNumberOfStates),&Z_Copy },
-  { Zbool,    Cx0012, 0x0051,  Z(MultiInOutOfService),  &Z_Copy },
-  { Zuint16,  Cx0012, 0x0055,  Z(MultiInValue),         &Z_AqaraCube },
-  { Zenum8,   Cx0012, 0x0067,  Z(MultiInReliability),   &Z_Copy },
-  { Zmap8,    Cx0012, 0x006F,  Z(MultiInStatusFlags),   &Z_Copy },
-  { Zuint32,  Cx0012, 0x0100,  Z(MultiInApplicationType),&Z_Copy },
-
-  // Multistate output
-  // { Zunk,     Cx0013, 0x000E,  Z(MultiOutStateText),    &Z_Copy },
-  { Zstring,  Cx0013, 0x001C,  Z(MultiOutDescription),  &Z_Copy },
-  { Zuint16,  Cx0013, 0x004A,  Z(MultiOutNumberOfStates),&Z_Copy },
-  { Zbool,    Cx0013, 0x0051,  Z(MultiOutOutOfService), &Z_Copy },
-  { Zuint16,  Cx0013, 0x0055,  Z(MultiOutValue),        &Z_Copy },
-  // { Zunk,     Cx0013, 0x0057,  Z(MultiOutPriorityArray),&Z_Copy },
-  { Zenum8,   Cx0013, 0x0067,  Z(MultiOutReliability),  &Z_Copy },
-  { Zuint16,  Cx0013, 0x0068,  Z(MultiOutRelinquishDefault),&Z_Copy },
-  { Zmap8,    Cx0013, 0x006F,  Z(MultiOutStatusFlags),  &Z_Copy },
-  { Zuint32,  Cx0013, 0x0100,  Z(MultiOutApplicationType),&Z_Copy },
-
-  // Multistate Value cluster
-  // { Zunk,     Cx0014, 0x000E,  Z(MultiStateText),       &Z_Copy },
-  { Zstring,  Cx0014, 0x001C,  Z(MultiDescription),     &Z_Copy },
-  { Zuint16,  Cx0014, 0x004A,  Z(MultiNumberOfStates),  &Z_Copy },
-  { Zbool,    Cx0014, 0x0051,  Z(MultiOutOfService),    &Z_Copy },
-  { Zuint16,  Cx0014, 0x0055,  Z(MultiValue),           &Z_Copy },
-  { Zenum8,   Cx0014, 0x0067,  Z(MultiReliability),     &Z_Copy },
-  { Zuint16,  Cx0014, 0x0068,  Z(MultiRelinquishDefault),&Z_Copy },
-  { Zmap8,    Cx0014, 0x006F,  Z(MultiStatusFlags),     &Z_Copy },
-  { Zuint32,  Cx0014, 0x0100,  Z(MultiApplicationType), &Z_Copy },
-
-  // Power Profile cluster
-  { Zuint8,   Cx001A, 0x0000,  Z(TotalProfileNum),      &Z_Copy },
-  { Zbool,    Cx001A, 0x0001,  Z(MultipleScheduling),   &Z_Copy },
-  { Zmap8,    Cx001A, 0x0002,  Z(EnergyFormatting),     &Z_Copy },
-  { Zbool,    Cx001A, 0x0003,  Z(EnergyRemote),         &Z_Copy },
-  { Zmap8,    Cx001A, 0x0004,  Z(ScheduleMode),         &Z_Copy },
-
-  // Poll Control cluster
-  { Zuint32,  Cx0020, 0x0000,  Z(CheckinInterval),      &Z_Copy },
-  { Zuint32,  Cx0020, 0x0001,  Z(LongPollInterval),     &Z_Copy },
-  { Zuint16,  Cx0020, 0x0002,  Z(ShortPollInterval),    &Z_Copy },
-  { Zuint16,  Cx0020, 0x0003,  Z(FastPollTimeout),      &Z_Copy },
-  { Zuint32,  Cx0020, 0x0004,  Z(CheckinIntervalMin),   &Z_Copy },
-  { Zuint32,  Cx0020, 0x0005,  Z(LongPollIntervalMin),  &Z_Copy },
-  { Zuint16,  Cx0020, 0x0006,  Z(FastPollTimeoutMax),   &Z_Copy },
-
-  // Shade Configuration cluster
-  { Zuint16,  Cx0100, 0x0000,  Z(PhysicalClosedLimit),  &Z_Copy },
-  { Zuint8,   Cx0100, 0x0001,  Z(MotorStepSize),        &Z_Copy },
-  { Zmap8,    Cx0100, 0x0002,  Z(Status),               &Z_Copy },
-  { Zuint16,  Cx0100, 0x0010,  Z(ClosedLimit),          &Z_Copy },
-  { Zenum8,   Cx0100, 0x0011,  Z(Mode),                 &Z_Copy },
-
-  // Door Lock cluster
-  { Zenum8,   Cx0101, 0x0000,  Z(LockState),            &Z_Copy },
-  { Zenum8,   Cx0101, 0x0001,  Z(LockType),             &Z_Copy },
-  { Zbool,    Cx0101, 0x0002,  Z(ActuatorEnabled),      &Z_Copy },
-  { Zenum8,   Cx0101, 0x0003,  Z(DoorState),            &Z_Copy },
-  { Zuint32,  Cx0101, 0x0004,  Z(DoorOpenEvents),       &Z_Copy },
-  { Zuint32,  Cx0101, 0x0005,  Z(DoorClosedEvents),     &Z_Copy },
-  { Zuint16,  Cx0101, 0x0006,  Z(OpenPeriod),           &Z_Copy },
-
-  // Aqara Lumi Vibration Sensor
-  { Zuint16,  Cx0101, 0x0055,  Z(AqaraVibrationMode),   &Z_AqaraVibration },
-  { Zuint16,  Cx0101, 0x0503,  Z(AqaraVibrationsOrAngle), &Z_Copy },
-  { Zuint32,  Cx0101, 0x0505,  Z(AqaraVibration505),    &Z_Copy },
-  { Zuint48,  Cx0101, 0x0508,  Z(AqaraAccelerometer),   &Z_AqaraVibration },
-
-  // Window Covering cluster
-  { Zenum8,   Cx0102, 0x0000,  Z(WindowCoveringType),   &Z_Copy },
-  { Zuint16,  Cx0102, 0x0001,  Z(PhysicalClosedLimitLift),&Z_Copy },
-  { Zuint16,  Cx0102, 0x0002,  Z(PhysicalClosedLimitTilt),&Z_Copy },
-  { Zuint16,  Cx0102, 0x0003,  Z(CurrentPositionLift),  &Z_Copy },
-  { Zuint16,  Cx0102, 0x0004,  Z(CurrentPositionTilt),  &Z_Copy },
-  { Zuint16,  Cx0102, 0x0005,  Z(NumberofActuationsLift),&Z_Copy },
-  { Zuint16,  Cx0102, 0x0006,  Z(NumberofActuationsTilt),&Z_Copy },
-  { Zmap8,    Cx0102, 0x0007,  Z(ConfigStatus),         &Z_Copy },
-  { Zuint8,   Cx0102, 0x0008,  Z(CurrentPositionLiftPercentage),&Z_Copy },
-  { Zuint8,   Cx0102, 0x0009,  Z(CurrentPositionTiltPercentage),&Z_Copy },
-  { Zuint16,  Cx0102, 0x0010,  Z(InstalledOpenLimitLift),&Z_Copy },
-  { Zuint16,  Cx0102, 0x0011,  Z(InstalledClosedLimitLift),&Z_Copy },
-  { Zuint16,  Cx0102, 0x0012,  Z(InstalledOpenLimitTilt),&Z_Copy },
-  { Zuint16,  Cx0102, 0x0013,  Z(InstalledClosedLimitTilt),&Z_Copy },
-  { Zuint16,  Cx0102, 0x0014,  Z(VelocityLift),         &Z_Copy },
-  { Zuint16,  Cx0102, 0x0015,  Z(AccelerationTimeLift),&Z_Copy },
-  { Zuint16,  Cx0102, 0x0016,  Z(DecelerationTimeLift), &Z_Copy },
-  { Zmap8,    Cx0102, 0x0017,  Z(Mode),                 &Z_Copy },
-  { Zoctstr,  Cx0102, 0x0018,  Z(IntermediateSetpointsLift),&Z_Copy },
-  { Zoctstr,  Cx0102, 0x0019,  Z(IntermediateSetpointsTilt),&Z_Copy },
-
-  // Color Control cluster
-  { Zuint8,   Cx0300, 0x0000,  Z(Hue),                  &Z_Copy },
-  { Zuint8,   Cx0300, 0x0001,  Z(Sat),                  &Z_Copy },
-  { Zuint16,  Cx0300, 0x0002,  Z(RemainingTime),        &Z_Copy },
-  { Zuint16,  Cx0300, 0x0003,  Z(X),                    &Z_Copy },
-  { Zuint16,  Cx0300, 0x0004,  Z(Y),                    &Z_Copy },
-  { Zenum8,   Cx0300, 0x0005,  Z(DriftCompensation),    &Z_Copy },
-  { Zstring,  Cx0300, 0x0006,  Z(CompensationText),     &Z_Copy },
-  { Zuint16,  Cx0300, 0x0007,  Z(CT),                   &Z_Copy },
-  { Zenum8,   Cx0300, 0x0008,  Z(ColorMode),            &Z_Copy },
-  { Zuint8,   Cx0300, 0x0010,  Z(NumberOfPrimaries),    &Z_Copy },
-  { Zuint16,  Cx0300, 0x0011,  Z(Primary1X),            &Z_Copy },
-  { Zuint16,  Cx0300, 0x0012,  Z(Primary1Y),            &Z_Copy },
-  { Zuint8,   Cx0300, 0x0013,  Z(Primary1Intensity),    &Z_Copy },
-  { Zuint16,  Cx0300, 0x0015,  Z(Primary2X),            &Z_Copy },
-  { Zuint16,  Cx0300, 0x0016,  Z(Primary2Y),            &Z_Copy },
-  { Zuint8,   Cx0300, 0x0017,  Z(Primary2Intensity),    &Z_Copy },
-  { Zuint16,  Cx0300, 0x0019,  Z(Primary3X),            &Z_Copy },
-  { Zuint16,  Cx0300, 0x001A,  Z(Primary3Y),            &Z_Copy },
-  { Zuint8,   Cx0300, 0x001B,  Z(Primary3Intensity),    &Z_Copy },
-  { Zuint16,  Cx0300, 0x0030,  Z(WhitePointX),          &Z_Copy },
-  { Zuint16,  Cx0300, 0x0031,  Z(WhitePointY),          &Z_Copy },
-  { Zuint16,  Cx0300, 0x0032,  Z(ColorPointRX),         &Z_Copy },
-  { Zuint16,  Cx0300, 0x0033,  Z(ColorPointRY),         &Z_Copy },
-  { Zuint8,   Cx0300, 0x0034,  Z(ColorPointRIntensity), &Z_Copy },
-  { Zuint16,  Cx0300, 0x0036,  Z(ColorPointGX),         &Z_Copy },
-  { Zuint16,  Cx0300, 0x0037,  Z(ColorPointGY),         &Z_Copy },
-  { Zuint8,   Cx0300, 0x0038,  Z(ColorPointGIntensity), &Z_Copy },
-  { Zuint16,  Cx0300, 0x003A,  Z(ColorPointBX),         &Z_Copy },
-  { Zuint16,  Cx0300, 0x003B,  Z(ColorPointBY),         &Z_Copy },
-  { Zuint8,   Cx0300, 0x003C,  Z(ColorPointBIntensity), &Z_Copy },
-
-  // Illuminance Measurement cluster
-  { Zuint16,  Cx0400, 0x0000,  Z(Illuminance),           &Z_Copy },    // Illuminance (in Lux)
-  { Zuint16,  Cx0400, 0x0001,  Z(IlluminanceMinMeasuredValue),     &Z_Copy },    //
-  { Zuint16,  Cx0400, 0x0002,  Z(IlluminanceMaxMeasuredValue),     &Z_Copy },    //
-  { Zuint16,  Cx0400, 0x0003,  Z(IlluminanceTolerance),            &Z_Copy },    //
-  { Zenum8,   Cx0400, 0x0004,  Z(IlluminanceLightSensorType),      &Z_Copy },    //
-  { Zunk,     Cx0400, 0xFFFF,  nullptr,                &Z_Remove },    // Remove all other values
-
-  // Illuminance Level Sensing cluster
-  { Zenum8,   Cx0401, 0x0000,  Z(IlluminanceLevelStatus),          &Z_Copy },    // Illuminance (in Lux)
-  { Zenum8,   Cx0401, 0x0001,  Z(IlluminanceLightSensorType),      &Z_Copy },    // LightSensorType
-  { Zuint16,  Cx0401, 0x0010,  Z(IlluminanceTargetLevel),          &Z_Copy },    //
-  { Zunk,     Cx0401, 0xFFFF,  nullptr,                &Z_Remove },    // Remove all other values
-
-  // Temperature Measurement cluster
-  { Zint16,   Cx0402, 0x0000,  Z(Temperature),          &Z_FloatDiv100 },   // Temperature
-  { Zint16,   Cx0402, 0x0001,  Z(TemperatureMinMeasuredValue),     &Z_FloatDiv100 },    //
-  { Zint16,   Cx0402, 0x0002,  Z(TemperatureMaxMeasuredValue),     &Z_FloatDiv100 },    //
-  { Zuint16,  Cx0402, 0x0003,  Z(TemperatureTolerance),            &Z_FloatDiv100 },    //
-  { Zunk,     Cx0402, 0xFFFF,  nullptr,                &Z_Remove },     // Remove all other values
-
-  // Pressure Measurement cluster
-  { Zunk,     Cx0403, 0x0000,  Z(PressureUnit),                 &Z_AddPressureUnit },     // Pressure Unit
-  { Zint16,   Cx0403, 0x0000,  Z(Pressure),                     &Z_Copy },     // Pressure
-  { Zint16,   Cx0403, 0x0001,  Z(PressureMinMeasuredValue),     &Z_Copy },    //
-  { Zint16,   Cx0403, 0x0002,  Z(PressureMaxMeasuredValue),     &Z_Copy },    //
-  { Zuint16,  Cx0403, 0x0003,  Z(PressureTolerance),            &Z_Copy },    //
-  { Zint16,   Cx0403, 0x0010,  Z(PressureScaledValue),          &Z_Copy },    //
-  { Zint16,   Cx0403, 0x0011,  Z(PressureMinScaledValue),       &Z_Copy },    //
-  { Zint16,   Cx0403, 0x0012,  Z(PressureMaxScaledValue),       &Z_Copy },    //
-  { Zuint16,  Cx0403, 0x0013,  Z(PressureScaledTolerance),      &Z_Copy },    //
-  { Zint8,    Cx0403, 0x0014,  Z(PressureScale),                &Z_Copy },    //
-  { Zunk,     Cx0403, 0xFFFF,  nullptr,                &Z_Remove },     // Remove all other Pressure values
-
-  // Flow Measurement cluster
-  { Zuint16,  Cx0404, 0x0000,  Z(FlowRate),             &Z_FloatDiv10 },    // Flow (in m3/h)
-  { Zuint16,  Cx0404, 0x0001,  Z(FlowMinMeasuredValue), &Z_Copy },    //
-  { Zuint16,  Cx0404, 0x0002,  Z(FlowMaxMeasuredValue), &Z_Copy },    //
-  { Zuint16,  Cx0404, 0x0003,  Z(FlowTolerance),        &Z_Copy },    //
-  { Zunk,     Cx0404, 0xFFFF,  nullptr,                &Z_Remove },    // Remove all other values
-
-  // Relative Humidity Measurement cluster
-  { Zuint16,  Cx0405, 0x0000,  Z(Humidity),             &Z_FloatDiv100 },   // Humidity
-  { Zuint16,  Cx0405, 0x0001,  Z(HumidityMinMeasuredValue),     &Z_Copy },    //
-  { Zuint16,  Cx0405, 0x0002,  Z(HumidityMaxMeasuredValue),     &Z_Copy },    //
-  { Zuint16,  Cx0405, 0x0003,  Z(HumidityTolerance),            &Z_Copy },    //
-  { Zunk,     Cx0405, 0xFFFF,  nullptr,                &Z_Remove },     // Remove all other values
-
-  // Occupancy Sensing cluster
-  { Zmap8,    Cx0406, 0x0000,  Z(Occupancy),            &Z_Copy },    // Occupancy (map8)
-  { Zenum8,   Cx0406, 0x0001,  Z(OccupancySensorType),  &Z_Copy },    // OccupancySensorType
-  { Zunk,     Cx0406, 0xFFFF,  nullptr,                &Z_Remove },    // Remove all other values
-
-  // Meter Identification cluster
-  { Zstring,  Cx0B01, 0x0000,  Z(CompanyName),          &Z_Copy },
-  { Zuint16,  Cx0B01, 0x0001,  Z(MeterTypeID),          &Z_Copy },
-  { Zuint16,  Cx0B01, 0x0004,  Z(DataQualityID),        &Z_Copy },
-  { Zstring,  Cx0B01, 0x0005,  Z(CustomerName),         &Z_Copy },
-  { Zoctstr,  Cx0B01, 0x0006,  Z(Model),                &Z_Copy },
-  { Zoctstr,  Cx0B01, 0x0007,  Z(PartNumber),           &Z_Copy },
-  { Zoctstr,  Cx0B01, 0x0008,  Z(ProductRevision),      &Z_Copy },
-  { Zoctstr,  Cx0B01, 0x000A,  Z(SoftwareRevision),     &Z_Copy },
-  { Zstring,  Cx0B01, 0x000B,  Z(UtilityName),          &Z_Copy },
-  { Zstring,  Cx0B01, 0x000C,  Z(POD),                  &Z_Copy },
-  { Zint24,   Cx0B01, 0x000D,  Z(AvailablePower),       &Z_Copy },
-  { Zint24,   Cx0B01, 0x000E,  Z(PowerThreshold),       &Z_Copy },
-
-  // Diagnostics cluster
-  { Zuint16,  Cx0B05, 0x0000,  Z(NumberOfResets),       &Z_Copy },
-  { Zuint16,  Cx0B05, 0x0001,  Z(PersistentMemoryWrites),&Z_Copy },
-  { Zuint8,   Cx0B05, 0x011C,  Z(LastMessageLQI),       &Z_Copy },
-  { Zuint8,   Cx0B05, 0x011D,  Z(LastMessageRSSI),      &Z_Copy },
-
-};
 
 // ======================================================================
 // Record Manuf
