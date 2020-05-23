@@ -340,7 +340,7 @@ int32_t Z_Devices::findFriendlyName(const char * name) const {
   if (name_len) {
     for (auto &elem : _devices) {
       if (elem->friendlyName) {
-        if (strcmp(elem->friendlyName, name) == 0) { return found; }
+        if (strcasecmp(elem->friendlyName, name) == 0) { return found; }
       }
       found++;
     }
