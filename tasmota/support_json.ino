@@ -84,8 +84,11 @@ String EscapeJSONString(const char *str) {
 // The search is case-insensitive, and will find the first match in the order of keys in JSON
 //
 // If the key is not found, returns a nullptr
-const JsonVariant &getCaseInsensitive(const JsonObject &json, const char *needle) {
+// Input: needle cannot be NULL but may be PROGMEM
+const JsonVariant &GetCaseInsensitive(const JsonObject &json, const char *needle) {
   // key can be in PROGMEM
+  // if needle == "?" then we return the first valid key
+  bool wildcard = strcmp_P("?", needle) == 0;
   if ((nullptr == &json) || (nullptr == needle) || (0 == pgm_read_byte(needle))) {
     return *(JsonVariant*)nullptr;
   }
@@ -94,7 +97,7 @@ const JsonVariant &getCaseInsensitive(const JsonObject &json, const char *needle
     const char *key = it->key;
     const JsonVariant &value = it->value;
 
-    if (0 == strcasecmp_P(key, needle)) {
+    if (wildcard || (0 == strcasecmp_P(key, needle))) {
       return value;
     }
   }

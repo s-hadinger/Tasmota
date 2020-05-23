@@ -25,7 +25,7 @@ void ZigbeeZCLSend_Raw(uint16_t dtsAddr, uint16_t groupaddr, uint16_t clusterId,
 
 // get the result as a string (const char*) and nullptr if there is no field or the string is empty
 const char * getCaseInsensitiveConstCharNull(const JsonObject &json, const char *needle) {
-  const JsonVariant &val = getCaseInsensitive(json, needle);
+  const JsonVariant &val = GetCaseInsensitive(json, needle);
   if (&val) {
     const char *val_cs = val.as<const char*>();
     if (strlen(val_cs)) {
