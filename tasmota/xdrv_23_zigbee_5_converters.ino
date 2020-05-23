@@ -1043,7 +1043,7 @@ void ZCLFrame::parseReadAttributes(JsonObject& json, uint8_t offset) {
 
   while (len - i >= 2) {
     JsonArray &attr_list = json.createNestedArray(F("Read"));
-    JsonArray &attr_list_names = json.createNestedArray(F("ReadNames"));
+    JsonObject &attr_names = json.createNestedObject(F("ReadNames"));
     
     uint16_t attrid = _payload.get16(i);
     attr_list.add(attrid);
@@ -1055,7 +1055,7 @@ void ZCLFrame::parseReadAttributes(JsonObject& json, uint8_t offset) {
       uint16_t conv_attribute = pgm_read_word(&converter->attribute);
 
       if ((conv_cluster == _cluster_id) && (conv_attribute == attrid)) {
-        attr_list_names.add((const __FlashStringHelper*) converter->name);
+        attr_names[(const __FlashStringHelper*) converter->name] = true;
         break;
       }
     }
