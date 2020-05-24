@@ -1041,10 +1041,9 @@ void ZCLFrame::parseReadAttributes(JsonObject& json, uint8_t offset) {
 
   json[F("Cluster")] = _cluster_id;
 
+  JsonArray &attr_list = json.createNestedArray(F("Read"));
+  JsonObject &attr_names = json.createNestedObject(F("ReadNames"));
   while (len - i >= 2) {
-    JsonArray &attr_list = json.createNestedArray(F("Read"));
-    JsonObject &attr_names = json.createNestedObject(F("ReadNames"));
-    
     uint16_t attrid = _payload.get16(i);
     attr_list.add(attrid);
 
