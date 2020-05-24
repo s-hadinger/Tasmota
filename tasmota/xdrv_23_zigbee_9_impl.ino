@@ -889,8 +889,8 @@ void CmndZbRestore(void) {
 // Send attribute value, either to write an attribute or to report an attribute sensor value
 //
 void CmndZbWrite(void) {
-  // ZbWrite {"Device":"0xF289","Cluster":0,"Endpoint":3,"Write":{"ModelId":"Tasmota Router","0000_05":"Tasmota Router"}}
-  // ZbWrite {"Device":"0xF289","Write":{"ModelId":"Tasmota Router","0000_05":"Tasmota Router"}}
+  // ZbWrite {"Device":"0xF289","Cluster":0,"Endpoint":3,"Write":{"ModelId":"Tasmota Router","0000/0006":"Tasmota"}}
+  // ZbWrite {"Device":"0xF289","Write":{"ModelId":"Tasmota Router","0000/00006":"Tasmota"}}
   // Cluster [opt]
   // Endpoint [opt]
   // Manuf [opt]
@@ -923,6 +923,7 @@ void CmndZbWrite(void) {
     }
   }
 
+  // read other parameters
   const JsonVariant &val_cluster = GetCaseInsensitive(json, PSTR("Cluster"));
   if (nullptr != &val_cluster) { cluster = strToUInt(val_cluster); }
   const JsonVariant &val_endpoint = GetCaseInsensitive(json, PSTR("Endpoint"));
@@ -930,6 +931,7 @@ void CmndZbWrite(void) {
   const JsonVariant &val_manuf = GetCaseInsensitive(json, PSTR("Manuf"));
   if (nullptr != &val_manuf) { manuf = strToUInt(val_manuf); }
 
+  // infer endpoint
   if (BAD_SHORTADDR == device) {
     endpoint = 0xFF;    // endpoint not used for group addresses
   } else if (0 == endpoint) {
@@ -937,6 +939,7 @@ void CmndZbWrite(void) {
     AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZIG: guessing endpoint %d"), endpoint);
   }
   
+  // read "Write" attributes
   const JsonVariant &val_attr = GetCaseInsensitive(json, PSTR("Write"));
   if ((0 == endpoint) || (nullptr == &val_attr) || (!val_attr.is<JsonObject>())) {
     ResponseCmndChar_P(PSTR("Missing parameters"));
@@ -947,34 +950,89 @@ void CmndZbWrite(void) {
   // pre-condition: val_attr is not null and is a JsonObject
   const JsonObject &attrs = val_attr.as<JsonObject>();
   SBuffer buf(200);       // buffer to store the binary output of attibutes
-  
+
   // iterate on keys
   for (JsonObject::const_iterator it=attrs.begin(); it!=attrs.end(); ++it) {
     const char *key = it->key;
     const JsonVariant &value = it->value;
     const char * attr_name = value.as<const char*>();
 
-    // find the attribute name
     uint16_t attr_id = 0xFFFF;
     uint16_t cluster_id = 0xFFFF;
-    for (uint32_t i = 0; i < ARRAY_SIZE(Z_PostProcess); i++) {
-      const Z_AttributeConverter *converter = &Z_PostProcess[i];
-      if (0 == strcasecmp_P(attr_name, converter->name)) {
-        // match
-        cluster_id = CxToCluster(pgm_read_byte(&converter->cluster_short));
-        attr_id = pgm_read_word(&converter->attribute);
-        break;
+    uint8_t  type_id = Znodata;
+
+    // check if the name has the format "XXXX/YYYY" where XXXX is the cluster, YYYY the attribute id
+    // alternative "XXXX/YYYY%ZZ" where ZZ is the type (for unregistered attributes)
+    char * delimiter = strchr(key, '/');
+    char * delimiter2 = strchr(key, '%');
+    if (delimiter) {
+      cluster_id = strtoul(key, &delimiter, 16);
+      if (!delimiter2) {
+        attr_id = strtoul(delimiter+1, nullptr, 16);
+      } else {
+        attr_id = strtoul(delimiter+1, &delimiter2, 16);
+        type_id = strtoul(delimiter2+1, nullptr, 16);
       }
+    }
+
+    // do we already know the type, i.e. attribute and cluster are also known
+    if (Znodata != type_id) {
+      // scan attributes to find by name, and retrieve type
+      for (uint32_t i = 0; i < ARRAY_SIZE(Z_PostProcess); i++) {
+        const Z_AttributeConverter *converter = &Z_PostProcess[i];
+        bool match = false;
+        uint16_t local_attr_id = pgm_read_word(&converter->attribute);
+        uint16_t local_cluster_id = CxToCluster(pgm_read_byte(&converter->cluster_short));
+        uint8_t  local_type_id = pgm_read_byte(&converter->type);
+
+        if (delimiter) {
+          if ((cluster_id == local_cluster_id) && (attr_id == local_attr_id)) {
+            type_id = local_type_id;
+            break;
+          }
+        } else {
+          if (0 == strcasecmp_P(attr_name, converter->name)) {
+            // match
+            cluster_id = local_cluster_id;
+            attr_id = local_attr_id;
+            type_id = local_type_id;
+            break;
+          }
+        }
+      }
+    }
+
+    if ((0xFFFF == attr_id) || (0xFFFF == cluster_id)) {
+      ResponseCmndChar_P(PSTR("Unknown attribute"));
+      return;
+    }
+    if (Znodata == type_id) {
+      ResponseCmndChar_P(PSTR("Unknown attribute type"));
+      return;
+    }
+
+    if (0xFFFF == cluster) {
+      cluster = cluster_id;       // set the cluster for this packet
+    } else if (cluster != cluster_id) {
+      ResponseCmndChar_P(PSTR("No more than one cluster id per command"));
+      return;
+    }
+    // push the value in the buffer
+    int32_t res = encodeSingleAttribute(buf, value, attr_id, type_id);
+    if (res < 0) {
+      ResponseCmndChar_P(PSTR("Unsupported attribute type"));
+      return;
     }
   }
 
   // did we have any attribute?
   if (0 == buf.len()) {
-    ResponseCmndChar_P(PSTR("No attribute list"));
+    ResponseCmndChar_P(PSTR("No attribute in list"));
     return;
   }
 
   // all good, send the packet
+  ZigbeeZCLSend_Raw(device, groupaddr, cluster, endpoint, ZCL_REPORT_ATTRIBUTES, false /* not cluster specific */, manuf, buf.getBuffer(), buf.len(), false /* noresponse */, zigbee_devices.getNextSeqNumber(device));
 }
 
 //
