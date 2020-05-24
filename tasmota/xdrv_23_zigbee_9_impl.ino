@@ -32,7 +32,7 @@ TasmotaSerial *ZigbeeSerial = nullptr;
 const char kZbCommands[] PROGMEM = D_PRFX_ZB "|"    // prefix
   D_CMND_ZIGBEEZNPSEND "|" D_CMND_ZIGBEE_PERMITJOIN "|"
   D_CMND_ZIGBEE_STATUS "|" D_CMND_ZIGBEE_RESET "|" D_CMND_ZIGBEE_SEND "|"
-  D_CMND_ZIGBEE_PROBE "|" D_CMND_ZIGBEE_READ "|" D_CMND_ZIGBEEZNPRECEIVE "|"
+  D_CMND_ZIGBEE_PROBE "|" D_CMND_ZIGBEE_READ "|" D_CMND_ZIGBEE_WRITE "|" D_CMND_ZIGBEEZNPRECEIVE "|"
   D_CMND_ZIGBEE_FORGET "|" D_CMND_ZIGBEE_SAVE "|" D_CMND_ZIGBEE_NAME "|"
   D_CMND_ZIGBEE_BIND "|" D_CMND_ZIGBEE_UNBIND "|" D_CMND_ZIGBEE_PING "|" D_CMND_ZIGBEE_MODELID "|"
   D_CMND_ZIGBEE_LIGHT "|" D_CMND_ZIGBEE_RESTORE "|" D_CMND_ZIGBEE_BIND_STATE "|"
@@ -42,7 +42,7 @@ const char kZbCommands[] PROGMEM = D_PRFX_ZB "|"    // prefix
 void (* const ZigbeeCommand[])(void) PROGMEM = {
   &CmndZbZNPSend, &CmndZbPermitJoin,
   &CmndZbStatus, &CmndZbReset, &CmndZbSend,
-  &CmndZbProbe, &CmndZbRead, &CmndZbZNPReceive,
+  &CmndZbProbe, &CmndZbRead, &CmndZbWrite, &CmndZbZNPReceive,
   &CmndZbForget, &CmndZbSave, &CmndZbName,
   &CmndZbBind, &CmndZbUnbind, &CmndZbPing, &CmndZbModelId,
   &CmndZbLight, &CmndZbRestore, &CmndZbBindState,
@@ -885,6 +885,98 @@ void CmndZbRestore(void) {
   ResponseCmndDone();
 }
 
+// Command `ZbWrite``
+// Send attribute value, either to write an attribute or to report an attribute sensor value
+//
+void CmndZbWrite(void) {
+  // ZbWrite {"Device":"0xF289","Cluster":0,"Endpoint":3,"Write":{"ModelId":"Tasmota Router","0000_05":"Tasmota Router"}}
+  // ZbWrite {"Device":"0xF289","Write":{"ModelId":"Tasmota Router","0000_05":"Tasmota Router"}}
+  // Cluster [opt]
+  // Endpoint [opt]
+  // Manuf [opt]
+  if (zigbee.init_phase) { ResponseCmndChar_P(PSTR(D_ZIGBEE_NOT_STARTED)); return; }
+  DynamicJsonBuffer jsonBuf;
+  JsonObject &json = jsonBuf.parseObject((const char*) XdrvMailbox.data);
+  if (!json.success()) { ResponseCmndChar_P(PSTR(D_JSON_INVALID_JSON)); return; }
+
+  // params
+  uint16_t device = BAD_SHORTADDR;    // BAD_SHORTADDR is broadcast, so considered invalid
+  uint16_t groupaddr = 0x0000;        // group address valid only if device == BAD_SHORTADDR
+  uint16_t cluster = 0xFFFF;          // no default
+  uint8_t  endpoint = 0x00;           // 0x00 is invalid for the dst endpoint
+  uint16_t manuf = 0x0000;            // Manuf Id in ZCL frame
+
+  // size_t   attrs_len = 0;
+  // uint8_t* attrs = nullptr;       // empty string is valid
+  const JsonVariant &val_device = GetCaseInsensitive(json, PSTR("Device"));
+  if (nullptr != &val_device) {
+    device = zigbee_devices.parseDeviceParam(val_device.as<char*>());
+    if (BAD_SHORTADDR == device) { ResponseCmndChar_P(PSTR("Invalid parameter")); return; }
+  }
+  if (BAD_SHORTADDR == device) {     // if not found, check if we have a group
+    const JsonVariant &val_group = GetCaseInsensitive(json, PSTR("Group"));
+    if (nullptr != &val_group) {
+      groupaddr = strToUInt(val_group);
+    } else {                  // no device nor group
+      ResponseCmndChar_P(PSTR("Unknown device"));
+      return;
+    }
+  }
+
+  const JsonVariant &val_cluster = GetCaseInsensitive(json, PSTR("Cluster"));
+  if (nullptr != &val_cluster) { cluster = strToUInt(val_cluster); }
+  const JsonVariant &val_endpoint = GetCaseInsensitive(json, PSTR("Endpoint"));
+  if (nullptr != &val_endpoint) { endpoint = strToUInt(val_endpoint); }
+  const JsonVariant &val_manuf = GetCaseInsensitive(json, PSTR("Manuf"));
+  if (nullptr != &val_manuf) { manuf = strToUInt(val_manuf); }
+
+  if (BAD_SHORTADDR == device) {
+    endpoint = 0xFF;    // endpoint not used for group addresses
+  } else if (0 == endpoint) {
+    endpoint = zigbee_devices.findFirstEndpoint(device);
+    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZIG: guessing endpoint %d"), endpoint);
+  }
+  
+  const JsonVariant &val_attr = GetCaseInsensitive(json, PSTR("Write"));
+  if ((0 == endpoint) || (nullptr == &val_attr) || (!val_attr.is<JsonObject>())) {
+    ResponseCmndChar_P(PSTR("Missing parameters"));
+    return;
+  }
+
+  // parse attributes.
+  // pre-condition: val_attr is not null and is a JsonObject
+  const JsonObject &attrs = val_attr.as<JsonObject>();
+  SBuffer buf(200);       // buffer to store the binary output of attibutes
+  
+  // iterate on keys
+  for (JsonObject::const_iterator it=attrs.begin(); it!=attrs.end(); ++it) {
+    const char *key = it->key;
+    const JsonVariant &value = it->value;
+    const char * attr_name = value.as<const char*>();
+
+    // find the attribute name
+    uint16_t attr_id = 0xFFFF;
+    uint16_t cluster_id = 0xFFFF;
+    for (uint32_t i = 0; i < ARRAY_SIZE(Z_PostProcess); i++) {
+      const Z_AttributeConverter *converter = &Z_PostProcess[i];
+      if (0 == strcasecmp_P(attr_name, converter->name)) {
+        // match
+        cluster_id = CxToCluster(pgm_read_byte(&converter->cluster_short));
+        attr_id = pgm_read_word(&converter->attribute);
+        break;
+      }
+    }
+  }
+
+  // did we have any attribute?
+  if (0 == buf.len()) {
+    ResponseCmndChar_P(PSTR("No attribute list"));
+    return;
+  }
+
+  // all good, send the packet
+}
+
 //
 // Command `ZbRead`
 // Send an attribute read command to a device, specifying cluster and list of attributes
@@ -951,12 +1043,11 @@ void CmndZbRead(void) {
     }
   }
 
-  if ((0 == endpoint) && (device)) {    // try to compute the endpoint
-    endpoint = zigbee_devices.findFirstEndpoint(device);
-    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZbRead: guessing endpoint 0x%02X"), endpoint);
-  }
   if (BAD_SHORTADDR == device) {
     endpoint = 0xFF;    // endpoint not used for group addresses
+  } else if (0 == endpoint) {
+    endpoint = zigbee_devices.findFirstEndpoint(device);
+    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZIG: guessing endpoint %d"), endpoint);
   }
 
   if ((0 != endpoint) && (attrs_len > 0)) {

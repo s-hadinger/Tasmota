@@ -516,6 +516,7 @@
   #define D_CMND_ZIGBEE_ENDPOINT "Endpoint"
   #define D_CMND_ZIGBEE_GROUP "Group"
 #define D_CMND_ZIGBEE_READ "Read"
+#define D_CMND_ZIGBEE_WRITE "WRITE"
 #define D_CMND_ZIGBEE_SEND "Send"
   #define D_JSON_ZIGBEE_ZCL_SENT "ZbZCLSent"
 #define D_JSON_ZIGBEE_RECEIVED "ZbReceived"
