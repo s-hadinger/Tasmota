@@ -736,9 +736,6 @@ uint8_t toPercentageCR2032(uint32_t voltage) {
 // returns number of bytes of attribute, or <0 if error
 int32_t encodeSingleAttribute(class SBuffer &buf, const JsonVariant &val, uint16_t attr, uint8_t attrtype) {
   uint32_t len = Z_getDatatypeLen(attrtype);    // pre-compute lenght, overloaded for variable length attributes
-  if (0 == len) {
-    return -1;        // unknown type or variable length that needs specific encoding
-  }
 
   uint32_t u32 = val.as<uint32_t>();
   int32_t  i32 = val.as<int32_t>();
@@ -784,6 +781,25 @@ int32_t encodeSingleAttribute(class SBuffer &buf, const JsonVariant &val, uint16
     case Zsingle:      // float
       uint32_t *f_ptr;
       buf.add32( *((uint32_t*)&f32) );    // cast float as uint32_t
+      break;
+
+    case Zstring:
+    case Zstring16:
+      {
+        const char * val_str = val.as<const char*>();
+        if (nullptr == val_str) { return -2; }
+        size_t val_len = strlen(val_str);
+        if (val_len > 32) { val_len = 32; }
+        len = val_len + 1;
+        buf.add8(val_len);
+        if (Zstring16 == attrtype) {
+          buf.add8(0);    // len is on 2 bytes
+          len++;
+        }
+        for (uint32_t i = 0; i < val_len; i++) {
+          buf.add8(val_str[i]);
+        }
+      }
       break;
 
     default:

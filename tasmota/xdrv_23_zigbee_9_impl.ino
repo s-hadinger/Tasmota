@@ -896,6 +896,7 @@ void CmndZbRestore(void) {
 // zbwrite {"Device":"0x0000","Endpoint":1,"Write":{"006/0000%39":12.5}}
 // zbwrite {"Device":"0x0000","Endpoint":1,"Write":{"AnalogInApplicationType":1000000}}
 // zbwrite {"Device":"0x0000","Endpoint":1,"Write":{"TimeZone":-1000000}}
+// ZbWrite {"Device":"0x0000","Endpoint":1,"Write":{"Manufacturer":"Tasmota","ModelId":"Tasmota Z2T Router"}}
 void CmndZbWrite(void) {
   // ZbWrite {"Device":"0xF289","Cluster":0,"Endpoint":3,"Write":{"ModelId":"Tasmota Router","0000/0006":"Tasmota"}}
   // ZbWrite {"Device":"0xF289","Write":{"ModelId":"Tasmota Router","0000/00006":"Tasmota"}}
