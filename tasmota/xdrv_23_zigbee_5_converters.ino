@@ -214,13 +214,13 @@ const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
   { Zuint8,   Cx0000, 0x0002,  Z(StackVersion),         &Z_Copy },
   { Zuint8,   Cx0000, 0x0003,  Z(HWVersion),            &Z_Copy },
   { Zstring,  Cx0000, 0x0004,  Z(Manufacturer),         &Z_ManufKeep },    // record Manufacturer
-  { Zstring,  Cx0000, 0x0005,  Z(ModelId), &Z_ModelKeep },    // record Model
+  { Zstring,  Cx0000, 0x0005,  Z(ModelId),              &Z_ModelKeep },    // record Model
   { Zstring,  Cx0000, 0x0006,  Z(DateCode),             &Z_Copy },
   { Zenum8,   Cx0000, 0x0007,  Z(PowerSource),          &Z_Copy },
   { Zstring,  Cx0000, 0x4000,  Z(SWBuildID),            &Z_Copy },
-  { Zunk,     Cx0000, 0xFFFF,  nullptr,                &Z_Remove },    // Remove all other values
+  { Zunk,     Cx0000, 0xFFFF,  nullptr,                 &Z_Remove },    // Remove all other values
   // Cmd 0x0A - Cluster 0x0000, attribute 0xFF01 - proprietary
-  { Zmap8,    Cx0000, 0xFF01,  nullptr,                &Z_AqaraSensor },    // Occupancy (map8)
+  { Zmap8,    Cx0000, 0xFF01,  nullptr,                 &Z_AqaraSensor },    // Occupancy (map8)
 
   // Power Configuration cluster
   { Zuint16,  Cx0001, 0x0000,  Z(MainsVoltage),         &Z_Copy },
@@ -242,8 +242,8 @@ const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
   //{ Zmap8,    Cx0005, 0x0004,  Z(NameSupport),           &Z_Copy },
 
   // On/off cluster
-  { Zbool,    Cx0006,    0x0000,  Z(Power),                &Z_Copy },
-  { Zbool,    Cx0006,    0x8000,  Z(Power),                &Z_Copy },   // See 7280
+  { Zbool,    Cx0006,    0x0000,  Z(Power),             &Z_Copy },
+  { Zbool,    Cx0006,    0x8000,  Z(Power),             &Z_Copy },   // See 7280
 
   // On/Off Switch Configuration cluster
   { Zenum8,   Cx0007, 0x0000,  Z(SwitchType),           &Z_Copy },
@@ -265,7 +265,7 @@ const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
   { Zmap8,    Cx000A, 0x0001,  Z(TimeStatus),           &Z_Copy },
   { Zint32,   Cx000A, 0x0002,  Z(TimeZone),             &Z_Copy },
   { Zuint32,  Cx000A, 0x0003,  Z(DstStart),             &Z_Copy },
-  { Zuint32,  Cx000A, 0x0004,  Z(DstEnd),             &Z_Copy },
+  { Zuint32,  Cx000A, 0x0004,  Z(DstEnd),               &Z_Copy },
   { Zint32,   Cx000A, 0x0005,  Z(DstShift),             &Z_Copy },
   { Zuint32,  Cx000A, 0x0006,  Z(StandardTime),         &Z_Copy },
   { Zuint32,  Cx000A, 0x0007,  Z(LocalTime),            &Z_Copy },

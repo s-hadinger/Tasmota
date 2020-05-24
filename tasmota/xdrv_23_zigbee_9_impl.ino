@@ -974,9 +974,10 @@ void CmndZbWrite(void) {
         type_id = strtoul(delimiter2+1, nullptr, 16);
       }
     }
+    // AddLog_P2(LOG_LEVEL_DEBUG, PSTR("cluster_id = 0x%04X, attr_id = 0x%04X"), cluster_id, attr_id);
 
     // do we already know the type, i.e. attribute and cluster are also known
-    if (Znodata != type_id) {
+    if (Znodata == type_id) {
       // scan attributes to find by name, and retrieve type
       for (uint32_t i = 0; i < ARRAY_SIZE(Z_PostProcess); i++) {
         const Z_AttributeConverter *converter = &Z_PostProcess[i];
@@ -984,13 +985,15 @@ void CmndZbWrite(void) {
         uint16_t local_attr_id = pgm_read_word(&converter->attribute);
         uint16_t local_cluster_id = CxToCluster(pgm_read_byte(&converter->cluster_short));
         uint8_t  local_type_id = pgm_read_byte(&converter->type);
+        AddLog_P2(LOG_LEVEL_DEBUG, PSTR("Try cluster = 0x%04X, attr = 0x%04X, type_id = 0x%02X"), local_cluster_id, local_attr_id, local_type_id);
 
         if (delimiter) {
           if ((cluster_id == local_cluster_id) && (attr_id == local_attr_id)) {
             type_id = local_type_id;
+            AddLog_P2(LOG_LEVEL_DEBUG, PSTR("match"));
             break;
           }
-        } else {
+        } else if (converter->name) {
           if (0 == strcasecmp_P(attr_name, converter->name)) {
             // match
             cluster_id = local_cluster_id;
@@ -1002,12 +1005,13 @@ void CmndZbWrite(void) {
       }
     }
 
+    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("cluster_id = 0x%04X, attr_id = 0x%04X, type_id = 0x%02X"), cluster_id, attr_id, type_id);
     if ((0xFFFF == attr_id) || (0xFFFF == cluster_id)) {
-      ResponseCmndChar_P(PSTR("Unknown attribute"));
+      Response_P(PSTR("{\"%s\":\"%s'%s'\"}"), XdrvMailbox.command, PSTR("Unknown attribute "), key);
       return;
     }
     if (Znodata == type_id) {
-      ResponseCmndChar_P(PSTR("Unknown attribute type"));
+      Response_P(PSTR("{\"%s\":\"%s'%s'\"}"), XdrvMailbox.command, PSTR("Unknown attribute type for attribute "), key);
       return;
     }
 
@@ -1020,7 +1024,7 @@ void CmndZbWrite(void) {
     // push the value in the buffer
     int32_t res = encodeSingleAttribute(buf, value, attr_id, type_id);
     if (res < 0) {
-      ResponseCmndChar_P(PSTR("Unsupported attribute type"));
+      Response_P(PSTR("{\"%s\":\"%s'%s' 0x%02X\"}"), XdrvMailbox.command, PSTR("Unsupported attribute type "), key, type_id);
       return;
     }
   }
@@ -1033,6 +1037,7 @@ void CmndZbWrite(void) {
 
   // all good, send the packet
   ZigbeeZCLSend_Raw(device, groupaddr, cluster, endpoint, ZCL_REPORT_ATTRIBUTES, false /* not cluster specific */, manuf, buf.getBuffer(), buf.len(), false /* noresponse */, zigbee_devices.getNextSeqNumber(device));
+  ResponseCmndDone();
 }
 
 //
