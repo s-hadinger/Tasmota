@@ -955,7 +955,6 @@ void CmndZbWrite(void) {
   for (JsonObject::const_iterator it=attrs.begin(); it!=attrs.end(); ++it) {
     const char *key = it->key;
     const JsonVariant &value = it->value;
-    const char * attr_name = value.as<const char*>();
 
     uint16_t attr_id = 0xFFFF;
     uint16_t cluster_id = 0xFFFF;
@@ -985,7 +984,7 @@ void CmndZbWrite(void) {
         uint16_t local_attr_id = pgm_read_word(&converter->attribute);
         uint16_t local_cluster_id = CxToCluster(pgm_read_byte(&converter->cluster_short));
         uint8_t  local_type_id = pgm_read_byte(&converter->type);
-        AddLog_P2(LOG_LEVEL_DEBUG, PSTR("Try cluster = 0x%04X, attr = 0x%04X, type_id = 0x%02X"), local_cluster_id, local_attr_id, local_type_id);
+        // AddLog_P2(LOG_LEVEL_DEBUG, PSTR("Try cluster = 0x%04X, attr = 0x%04X, type_id = 0x%02X"), local_cluster_id, local_attr_id, local_type_id);
 
         if (delimiter) {
           if ((cluster_id == local_cluster_id) && (attr_id == local_attr_id)) {
@@ -994,7 +993,8 @@ void CmndZbWrite(void) {
             break;
           }
         } else if (converter->name) {
-          if (0 == strcasecmp_P(attr_name, converter->name)) {
+          // AddLog_P2(LOG_LEVEL_DEBUG, PSTR("Comparing '%s' with '%s'"), attr_name, converter->name);
+          if (0 == strcasecmp_P(key, converter->name)) {
             // match
             cluster_id = local_cluster_id;
             attr_id = local_attr_id;

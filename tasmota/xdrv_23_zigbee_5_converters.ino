@@ -783,7 +783,7 @@ int32_t encodeSingleAttribute(class SBuffer &buf, const JsonVariant &val, uint16
 
     case Zsingle:      // float
       uint32_t *f_ptr;
-      buf.add32( *((uint32_t*)&val) );    // cast float as uint32_t
+      buf.add32( *((uint32_t*)&f32) );    // cast float as uint32_t
       break;
 
     default:
