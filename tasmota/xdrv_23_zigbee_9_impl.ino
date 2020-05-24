@@ -888,6 +888,14 @@ void CmndZbRestore(void) {
 // Command `ZbWrite``
 // Send attribute value, either to write an attribute or to report an attribute sensor value
 //
+// Examples:
+// zbwrite {"Device":"0x0000","Endpoint":1,"Write":{"0006/0000":0}}
+// zbwrite {"Device":"0x0000","Endpoint":1,"Write":{"Power":0}}
+// zbwrite {"Device":"0x0000","Endpoint":1,"Write":{"AqaraRotate":0}}
+// zbwrite {"Device":"0x0000","Endpoint":1,"Write":{"AqaraRotate":12.5}}
+// zbwrite {"Device":"0x0000","Endpoint":1,"Write":{"006/0000%39":12.5}}
+// zbwrite {"Device":"0x0000","Endpoint":1,"Write":{"AnalogInApplicationType":1000000}}
+// zbwrite {"Device":"0x0000","Endpoint":1,"Write":{"TimeZone":-1000000}}
 void CmndZbWrite(void) {
   // ZbWrite {"Device":"0xF289","Cluster":0,"Endpoint":3,"Write":{"ModelId":"Tasmota Router","0000/0006":"Tasmota"}}
   // ZbWrite {"Device":"0xF289","Write":{"ModelId":"Tasmota Router","0000/00006":"Tasmota"}}
@@ -989,7 +997,6 @@ void CmndZbWrite(void) {
         if (delimiter) {
           if ((cluster_id == local_cluster_id) && (attr_id == local_attr_id)) {
             type_id = local_type_id;
-            AddLog_P2(LOG_LEVEL_DEBUG, PSTR("match"));
             break;
           }
         } else if (converter->name) {
@@ -1005,7 +1012,7 @@ void CmndZbWrite(void) {
       }
     }
 
-    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("cluster_id = 0x%04X, attr_id = 0x%04X, type_id = 0x%02X"), cluster_id, attr_id, type_id);
+    // AddLog_P2(LOG_LEVEL_DEBUG, PSTR("cluster_id = 0x%04X, attr_id = 0x%04X, type_id = 0x%02X"), cluster_id, attr_id, type_id);
     if ((0xFFFF == attr_id) || (0xFFFF == cluster_id)) {
       Response_P(PSTR("{\"%s\":\"%s'%s'\"}"), XdrvMailbox.command, PSTR("Unknown attribute "), key);
       return;
