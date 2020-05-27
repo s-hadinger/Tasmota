@@ -28,7 +28,7 @@
 #define UDP_MSEARCH_SEND_DELAY  1500     // Delay in ms before M-Search response is send
 
 #include <Ticker.h>
-#include "UdpMulticastListener.h"
+#include "UdpListener.h"
 Ticker TickerMSearch;
 
 IPAddress udp_remote_ip;                 // M-Search remote IP address
@@ -37,7 +37,7 @@ uint16_t udp_remote_port;                // M-Search remote port
 bool udp_connected = false;
 bool udp_response_mutex = false;         // M-Search response mutex to control re-entry
 
-UdpMulticastListener<UDP_BUFFER_SIZE, UDP_MAX_PACKETS> UdpCtx;
+UdpListener<UDP_BUFFER_SIZE> UdpCtx(UDP_MAX_PACKETS);
 
 /*********************************************************************************************\
  * UPNP/SSDP search targets

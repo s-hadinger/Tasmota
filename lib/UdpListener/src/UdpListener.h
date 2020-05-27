@@ -1,5 +1,5 @@
 /*
-  UdpMulticastListener.h - webserver for Tasmota
+  UdpListener.h - webserver for Tasmota
 
   Copyright (C) 2020  Theo Arends & Stephan Hadinger
 
@@ -14,7 +14,7 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  along with this program.  If not, see <http://www.gnu.org/licenses/>.@
 */
 
 // adapted from:
@@ -72,21 +72,27 @@ struct UdpPacket {
     uint8_t     buf[PACKET_SIZE];
 };
 
-template <size_t PACKET_SIZE, size_t PACKET_NUMBER>
-class UdpMulticastListener
+template <size_t PACKET_SIZE>
+class UdpListener
 {
 public:
 
     typedef std::function<void(void)> rxhandler_t;
 
-    UdpMulticastListener()
+    UdpListener(size_t packet_number)
     : _pcb(0)
+    , _packet_number(packet_number)
+    , _buffers(nullptr)
+    , _udp_packets(0)
+    , _udp_ready(false)
+    , _udp_index(0)
     {
-        _buffers = new UdpPacket<PACKET_SIZE>[PACKET_NUMBER];
+        _packet_number = packet_number;
+        _buffers = new UdpPacket<PACKET_SIZE>[_packet_number];
         _pcb = udp_new();
     }
 
-    ~UdpMulticastListener()
+    ~UdpListener()
     {
         udp_remove(_pcb);
         _pcb = 0;
@@ -102,6 +108,7 @@ public:
 
     bool listen(const IPAddress& addr, uint16_t port)
     {
+        if (!_buffers) { return false; }
         udp_recv(_pcb, &_s_recv, (void *) this);
         err_t err = udp_bind(_pcb, addr, port);
         return err == ERR_OK;
@@ -114,13 +121,14 @@ public:
 
     bool next()
     {
+        if (!_buffers) { return false; }
         if (_udp_packets > 0) {
             if (!_udp_ready) {
                 // we just consume the first packet
                 _udp_ready = true;
             } else {
                 _udp_packets--;
-                _udp_index = (_udp_index + 1) % PACKET_NUMBER;      // advance to next buffer index in ring
+                _udp_index = (_udp_index + 1) % _packet_number;      // advance to next buffer index in ring
                 if (_udp_packets == 0) {
                     _udp_ready = false;
                 }
@@ -133,6 +141,7 @@ public:
 
     UdpPacket<PACKET_SIZE> * read(void)
     {
+        if (!_buffers) { return nullptr; }
         if (_udp_ready) {        // we have a packet ready to consume
             return &_buffers[_udp_index];
         } else {
@@ -145,14 +154,15 @@ private:
     void _recv(udp_pcb *upcb, pbuf *pb,
             const ip_addr_t *srcaddr, u16_t srcport)
     {
+        if (!_buffers) { pbuf_free(pb); return; }
         // Serial.printf(">>> _recv: _udp_packets = %d, _udp_index = %d, tot_len = %d\n", _udp_packets, _udp_index, pb->tot_len);
-        if (_udp_packets >= PACKET_NUMBER) {
+        if (_udp_packets >= _packet_number) {
             // we don't have slots anymore, drop packet
             pbuf_free(pb);
             return;
         }
 
-        uint8_t next_slot = (_udp_index + _udp_packets) % PACKET_NUMBER;
+        uint8_t next_slot = (_udp_index + _udp_packets) % _packet_number;
 
         size_t packet_len = pb->tot_len;
         if (packet_len > PACKET_SIZE) { packet_len = PACKET_SIZE; }
@@ -178,21 +188,20 @@ private:
             udp_pcb *upcb, pbuf *p,
             CONST ip_addr_t *srcaddr, u16_t srcport)
     {
-        reinterpret_cast<UdpMulticastListener*>(arg)->_recv(upcb, p, srcaddr, srcport);
+        reinterpret_cast<UdpListener*>(arg)->_recv(upcb, p, srcaddr, srcport);
     }
 
 private:
     udp_pcb* _pcb;
+    uint8_t _packet_number;
 
-    UdpPacket<PACKET_SIZE> *   _buffers = nullptr;
+    UdpPacket<PACKET_SIZE> *   _buffers;
 
     // how many packets are ready.
-    int8_t  _udp_packets = 0;               // number of udp packets ready to consume
-    bool    _udp_ready = false;          // is a packet currenlty consumed after a call to next()
-    // ring buffer ranges from 0..(PACKET_NUMBER-1)
-    int8_t  _udp_index = 0;                 // current index in the ring buffer
+    int8_t  _udp_packets;               // number of udp packets ready to consume
+    bool    _udp_ready;          // is a packet currenlty consumed after a call to next()
+    // ring buffer ranges from 0..(_packet_number-1)
+    int8_t  _udp_index;                 // current index in the ring buffer
 };
-
-
 
 #endif //UDPCONTEXTLIGHT_H
