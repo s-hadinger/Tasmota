@@ -619,7 +619,7 @@ void CmndZbSend(void) {
   // ZbSend { "device":"0x1234", "endpoint":"0x03", "send":{"Power":true} }
   // ZbSend { "device":"0x1234", "endpoint":"0x03", "send":{"Power":"true"} }
   // ZbSend { "device":"0x1234", "endpoint":"0x03", "send":{"ShutterClose":null} }
-  // ZbSend { "devicse":"0x1234", "endpoint":"0x03", "send":{"Power":1} }
+  // ZbSend { "device":"0x1234", "endpoint":"0x03", "send":{"Power":1} }
   // ZbSend { "device":"0x1234", "endpoint":"0x03", "send":{"Color":"1,2"} }
   // ZbSend { "device":"0x1234", "endpoint":"0x03", "send":{"Color":"0x1122,0xFFEE"} }
   if (zigbee.init_phase) { ResponseCmndChar_P(PSTR(D_ZIGBEE_NOT_STARTED)); return; }
@@ -636,13 +636,13 @@ void CmndZbSend(void) {
 
 
   // parse "Device" and "Group"
-  const JsonVariant &val_device = GetCaseInsensitive(json, PSTR("Device"));
+  const JsonVariant &val_device = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_DEVICE));
   if (nullptr != &val_device) {
     device = zigbee_devices.parseDeviceParam(val_device.as<char*>());
     if (BAD_SHORTADDR == device) { ResponseCmndChar_P(PSTR("Invalid parameter")); return; }
   }
   if (BAD_SHORTADDR == device) {     // if not found, check if we have a group
-    const JsonVariant &val_group = GetCaseInsensitive(json, PSTR("Group"));
+    const JsonVariant &val_group = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_GROUP));
     if (nullptr != &val_group) {
       groupaddr = strToUInt(val_group);
     } else {                  // no device nor group
@@ -652,11 +652,11 @@ void CmndZbSend(void) {
   }
 
   // read other parameters
-  const JsonVariant &val_cluster = GetCaseInsensitive(json, PSTR("Cluster"));
+  const JsonVariant &val_cluster = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_CLUSTER));
   if (nullptr != &val_cluster) { cluster = strToUInt(val_cluster); }
-  const JsonVariant &val_endpoint = GetCaseInsensitive(json, PSTR("Endpoint"));
+  const JsonVariant &val_endpoint = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_ENDPOINT));
   if (nullptr != &val_endpoint) { endpoint = strToUInt(val_endpoint); }
-  const JsonVariant &val_manuf = GetCaseInsensitive(json, PSTR("Manuf"));
+  const JsonVariant &val_manuf = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_MANUF));
   if (nullptr != &val_manuf) { manuf = strToUInt(val_manuf); }
 
   // infer endpoint
@@ -721,7 +721,7 @@ void ZbBindUnbind(bool unbind) {    // false = bind, true = unbind
 
   // Information about source device: "Device", "Endpoint", "Cluster"
   //  - the source endpoint must have a known IEEE address
-  const JsonVariant &val_device = GetCaseInsensitive(json, PSTR("Device"));
+  const JsonVariant &val_device = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_DEVICE));
   if (nullptr != &val_device) {
     srcDevice = zigbee_devices.parseDeviceParam(val_device.as<char*>());
   }
@@ -730,10 +730,10 @@ void ZbBindUnbind(bool unbind) {    // false = bind, true = unbind
   uint64_t srcLongAddr = zigbee_devices.getDeviceLongAddr(srcDevice);
   if (0 == srcLongAddr) { ResponseCmndChar_P(PSTR("Unknown source IEEE address")); return; }
   // look for source endpoint
-  const JsonVariant &val_endpoint = GetCaseInsensitive(json, PSTR("Endpoint"));
+  const JsonVariant &val_endpoint = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_ENDPOINT));
   if (nullptr != &val_endpoint) { endpoint = strToUInt(val_endpoint); }
   // look for source cluster
-  const JsonVariant &val_cluster = GetCaseInsensitive(json, PSTR("Cluster"));
+  const JsonVariant &val_cluster = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_CLUSTER));
   if (nullptr != &val_cluster) { cluster = strToUInt(val_cluster); }
 
   // Either Device address
@@ -1046,13 +1046,13 @@ void CmndZbRead(void) {
   size_t   attrs_len = 0;
   uint8_t* attrs = nullptr;       // empty string is valid
 
-  const JsonVariant &val_device = GetCaseInsensitive(json, PSTR("Device"));
+  const JsonVariant &val_device = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_DEVICE));
   if (nullptr != &val_device) {
     device = zigbee_devices.parseDeviceParam(val_device.as<char*>());
     if (BAD_SHORTADDR == device) { ResponseCmndChar_P(PSTR("Invalid parameter")); return; }
   }
   if (BAD_SHORTADDR == device) {     // if not found, check if we have a group
-    const JsonVariant &val_group = GetCaseInsensitive(json, PSTR("Group"));
+    const JsonVariant &val_group = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_GROUP));
     if (nullptr != &val_group) {
       groupaddr = strToUInt(val_group);
     } else {                  // no device nor group
@@ -1061,14 +1061,14 @@ void CmndZbRead(void) {
     }
   }
 
-  const JsonVariant &val_cluster = GetCaseInsensitive(json, PSTR("Cluster"));
+  const JsonVariant &val_cluster = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_CLUSTER));
   if (nullptr != &val_cluster) { cluster = strToUInt(val_cluster); }
-  const JsonVariant &val_endpoint = GetCaseInsensitive(json, PSTR("Endpoint"));
+  const JsonVariant &val_endpoint = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_ENDPOINT));
   if (nullptr != &val_endpoint) { endpoint = strToUInt(val_endpoint); }
-  const JsonVariant &val_manuf = GetCaseInsensitive(json, PSTR("Manuf"));
+  const JsonVariant &val_manuf = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_MANUF));
   if (nullptr != &val_manuf) { manuf = strToUInt(val_manuf); }
 
-  const JsonVariant &val_attr = GetCaseInsensitive(json, PSTR("Read"));
+  const JsonVariant &val_attr = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_READ));
   if (nullptr != &val_attr) {
     uint16_t val = strToUInt(val_attr);
     if (val_attr.is<JsonArray>()) {

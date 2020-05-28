@@ -1055,7 +1055,7 @@ void ZCLFrame::parseReadAttributes(JsonObject& json, uint8_t offset) {
   uint32_t i = offset;
   uint32_t len = _payload.len();
 
-  json[F("Cluster")] = _cluster_id;
+  json[F(D_CMND_ZIGBEE_CLUSTER)] = _cluster_id;
 
   JsonArray &attr_list = json.createNestedArray(F("Read"));
   JsonObject &attr_names = json.createNestedObject(F("ReadNames"));

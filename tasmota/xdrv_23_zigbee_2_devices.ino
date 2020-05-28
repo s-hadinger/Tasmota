@@ -27,6 +27,24 @@
 const uint16_t kZigbeeSaveDelaySeconds = ZIGBEE_SAVE_DELAY_SECONDS;    // wait for x seconds
 
 /*********************************************************************************************\
+ * Structures for Rules variables related to the last received message
+\*********************************************************************************************/
+
+typedef struct Z_LastMessageVars {
+  uint16_t    device;               // device short address
+  uint16_t    groupaddr;            // group address
+  uint16_t    cluster;              // cluster id
+  uint8_t     endpoint;             // source endpoint
+} Z_LastMessageVars;
+
+Z_LastMessageVars gZbLastMessage;
+
+uint16_t Z_GetLastDevice(void) { return gZbLastMessage.device; }
+uint16_t Z_GetLastGroup(void) { return gZbLastMessage.groupaddr; }
+uint16_t Z_GetLastCluster(void) { return gZbLastMessage.cluster; }
+uint8_t  Z_GetLastEndpoint(void) { return gZbLastMessage.endpoint; }
+
+/*********************************************************************************************\
  * Structures for device configuration
 \*********************************************************************************************/
 
@@ -860,14 +878,21 @@ const JsonObject *Z_Devices::jsonGet(uint16_t shortaddr) {
 void Z_Devices::jsonPublishFlush(uint16_t shortaddr) {
   Z_Device & device = getShortAddr(shortaddr);
   if (&device == nullptr) { return; }                 // don't crash if not found
-  JsonObject * json = device.json;
-  if (json == nullptr) { return; }                    // abort if nothing in buffer
+  JsonObject & json = *device.json;
+  if (&json == nullptr) { return; }                    // abort if nothing in buffer
 
   const char * fname = zigbee_devices.getFriendlyName(shortaddr);
   bool use_fname = (Settings.flag4.zigbee_use_names) && (fname);    // should we replace shortaddr with friendlyname?
 
+  // save parameters is global variables to be used by Rules
+  gZbLastMessage.device = shortaddr;                // %zbdevice%
+  gZbLastMessage.groupaddr = json[F(D_CMND_ZIGBEE_GROUP)];      // %zbgroup%
+  gZbLastMessage.cluster = json[F(D_CMND_ZIGBEE_CLUSTER)];      // %zbcluster%
+  gZbLastMessage.endpoint = json[F(D_CMND_ZIGBEE_ENDPOINT)];    // %zbendpoint%
+
+  // dump json in string
   String msg = "";
-  json->printTo(msg);
+  json.printTo(msg);
   zigbee_devices.jsonClear(shortaddr);
 
   if (use_fname) {
@@ -882,7 +907,7 @@ void Z_Devices::jsonPublishFlush(uint16_t shortaddr) {
   } else {
     MqttPublishPrefixTopic_P(TELE, PSTR(D_RSLT_SENSOR), Settings.flag.mqtt_sensor_retain);
   }
-  XdrvRulesProcess();
+  XdrvRulesProcess();     // apply rules
 }
 
 void Z_Devices::jsonPublishNow(uint16_t shortaddr, JsonObject & values) {
