@@ -393,8 +393,8 @@ void zigbeeZCLSendStr(uint16_t shortaddr, uint16_t groupaddr, uint8_t endpoint, 
   }
 }
 
-// Parse "Publish" or "Write" attribute
-void ZbSendPublishWrite(const JsonVariant &val_pubwrite, uint16_t device, uint16_t groupaddr, uint16_t cluster, uint8_t endpoint, uint16_t manuf, bool write) {
+// Parse "Report" or "Write" attribute
+void ZbSendReportWrite(const JsonVariant &val_pubwrite, uint16_t device, uint16_t groupaddr, uint16_t cluster, uint8_t endpoint, uint16_t manuf, bool write) {
   SBuffer buf(200);       // buffer to store the binary output of attibutes
 
   const JsonObject &attrs = val_pubwrite.as<const JsonObject&>();
@@ -748,10 +748,10 @@ void CmndZbSend(void) {
   const JsonVariant &val_cmd = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_SEND));
   const JsonVariant &val_read = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_READ));
   const JsonVariant &val_write = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_WRITE));
-  const JsonVariant &val_publish = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_PUBLISH));
+  const JsonVariant &val_publish = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_REPORT));
   uint32_t multi_cmd = (nullptr != &val_cmd) + (nullptr != &val_read) + (nullptr != &val_write) + (nullptr != &val_publish);
   if (multi_cmd > 1) {
-    ResponseCmndChar_P(PSTR("Can only have one of: 'Send', 'Read', 'Write' or 'Publish'"));
+    ResponseCmndChar_P(PSTR("Can only have one of: 'Send', 'Read', 'Write' or 'Report'"));
     return;
   }
 
@@ -767,16 +767,16 @@ void CmndZbSend(void) {
       return;
     }
     // "Write":{...attributes...}
-    ZbSendPublishWrite(val_write, device, groupaddr, cluster, endpoint, manuf, true /* write */);
+    ZbSendReportWrite(val_write, device, groupaddr, cluster, endpoint, manuf, true /* write */);
   } else if (nullptr != &val_publish) {
     if ((0 == endpoint) || (!val_publish.is<JsonObject>())) {
       ResponseCmndChar_P(PSTR("Missing parameters"));
       return;
     }
-    // "Publish":{...attributes...}
-    ZbSendPublishWrite(val_publish, device, groupaddr, cluster, endpoint, manuf, false /* publish */);
+    // "Report":{...attributes...}
+    ZbSendReportWrite(val_publish, device, groupaddr, cluster, endpoint, manuf, false /* report */);
   } else {
-    Response_P(PSTR("Missing zigbee 'Send', 'Write' or 'Publish'"));
+    Response_P(PSTR("Missing zigbee 'Send', 'Write' or 'Report'"));
     return;
   }
 }
