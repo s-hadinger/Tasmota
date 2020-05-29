@@ -1083,7 +1083,7 @@ void ZCLFrame::parseReadAttributesResponse(JsonObject& json, uint8_t offset) {
   uint32_t i = offset;
   uint32_t len = _payload.len();
 
-  while (len - i >= 4) {
+  while (len >= 4 + i) {
     uint16_t attrid = _payload.get16(i);
     i += 2;
     uint8_t status = _payload.get8(i++);

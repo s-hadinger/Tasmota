@@ -397,7 +397,7 @@ void zigbeeZCLSendStr(uint16_t shortaddr, uint16_t groupaddr, uint8_t endpoint, 
 void ZbSendPublishWrite(const JsonVariant &val_pubwrite, uint16_t device, uint16_t groupaddr, uint16_t cluster, uint8_t endpoint, uint16_t manuf, bool write) {
   SBuffer buf(200);       // buffer to store the binary output of attibutes
 
-  const JsonObject &attrs = val_pubwrite.as<JsonObject>();
+  const JsonObject &attrs = val_pubwrite.as<const JsonObject&>();
   // iterate on keys
   for (JsonObject::const_iterator it=attrs.begin(); it!=attrs.end(); ++it) {
     const char *key = it->key;
@@ -611,25 +611,59 @@ void ZbSendRead(const JsonVariant &val_attr, uint16_t device, uint16_t groupaddr
   size_t   attrs_len = 0;
   uint8_t* attrs = nullptr;       // empty string is valid
 
-  if (nullptr != &val_attr) {
-    uint16_t val = strToUInt(val_attr);
-    if (val_attr.is<JsonArray>()) {
-      const JsonArray& attr_arr = val_attr.as<const JsonArray&>();
-      attrs_len = attr_arr.size() * 2;
-      attrs = new uint8_t[attrs_len];
+  uint16_t val = strToUInt(val_attr);
+  if (val_attr.is<JsonArray>()) {
+    const JsonArray& attr_arr = val_attr.as<const JsonArray&>();
+    attrs_len = attr_arr.size() * 2;
+    attrs = new uint8_t[attrs_len];
 
-      uint32_t i = 0;
-      for (auto value : attr_arr) {
-        uint16_t val = strToUInt(value);
-        attrs[i++] = val & 0xFF;
-        attrs[i++] = val >> 8;
-      }
-    } else {
-      attrs_len = 2;
-      attrs = new uint8_t[attrs_len];
-      attrs[0] = val & 0xFF;    // little endian
-      attrs[1] = val >> 8;
+    uint32_t i = 0;
+    for (auto value : attr_arr) {
+      uint16_t val = strToUInt(value);
+      attrs[i++] = val & 0xFF;
+      attrs[i++] = val >> 8;
     }
+  } else if (val_attr.is<JsonObject>()) {
+    const JsonObject& attr_obj = val_attr.as<const JsonObject&>();
+    attrs_len = attr_obj.size() * 2;
+    attrs = new uint8_t[attrs_len];
+    uint32_t actual_attr_len = 0;
+
+    // iterate on keys
+    for (JsonObject::const_iterator it=attr_obj.begin(); it!=attr_obj.end(); ++it) {
+      const char *key = it->key;
+      // const JsonVariant &value = it->value;      // we don't need the value here, only keys are relevant
+
+      bool found = false;
+      // scan attributes to find by name, and retrieve type
+      for (uint32_t i = 0; i < ARRAY_SIZE(Z_PostProcess); i++) {
+        const Z_AttributeConverter *converter = &Z_PostProcess[i];
+        bool match = false;
+        uint16_t local_attr_id = pgm_read_word(&converter->attribute);
+        uint16_t local_cluster_id = CxToCluster(pgm_read_byte(&converter->cluster_short));
+        // uint8_t  local_type_id = pgm_read_byte(&converter->type);
+
+        if ((converter->name) && (0 == strcasecmp_P(key, converter->name))) {
+          // match name
+          // check if there is a conflict with cluster
+          // TODO
+          attrs[actual_attr_len++] = local_attr_id & 0xFF;
+          attrs[actual_attr_len++] = local_attr_id >> 8;
+          found = true;
+          break;    // found, exit loop
+        }
+      }
+      if (!found) {
+        AddLog_P2(LOG_LEVEL_INFO, PSTR("ZIG: Unknown attribute name (ignored): %s"), key);
+      }
+    }
+
+    attrs_len = actual_attr_len;
+  } else {
+    attrs_len = 2;
+    attrs = new uint8_t[attrs_len];
+    attrs[0] = val & 0xFF;    // little endian
+    attrs[1] = val >> 8;
   }
 
   if (attrs_len > 0) {
@@ -711,10 +745,10 @@ void CmndZbSend(void) {
     AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZIG: guessing endpoint %d"), endpoint);
   }
 
-  const JsonVariant &val_cmd = GetCaseInsensitive(json, PSTR("Send"));
-  const JsonVariant &val_read = GetCaseInsensitive(json, PSTR("Read"));
-  const JsonVariant &val_write = GetCaseInsensitive(json, PSTR("Write"));
-  const JsonVariant &val_publish = GetCaseInsensitive(json, PSTR("Publish"));
+  const JsonVariant &val_cmd = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_SEND));
+  const JsonVariant &val_read = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_READ));
+  const JsonVariant &val_write = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_WRITE));
+  const JsonVariant &val_publish = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_PUBLISH));
   uint32_t multi_cmd = (nullptr != &val_cmd) + (nullptr != &val_read) + (nullptr != &val_write) + (nullptr != &val_publish);
   if (multi_cmd > 1) {
     ResponseCmndChar_P(PSTR("Can only have one of: 'Send', 'Read', 'Write' or 'Publish'"));
@@ -726,7 +760,7 @@ void CmndZbSend(void) {
     ZbSendSend(val_cmd, device, groupaddr, cluster, endpoint, manuf);
   } else if (nullptr != &val_read) {
     // "Read":{...attributes...}, "Read":attribute or "Read":[...attributes...]
-    ZbSendRead(val_write, device, groupaddr, cluster, endpoint, manuf);
+    ZbSendRead(val_read, device, groupaddr, cluster, endpoint, manuf);
   } else if (nullptr != &val_write) {
     if ((0 == endpoint) || (!val_write.is<JsonObject>())) {
       ResponseCmndChar_P(PSTR("Missing parameters"));
