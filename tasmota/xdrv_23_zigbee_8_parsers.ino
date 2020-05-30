@@ -835,8 +835,8 @@ void Z_AutoResponder(uint16_t srcaddr, uint16_t cluster, uint8_t endpoint, const
   // responder
   switch (cluster) {
     case 0x0000:
-      if (GetCaseInsensitive(json, PSTR("ModelId")))          { json_out[F("ModelId")] = F("Tasmota Z2T"); }
-      if (GetCaseInsensitive(json, PSTR("Manufacturer")))     { json_out[F("ModelId")] = F("Tasmota"); }
+      if (HasKeyCaseInsensitive(json, PSTR("ModelId")))          { json_out[F("ModelId")] = F("Tasmota Z2T"); }
+      if (HasKeyCaseInsensitive(json, PSTR("Manufacturer")))     { json_out[F("Manufacturer")] = F("Tasmota"); }
       break;
   }
 
@@ -847,7 +847,7 @@ void Z_AutoResponder(uint16_t srcaddr, uint16_t cluster, uint8_t endpoint, const
     String msg("");
     msg.reserve(100);
     json_out.printTo(msg);
-    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZIG: Auto-responder: ZbSend {\"Device\":\"0x%04X\""
+    AddLog_P2(LOG_LEVEL_INFO, PSTR("ZIG: Auto-responder: ZbSend {\"Device\":\"0x%04X\""
                                           ",\"Cluster\":\"0x%04X\""
                                           ",\"Endpoint\":%d"
                                           ",\"Response\":%s}"
