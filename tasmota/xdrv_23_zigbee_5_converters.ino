@@ -746,23 +746,24 @@ int32_t encodeSingleAttribute(class SBuffer &buf, const JsonVariant &val, uint16
 
   switch (attrtype) {
     // unsigned 8
-    case Zbool:      // bool
+    case Zbool:       // bool
     case Zuint8:      // uint8
     case Zenum8:      // enum8
     case Zdata8:      // data8
-    case Zmap8:      // map8
+    case Zmap8:       // map8
+    case ZUTC:        // UTC - epoch 32 bits, seconds since 1-Jan-2000
       buf.add8(u32);
       break;
     // unsigned 16
-    case Zuint16:      // uint16
-    case Zenum16:      // enum16
-    case Zdata16:      // data16
+    case Zuint16:     // uint16
+    case Zenum16:     // enum16
+    case Zdata16:     // data16
     case Zmap16:      // map16
       buf.add16(u32);
       break;
     // unisgned 32
-    case Zuint32:      // uint32
-    case Zdata32:      // data32
+    case Zuint32:     // uint32
+    case Zdata32:     // data32
     case Zmap32:      // map32
       buf.add32(u32);
       break;
@@ -848,6 +849,7 @@ uint32_t parseSingleAttribute(JsonObject& json, char *attrid_str, class SBuffer 
       }
       break;
     case Zuint32:      // uint32
+    case ZUTC:      // UTC
       {
         uint32_t uint32_val = buf.get32(i);
         // i += 4;
@@ -974,7 +976,6 @@ uint32_t parseSingleAttribute(JsonObject& json, char *attrid_str, class SBuffer 
     // TODO
     case ZToD:      // ToD
     case Zdate:      // date
-    case ZUTC:      // UTC
     case ZclusterId:      // clusterId
     case ZattribId:      // attribId
     case ZbacOID:      // bacOID
