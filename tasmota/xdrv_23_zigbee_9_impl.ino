@@ -393,8 +393,9 @@ void zigbeeZCLSendStr(uint16_t shortaddr, uint16_t groupaddr, uint8_t endpoint, 
   }
 }
 
-// Parse "Report" or "Write" attribute
-void ZbSendReportWrite(const JsonVariant &val_pubwrite, uint16_t device, uint16_t groupaddr, uint16_t cluster, uint8_t endpoint, uint16_t manuf, bool write) {
+// Parse "Report", "Write" or "Response" attribute
+// Operation is one of: ZCL_REPORT_ATTRIBUTES (0x0A), ZCL_WRITE_ATTRIBUTES (0x02) or ZCL_READ_ATTRIBUTES_RESPONSE (0x01)
+void ZbSendReportWrite(const JsonVariant &val_pubwrite, uint16_t device, uint16_t groupaddr, uint16_t cluster, uint8_t endpoint, uint16_t manuf, uint32_t operation) {
   SBuffer buf(200);       // buffer to store the binary output of attibutes
 
   const JsonObject &attrs = val_pubwrite.as<const JsonObject&>();
@@ -451,6 +452,7 @@ void ZbSendReportWrite(const JsonVariant &val_pubwrite, uint16_t device, uint16_
       }
     }
 
+    // Buffer ready, do some sanity checks
     // AddLog_P2(LOG_LEVEL_DEBUG, PSTR("cluster_id = 0x%04X, attr_id = 0x%04X, type_id = 0x%02X"), cluster_id, attr_id, type_id);
     if ((0xFFFF == attr_id) || (0xFFFF == cluster_id)) {
       Response_P(PSTR("{\"%s\":\"%s'%s'\"}"), XdrvMailbox.command, PSTR("Unknown attribute "), key);
@@ -468,7 +470,7 @@ void ZbSendReportWrite(const JsonVariant &val_pubwrite, uint16_t device, uint16_
       return;
     }
     // push the value in the buffer
-    int32_t res = encodeSingleAttribute(buf, value, attr_id, type_id);
+    int32_t res = encodeSingleAttribute(buf, value, attr_id, type_id, operation == ZCL_READ_ATTRIBUTES_RESPONSE); // force status if Reponse
     if (res < 0) {
       Response_P(PSTR("{\"%s\":\"%s'%s' 0x%02X\"}"), XdrvMailbox.command, PSTR("Unsupported attribute type "), key, type_id);
       return;
@@ -482,7 +484,7 @@ void ZbSendReportWrite(const JsonVariant &val_pubwrite, uint16_t device, uint16_
   }
 
   // all good, send the packet
-  ZigbeeZCLSend_Raw(device, groupaddr, cluster, endpoint, write ? ZCL_WRITE_ATTRIBUTES : ZCL_REPORT_ATTRIBUTES, false /* not cluster specific */, manuf, buf.getBuffer(), buf.len(), false /* noresponse */, zigbee_devices.getNextSeqNumber(device));
+  ZigbeeZCLSend_Raw(device, groupaddr, cluster, endpoint, operation, false /* not cluster specific */, manuf, buf.getBuffer(), buf.len(), false /* noresponse */, zigbee_devices.getNextSeqNumber(device));
   ResponseCmndDone();
 }
 
@@ -749,9 +751,10 @@ void CmndZbSend(void) {
   const JsonVariant &val_read = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_READ));
   const JsonVariant &val_write = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_WRITE));
   const JsonVariant &val_publish = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_REPORT));
-  uint32_t multi_cmd = (nullptr != &val_cmd) + (nullptr != &val_read) + (nullptr != &val_write) + (nullptr != &val_publish);
+  const JsonVariant &val_response = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_RESPONSE));
+  uint32_t multi_cmd = (nullptr != &val_cmd) + (nullptr != &val_read) + (nullptr != &val_write) + (nullptr != &val_publish)+ (nullptr != &val_response);
   if (multi_cmd > 1) {
-    ResponseCmndChar_P(PSTR("Can only have one of: 'Send', 'Read', 'Write' or 'Report'"));
+    ResponseCmndChar_P(PSTR("Can only have one of: 'Send', 'Read', 'Write', 'Report' or 'Reponse'"));
     return;
   }
 
@@ -767,16 +770,23 @@ void CmndZbSend(void) {
       return;
     }
     // "Write":{...attributes...}
-    ZbSendReportWrite(val_write, device, groupaddr, cluster, endpoint, manuf, true /* write */);
+    ZbSendReportWrite(val_write, device, groupaddr, cluster, endpoint, manuf, ZCL_WRITE_ATTRIBUTES);
   } else if (nullptr != &val_publish) {
     if ((0 == endpoint) || (!val_publish.is<JsonObject>())) {
       ResponseCmndChar_P(PSTR("Missing parameters"));
       return;
     }
     // "Report":{...attributes...}
-    ZbSendReportWrite(val_publish, device, groupaddr, cluster, endpoint, manuf, false /* report */);
+    ZbSendReportWrite(val_publish, device, groupaddr, cluster, endpoint, manuf, ZCL_REPORT_ATTRIBUTES);
+  } else if (nullptr != &val_response) {
+    if ((0 == endpoint) || (!val_response.is<JsonObject>())) {
+      ResponseCmndChar_P(PSTR("Missing parameters"));
+      return;
+    }
+    // "Report":{...attributes...}
+    ZbSendReportWrite(val_publish, device, groupaddr, cluster, endpoint, manuf, ZCL_READ_ATTRIBUTES_RESPONSE);
   } else {
-    Response_P(PSTR("Missing zigbee 'Send', 'Write' or 'Report'"));
+    Response_P(PSTR("Missing zigbee 'Send', 'Write', 'Report' or 'Response'"));
     return;
   }
 }
