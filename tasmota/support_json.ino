@@ -89,7 +89,7 @@ const JsonVariant &GetCaseInsensitive(const JsonObject &json, const char *needle
   // key can be in PROGMEM
   // if needle == "?" then we return the first valid key
   bool wildcard = strcmp_P("?", needle) == 0;
-  if ((nullptr == &json) || (nullptr == needle) || (0 == pgm_read_byte(needle))) {
+  if ((nullptr == &json) || (nullptr == needle) || (0 == pgm_read_byte(needle)) || (!json.success())) {
     return *(JsonVariant*)nullptr;
   }
 

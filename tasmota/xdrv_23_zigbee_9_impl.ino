@@ -398,6 +398,10 @@ void zigbeeZCLSendStr(uint16_t shortaddr, uint16_t groupaddr, uint8_t endpoint, 
 void ZbSendReportWrite(const JsonVariant &val_pubwrite, uint16_t device, uint16_t groupaddr, uint16_t cluster, uint8_t endpoint, uint16_t manuf, uint32_t operation) {
   SBuffer buf(200);       // buffer to store the binary output of attibutes
 
+  if (nullptr == XdrvMailbox.command) {
+    XdrvMailbox.command = (char*) "";             // prevent a crash when calling ReponseCmndChar and there was no previous command
+  }
+
   const JsonObject &attrs = val_pubwrite.as<const JsonObject&>();
   // iterate on keys
   for (JsonObject::const_iterator it=attrs.begin(); it!=attrs.end(); ++it) {
@@ -784,7 +788,7 @@ void CmndZbSend(void) {
       return;
     }
     // "Report":{...attributes...}
-    ZbSendReportWrite(val_publish, device, groupaddr, cluster, endpoint, manuf, ZCL_READ_ATTRIBUTES_RESPONSE);
+    ZbSendReportWrite(val_response, device, groupaddr, cluster, endpoint, manuf, ZCL_READ_ATTRIBUTES_RESPONSE);
   } else {
     Response_P(PSTR("Missing zigbee 'Send', 'Write', 'Report' or 'Response'"));
     return;

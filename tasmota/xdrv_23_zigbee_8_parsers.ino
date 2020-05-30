@@ -668,10 +668,13 @@ int32_t Z_ReceiveAfIncomingMessage(int32_t res, const class SBuffer &buf) {
     } else if (zcl_received.isClusterSpecificCommand()) {
       zcl_received.parseClusterSpecificCommand(json);
     }
-    String msg("");
-    msg.reserve(100);
-    json.printTo(msg);
-    AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_ZIGBEE D_JSON_ZIGBEEZCL_RAW_RECEIVED ": {\"0x%04X\":%s}"), srcaddr, msg.c_str());
+
+    {   // fence to force early de-allocation of msg
+      String msg("");
+      msg.reserve(100);
+      json.printTo(msg);
+      AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_ZIGBEE D_JSON_ZIGBEEZCL_RAW_RECEIVED ": {\"0x%04X\":%s}"), srcaddr, msg.c_str());
+    }
 
     zcl_received.postProcessAttributes(srcaddr, json);
     // Add Endpoint
@@ -701,6 +704,9 @@ int32_t Z_ReceiveAfIncomingMessage(int32_t res, const class SBuffer &buf) {
     } else {
       // Publish immediately
       zigbee_devices.jsonPublishNow(srcaddr, json);
+
+      // Add auto-responder here
+      Z_AutoResponder(srcaddr, clusterid, srcendpoint, json[F("ReadNames")]);
     }
   }
   return -1;
@@ -815,6 +821,44 @@ int32_t Z_Query_Bulbs(uint8_t value) {
 int32_t Z_State_Ready(uint8_t value) {
   zigbee.init_phase = false;             // initialization phase complete
   return 0;                              // continue
+}
+
+//
+// Auto-responder for Read request from extenal devices.
+//
+// Mostly used for routers/end-devices
+// json: holds the attributes in JSON format
+void Z_AutoResponder(uint16_t srcaddr, uint16_t cluster, uint8_t endpoint, const JsonObject &json) {
+  DynamicJsonBuffer jsonBuffer;
+  JsonObject& json_out = jsonBuffer.createObject();
+
+  // responder
+  switch (cluster) {
+    case 0x0000:
+      if (GetCaseInsensitive(json, PSTR("ModelId")))          { json_out[F("ModelId")] = F("Tasmota Z2T"); }
+      if (GetCaseInsensitive(json, PSTR("Manufacturer")))     { json_out[F("ModelId")] = F("Tasmota"); }
+      break;
+  }
+
+  if (json_out.size() > 0) {
+    // we have a non-empty output
+
+    // log first
+    String msg("");
+    msg.reserve(100);
+    json_out.printTo(msg);
+    AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZIG: Auto-responder: ZbSend {\"Device\":\"0x%04X\""
+                                          ",\"Cluster\":\"0x%04X\""
+                                          ",\"Endpoint\":%d"
+                                          ",\"Response\":%s}"
+                                          ),
+                                          srcaddr, cluster, endpoint,
+                                          msg.c_str());
+
+    // send
+    const JsonVariant &json_out_v = json_out;
+    ZbSendReportWrite(json_out_v, srcaddr, 0 /* group */,cluster, endpoint, 0 /* manuf */, ZCL_READ_ATTRIBUTES_RESPONSE);
+  }
 }
 
 #endif // USE_ZIGBEE
