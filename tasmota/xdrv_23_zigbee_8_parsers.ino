@@ -664,7 +664,7 @@ int32_t Z_ReceiveAfIncomingMessage(int32_t res, const class SBuffer &buf) {
       if (clusterid) { defer_attributes = true; }  // don't defer system Cluster=0 messages
     } else if ( (!zcl_received.isClusterSpecificCommand()) && (ZCL_READ_ATTRIBUTES == zcl_received.getCmdId())) {
       zcl_received.parseReadAttributes(json);
-      if (clusterid) { defer_attributes = true; }  // don't defer system Cluster=0 messages
+      // never defer read_attributes, so the auto-responder can send response back on a per cluster basis
     } else if (zcl_received.isClusterSpecificCommand()) {
       zcl_received.parseClusterSpecificCommand(json);
     }
