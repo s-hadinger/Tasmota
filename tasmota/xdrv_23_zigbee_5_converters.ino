@@ -650,7 +650,7 @@ public:
   }
 
   static void generateAttributeName(const JsonObject& json, uint16_t cluster, uint16_t attr, char *key, size_t key_len);
-  void parseRawAttributes(JsonObject& json, uint8_t offset = 0);
+  void parseReportAttributes(JsonObject& json, uint8_t offset = 0);
   void parseReadAttributes(JsonObject& json, uint8_t offset = 0);
   void parseReadAttributesResponse(JsonObject& json, uint8_t offset = 0);
   void parseResponse(void);
@@ -734,7 +734,8 @@ uint8_t toPercentageCR2032(uint32_t voltage) {
 // - 1 byte: attribute type
 // - n bytes: value (typically between 1 and 4 bytes, or bigger for strings)
 // returns number of bytes of attribute, or <0 if error
-int32_t encodeSingleAttribute(class SBuffer &buf, const JsonVariant &val, uint16_t attr, uint8_t attrtype) {
+// status: shall we insert a status OK (0x00) as required by ReadResponse
+int32_t encodeSingleAttribute(class SBuffer &buf, const JsonVariant &val, uint16_t attr, uint8_t attrtype, bool status = false) {
   uint32_t len = Z_getDatatypeLen(attrtype);    // pre-compute lenght, overloaded for variable length attributes
 
   uint32_t u32 = val.as<uint32_t>();
@@ -742,6 +743,9 @@ int32_t encodeSingleAttribute(class SBuffer &buf, const JsonVariant &val, uint16
   float    f32 = val.as<float>();
 
   buf.add16(attr);        // prepend with attribute identifier
+  if (status) {
+    buf.add8(Z_SUCCESS);  // status OK = 0x00
+  }
   buf.add8(attrtype);     // prepend with attribute type
 
   switch (attrtype) {
@@ -805,10 +809,10 @@ int32_t encodeSingleAttribute(class SBuffer &buf, const JsonVariant &val, uint16
 
     default:
       // remove the attribute type we just added
-      buf.setLen(buf.len() - 3);
+      buf.setLen(buf.len() - (status ? 4 : 3));
       return -1;
   }
-  return len + 3;
+  return len + (status ? 4 : 3);
 }
 
 uint32_t parseSingleAttribute(JsonObject& json, char *attrid_str, class SBuffer &buf,
@@ -1029,7 +1033,7 @@ void ZCLFrame::generateAttributeName(const JsonObject& json, uint16_t cluster, u
 }
 
 // First pass, parse all attributes in their native format
-void ZCLFrame::parseRawAttributes(JsonObject& json, uint8_t offset) {
+void ZCLFrame::parseReportAttributes(JsonObject& json, uint8_t offset) {
   uint32_t i = offset;
   uint32_t len = _payload.len();
 
@@ -1084,7 +1088,7 @@ void ZCLFrame::parseReadAttributesResponse(JsonObject& json, uint8_t offset) {
   uint32_t i = offset;
   uint32_t len = _payload.len();
 
-  while (len >= 4 + i) {
+  while (len >= i + 4) {
     uint16_t attrid = _payload.get16(i);
     i += 2;
     uint8_t status = _payload.get8(i++);
