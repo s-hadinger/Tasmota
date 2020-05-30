@@ -755,7 +755,6 @@ int32_t encodeSingleAttribute(class SBuffer &buf, const JsonVariant &val, uint16
     case Zenum8:      // enum8
     case Zdata8:      // data8
     case Zmap8:       // map8
-    case ZUTC:        // UTC - epoch 32 bits, seconds since 1-Jan-2000
       buf.add8(u32);
       break;
     // unsigned 16
@@ -769,6 +768,7 @@ int32_t encodeSingleAttribute(class SBuffer &buf, const JsonVariant &val, uint16
     case Zuint32:     // uint32
     case Zdata32:     // data32
     case Zmap32:      // map32
+    case ZUTC:        // UTC - epoch 32 bits, seconds since 1-Jan-2000
       buf.add32(u32);
       break;
 
