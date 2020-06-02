@@ -411,6 +411,8 @@ void ZbSendReportWrite(const JsonVariant &val_pubwrite, uint16_t device, uint16_
     uint16_t attr_id = 0xFFFF;
     uint16_t cluster_id = 0xFFFF;
     uint8_t  type_id = Znodata;
+    int16_t  multiplier = 1;        // multiplier to adjust the key value
+    float    val_f = 0.0f;          // alternative value if multiplier is used
 
     // check if the name has the format "XXXX/YYYY" where XXXX is the cluster, YYYY the attribute id
     // alternative "XXXX/YYYY%ZZ" where ZZ is the type (for unregistered attributes)
@@ -436,6 +438,7 @@ void ZbSendReportWrite(const JsonVariant &val_pubwrite, uint16_t device, uint16_
         uint16_t local_attr_id = pgm_read_word(&converter->attribute);
         uint16_t local_cluster_id = CxToCluster(pgm_read_byte(&converter->cluster_short));
         uint8_t  local_type_id = pgm_read_byte(&converter->type);
+        int16_t  local_multiplier = pgm_read_word(&converter->multiplier);
         // AddLog_P2(LOG_LEVEL_DEBUG, PSTR("Try cluster = 0x%04X, attr = 0x%04X, type_id = 0x%02X"), local_cluster_id, local_attr_id, local_type_id);
 
         if (delimiter) {
@@ -450,6 +453,7 @@ void ZbSendReportWrite(const JsonVariant &val_pubwrite, uint16_t device, uint16_
             cluster_id = local_cluster_id;
             attr_id = local_attr_id;
             type_id = local_type_id;
+            multiplier = local_multiplier;
             break;
           }
         }
@@ -473,8 +477,19 @@ void ZbSendReportWrite(const JsonVariant &val_pubwrite, uint16_t device, uint16_
       ResponseCmndChar_P(PSTR("No more than one cluster id per command"));
       return;
     }
+    // apply multiplier if needed
+    bool use_val = true;
+    if ((0 != multiplier) && (1 != multiplier)) {
+      val_f = value;
+      if (multiplier > 0) {         // inverse of decoding
+        val_f = val_f / multiplier;
+      } else {
+        val_f = val_f * multiplier;
+      }
+      use_val = false;
+    }
     // push the value in the buffer
-    int32_t res = encodeSingleAttribute(buf, value, attr_id, type_id, operation == ZCL_READ_ATTRIBUTES_RESPONSE); // force status if Reponse
+    int32_t res = encodeSingleAttribute(buf, use_val ? value : *(const JsonVariant*)nullptr, val_f, attr_id, type_id, operation == ZCL_READ_ATTRIBUTES_RESPONSE); // force status if Reponse
     if (res < 0) {
       Response_P(PSTR("{\"%s\":\"%s'%s' 0x%02X\"}"), XdrvMailbox.command, PSTR("Unsupported attribute type "), key, type_id);
       return;
