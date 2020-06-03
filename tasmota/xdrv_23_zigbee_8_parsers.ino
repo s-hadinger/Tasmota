@@ -838,8 +838,37 @@ void Z_AutoResponder(uint16_t srcaddr, uint16_t cluster, uint8_t endpoint, const
       if (HasKeyCaseInsensitive(json, PSTR("ModelId")))           { json_out[F("ModelId")] = F("Tasmota Z2T"); }
       if (HasKeyCaseInsensitive(json, PSTR("Manufacturer")))      { json_out[F("Manufacturer")] = F("Tasmota"); }
       break;
+#ifdef USE_LIGHT
+    case 0x0006:
+      if (HasKeyCaseInsensitive(json, PSTR("Power")))             { json_out[F("Power")] = Light.power ? 1 : 0; }
+      break;
+    case 0x0008:
+      if (HasKeyCaseInsensitive(json, PSTR("Dimmer")))            { json_out[F("Dimmer")] = LightGetDimmer(0); }
+      break;
+    case 0x0300:
+      {
+      uint16_t hue;
+      uint8_t  sat;
+      float XY[2];
+      LightGetHSB(&hue, &sat, nullptr);
+      LightGetXY(&XY[0], &XY[1]);
+      uint16_t uxy[2];
+      for (uint32_t i = 0; i < ARRAY_SIZE(XY); i++) {
+        uxy[i] = XY[i] * 65536.0f;
+        uxy[i] = (uxy[i] > 0xFEFF) ? uxy[i] : 0xFEFF;
+      }
+      if (HasKeyCaseInsensitive(json, PSTR("Hue")))               { json_out[F("Hue")] = changeUIntScale(hue, 0, 360, 0, 254); }
+      if (HasKeyCaseInsensitive(json, PSTR("Sat")))               { json_out[F("Sat")] = changeUIntScale(sat, 0, 255, 0, 254); }
+      if (HasKeyCaseInsensitive(json, PSTR("CT")))                { json_out[F("CT")] = LightGetColorTemp(); }
+      if (HasKeyCaseInsensitive(json, PSTR("X")))                 { json_out[F("X")] = uxy[0]; }
+      if (HasKeyCaseInsensitive(json, PSTR("Y")))                 { json_out[F("Y")] = uxy[1]; }
+      }
+      break;
+#endif
     case 0x000A:    // Time
       if (HasKeyCaseInsensitive(json, PSTR("Time")))              { json_out[F("Time")] = Rtc.utc_time; }
+      if (HasKeyCaseInsensitive(json, PSTR("TimeStatus")))        { json_out[F("TimeStatus")] = (Rtc.utc_time > (60 * 60 * 24 * 365 * 10)) ? 0x02 : 0x00; }  // if time is beyond 2010 then we are synchronized
+      if (HasKeyCaseInsensitive(json, PSTR("TimeZone")))          { json_out[F("TimeZone")] = Settings.toffset[0] * 60; }   // seconds
       break;
   }
 
