@@ -670,6 +670,14 @@ void ZbSendRead(const JsonVariant &val_attr, uint16_t device, uint16_t groupaddr
           attrs[actual_attr_len++] = local_attr_id & 0xFF;
           attrs[actual_attr_len++] = local_attr_id >> 8;
           found = true;
+          // check cluster
+          if (0xFFFF == cluster) {
+            cluster = local_cluster_id;
+          } else if (cluster != local_cluster_id) {
+            ResponseCmndChar_P(PSTR("No more than one cluster id per command"));
+            if (attrs) { delete[] attrs; }
+            return;
+          }
           break;    // found, exit loop
         }
       }
