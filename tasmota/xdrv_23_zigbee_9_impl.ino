@@ -395,16 +395,15 @@ void zigbeeZCLSendStr(uint16_t shortaddr, uint16_t groupaddr, uint8_t endpoint, 
 
 // Parse "Report", "Write" or "Response" attribute
 // Operation is one of: ZCL_REPORT_ATTRIBUTES (0x0A), ZCL_WRITE_ATTRIBUTES (0x02) or ZCL_READ_ATTRIBUTES_RESPONSE (0x01)
-void ZbSendReportWrite(const JsonVariant &val_pubwrite, uint16_t device, uint16_t groupaddr, uint16_t cluster, uint8_t endpoint, uint16_t manuf, uint32_t operation) {
+void ZbSendReportWrite(const JsonObject &val_pubwrite, uint16_t device, uint16_t groupaddr, uint16_t cluster, uint8_t endpoint, uint16_t manuf, uint32_t operation) {
   SBuffer buf(200);       // buffer to store the binary output of attibutes
 
   if (nullptr == XdrvMailbox.command) {
     XdrvMailbox.command = (char*) "";             // prevent a crash when calling ReponseCmndChar and there was no previous command
   }
 
-  const JsonObject &attrs = val_pubwrite.as<const JsonObject&>();
   // iterate on keys
-  for (JsonObject::const_iterator it=attrs.begin(); it!=attrs.end(); ++it) {
+  for (JsonObject::const_iterator it=val_pubwrite.begin(); it!=val_pubwrite.end(); ++it) {
     const char *key = it->key;
     const JsonVariant &value = it->value;
 
@@ -749,6 +748,8 @@ void CmndZbSend(void) {
       return;
     }
   }
+  // from here, either device has a device shortaddr, or if BAD_SHORTADDR then use group address
+  // Note: groupaddr == 0 is valid
 
   // read other parameters
   const JsonVariant &val_cluster = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_CLUSTER));
@@ -760,11 +761,17 @@ void CmndZbSend(void) {
 
   // infer endpoint
   if (BAD_SHORTADDR == device) {
-    endpoint = 0xFF;    // endpoint not used for group addresses
-  } else if (0 == endpoint) {
+    endpoint = 0xFF;                  // endpoint not used for group addresses, so use a dummy broadcast endpoint
+  } else if (0 == endpoint) {         // if it was not already specified, try to guess it
     endpoint = zigbee_devices.findFirstEndpoint(device);
     AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZIG: guessing endpoint %d"), endpoint);
   }
+  if (0 == endpoint) {                // after this, if it is still zero, then it's an error
+      ResponseCmndChar_P(PSTR("Missing endpoint"));
+      return;
+  }
+  // from here endpoint is valid and non-zero
+  // cluster may be already specified or 0xFFFF
 
   const JsonVariant &val_cmd = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_SEND));
   const JsonVariant &val_read = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_READ));
@@ -776,33 +783,39 @@ void CmndZbSend(void) {
     ResponseCmndChar_P(PSTR("Can only have one of: 'Send', 'Read', 'Write', 'Report' or 'Reponse'"));
     return;
   }
+  // from here we have one and only one command
 
   if (nullptr != &val_cmd) {
     // "Send":{...commands...}
+    // we accept either a string or a JSON object
     ZbSendSend(val_cmd, device, groupaddr, cluster, endpoint, manuf);
   } else if (nullptr != &val_read) {
     // "Read":{...attributes...}, "Read":attribute or "Read":[...attributes...]
+    // we accept eitehr a number, a string, an array of numbers/strings, or a JSON object
     ZbSendRead(val_read, device, groupaddr, cluster, endpoint, manuf);
   } else if (nullptr != &val_write) {
-    if ((0 == endpoint) || (!val_write.is<JsonObject>())) {
+    // only KSON object
+    if (!val_write.is<JsonObject>()) {
       ResponseCmndChar_P(PSTR("Missing parameters"));
       return;
     }
     // "Write":{...attributes...}
     ZbSendReportWrite(val_write, device, groupaddr, cluster, endpoint, manuf, ZCL_WRITE_ATTRIBUTES);
   } else if (nullptr != &val_publish) {
-    if ((0 == endpoint) || (!val_publish.is<JsonObject>())) {
+    // "Report":{...attributes...}
+    // only KSON object
+    if (!val_publish.is<JsonObject>()) {
       ResponseCmndChar_P(PSTR("Missing parameters"));
       return;
     }
-    // "Report":{...attributes...}
     ZbSendReportWrite(val_publish, device, groupaddr, cluster, endpoint, manuf, ZCL_REPORT_ATTRIBUTES);
   } else if (nullptr != &val_response) {
-    if ((0 == endpoint) || (!val_response.is<JsonObject>())) {
+    // "Report":{...attributes...}
+    // only KSON object
+    if (!val_response.is<JsonObject>()) {
       ResponseCmndChar_P(PSTR("Missing parameters"));
       return;
     }
-    // "Report":{...attributes...}
     ZbSendReportWrite(val_response, device, groupaddr, cluster, endpoint, manuf, ZCL_READ_ATTRIBUTES_RESPONSE);
   } else {
     Response_P(PSTR("Missing zigbee 'Send', 'Write', 'Report' or 'Response'"));
