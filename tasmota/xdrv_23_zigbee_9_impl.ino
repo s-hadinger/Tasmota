@@ -531,12 +531,20 @@ void ZbSendSend(const JsonVariant &val_cmd, uint16_t device, uint16_t groupaddr,
       const JsonVariant& value = it->value;
       uint32_t x = 0, y = 0, z = 0;
       uint16_t cmd_var;
+      uint16_t local_cluster_id;
 
-      const __FlashStringHelper* tasmota_cmd = zigbeeFindCommand(key.c_str(), &cluster, &cmd_var);
+      const __FlashStringHelper* tasmota_cmd = zigbeeFindCommand(key.c_str(), &local_cluster_id, &cmd_var);
       if (tasmota_cmd) {
         cmd_str = tasmota_cmd;
       } else {
         Response_P(PSTR("Unrecognized zigbee command: %s"), key.c_str());
+        return;
+      }
+      // check cluster
+      if (0xFFFF == cluster) {
+        cluster = local_cluster_id;
+      } else if (cluster != local_cluster_id) {
+        ResponseCmndChar_P(PSTR("No more than one cluster id per command"));
         return;
       }
 
@@ -590,7 +598,15 @@ void ZbSendSend(const JsonVariant &val_cmd, uint16_t device, uint16_t groupaddr,
     // where AA is the cluster number, BBBB the command number, CCCC... the payload
     // First delimiter is '_' for a global command, or '!' for a cluster specific command
     const char * data = cmd_str.c_str();
-    cluster = parseHex(&data, 4);
+    uint16_t local_cluster_id = parseHex(&data, 4);
+
+    // check cluster
+    if (0xFFFF == cluster) {
+      cluster = local_cluster_id;
+    } else if (cluster != local_cluster_id) {
+      ResponseCmndChar_P(PSTR("No more than one cluster id per command"));
+      return;
+    }
 
     // delimiter
     if (('_' == *data) || ('!' == *data)) {
