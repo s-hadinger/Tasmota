@@ -78,8 +78,7 @@ String HueUuid(void)
 
 void HueRespondToMSearch(void)
 {
-  char message[TOPSZ];
-
+  bool ok = false;
   TickerMSearch.detach();
   if (PortUdp.beginPacket(udp_remote_ip, udp_remote_port)) {
     char response[320];
@@ -99,13 +98,12 @@ void HueRespondToMSearch(void)
     PortUdp.write(response);
     PortUdp.endPacket();
 
-    snprintf_P(message, sizeof(message), PSTR(D_3_RESPONSE_PACKETS_SENT));
-  } else {
-    snprintf_P(message, sizeof(message), PSTR(D_FAILED_TO_SEND_RESPONSE));
+    ok = true;
   }
   // Do not use AddLog_P2 here (interrupt routine) if syslog or mqttlog is enabled. UDP/TCP will force exception 9
   PrepLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_UPNP D_HUE " %s " D_TO " %s:%d"),
-    message, udp_remote_ip.toString().c_str(), udp_remote_port);
+    ok ? PSTR(D_3_RESPONSE_PACKETS_SENT) : PSTR(D_FAILED_TO_SEND_RESPONSE),
+    udp_remote_ip.toString().c_str(), udp_remote_port);
 
   udp_response_mutex = false;
 }
@@ -268,7 +266,7 @@ void HandleUpnpSetupHue(void)
 
 void HueNotImplemented(String *path)
 {
-  AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR(D_LOG_HTTP D_HUE_API_NOT_IMPLEMENTED " (%s)"), path->c_str());
+  // AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR(D_LOG_HTTP D_HUE_API_NOT_IMPLEMENTED " (%s)"), path->c_str());
 
   WSSend(200, CT_JSON, "{}");
 }
@@ -322,8 +320,7 @@ uint8_t getLocalLightSubtype(uint8_t device) {
   }
 }
 
-void HueLightStatus1(uint8_t device, String *response)
-{
+void HueLightStatus1(uint8_t device, String &response) {
   uint16_t ct = 0;
   uint8_t  color_mode;
   String light_status = "";
@@ -405,7 +402,7 @@ void HueLightStatus1(uint8_t device, String *response)
   }
   snprintf_P(buf, buf_size, HUE_LIGHTS_STATUS_JSON1_SUFFIX, buf);
 
-  *response += buf;
+  response += buf;
   free(buf);
 }
 
@@ -416,7 +413,7 @@ bool HueActive(uint8_t device) {
   return '$' != *SettingsText(SET_FRIENDLYNAME1 +device -1);
 }
 
-void HueLightStatus2(uint8_t device, String *response)
+void HueLightStatus2(uint8_t device, String &response)
 {
   const size_t buf_size = 300;
   char * buf = (char*) malloc(buf_size);
@@ -441,7 +438,7 @@ void HueLightStatus2(uint8_t device, String *response)
             EscapeJSONString(Settings.user_template_name).c_str(),
             PSTR("Tasmota"),
             GetHueDeviceId(device).c_str());
-  *response += buf;
+  response += buf;
   free(buf);
 }
 
@@ -536,7 +533,7 @@ void HueGlobalConfig(String *path) {
   path->remove(0,1);                                 // cut leading / to get <id>
   response = F("{\"lights\":{");
   bool appending = false;                             // do we need to add a comma to append
-  CheckHue(&response, appending);
+  CheckHue(response, appending);
 #ifdef USE_ZIGBEE
   ZigbeeCheckHue(&response, appending);
 #endif // USE_ZIGBEE
@@ -556,14 +553,14 @@ void HueAuthentication(String *path)
 }
 
 // refactored to remove code duplicates
-void CheckHue(String * response, bool &appending) {
+void CheckHue(String &response, bool &appending) {
   uint8_t maxhue = (devices_present > MAX_HUE_DEVICES) ? MAX_HUE_DEVICES : devices_present;
   for (uint32_t i = 1; i <= maxhue; i++) {
     if (HueActive(i)) {
-      if (appending) { *response += ","; }
-      *response += "\"";
-      *response += EncodeLightId(i);
-      *response += F("\":{\"state\":");
+      if (appending) { response += ","; }
+      response += "\"";
+      response += EncodeLightId(i);
+      response += F("\":{\"state\":");
       HueLightStatus1(i, response);
       HueLightStatus2(i, response);
       appending = true;
@@ -776,12 +773,12 @@ void HueLights(String *path)
   if (path->endsWith(F("/lights"))) {                   // Got /lights
     response = "{";
     bool appending = false;
-    CheckHue(&response, appending);
+    CheckHue(response, appending);
 #ifdef USE_ZIGBEE
     ZigbeeCheckHue(&response, appending);
 #endif // USE_ZIGBEE
 #ifdef USE_SCRIPT_HUE
-    Script_Check_Hue(&response);
+    Script_Check_Hue(response);
 #endif
     response += "}";
   }
@@ -833,8 +830,8 @@ void HueLights(String *path)
       device = 1;
     }
     response += F("{\"state\":");
-    HueLightStatus1(device, &response);
-    HueLightStatus2(device, &response);
+    HueLightStatus1(device, response);
+    HueLightStatus2(device, response);
   }
   else {
     response = "{}";
@@ -867,7 +864,7 @@ void HueGroups(String *path)
     ZigbeeHueGroups(&response);
 #endif // USE_ZIGBEE
     response.replace("{l1", lights);
-    HueLightStatus1(1, &response);
+    HueLightStatus1(1, response);
     response += F("}");
   }
 
