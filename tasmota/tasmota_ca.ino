@@ -207,17 +207,15 @@ const unsigned char GoDaddyCAG2_RSA_E[] PROGMEM = {
 	0x01, 0x00, 0x01
 };
 
-const br_x509_trust_anchor GoDaddyCAG2_TA[1] PROGMEM = {
+const br_x509_trust_anchor GoDaddyCAG2_TA PROGMEM = {
+	{ (unsigned char *)GoDaddyCAG2_DN, sizeof GoDaddyCAG2_DN },
+	0,
 	{
-		{ (unsigned char *)TA0_DN, sizeof TA0_DN },
-		0,
-		{
-			BR_KEYTYPE_RSA,
-			{ .rsa = {
-				(unsigned char *)GoDaddyCAG2_RSA_N, sizeof GoDaddyCAG2_RSA_N,
-				(unsigned char *)GoDaddyCAG2_RSA_E, sizeof GoDaddyCAG2_RSA_E,
-			} }
-		}
+		BR_KEYTYPE_RSA,
+		{ .rsa = {
+			(unsigned char *)GoDaddyCAG2_RSA_N, sizeof GoDaddyCAG2_RSA_N,
+			(unsigned char *)GoDaddyCAG2_RSA_E, sizeof GoDaddyCAG2_RSA_E,
+		} }
 	}
 };
 

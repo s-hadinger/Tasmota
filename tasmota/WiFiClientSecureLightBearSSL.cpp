@@ -22,7 +22,7 @@
 
 #include "my_user_config.h"
 //#ifdef USE_MQTT_TLS
-#if defined ESP8266 && (defined(USE_MQTT_TLS) || defined (USE_SENDMAIL))
+#if defined ESP8266 && (defined(USE_MQTT_TLS) || defined (USE_SENDMAIL) || defined (USE_TELEGRAM))
 
 //#define DEBUG_TLS
 
@@ -759,7 +759,7 @@ extern "C" {
 	// We limit to a single cipher to reduce footprint
   // we reference it, don't put in PROGMEM
   static const uint16_t suites[] = {
-#if defined(USE_MQTT_AWS_IOT) || defined(USE_MQTT_TLS_FORCE_EC_CIPHER)
+#if defined(USE_MQTT_AWS_IOT) || defined(USE_MQTT_TLS_FORCE_EC_CIPHER) || defined(USE_TELEGRAM)
 		BR_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
 #else
 		BR_TLS_RSA_WITH_AES_128_GCM_SHA256
