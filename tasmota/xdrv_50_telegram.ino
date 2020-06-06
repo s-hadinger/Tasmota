@@ -53,22 +53,22 @@ String TelegramConnectToTelegram(String command) {
   AddLog_P2(LOG_LEVEL_DEBUG, PSTR("TLG: Cmnd %s"), command.c_str());
 
   if (https.begin(*tlsClient, "https://api.telegram.org/" + command)) {  // HTTPS
-Serial.printf("Connected \n");
+    Serial.printf("Client initialized\n");
     int httpCode = https.GET();
 
     // httpCode will be negative on error
     if (httpCode > 0) {
       // HTTP header has been send and Server response header has been handled
-      //Serial.printf("[HTTPS] GET... code: %d\n", httpCode);
+      Serial.printf("[HTTPS] GET... code: %d\n", httpCode);
       // file found at server?
       if (httpCode == HTTP_CODE_OK) {
         String payload = https.getString();
         Serial.println("[HTTPS] Received payload telegram: ");
         mess=payload;
-        //Serial.println(String("1BTC = ") + payload + "USD");
+        Serial.println(String("1BTC = ") + payload + "USD");
       }
     } else {
-Serial.printf("TLS error :%d\n", tlsClient->getLastError());
+      Serial.printf("TLS error :%d\n", tlsClient->getLastError());
       Serial.printf("[HTTPS] GET telegram... failed, error: %s\n\r", https.errorToString(httpCode).c_str());
     }
     https.end();
