@@ -30,22 +30,31 @@
 
 #define XDRV_20           20
 
+//HTTP/1.1 200 OK\r\nHOST: 239.255.255.250:1900\r\nCACHE-CONTROL: max-age=100\r\nEXT:\r\nLOCATION: http://%d.%d.%d.%d:80/description.xml\r\nSERVER: Linux/3.14.0 UPnP/1.0 IpBridge/1.24.0\r\nhue-bridgeid: %02X%02X%02XFFFE%02X%02X%02X\r\n
+// Successfully compressed from 219 to 203 bytes (-7.3%)
+// not enough savings for unishox
 const char HUE_RESPONSE[] PROGMEM =
   "HTTP/1.1 200 OK\r\n"
   "HOST: 239.255.255.250:1900\r\n"
   "CACHE-CONTROL: max-age=100\r\n"
   "EXT:\r\n"
-  "LOCATION: http://%s:80/description.xml\r\n"
+  "LOCATION: http://%d.%d.%d.%d:80/description.xml\r\n"
   "SERVER: Linux/3.14.0 UPnP/1.0 IpBridge/1.24.0\r\n"  // was 1.17
-  "hue-bridgeid: %s\r\n";
+  "hue-bridgeid: %02X%02X%02XFFFE%02X%02X%02X\r\n";
+//ST: upnp:rootdevice\r\nUSN: uuid:%s::upnp:rootdevice\r\n\r\n
+// Successfully compressed from 54 to 37 bytes (-31.5%)
 const char HUE_ST1[] PROGMEM =
   "ST: upnp:rootdevice\r\n"
   "USN: uuid:%s::upnp:rootdevice\r\n"
   "\r\n";
+//ST: uuid:%s\r\nUSN: uuid:%s\r\n\r\n
+// Successfully compressed from 29 to 23 bytes (-20.7%)
 const char HUE_ST2[] PROGMEM =
   "ST: uuid:%s\r\n"
   "USN: uuid:%s\r\n"
   "\r\n";
+//ST: urn:schemas-upnp-org:device:basic:1\r\nUSN: uuid:%s\r\n\r\n
+// Successfully compressed from 57 to 53 bytes (-7%)
 const char HUE_ST3[] PROGMEM =
   "ST: urn:schemas-upnp-org:device:basic:1\r\n"
   "USN: uuid:%s\r\n"
@@ -53,6 +62,7 @@ const char HUE_ST3[] PROGMEM =
 
 String HueBridgeId(void)
 {
+  // 5CCF7FFFFE139F3D
   String temp = WiFi.macAddress();
   temp.replace(":", "");
   String bridgeid = temp.substring(0, 6);
@@ -69,6 +79,14 @@ String HueSerialnumber(void)
   return serial;  // 5ccf7f139f3d
 }
 
+// str must be at least 40 chars
+// void HueUuidChar(char * str) {
+//   // f6543a06-da50-11ba-8d8f-5ccf7f139f3d
+//   char serial_s[16];
+//   HueSerialnumberChar(serial_s);
+//   sprintf_P(str, PSTR("f6543a06-da50-11ba-8d8f-%s"), serial_s);
+// }
+
 String HueUuid(void)
 {
   String uuid = F("f6543a06-da50-11ba-8d8f-");
@@ -82,19 +100,29 @@ void HueRespondToMSearch(void)
   TickerMSearch.detach();
   if (PortUdp.beginPacket(udp_remote_ip, udp_remote_port)) {
     char response[320];
-    snprintf_P(response, sizeof(response), HUE_RESPONSE, WiFi.localIP().toString().c_str(), HueBridgeId().c_str());
+    uint8_t macAddr[6];
+    WiFi.macAddress(macAddr);
+    uint32_t addr32 = WiFi.localIP();    // convert to uint32
+    uint8_t  *addr = (uint8_t*) &addr32;
+    snprintf_P(response, sizeof(response), HUE_RESPONSE,
+              addr[0], addr[1], addr[2], addr[3], 
+              macAddr[0], macAddr[1], macAddr[2], macAddr[3], macAddr[4], macAddr[5]);
     int len = strlen(response);
-    String uuid = HueUuid();
 
-    snprintf_P(response + len, sizeof(response) - len, HUE_ST1, uuid.c_str());
+    // f6543a06-da50-11ba-8d8f-5ccf7f139f3d
+    char uuid_s[40];
+    sprintf_P(uuid_s, PSTR("f6543a06-da50-11ba-8d8f-%02x%02x%02x%02x%02x%02x"),
+              macAddr[0], macAddr[1], macAddr[2], macAddr[3], macAddr[4], macAddr[5]);
+
+    snprintf_P(response + len, sizeof(response) - len, HUE_ST1, uuid_s);
     PortUdp.write(response);
     PortUdp.endPacket();
 
-    snprintf_P(response + len, sizeof(response) - len, HUE_ST2, uuid.c_str(), uuid.c_str());
+    snprintf_P(response + len, sizeof(response) - len, HUE_ST2, uuid_s, uuid_s);
     PortUdp.write(response);
     PortUdp.endPacket();
 
-    snprintf_P(response + len, sizeof(response) - len, HUE_ST3, uuid.c_str());
+    snprintf_P(response + len, sizeof(response) - len, HUE_ST3, uuid_s);
     PortUdp.write(response);
     PortUdp.endPacket();
 
