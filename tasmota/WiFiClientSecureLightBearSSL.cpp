@@ -790,7 +790,7 @@ extern "C" {
 		br_ssl_engine_set_aes_ctr(&cc->eng, &br_aes_small_ctr_vtable);
 		br_ssl_engine_set_ghash(&cc->eng, &br_ghash_ctmul32);
 
-#if defined(USE_MQTT_AWS_IOT) || defined(USE_MQTT_TLS_FORCE_EC_CIPHER)
+#if defined(USE_MQTT_AWS_IOT) || defined(USE_MQTT_TLS_FORCE_EC_CIPHER) || defined(USE_TELEGRAM)
 		// we support only P256 EC curve for AWS IoT, no EC curve for Letsencrypt unless forced
 		br_ssl_engine_set_ec(&cc->eng, &br_ec_p256_m15);
 #endif
