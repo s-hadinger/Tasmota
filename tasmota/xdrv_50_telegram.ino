@@ -35,6 +35,7 @@ struct {
 int Bot_mtbs = 1000; //mean time between scan messages
 long Bot_lasttime;   //last time messages' scan has been done
 
+BearSSL::WiFiClientSecure_light *telegramClient;
 
 /**************************************************************************************************
  * function to achieve connection to api.telegram.org and send command to telegram                *
@@ -42,18 +43,17 @@ long Bot_lasttime;   //last time messages' scan has been done
  **************************************************************************************************/
 String TelegramConnectToTelegram(String command) {
   String mess="";
-  BearSSL::WiFiClientSecure_light *tlsClient;
 
-  tlsClient = new BearSSL::WiFiClientSecure_light(1024,1024);
-  tlsClient->setTrustAnchor(&GoDaddyCAG2_TA);
-  // std::unique_ptr<BearSSL::WiFiClientSecure>client(new BearSSL::WiFiClientSecure);
+  std::unique_ptr<BearSSL::WiFiClientSecure_light>telegramClient(new BearSSL::WiFiClientSecure_light(1024,1024));
+  // telegramClient = new BearSSL::WiFiClientSecure_light(1024,1024);
+  telegramClient->setTrustAnchor(&GoDaddyCAG2_TA);
   //client->setInsecure();
   HTTPClient https;
 
   AddLog_P2(LOG_LEVEL_DEBUG, PSTR("TLG: Cmnd %s"), command.c_str());
 
-  if (https.begin(*tlsClient, "https://api.telegram.org/" + command)) {  // HTTPS
-    Serial.printf("Client initialized\n");
+  if (https.begin(*telegramClient, "https://api.telegram.org/" + command)) {  // HTTPS
+    // Serial.printf("Client initialized\n");
     int httpCode = https.GET();
 
     // httpCode will be negative on error
@@ -68,15 +68,14 @@ String TelegramConnectToTelegram(String command) {
         Serial.println(String("1BTC = ") + payload + "USD");
       }
     } else {
-      Serial.printf("TLS error :%d\n", tlsClient->getLastError());
+      Serial.printf("TLS error :%d\n", telegramClient->getLastError());
       Serial.printf("[HTTPS] GET telegram... failed, error: %s\n\r", https.errorToString(httpCode).c_str());
     }
     https.end();
   } else {
+    Serial.printf("TLS error :%d\n", telegramClient->getLastError());
+    telegramClient->stop();
     Serial.printf("[HTTPS] Unable to connect BEAR::SSL telegram\n\r");
-  }
-  if (tlsClient) {
-    delete tlsClient;
   }
 
   return mess;
