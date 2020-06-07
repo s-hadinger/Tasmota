@@ -24,8 +24,8 @@
 //#ifdef USE_MQTT_TLS
 #if defined ESP8266 && (defined(USE_MQTT_TLS) || defined (USE_SENDMAIL) || defined (USE_TELEGRAM))
 
-#define DEBUG_TLS
-#define DEBUG_ESP_SSL
+// #define DEBUG_TLS
+// #define DEBUG_ESP_SSL
 
 #define LWIP_INTERNAL
 
@@ -713,10 +713,10 @@ extern "C" {
     br_sha1_out(&sha1_context, xc->pubkey_recv_fingerprint); // copy to fingerprint
 
 		if (!xc->fingerprint_all) {
-			if (0 == memcmp(xc->fingerprint1, xc->pubkey_recv_fingerprint, 20)) {
+			if (0 == memcmp_P(xc->pubkey_recv_fingerprint, xc->fingerprint1, 20)) {
 				return 0;
 			}
-			if (0 == memcmp(xc->fingerprint2, xc->pubkey_recv_fingerprint, 20)) {
+			if (0 == memcmp_P(xc->pubkey_recv_fingerprint, xc->fingerprint2, 20)) {
 				return 0;
 			}
 			return 1;		// no match, error

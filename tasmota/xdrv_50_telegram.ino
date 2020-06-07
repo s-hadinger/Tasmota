@@ -26,6 +26,8 @@
 
 #include "WiFiClientSecureLightBearSSL.h" 
 
+static const uint8_t Telegram_Fingerprint[] PROGMEM = USE_TELEGRAM_FINGERPRINT;
+
 struct {
   String message[3][6];  // amount of messages read per time  (update_id, name_id, name, lastname, chat_id, text)
   bool init = false;
@@ -43,39 +45,55 @@ BearSSL::WiFiClientSecure_light *telegramClient;
  **************************************************************************************************/
 String TelegramConnectToTelegram(String command) {
   String mess="";
+#ifdef USE_MQTT_TLS_CA_CERT
+  static const uint32_t tls_rx_size = 2048;   // since Telegram CA is bigger than 1024 bytes, we need to increase rx buffer
+  static const uint32_t tls_tx_size = 1024;
+#else
+  static const uint32_t tls_rx_size = 1024;
+  static const uint32_t tls_tx_size = 1024;
+#endif 
 
-  std::unique_ptr<BearSSL::WiFiClientSecure_light>telegramClient(new BearSSL::WiFiClientSecure_light(1024,1024));
-  // telegramClient = new BearSSL::WiFiClientSecure_light(1024,1024);
+  std::unique_ptr<BearSSL::WiFiClientSecure_light>telegramClient(new BearSSL::WiFiClientSecure_light(tls_rx_size, tls_tx_size));
+#ifdef USE_MQTT_TLS_CA_CERT
   telegramClient->setTrustAnchor(&GoDaddyCAG2_TA);
-  //client->setInsecure();
+#else
+  telegramClient->setPubKeyFingerprint(Telegram_Fingerprint, Telegram_Fingerprint, true); // check server fingerprint
+#endif
   HTTPClient https;
 
   AddLog_P2(LOG_LEVEL_DEBUG, PSTR("TLG: Cmnd %s"), command.c_str());
+  uint32_t tls_connect_time = millis();
 
   if (https.begin(*telegramClient, "https://api.telegram.org/" + command)) {  // HTTPS
-    // Serial.printf("Client initialized\n");
     int httpCode = https.GET();
 
     // httpCode will be negative on error
     if (httpCode > 0) {
+      AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_MQTT "TLS connected in %d ms, max ThunkStack used %d"),
+        millis() - tls_connect_time, telegramClient->getMaxThunkStackUse());
+
       // HTTP header has been send and Server response header has been handled
-      Serial.printf("[HTTPS] GET... code: %d\n", httpCode);
+      // Serial.printf("[HTTPS] GET... code: %d\n", httpCode);
       // file found at server?
       if (httpCode == HTTP_CODE_OK) {
         String payload = https.getString();
-        Serial.println("[HTTPS] Received payload telegram: ");
+        // Serial.println("[HTTPS] Received payload telegram: ");
         mess=payload;
-        Serial.println(String("1BTC = ") + payload + "USD");
+        // Serial.println(String("1BTC = ") + payload + "USD");
       }
     } else {
-      Serial.printf("TLS error :%d\n", telegramClient->getLastError());
+      // Serial.printf("TLS error :%d\n", telegramClient->getLastError());
       Serial.printf("[HTTPS] GET telegram... failed, error: %s\n\r", https.errorToString(httpCode).c_str());
     }
     https.end();
   } else {
-    Serial.printf("TLS error :%d\n", telegramClient->getLastError());
+    AddLog_P2(LOG_LEVEL_INFO, PSTR("TLG: TLS error :%d"), telegramClient->getLastError());
+#ifndef USE_MQTT_TLS_CA_CERT
+    char buf_fingerprint[64];
+    ToHex_P((unsigned char *)telegramClient->getRecvPubKeyFingerprint(), 20, buf_fingerprint, sizeof(buf_fingerprint), ' ');
+    AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_MQTT "Server fingerprint: %s"), buf_fingerprint);
+#endif // USE_MQTT_TLS_CA_CERT
     telegramClient->stop();
-    Serial.printf("[HTTPS] Unable to connect BEAR::SSL telegram\n\r");
   }
 
   return mess;
