@@ -57,7 +57,7 @@ String TelegramConnectToTelegram(String command) {
 #ifdef USE_MQTT_TLS_CA_CERT
   telegramClient->setTrustAnchor(&GoDaddyCAG2_TA);
 #else
-  telegramClient->setPubKeyFingerprint(Telegram_Fingerprint, Telegram_Fingerprint, true); // check server fingerprint
+  telegramClient->setPubKeyFingerprint(Telegram_Fingerprint, Telegram_Fingerprint, false); // check server fingerprint
 #endif
   HTTPClient https;
 
@@ -82,17 +82,16 @@ String TelegramConnectToTelegram(String command) {
         // Serial.println(String("1BTC = ") + payload + "USD");
       }
     } else {
-      // Serial.printf("TLS error :%d\n", telegramClient->getLastError());
-      Serial.printf("[HTTPS] GET telegram... failed, error: %s\n\r", https.errorToString(httpCode).c_str());
-    }
-    https.end();
-  } else {
     AddLog_P2(LOG_LEVEL_INFO, PSTR("TLG: TLS error :%d"), telegramClient->getLastError());
 #ifndef USE_MQTT_TLS_CA_CERT
     char buf_fingerprint[64];
     ToHex_P((unsigned char *)telegramClient->getRecvPubKeyFingerprint(), 20, buf_fingerprint, sizeof(buf_fingerprint), ' ');
-    AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_MQTT "Server fingerprint: %s"), buf_fingerprint);
+    AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_MQTT "TLG: Server fingerprint: %s"), buf_fingerprint);
 #endif // USE_MQTT_TLS_CA_CERT
+      Serial.printf("[HTTPS] GET telegram... failed, error: %s\n\r", https.errorToString(httpCode).c_str());
+    }
+    https.end();
+  } else {
     telegramClient->stop();
   }
 
