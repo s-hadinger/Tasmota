@@ -379,13 +379,13 @@ void HueLightStatus1(uint8_t device, String &response) {
   const size_t buf_size = 256;
   char * buf = (char*) malloc(buf_size);     // temp buffer for strings, avoid stack
 
-  snprintf_P(buf, buf_size, PSTR("{\"on\":%s,"), (power & (1 << (device-1))) ? "true" : "false");
+  snprintf_P(buf, buf_size, PSTR("{\"on\":%s,"), (power & (1 << (device-1))) ? PSTR("true") : PSTR("false"));
   // Brightness for all devices with PWM
   if ((1 == echo_gen) || (LST_SINGLE <= local_light_subtype)) { // force dimmer for 1st gen Echo
     snprintf_P(buf, buf_size, PSTR("%s\"bri\":%d,"), buf, bri);
   }
   if (LST_COLDWARM <= local_light_subtype) {
-    snprintf_P(buf, buf_size, PSTR("%s\"colormode\":\"%s\","), buf, g_gotct ? "ct" : "hs");
+    snprintf_P(buf, buf_size, PSTR("%s\"colormode\":\"%s\","), buf, g_gotct ? PSTR("ct") : PSTR("hs"));
   }
   if (LST_RGB <= local_light_subtype) {  // colors
     if (prev_x_str[0] && prev_y_str[0]) {
@@ -591,7 +591,7 @@ void HueLightsCommand(uint8_t device, uint32_t device_id, String &response) {
       on = hue_json["on"];
       snprintf_P(buf, buf_size,
                  PSTR("{\"success\":{\"/lights/%d/state/on\":%s}}"),
-                 device_id, on ? "true" : "false");
+                 device_id, on ? PSTR("true") : PSTR("false"));
 
 #ifdef USE_SHUTTER
       if (ShutterState(device)) {
@@ -603,15 +603,6 @@ void HueLightsCommand(uint8_t device, uint32_t device_id, String &response) {
         }
       } else {
 #endif
-/*
-        switch(on)
-        {
-          case false : ExecuteCommandPower(device, POWER_OFF, SRC_HUE);
-                      break;
-          case true  : ExecuteCommandPower(device, POWER_ON, SRC_HUE);
-                      break;
-        }
-*/
         ExecuteCommandPower(device, (on) ? POWER_ON : POWER_OFF, SRC_HUE);
         response += buf;
         resp = true;
