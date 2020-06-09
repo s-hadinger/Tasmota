@@ -24,8 +24,8 @@
 //#ifdef USE_MQTT_TLS
 #if defined ESP8266 && (defined(USE_MQTT_TLS) || defined (USE_SENDMAIL) || defined (USE_TELEGRAM))
 
-// #define DEBUG_TLS
-// #define DEBUG_ESP_SSL
+#define DEBUG_TLS
+#define DEBUG_ESP_SSL
 
 #define LWIP_INTERNAL
 
@@ -800,12 +800,12 @@ extern "C" {
 // Called by connect() to do the actual SSL setup and handshake.
 // Returns if the SSL handshake succeeded.
 bool WiFiClientSecure_light::_connectSSL(const char* hostName) {
-#ifdef USE_MQTT_AWS_IOT
-	if ((!_chain_P) || (!_sk_ec_P)) {
-		setLastError(ERR_MISSING_EC_KEY);
-		return false;
-	}
-#endif
+// #ifdef USE_MQTT_AWS_IOT
+// 	if ((!_chain_P) || (!_sk_ec_P)) {
+// 		setLastError(ERR_MISSING_EC_KEY);
+// 		return false;
+// 	}
+// #endif
 
 	// Validation context, either full CA validation or checking only fingerprints
 #ifdef USE_MQTT_TLS_CA_CERT
