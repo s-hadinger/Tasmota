@@ -101,7 +101,7 @@
 #define MQTT_SWITCH_RETAIN     false             // [SwitchRetain] Switch may send retain flag (false = off, true = on)
 #define MQTT_SENSOR_RETAIN     false             // [SensorRetain] Sensor may send retain flag (false = off, true = on)
 #define MQTT_NO_HOLD_RETAIN    false             // [SetOption62] Disable retain flag on HOLD messages
-//#define MQTT_NO_RETAIN                         // Disable all retain flags (including LWT!) if unsupported by broker (eg Losant)
+//#define MQTT_NO_RETAIN                         // Disable all retain flags (This don't include LWT!) if unsupported by broker (eg Losant)
 
 #define MQTT_STATUS_OFF        "OFF"             // [StateText1] Command or Status result when turned off (needs to be a string like "0" or "Off")
 #define MQTT_STATUS_ON         "ON"              // [StateText2] Command or Status result when turned on (needs to be a string like "1" or "On")
@@ -399,16 +399,18 @@
 // -- Ping ----------------------------------------
 //  #define USE_PING                                 // Enable Ping command (+2k code)
 
+// -- Compression ---------------------------------
+#define USE_UNISHOX_COMPRESSION                  // Add support for string compression in Rules or Scripts
+
 // -- Rules or Script  ----------------------------
 // Select none or only one of the below defines USE_RULES or USE_SCRIPT
 #define USE_RULES                                // Add support for rules (+8k code)
-  #define USE_RULES_COMPRESSION                  // Compresses rules in Flash at about ~50% (+3.3k code)
-//#define USE_SCRIPT                               // Add support for script (+17k code)
-  #define USE_SCRIPT_COMPRESSION
-  //#define USE_SCRIPT_FATFS 4                     // Script: Add FAT FileSystem Support
-
 //  #define USE_EXPRESSION                         // Add support for expression evaluation in rules (+3k2 code, +64 bytes mem)
 //    #define SUPPORT_IF_STATEMENT                 // Add support for IF statement in rules (+4k2 code, -332 bytes mem)
+
+//#define USE_SCRIPT                               // Add support for script (+17k code)
+  //#define USE_SCRIPT_FATFS 4                     // Script: Add FAT FileSystem Support
+
 //  #define SUPPORT_MQTT_EVENT                     // Support trigger event with MQTT subscriptions (+3k5 code)
 
 // -- Optional modules ----------------------------
@@ -614,6 +616,7 @@
 //#define USE_LE01MR                               // Add support for F&F LE-01MR Modbus energy monitor (+1k code)
   #define LE01MR_SPEED         9600              // LE-01MR modbus baudrate (default: 9600)
   #define LE01MR_ADDR          1                 // LE-01MR modbus address (default: 0x01)
+#define USE_BL0940                               // Add support for BL0940 Energy monitor as used in Blitzwolf SHP-10 (+1k6 code)
 
 // -- Low level interface devices -----------------
 #define USE_DHT                                  // Add support for DHT11, AM2301 (DHT21, DHT22, AM2302, AM2321) and SI7021 Temperature and Humidity sensor (1k6 code)
