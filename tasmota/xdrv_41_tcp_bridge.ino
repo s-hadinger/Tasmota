@@ -103,6 +103,7 @@ void CmndTCPStart(void) {
   AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_TCP "Starting TCP server on port %d"), tcp_port);
   server_tcp.begin(); // start TCP server
   server_tcp.setNoDelay(true);
+  ResponseCmndDone();
 }
 
 /*********************************************************************************************\
