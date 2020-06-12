@@ -68,7 +68,7 @@ void TCPLoop(void)
       }
     }
   }
-  if ((!client_tcp1) && (!client_tcp2)) { return; }
+  // if ((!client_tcp1) && (!client_tcp2)) { return; }
 
   do {
     busy = false;       // exit loop if no data was transferred
@@ -87,7 +87,7 @@ void TCPLoop(void)
 
     // handle data received from TCP
     buf_len = 0;
-    while (client_tcp1.available()) {
+    while ((buf_len < tcp_buf_size) && (client_tcp1.available())) {
       c = client_tcp1.read();
       tcp_buf[buf_len++] = c;
       busy = true;
@@ -96,7 +96,7 @@ void TCPLoop(void)
       TCPSerial->write(tcp_buf, buf_len);
     }
     buf_len = 0;
-    while (client_tcp2.available()) {
+    while ((buf_len < tcp_buf_size) && (client_tcp2.available())) {
       c = client_tcp2.read();
       tcp_buf[buf_len++] = c;
       busy = true;
