@@ -83,6 +83,10 @@ void TCPLoop(void)
       }
     }
     if (buf_len > 0) {
+      char hex_char[258];
+  		ToHex_P(tcp_buf, buf_len, hex_char, 256);
+      AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_TCP "from MCU: %s"), hex_char);
+
       if (client_tcp1) { client_tcp1.write(tcp_buf, buf_len); }
       if (client_tcp2) { client_tcp2.write(tcp_buf, buf_len); }
     }
@@ -97,6 +101,9 @@ void TCPLoop(void)
       }
     }
     if (buf_len > 0) {
+      char hex_char[258];
+  		ToHex_P(tcp_buf, buf_len, hex_char, 256);
+      AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_TCP "to MCU/1: %s"), hex_char);
       TCPSerial->write(tcp_buf, buf_len);
     }
     buf_len = 0;
@@ -108,6 +115,9 @@ void TCPLoop(void)
       }
     }
     if (buf_len > 0) {
+      char hex_char[258];
+  		ToHex_P(tcp_buf, buf_len, hex_char, 256);
+      AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_TCP "to MCU/2: %s"), hex_char);
       TCPSerial->write(tcp_buf, buf_len);
     }
 
