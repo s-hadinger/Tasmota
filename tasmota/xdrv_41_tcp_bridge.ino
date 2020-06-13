@@ -77,8 +77,10 @@ void TCPLoop(void)
     buf_len = 0;
     while ((buf_len < tcp_buf_size) && (TCPSerial->available())) {
       c = TCPSerial->read();
-      tcp_buf[buf_len++] = c;
-      busy = true;
+      if (c >= 0) {
+        tcp_buf[buf_len++] = c;
+        busy = true;
+      }
     }
     if (buf_len > 0) {
       if (client_tcp1) { client_tcp1.write(tcp_buf, buf_len); }
@@ -87,19 +89,23 @@ void TCPLoop(void)
 
     // handle data received from TCP
     buf_len = 0;
-    while ((buf_len < tcp_buf_size) && (client_tcp1.available())) {
+    while (client_tcp1 && (buf_len < tcp_buf_size) && (client_tcp1.available())) {
       c = client_tcp1.read();
-      tcp_buf[buf_len++] = c;
-      busy = true;
+      if (c >= 0) {
+        tcp_buf[buf_len++] = c;
+        busy = true;
+      }
     }
     if (buf_len > 0) {
       TCPSerial->write(tcp_buf, buf_len);
     }
     buf_len = 0;
-    while ((buf_len < tcp_buf_size) && (client_tcp2.available())) {
+    while (client_tcp2 && (buf_len < tcp_buf_size) && (client_tcp2.available())) {
       c = client_tcp2.read();
-      tcp_buf[buf_len++] = c;
-      busy = true;
+      if (c >= 0) {
+        tcp_buf[buf_len++] = c;
+        busy = true;
+      }
     }
     if (buf_len > 0) {
       TCPSerial->write(tcp_buf, buf_len);
