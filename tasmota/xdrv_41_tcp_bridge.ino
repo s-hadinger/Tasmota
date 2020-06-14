@@ -21,23 +21,25 @@
 
 #define XDRV_41                    41
 
-const uint16_t tcp_port = 8880;
-WiFiServer   server_tcp(tcp_port);   // port 8880
-WiFiClient   client_tcp1, client_tcp2;
-uint8_t      client_next = 1;
+#define USE_TCP_BRIDGE_CONNECTIONS 2    // number of maximum parallel connections
+
+//const uint16_t tcp_port = 8880;
+WiFiServer   *server_tcp = nullptr;
+//WiFiClient   client_tcp1, client_tcp2;
+WiFiClient   client_tcp[USE_TCP_BRIDGE_CONNECTIONS];
+uint8_t      client_next = 0;
 uint8_t     *tcp_buf = nullptr;     // data transfer buffer
-const size_t tcp_buf_size = 256;     // size of the buffer, above 132 required for efficient XMODEM
+const size_t tcp_buf_size = 255;     // size of the buffer, above 132 required for efficient XMODEM
 
 #include <TasmotaSerial.h>
 TasmotaSerial *TCPSerial = nullptr;
-bool TCP_active = false;
 
 const char kTCPCommands[] PROGMEM = "TCP" "|"    // prefix
-  "Start" 
+  "Start" "|" "TCPBaudrate"
   ;
 
 void (* const TCPCommand[])(void) PROGMEM = {
-  &CmndTCPStart,
+  &CmndTCPStart, &CmndTCPBaudrate
   };
 
 //
@@ -49,26 +51,26 @@ void TCPLoop(void)
   bool busy;    // did we transfer some data?
   int32_t buf_len;
 
-  if (!TCP_active) return;
+  if (!TCPSerial) return;
 
-  // check for a client
-
-  if (server_tcp.hasClient()) {
-    if (!client_tcp1) {
-      client_tcp1 = server_tcp.available();
-    } else if (!client_tcp2) {
-      client_tcp2 = server_tcp.available();
-    } else {
-      if (client_next++ & 1) {      // if both tcp client are busy, remove alternatively one
-        client_tcp1.stop();
-        client_tcp1 = server_tcp.available();
-      } else {
-        client_tcp2.stop();
-        client_tcp2 = server_tcp.available();
+  // check for a new client connection
+  if ((server_tcp) && (server_tcp->hasClient())) {
+    // find an empty slot
+    uint32_t i;
+    for (i=0; i<ARRAY_SIZE(client_tcp); i++) {
+      WiFiClient &client = client_tcp[i];
+      if (!client) {
+        client = server_tcp->available();
+        break;
       }
     }
+    if (i >= ARRAY_SIZE(client_tcp)) {
+      i = client_next++ % ARRAY_SIZE(client_tcp);
+      WiFiClient &client = client_tcp[i];
+      client.stop();
+      client = server_tcp->available();
+    }
   }
-  // if ((!client_tcp1) && (!client_tcp2)) { return; }
 
   do {
     busy = false;       // exit loop if no data was transferred
@@ -83,42 +85,33 @@ void TCPLoop(void)
       }
     }
     if (buf_len > 0) {
-      char hex_char[258];
+      char hex_char[tcp_buf_size+1];
   		ToHex_P(tcp_buf, buf_len, hex_char, 256);
       AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_TCP "from MCU: %s"), hex_char);
 
-      if (client_tcp1) { client_tcp1.write(tcp_buf, buf_len); }
-      if (client_tcp2) { client_tcp2.write(tcp_buf, buf_len); }
+      for (uint32_t i=0; i<ARRAY_SIZE(client_tcp); i++) {
+        WiFiClient &client = client_tcp[i];
+        if (client) { client.write(tcp_buf, buf_len); }
+      }
     }
 
     // handle data received from TCP
-    buf_len = 0;
-    while (client_tcp1 && (buf_len < tcp_buf_size) && (client_tcp1.available())) {
-      c = client_tcp1.read();
-      if (c >= 0) {
-        tcp_buf[buf_len++] = c;
-        busy = true;
+    for (uint32_t i=0; i<ARRAY_SIZE(client_tcp); i++) {
+      WiFiClient &client = client_tcp[i];
+      buf_len = 0;
+      while (client && (buf_len < tcp_buf_size) && (client.available())) {
+        c = client.read();
+        if (c >= 0) {
+          tcp_buf[buf_len++] = c;
+          busy = true;
+        }
       }
-    }
-    if (buf_len > 0) {
-      char hex_char[258];
-  		ToHex_P(tcp_buf, buf_len, hex_char, 256);
-      AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_TCP "to MCU/1: %s"), hex_char);
-      TCPSerial->write(tcp_buf, buf_len);
-    }
-    buf_len = 0;
-    while (client_tcp2 && (buf_len < tcp_buf_size) && (client_tcp2.available())) {
-      c = client_tcp2.read();
-      if (c >= 0) {
-        tcp_buf[buf_len++] = c;
-        busy = true;
+      if (buf_len > 0) {
+        char hex_char[tcp_buf_size+1];
+        ToHex_P(tcp_buf, buf_len, hex_char, 256);
+        AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_TCP "to MCU/%d: %s"), i+1, hex_char);
+        TCPSerial->write(tcp_buf, buf_len);
       }
-    }
-    if (buf_len > 0) {
-      char hex_char[258];
-  		ToHex_P(tcp_buf, buf_len, hex_char, 256);
-      AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_TCP "to MCU/2: %s"), hex_char);
-      TCPSerial->write(tcp_buf, buf_len);
     }
 
     yield();    // avoid WDT if heavy traffic
@@ -126,6 +119,18 @@ void TCPLoop(void)
 }
 
 /********************************************************************************************/
+void TCPInit(void) {
+  if (PinUsed(GPIO_TCP_RX) && PinUsed(GPIO_TCP_TX)) {
+    tcp_buf = (uint8_t*) malloc(tcp_buf_size);
+    if (!tcp_buf) { AddLog_P2(LOG_LEVEL_ERROR, PSTR(D_LOG_TCP "could not allocate buffer")); return; }
+
+    TCPSerial = new TasmotaSerial(Pin(GPIO_TCP_RX), Pin(GPIO_TCP_TX), seriallog_level ? 1 : 2, 0, tcp_buf_size);   // set a receive buffer of 256 bytes
+    TCPSerial->begin(Settings.sbaudrate * 300);
+    if (TCPSerial->hardwareSerial()) {
+      ClaimSerial();
+		}
+  }
+}
 
 /*********************************************************************************************\
  * Commands
@@ -136,25 +141,31 @@ void TCPLoop(void)
 //
 void CmndTCPStart(void) {
 
-  if (PinUsed(GPIO_TCP_RX) && PinUsed(GPIO_TCP_TX)) {
-		AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR(D_LOG_TCP "GPIOs Rx:%d Tx:%d"), Pin(GPIO_TCP_RX), Pin(GPIO_TCP_TX));
-    // if seriallog_level is 0, we allow GPIO 13/15 to switch to Hardware Serial
-    tcp_buf = (uint8_t*) malloc(tcp_buf_size);
-    if (!tcp_buf) { AddLog_P2(LOG_LEVEL_ERROR, PSTR(D_LOG_TCP "could not allocate buffer")); return; }
+  if (!TCPSerial) { return; }
+  int32_t tcp_port = XdrvMailbox.payload;
 
-    TCPSerial = new TasmotaSerial(Pin(GPIO_TCP_RX), Pin(GPIO_TCP_TX), seriallog_level ? 1 : 2, 0, 256);   // set a receive buffer of 256 bytes
-    TCPSerial->begin(115200);
-    if (TCPSerial->hardwareSerial()) {
-      ClaimSerial();
-		}
-    TCP_active = true;
-
-    AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_TCP "Starting TCP server on port %d"), tcp_port);
-    server_tcp.begin(); // start TCP server
-    server_tcp.setNoDelay(true);
-    ResponseCmndDone();
+  if (server_tcp) {
+    AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_TCP "Stopping TCP server"));
+    server_tcp->stop();
+    delete server_tcp;
   }
-  
+  if (tcp_port > 0) {
+    AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_TCP "Starting TCP server on port %d"), tcp_port);
+    server_tcp = new WiFiServer(tcp_port);
+    server_tcp->begin(); // start TCP server
+    server_tcp->setNoDelay(true);
+  }
+
+  ResponseCmndDone();  
+}
+
+void CmndTCPBaudrate(void) {
+  if (XdrvMailbox.payload >= 300) {
+    XdrvMailbox.payload /= 300;  // Make it a valid baudrate
+    Settings.sbaudrate = XdrvMailbox.payload;
+    TCPSerial->begin(Settings.sbaudrate * 300);  // Reinitialize serial port with new baud rate
+  }
+  ResponseCmndNumber(Settings.sbaudrate * 300);
 }
 
 /*********************************************************************************************\
@@ -169,9 +180,9 @@ bool Xdrv41(uint8_t function)
     case FUNC_LOOP:
       TCPLoop();
       break;
-    // case FUNC_PRE_INIT:
-    //   TCPInit();
-    //   break;
+    case FUNC_PRE_INIT:
+      TCPInit();
+      break;
     case FUNC_COMMAND:
       result = DecodeCommand(kTCPCommands, TCPCommand);
       break;
