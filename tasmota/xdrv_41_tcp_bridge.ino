@@ -35,7 +35,7 @@ const size_t tcp_buf_size = 255;     // size of the buffer, above 132 required f
 TasmotaSerial *TCPSerial = nullptr;
 
 const char kTCPCommands[] PROGMEM = "TCP" "|"    // prefix
-  "Start" "|" "TCPBaudrate"
+  "Start" "|" "Baudrate"
   ;
 
 void (* const TCPCommand[])(void) PROGMEM = {
@@ -148,6 +148,7 @@ void CmndTCPStart(void) {
     AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_TCP "Stopping TCP server"));
     server_tcp->stop();
     delete server_tcp;
+    server_tcp = nullptr;
   }
   if (tcp_port > 0) {
     AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_TCP "Starting TCP server on port %d"), tcp_port);
