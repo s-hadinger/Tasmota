@@ -124,8 +124,9 @@ void TCPInit(void) {
     tcp_buf = (uint8_t*) malloc(tcp_buf_size);
     if (!tcp_buf) { AddLog_P2(LOG_LEVEL_ERROR, PSTR(D_LOG_TCP "could not allocate buffer")); return; }
 
+    if (!Settings.tcp_baudrate)  { Settings.tcp_baudrate = 115200 / 1200; }
     TCPSerial = new TasmotaSerial(Pin(GPIO_TCP_RX), Pin(GPIO_TCP_TX), seriallog_level ? 1 : 2, 0, tcp_buf_size);   // set a receive buffer of 256 bytes
-    TCPSerial->begin(Settings.sbaudrate * 300);
+    TCPSerial->begin(Settings.tcp_baudrate * 1200);
     if (TCPSerial->hardwareSerial()) {
       ClaimSerial();
 		}
@@ -149,6 +150,11 @@ void CmndTCPStart(void) {
     server_tcp->stop();
     delete server_tcp;
     server_tcp = nullptr;
+
+    for (uint32_t i=0; i<ARRAY_SIZE(client_tcp); i++) {
+      WiFiClient &client = client_tcp[i];
+      client.stop();
+    }
   }
   if (tcp_port > 0) {
     AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_TCP "Starting TCP server on port %d"), tcp_port);
@@ -161,12 +167,12 @@ void CmndTCPStart(void) {
 }
 
 void CmndTCPBaudrate(void) {
-  if (XdrvMailbox.payload >= 300) {
-    XdrvMailbox.payload /= 300;  // Make it a valid baudrate
-    Settings.sbaudrate = XdrvMailbox.payload;
-    TCPSerial->begin(Settings.sbaudrate * 300);  // Reinitialize serial port with new baud rate
+  if ((XdrvMailbox.payload >= 1200) && (XdrvMailbox.payload <= 115200)) {
+    XdrvMailbox.payload /= 1200;  // Make it a valid baudrate
+    Settings.tcp_baudrate = XdrvMailbox.payload;
+    TCPSerial->begin(Settings.tcp_baudrate * 1200);  // Reinitialize serial port with new baud rate
   }
-  ResponseCmndNumber(Settings.sbaudrate * 300);
+  ResponseCmndNumber(Settings.tcp_baudrate * 1200);
 }
 
 /*********************************************************************************************\
