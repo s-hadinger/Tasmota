@@ -21,15 +21,20 @@
 
 #define XDRV_41                    41
 
-#define USE_TCP_BRIDGE_CONNECTIONS 2    // number of maximum parallel connections
+#ifndef TCP_BRIDGE_CONNECTIONS
+#define TCP_BRIDGE_CONNECTIONS 2    // number of maximum parallel connections
+#endif
+
+#ifndef TCP_BRIDGE_BUF_SIZE
+#define TCP_BRIDGE_BUF_SIZE    255  // size of the buffer, above 132 required for efficient XMODEM
+#endif
 
 //const uint16_t tcp_port = 8880;
 WiFiServer   *server_tcp = nullptr;
 //WiFiClient   client_tcp1, client_tcp2;
-WiFiClient   client_tcp[USE_TCP_BRIDGE_CONNECTIONS];
+WiFiClient   client_tcp[TCP_BRIDGE_CONNECTIONS];
 uint8_t      client_next = 0;
 uint8_t     *tcp_buf = nullptr;     // data transfer buffer
-const size_t tcp_buf_size = 255;     // size of the buffer, above 132 required for efficient XMODEM
 
 #include <TasmotaSerial.h>
 TasmotaSerial *TCPSerial = nullptr;
@@ -77,7 +82,7 @@ void TCPLoop(void)
 
     // start reading the UART, this buffer can quickly overflow
     buf_len = 0;
-    while ((buf_len < tcp_buf_size) && (TCPSerial->available())) {
+    while ((buf_len < TCP_BRIDGE_BUF_SIZE) && (TCPSerial->available())) {
       c = TCPSerial->read();
       if (c >= 0) {
         tcp_buf[buf_len++] = c;
@@ -85,7 +90,7 @@ void TCPLoop(void)
       }
     }
     if (buf_len > 0) {
-      char hex_char[tcp_buf_size+1];
+      char hex_char[TCP_BRIDGE_BUF_SIZE+1];
   		ToHex_P(tcp_buf, buf_len, hex_char, 256);
       AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_TCP "from MCU: %s"), hex_char);
 
@@ -99,7 +104,7 @@ void TCPLoop(void)
     for (uint32_t i=0; i<ARRAY_SIZE(client_tcp); i++) {
       WiFiClient &client = client_tcp[i];
       buf_len = 0;
-      while (client && (buf_len < tcp_buf_size) && (client.available())) {
+      while (client && (buf_len < TCP_BRIDGE_BUF_SIZE) && (client.available())) {
         c = client.read();
         if (c >= 0) {
           tcp_buf[buf_len++] = c;
@@ -107,7 +112,7 @@ void TCPLoop(void)
         }
       }
       if (buf_len > 0) {
-        char hex_char[tcp_buf_size+1];
+        char hex_char[TCP_BRIDGE_BUF_SIZE+1];
         ToHex_P(tcp_buf, buf_len, hex_char, 256);
         AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_TCP "to MCU/%d: %s"), i+1, hex_char);
         TCPSerial->write(tcp_buf, buf_len);
@@ -121,11 +126,11 @@ void TCPLoop(void)
 /********************************************************************************************/
 void TCPInit(void) {
   if (PinUsed(GPIO_TCP_RX) && PinUsed(GPIO_TCP_TX)) {
-    tcp_buf = (uint8_t*) malloc(tcp_buf_size);
+    tcp_buf = (uint8_t*) malloc(TCP_BRIDGE_BUF_SIZE);
     if (!tcp_buf) { AddLog_P2(LOG_LEVEL_ERROR, PSTR(D_LOG_TCP "could not allocate buffer")); return; }
 
     if (!Settings.tcp_baudrate)  { Settings.tcp_baudrate = 115200 / 1200; }
-    TCPSerial = new TasmotaSerial(Pin(GPIO_TCP_RX), Pin(GPIO_TCP_TX), seriallog_level ? 1 : 2, 0, tcp_buf_size);   // set a receive buffer of 256 bytes
+    TCPSerial = new TasmotaSerial(Pin(GPIO_TCP_RX), Pin(GPIO_TCP_TX), seriallog_level ? 1 : 2, 0, TCP_BRIDGE_BUF_SIZE);   // set a receive buffer of 256 bytes
     TCPSerial->begin(Settings.tcp_baudrate * 1200);
     if (TCPSerial->hardwareSerial()) {
       ClaimSerial();
