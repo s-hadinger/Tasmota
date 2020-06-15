@@ -56,7 +56,7 @@ void ZigbeeInputLoop(void)
 {
 	static uint32_t zigbee_polling_window = 0;
 	static uint8_t fcs = ZIGBEE_SOF;
-	static uint32_t zigbee_frame_len = 5;		// minimal zigbee frame lenght, will be updated when buf[1] is read
+	static uint32_t zigbee_frame_len = 5;		// minimal zigbee frame length, will be updated when buf[1] is read
   // Receive only valid ZNP frames:
   // 00 - SOF = 0xFE
   // 01 - Length of Data Field - 0..250
