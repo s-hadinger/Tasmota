@@ -21,18 +21,29 @@
 
 #define XDRV_23                    23
 
+#ifdef USE_ZIGBEE_ZNP
 const uint32_t ZIGBEE_BUFFER_SIZE = 256;  // Max ZNP frame is SOF+LEN+CMD1+CMD2+250+FCS = 255
 const uint8_t  ZIGBEE_SOF = 0xFE;
 const uint8_t  ZIGBEE_SOF_ALT = 0xFF;
+#endif // USE_ZIGBEE_ZNP
+
+#ifdef USE_ZIGBEE_EZSP
+const uint32_t ZIGBEE_BUFFER_SIZE = 256;
+const uint8_t  ZIBGEE_EZSP_CANCEL_BYTE = 0x1A;  // cancel byte
+const uint8_t  ZIGBEE_EZSP_EOF = 0x7E;          // end of frame
+const uint8_t  ZIGBEE_EZSP_ESCAPE = 0x7D;       // escape byte
+#endif // USE_ZIGBEE_EZSP
 
 #include <TasmotaSerial.h>
 TasmotaSerial *ZigbeeSerial = nullptr;
 
 
 const char kZbCommands[] PROGMEM = D_PRFX_ZB "|"    // prefix
-  D_CMND_ZIGBEEZNPSEND "|" D_CMND_ZIGBEE_PERMITJOIN "|"
-  D_CMND_ZIGBEE_STATUS "|" D_CMND_ZIGBEE_RESET "|" D_CMND_ZIGBEE_SEND "|"
-  D_CMND_ZIGBEE_PROBE "|" D_CMND_ZIGBEEZNPRECEIVE "|"
+#ifdef USE_ZIGBEE_ZNP
+  D_CMND_ZIGBEEZNPSEND "|" D_CMND_ZIGBEEZNPRECEIVE "|"
+#endif // USE_ZIGBEE_ZNP
+  D_CMND_ZIGBEE_PERMITJOIN "|"
+  D_CMND_ZIGBEE_STATUS "|" D_CMND_ZIGBEE_RESET "|" D_CMND_ZIGBEE_SEND "|" D_CMND_ZIGBEE_PROBE "|"
   D_CMND_ZIGBEE_FORGET "|" D_CMND_ZIGBEE_SAVE "|" D_CMND_ZIGBEE_NAME "|"
   D_CMND_ZIGBEE_BIND "|" D_CMND_ZIGBEE_UNBIND "|" D_CMND_ZIGBEE_PING "|" D_CMND_ZIGBEE_MODELID "|"
   D_CMND_ZIGBEE_LIGHT "|" D_CMND_ZIGBEE_RESTORE "|" D_CMND_ZIGBEE_BIND_STATE "|"
@@ -40,9 +51,11 @@ const char kZbCommands[] PROGMEM = D_PRFX_ZB "|"    // prefix
   ;
 
 void (* const ZigbeeCommand[])(void) PROGMEM = {
-  &CmndZbZNPSend, &CmndZbPermitJoin,
-  &CmndZbStatus, &CmndZbReset, &CmndZbSend,
-  &CmndZbProbe, &CmndZbZNPReceive,
+#ifdef USE_ZIGBEE_ZNP
+  &CmndZbZNPSend, &CmndZbZNPReceive,
+#endif // USE_ZIGBEE_ZNP
+  &CmndZbPermitJoin,
+  &CmndZbStatus, &CmndZbReset, &CmndZbSend, &CmndZbProbe,
   &CmndZbForget, &CmndZbSave, &CmndZbName,
   &CmndZbBind, &CmndZbUnbind, &CmndZbPing, &CmndZbModelId,
   &CmndZbLight, &CmndZbRestore, &CmndZbBindState,
@@ -52,11 +65,12 @@ void (* const ZigbeeCommand[])(void) PROGMEM = {
 //
 // Called at event loop, checks for incoming data from the CC2530
 //
-void ZigbeeInputLoop(void)
-{
-	static uint32_t zigbee_polling_window = 0;
+void ZigbeeInputLoop(void) {
+
+#ifdef USE_ZIGBEE_ZNP
+	static uint32_t zigbee_polling_window = 0;    // number of milliseconds since first byte
 	static uint8_t fcs = ZIGBEE_SOF;
-	static uint32_t zigbee_frame_len = 5;		// minimal zigbee frame lenght, will be updated when buf[1] is read
+	static uint32_t zigbee_frame_len = 5;		      // minimal zigbee frame length, will be updated when buf[1] is read
   // Receive only valid ZNP frames:
   // 00 - SOF = 0xFE
   // 01 - Length of Data Field - 0..250
@@ -140,6 +154,110 @@ void ZigbeeInputLoop(void)
 		}
 		zigbee_buffer->setLen(0);		// empty buffer
   }
+#endif // USE_ZIGBEE_ZNP
+
+#ifdef USE_ZIGBEE_EZSP
+	static uint32_t zigbee_polling_window = 0;    // number of milliseconds since first byte
+	static uint16_t crc = 0xFFFF;                 // frame CRC
+  bool escape = false;                          // was the previous byte an escape?
+  bool frame_complete = false;                  // frame is ready and complete
+  // Receive only valid EZSP frames:
+  // 1A - Cancel - cancel all previous bytes
+  // 7D - Escape byte - following byte is escaped
+  // 7E - end of frame
+
+  zigbee_buffer->setLen(0);		// empty buffer
+  while (ZigbeeSerial->available()) {
+    yield();
+    uint8_t zigbee_in_byte = ZigbeeSerial->read();
+		//AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZbInput byte=%d len=%d"), zigbee_in_byte, zigbee_buffer->len());
+
+		if (0 == zigbee_buffer->len()) {  // make sure all variables are correctly initialized
+			crc = 0xFFFF;
+      escape = false;
+      frame_complete = false;
+		}
+
+    if ((0x11 == zigbee_in_byte) || (0x13 == zigbee_in_byte)) {
+      continue;           // ignore reserved bytes XON/XOFF
+    }
+
+    if (ZIGBEE_EZSP_ESCAPE == zigbee_in_byte) {
+      AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZIG: ZbInput cancel byte received, discarding %d bytes"), zigbee_buffer->len());
+      zigbee_buffer->setLen(0);		// empty buffer
+      continue;                   // re-loop
+    }
+
+    if (ZIGBEE_EZSP_EOF == zigbee_in_byte) {
+      // end of frame
+      frame_complete = true;
+      break;
+    }
+
+    if (zigbee_buffer->len() < ZIGBEE_BUFFER_SIZE) {
+      // check if escape
+      if (ZIGBEE_EZSP_ESCAPE == zigbee_in_byte) {
+        escape = true;
+        continue;
+      }
+      if (escape) {
+        // invert bit 5
+        zigbee_in_byte ^= 0x10; 
+        escape = false;
+      }
+
+			zigbee_buffer->add8(zigbee_in_byte);
+      zigbee_polling_window = millis();                               // Wait for more data
+			// compute CRC
+      crc = crc ^ ((uint16_t)zigbee_in_byte << 8);
+      for (uint32_t i=0; i<8; i++) {
+        if (crc & 0x8000) {
+          crc = (crc << 1) ^ 0x1021;          // polynom is x^16 + x^12 + x^5 + 1, CCITT standard
+        } else {
+          crc <<= 1;
+        }
+      }
+    }   // adding bytes
+  }     // while (ZigbeeSerial->available())
+
+  uint32_t frame_len = zigbee_buffer->len();
+  if (frame_complete || (frame_len && (millis() > (zigbee_polling_window + ZIGBEE_POLLING)))) {
+    char hex_char[frame_len * 2 + 2];
+    ToHex_P((unsigned char*)zigbee_buffer->getBuffer(), zigbee_buffer->len(), hex_char, sizeof(hex_char));
+
+    AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR(D_LOG_ZIGBEE "Bytes follow_read_metric = %0d"), ZigbeeSerial->getLoopReadMetric());
+    if ((frame_complete) && (frame_len >= 3)) {
+      // frame received and has at least 3 bytes (without EOF), checking CRC
+      // AddLog_P2(LOG_LEVEL_INFO, PSTR(D_JSON_ZIGBEE_EZSP_RECEIVED ": received raw frame %s"), hex_char);
+      uint16_t crc_received = zigbee_buffer->get8(frame_len - 2) << 8 | zigbee_buffer->get8(frame_len - 1);
+      // remove 2 last bytes
+
+      if (crc_received != crc) {
+        AddLog_P2(LOG_LEVEL_INFO, PSTR(D_JSON_ZIGBEE_EZSP_RECEIVED ": bad crc (received 0x%04X, computed 0x%04X) %s"), crc_received, crc, hex_char);
+      } else {
+        // CRC is correct, report the raw frame. Note: the frame is not de-randomized, but it is unescaped
+
+    	  SBuffer ezsp_buffer = zigbee_buffer->subBuffer(0, frame_len - 2);	// CRC
+        ToHex_P((unsigned char*)ezsp_buffer.getBuffer(), ezsp_buffer.len(), hex_char, sizeof(hex_char));
+        Response_P(PSTR("{\"" D_JSON_ZIGBEE_EZSP_RECEIVED "\":\"%s\"}"), hex_char);
+        if (Settings.flag3.tuya_serial_mqtt_publish) {
+          MqttPublishPrefixTopic_P(TELE, PSTR(D_RSLT_SENSOR));
+          XdrvRulesProcess();
+        } else {
+          AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_ZIGBEE "%s"), mqtt_data);
+        }
+        // now process the message
+        ZigbeeProcessInput(ezsp_buffer);
+      }
+    } else {
+      // the buffer timed-out, print error and discard
+      AddLog_P2(LOG_LEVEL_INFO, PSTR(D_JSON_ZIGBEE_EZSP_RECEIVED ": time-out, discarding %s, %d"), hex_char);
+    }
+    zigbee_buffer->setLen(0);		// empty buffer
+  }
+
+#endif // USE_ZIGBEE_EZSP
+
 }
 
 /********************************************************************************************/
@@ -201,15 +319,20 @@ uint32_t strToUInt(const JsonVariant &val) {
   return 0;   // couldn't parse anything
 }
 
+#ifdef USE_ZIGBEE_ZNP
 // Do a factory reset of the CC2530
 const unsigned char ZIGBEE_FACTORY_RESET[] PROGMEM =
   { Z_SREQ | Z_SAPI, SAPI_WRITE_CONFIGURATION, CONF_STARTUP_OPTION, 0x01 /* len */, 0x01 /* STARTOPT_CLEAR_CONFIG */};
 //"2605030101";  // Z_SREQ | Z_SAPI, SAPI_WRITE_CONFIGURATION, CONF_STARTUP_OPTION, 0x01 len, 0x01 STARTOPT_CLEAR_CONFIG
+#endif // USE_ZIGBEE_ZNP
+
 void CmndZbReset(void) {
   if (ZigbeeSerial) {
     switch (XdrvMailbox.payload) {
     case 1:
+#ifdef USE_ZIGBEE_ZNP
       ZigbeeZNPSend(ZIGBEE_FACTORY_RESET, sizeof(ZIGBEE_FACTORY_RESET));
+#endif // USE_ZIGBEE_ZNP
       eraseZigbeeDevices();
       restart_flag = 2;
       ResponseCmndChar_P(PSTR(D_JSON_ZIGBEE_CC2530 " " D_JSON_RESET_AND_RESTARTING));
@@ -220,6 +343,7 @@ void CmndZbReset(void) {
   }
 }
 
+#ifdef USE_ZIGBEE_ZNP
 //
 // Same code for `ZbZNPSend` and `ZbZNPReceive`
 // building the complete message (intro, length)
@@ -293,6 +417,7 @@ void ZigbeeZNPSend(const uint8_t *msg, size_t len) {
   AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_ZIGBEE D_JSON_ZIGBEEZNPSENT " %s"),
                                		ToHex_P(msg, len, hex_char, sizeof(hex_char)));
 }
+#endif // USE_ZIGBEE_ZNP
 
 //
 // Internal function, send the low-level frame
@@ -311,6 +436,7 @@ void ZigbeeZNPSend(const uint8_t *msg, size_t len) {
 //
 void ZigbeeZCLSend_Raw(uint16_t shortaddr, uint16_t groupaddr, uint16_t clusterId, uint8_t endpoint, uint8_t cmdId, bool clusterSpecific, uint16_t manuf, const uint8_t *msg, size_t len, bool needResponse, uint8_t transacId) {
 
+#ifdef USE_ZIGBEE_ZNP
   SBuffer buf(32+len);
   buf.add8(Z_SREQ | Z_AF);          // 24
   buf.add8(AF_DATA_REQUEST_EXT);    // 02
@@ -342,6 +468,7 @@ void ZigbeeZCLSend_Raw(uint16_t shortaddr, uint16_t groupaddr, uint16_t clusterI
   }
 
   ZigbeeZNPSend(buf.getBuffer(), buf.len());
+#endif // USE_ZIGBEE_ZNP
 }
 
 /********************************************************************************************/
@@ -914,6 +1041,7 @@ void ZbBindUnbind(bool unbind) {    // false = bind, true = unbind
   if (&to_group && dstLongAddr) { ResponseCmndChar_P(PSTR("Cannot have both \"ToDevice\" and \"ToGroup\"")); return; }
   if (!&to_group && !dstLongAddr) { ResponseCmndChar_P(PSTR("Missing \"ToDevice\" or \"ToGroup\"")); return; }
 
+#ifdef USE_ZIGBEE_ZNP
   SBuffer buf(34);
   buf.add8(Z_SREQ | Z_ZDO);
   if (unbind) {
@@ -935,6 +1063,7 @@ void ZbBindUnbind(bool unbind) {    // false = bind, true = unbind
   }
 
   ZigbeeZNPSend(buf.getBuffer(), buf.len());
+#endif // USE_ZIGBEE_ZNP
 
   ResponseCmndDone();
 }
@@ -961,6 +1090,7 @@ void CmndZbBindState(void) {
   uint16_t shortaddr = zigbee_devices.parseDeviceParam(XdrvMailbox.data);
   if (BAD_SHORTADDR == shortaddr) { ResponseCmndChar_P(PSTR("Unknown device")); return; }
 
+#ifdef USE_ZIGBEE_ZNP
   SBuffer buf(10);
   buf.add8(Z_SREQ | Z_ZDO);             // 25
   buf.add8(ZDO_MGMT_BIND_REQ);          // 33
@@ -968,6 +1098,7 @@ void CmndZbBindState(void) {
   buf.add8(0);                          // StartIndex = 0
 
   ZigbeeZNPSend(buf.getBuffer(), buf.len());
+#endif // USE_ZIGBEE_ZNP
 
   ResponseCmndDone();
 }
@@ -1191,6 +1322,7 @@ void CmndZbPermitJoin(void) {
     duration = 0xFF;                    // unlimited time
   }
 
+#ifdef USE_ZIGBEE_ZNP
   SBuffer buf(34);
   buf.add8(Z_SREQ | Z_ZDO);             // 25
   buf.add8(ZDO_MGMT_PERMIT_JOIN_REQ);   // 36
@@ -1200,6 +1332,7 @@ void CmndZbPermitJoin(void) {
   buf.add8(0x00);                       // TCSignificance
 
   ZigbeeZNPSend(buf.getBuffer(), buf.len());
+#endif // USE_ZIGBEE_ZNP
 
   ResponseCmndDone();
 }
