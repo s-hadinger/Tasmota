@@ -250,16 +250,27 @@ void ZigbeeInputLoop(void) {
       if (crc_received != crc) {
         AddLog_P2(LOG_LEVEL_INFO, PSTR(D_JSON_ZIGBEE_EZSP_RECEIVED ": bad crc (received 0x%04X, computed 0x%04X) %s"), crc_received, crc, hex_char);
       } else {
-        // CRC is correct, report the raw frame. Note: the frame is not de-randomized, but it is unescaped
-
+        // copy buffer
     	  SBuffer ezsp_buffer = zigbee_buffer->subBuffer(0, frame_len - 2);	// CRC
+
+        // CRC is correct, apply de-stuffing if DATA frame
+        if (0 == (ezsp_buffer.get8(0) & 0x80)) {
+          // DATA frame
+          uint8_t rand = 0x42;
+          for (uint32_t i=1; i<ezsp_buffer.len(); i++) {
+            ezsp_buffer.set8(i, ezsp_buffer.get8(i) ^ rand);
+            if (rand & 1) { rand = (rand >> 1) ^ 0xB8; }
+            else          { rand = (rand >> 1); }
+          }
+        }
+
         ToHex_P((unsigned char*)ezsp_buffer.getBuffer(), ezsp_buffer.len(), hex_char, sizeof(hex_char));
         Response_P(PSTR("{\"" D_JSON_ZIGBEE_EZSP_RECEIVED "\":\"%s\"}"), hex_char);
         if (Settings.flag3.tuya_serial_mqtt_publish) {
           MqttPublishPrefixTopic_P(TELE, PSTR(D_RSLT_SENSOR));
           XdrvRulesProcess();
         } else {
-          AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_ZIGBEE "%s"), mqtt_data);
+          AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "%s"), mqtt_data);    // TODO move to LOG_LEVEL_DEBUG when stable
         }
         // now process the message
         ZigbeeProcessInput(ezsp_buffer);
