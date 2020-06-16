@@ -29,7 +29,7 @@ const uint8_t  ZIGBEE_SOF_ALT = 0xFF;
 
 #ifdef USE_ZIGBEE_EZSP
 const uint32_t ZIGBEE_BUFFER_SIZE = 256;
-const uint8_t  ZIBGEE_EZSP_CANCEL_BYTE = 0x1A;  // cancel byte
+const uint8_t  ZIGBEE_EZSP_CANCEL = 0x1A;  // cancel byte
 const uint8_t  ZIGBEE_EZSP_EOF = 0x7E;          // end of frame
 const uint8_t  ZIGBEE_EZSP_ESCAPE = 0x7D;       // escape byte
 #endif // USE_ZIGBEE_EZSP
@@ -42,6 +42,9 @@ const char kZbCommands[] PROGMEM = D_PRFX_ZB "|"    // prefix
 #ifdef USE_ZIGBEE_ZNP
   D_CMND_ZIGBEEZNPSEND "|" D_CMND_ZIGBEEZNPRECEIVE "|"
 #endif // USE_ZIGBEE_ZNP
+#ifdef USE_ZIGBEE_EZSP
+  D_CMND_ZIGBEE_EZSP_SEND "|" D_CMND_ZIGBEE_EZSP_RECEIVE "|"
+#endif // USE_ZIGBEE_EZSP
   D_CMND_ZIGBEE_PERMITJOIN "|"
   D_CMND_ZIGBEE_STATUS "|" D_CMND_ZIGBEE_RESET "|" D_CMND_ZIGBEE_SEND "|" D_CMND_ZIGBEE_PROBE "|"
   D_CMND_ZIGBEE_FORGET "|" D_CMND_ZIGBEE_SAVE "|" D_CMND_ZIGBEE_NAME "|"
@@ -54,6 +57,9 @@ void (* const ZigbeeCommand[])(void) PROGMEM = {
 #ifdef USE_ZIGBEE_ZNP
   &CmndZbZNPSend, &CmndZbZNPReceive,
 #endif // USE_ZIGBEE_ZNP
+#ifdef USE_ZIGBEE_EZSP
+  &CmndZbEZSPSend, &CmndZbEZSPReceive,
+#endif // USE_ZIGBEE_EZSP
   &CmndZbPermitJoin,
   &CmndZbStatus, &CmndZbReset, &CmndZbSend, &CmndZbProbe,
   &CmndZbForget, &CmndZbSave, &CmndZbName,
@@ -158,7 +164,6 @@ void ZigbeeInputLoop(void) {
 
 #ifdef USE_ZIGBEE_EZSP
 	static uint32_t zigbee_polling_window = 0;    // number of milliseconds since first byte
-	static uint16_t crc = 0xFFFF;                 // frame CRC
   bool escape = false;                          // was the previous byte an escape?
   bool frame_complete = false;                  // frame is ready and complete
   // Receive only valid EZSP frames:
@@ -166,25 +171,31 @@ void ZigbeeInputLoop(void) {
   // 7D - Escape byte - following byte is escaped
   // 7E - end of frame
 
-  zigbee_buffer->setLen(0);		// empty buffer
   while (ZigbeeSerial->available()) {
     yield();
     uint8_t zigbee_in_byte = ZigbeeSerial->read();
-		//AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZbInput byte=%d len=%d"), zigbee_in_byte, zigbee_buffer->len());
+		AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZIG: ZbInput byte=0x%02X len=%d"), zigbee_in_byte, zigbee_buffer->len());
 
-		if (0 == zigbee_buffer->len()) {  // make sure all variables are correctly initialized
-			crc = 0xFFFF;
-      escape = false;
-      frame_complete = false;
-		}
+		// if (0 == zigbee_buffer->len()) {  // make sure all variables are correctly initialized
+    //   escape = false;
+    //   frame_complete = false;
+		// }
 
     if ((0x11 == zigbee_in_byte) || (0x13 == zigbee_in_byte)) {
       continue;           // ignore reserved bytes XON/XOFF
     }
 
     if (ZIGBEE_EZSP_ESCAPE == zigbee_in_byte) {
-      AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZIG: ZbInput cancel byte received, discarding %d bytes"), zigbee_buffer->len());
+      AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZIG: Escape byte received"));
+      escape = true;
+      continue;
+    }
+
+    if (ZIGBEE_EZSP_CANCEL == zigbee_in_byte) {
+      AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZIG: ZbInput byte=0x1A, cancel byte received, discarding %d bytes"), zigbee_buffer->len());
       zigbee_buffer->setLen(0);		// empty buffer
+      escape = false;
+      frame_complete = false;
       continue;                   // re-loop
     }
 
@@ -208,15 +219,6 @@ void ZigbeeInputLoop(void) {
 
 			zigbee_buffer->add8(zigbee_in_byte);
       zigbee_polling_window = millis();                               // Wait for more data
-			// compute CRC
-      crc = crc ^ ((uint16_t)zigbee_in_byte << 8);
-      for (uint32_t i=0; i<8; i++) {
-        if (crc & 0x8000) {
-          crc = (crc << 1) ^ 0x1021;          // polynom is x^16 + x^12 + x^5 + 1, CCITT standard
-        } else {
-          crc <<= 1;
-        }
-      }
     }   // adding bytes
   }     // while (ZigbeeSerial->available())
 
@@ -229,6 +231,19 @@ void ZigbeeInputLoop(void) {
     if ((frame_complete) && (frame_len >= 3)) {
       // frame received and has at least 3 bytes (without EOF), checking CRC
       // AddLog_P2(LOG_LEVEL_INFO, PSTR(D_JSON_ZIGBEE_EZSP_RECEIVED ": received raw frame %s"), hex_char);
+      uint16_t crc = 0xFFFF;                 // frame CRC
+			// compute CRC
+      for (uint32_t i=0; i<frame_len-2; i++) {
+        crc = crc ^ ((uint16_t)zigbee_buffer->get8(i) << 8);
+        for (uint32_t i=0; i<8; i++) {
+          if (crc & 0x8000) {
+            crc = (crc << 1) ^ 0x1021;          // polynom is x^16 + x^12 + x^5 + 1, CCITT standard
+          } else {
+            crc <<= 1;
+          }
+        }
+      }
+
       uint16_t crc_received = zigbee_buffer->get8(frame_len - 2) << 8 | zigbee_buffer->get8(frame_len - 1);
       // remove 2 last bytes
 
@@ -254,6 +269,8 @@ void ZigbeeInputLoop(void) {
       AddLog_P2(LOG_LEVEL_INFO, PSTR(D_JSON_ZIGBEE_EZSP_RECEIVED ": time-out, discarding %s, %d"), hex_char);
     }
     zigbee_buffer->setLen(0);		// empty buffer
+    escape = false;
+    frame_complete = false;
   }
 
 #endif // USE_ZIGBEE_EZSP
@@ -344,6 +361,37 @@ void CmndZbReset(void) {
 }
 
 #ifdef USE_ZIGBEE_ZNP
+
+void ZigbeeZNPSend(const uint8_t *msg, size_t len) {
+	if ((len < 2) || (len > 252)) {
+		// abort, message cannot be less than 2 bytes for CMD1 and CMD2
+		AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_JSON_ZIGBEEZNPSENT ": bad message len %d"), len);
+		return;
+	}
+	uint8_t data_len = len - 2;		// removing CMD1 and CMD2
+
+  if (ZigbeeSerial) {
+		uint8_t fcs = data_len;
+
+		ZigbeeSerial->write(ZIGBEE_SOF);		// 0xFE
+		//AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZNPSend SOF %02X"), ZIGBEE_SOF);
+		ZigbeeSerial->write(data_len);
+		//AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZNPSend LEN %02X"), data_len);
+		for (uint32_t i = 0; i < len; i++) {
+			uint8_t b = pgm_read_byte(msg + i);
+			ZigbeeSerial->write(b);
+			fcs ^= b;
+			//AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZNPSend byt %02X"), b);
+		}
+		ZigbeeSerial->write(fcs);			// finally send fcs checksum byte
+		//AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZNPSend FCS %02X"), fcs);
+  }
+	// Now send a MQTT message to report the sent message
+	char hex_char[(len * 2) + 2];
+  AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_ZIGBEE D_JSON_ZIGBEEZNPSENT " %s"),
+                               		ToHex_P(msg, len, hex_char, sizeof(hex_char)));
+}
+
 //
 // Same code for `ZbZNPSend` and `ZbZNPReceive`
 // building the complete message (intro, length)
@@ -388,36 +436,137 @@ void CmndZbZNPSend(void)
   CmndZbZNPSendOrReceive(true);
 }
 
-void ZigbeeZNPSend(const uint8_t *msg, size_t len) {
-	if ((len < 2) || (len > 252)) {
+#endif // USE_ZIGBEE_ZNP
+
+#ifdef USE_ZIGBEE_EZSP
+
+// internal function to output a byte, and escape it (stuffing) if needed
+void ZigbeeEZSPSend_Out(uint8_t out_byte) {
+  switch (out_byte) {
+    case 0x7E:      // Flag byte
+    case 0x11:      // XON
+    case 0x13:      // XOFF
+    case 0x18:      // Substitute byte
+    case 0x1A:      // Cancel byte
+    case 0x7D:      // Escape byte
+      ZigbeeSerial->write(ZIGBEE_EZSP_ESCAPE);      // send Escape byte 0x7D
+      ZigbeeSerial->write(out_byte ^ 0x10);           // send with bit 5 inverted
+      break;
+    default:
+      ZigbeeSerial->write(out_byte);                  // send unchanged
+      break;
+  }
+}
+// Send low-level EZSP frames
+//
+// The frame should contain the Control Byte and Data Field
+// The frame shouldn't be escaped, nor randomized
+//
+// Before sending:
+// - send Cancel byte (0x1A) if requested
+// - randomize Data Field if DATA Frame
+// - compute CRC16
+// - escape (stuff) reserved bytes
+// - add EOF (0x7E)
+// - send frame
+// send_cancel: should we first send a EZSP_CANCEL (0x1A) before the message to clear any leftover
+void ZigbeeEZSPSend(const uint8_t *msg, size_t len, bool send_cancel = false) {
+	if ((len < 1) || (len > 252)) {
 		// abort, message cannot be less than 2 bytes for CMD1 and CMD2
-		AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_JSON_ZIGBEEZNPSENT ": bad message len %d"), len);
+		AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_JSON_ZIGBEE_EZSP_SENT ": bad message len %d"), len);
 		return;
 	}
 	uint8_t data_len = len - 2;		// removing CMD1 and CMD2
 
   if (ZigbeeSerial) {
-		uint8_t fcs = data_len;
+    if (send_cancel) {
+      ZigbeeSerial->write(ZIGBEE_EZSP_CANCEL);		// 0x1A
+    }
 
-		ZigbeeSerial->write(ZIGBEE_SOF);		// 0xFE
-		//AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZNPSend SOF %02X"), ZIGBEE_SOF);
-		ZigbeeSerial->write(data_len);
-		//AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZNPSend LEN %02X"), data_len);
-		for (uint32_t i = 0; i < len; i++) {
-			uint8_t b = pgm_read_byte(msg + i);
-			ZigbeeSerial->write(b);
-			fcs ^= b;
-			//AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZNPSend byt %02X"), b);
-		}
-		ZigbeeSerial->write(fcs);			// finally send fcs checksum byte
-		//AddLog_P2(LOG_LEVEL_DEBUG_MORE, PSTR("ZNPSend FCS %02X"), fcs);
+    bool data_frame = (0 == (msg[0] & 0x80));
+    uint8_t rand = 0x42;          // pseudo-randomizer initial value
+    uint16_t crc = 0xFFFF;        // CRC16 CCITT initialization
+    
+    for (uint32_t i=0; i<len; i++) {
+      uint8_t out_byte = msg[i];
+
+      // apply randomization if DATA field
+      if (data_frame && (i > 0)) {
+        out_byte ^= rand;
+        if (rand & 1) { rand = (rand >> 1) ^ 0xB8; }
+        else          { rand = (rand >> 1); }
+      }
+
+      // compute CRC
+      crc = crc ^ ((uint16_t)out_byte << 8);
+      for (uint32_t i=0; i<8; i++) {
+        if (crc & 0x8000) {
+          crc = (crc << 1) ^ 0x1021;          // polynom is x^16 + x^12 + x^5 + 1, CCITT standard
+        } else {
+          crc <<= 1;
+        }
+      }
+
+      // output byte
+      ZigbeeEZSPSend_Out(out_byte);
+    }
+    // send CRC16 in big-endian
+    ZigbeeEZSPSend_Out(crc >> 8);
+    ZigbeeEZSPSend_Out(crc & 0xFF);
+
+    // finally send End of Frame
+    ZigbeeSerial->write(ZIGBEE_EZSP_EOF);		// 0x1A
   }
 	// Now send a MQTT message to report the sent message
 	char hex_char[(len * 2) + 2];
-  AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_ZIGBEE D_JSON_ZIGBEEZNPSENT " %s"),
+  AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_ZIGBEE D_JSON_ZIGBEE_EZSP_SENT " %s"),
                                		ToHex_P(msg, len, hex_char, sizeof(hex_char)));
 }
-#endif // USE_ZIGBEE_ZNP
+
+//
+// Same code for `ZbZNPSend` and `ZbZNPReceive`
+// building the complete message (intro, length)
+//
+void CmndZbEZSPSendOrReceive(bool send)
+{
+  if (ZigbeeSerial && (XdrvMailbox.data_len > 0)) {
+    uint8_t code;
+
+    char *codes = RemoveSpace(XdrvMailbox.data);
+    int32_t size = strlen(XdrvMailbox.data);
+
+		SBuffer buf((size+1)/2);
+
+    while (size > 1) {
+      char stemp[3];
+      strlcpy(stemp, codes, sizeof(stemp));
+      code = strtol(stemp, nullptr, 16);
+			buf.add8(code);
+      size -= 2;
+      codes += 2;
+    }
+    if (send) {
+      // Command was `ZbEZSPSend`
+      ZigbeeEZSPSend(buf.getBuffer(), buf.len());
+    } else {
+      // Command was `ZbEZSPReceive`
+      ZigbeeProcessInput(buf);
+    }
+  }
+  ResponseCmndDone();
+}
+
+// For debug purposes only, simulates a message received
+void CmndZbEZSPReceive(void)
+{
+  CmndZbEZSPSendOrReceive(false);
+}
+
+void CmndZbEZSPSend(void)
+{
+  CmndZbEZSPSendOrReceive(true);
+}
+#endif // USE_ZIGBEE_EZSP
 
 //
 // Internal function, send the low-level frame
