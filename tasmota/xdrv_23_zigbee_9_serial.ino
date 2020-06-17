@@ -30,6 +30,15 @@ const uint32_t ZIGBEE_BUFFER_SIZE = 256;
 const uint8_t  ZIGBEE_EZSP_CANCEL = 0x1A;  // cancel byte
 const uint8_t  ZIGBEE_EZSP_EOF = 0x7E;          // end of frame
 const uint8_t  ZIGBEE_EZSP_ESCAPE = 0x7D;       // escape byte
+
+class EZSP_Serial_t {
+public:
+  uint8_t  to_ack = 0;      // 0..7, frame number of next id to send
+  uint8_t  from_ack = 0;    // 0..7, frame to ack
+};
+
+EZSP_Serial_t EZSP_Serial;
+
 #endif // USE_ZIGBEE_EZSP
 
 #include <TasmotaSerial.h>
@@ -132,7 +141,7 @@ void ZigbeeInputLoop(void) {
 
 #ifdef USE_ZIGBEE_EZSP
 	static uint32_t zigbee_polling_window = 0;    // number of milliseconds since first byte
-  bool escape = false;                          // was the previous byte an escape?
+  static bool escape = false;                          // was the previous byte an escape?
   bool frame_complete = false;                  // frame is ready and complete
   // Receive only valid EZSP frames:
   // 1A - Cancel - cancel all previous bytes
@@ -236,7 +245,7 @@ void ZigbeeInputLoop(void) {
           AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "%s"), mqtt_data);    // TODO move to LOG_LEVEL_DEBUG when stable
         }
         // now process the message
-        ZigbeeProcessInput(ezsp_buffer);
+        ZigbeeProcessInputRaw(ezsp_buffer);
       }
     } else {
       // the buffer timed-out, print error and discard
@@ -390,7 +399,7 @@ void ZigbeeEZSPSend_Out(uint8_t out_byte) {
 // - add EOF (0x7E)
 // - send frame
 // send_cancel: should we first send a EZSP_CANCEL (0x1A) before the message to clear any leftover
-void ZigbeeEZSPSend(const uint8_t *msg, size_t len, bool send_cancel) {
+void ZigbeeEZSPSendRaw(const uint8_t *msg, size_t len, bool send_cancel) {
 	if ((len < 1) || (len > 252)) {
 		// abort, message cannot be less than 2 bytes for CMD1 and CMD2
 		AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_JSON_ZIGBEE_EZSP_SENT ": bad message len %d"), len);
@@ -437,15 +446,117 @@ void ZigbeeEZSPSend(const uint8_t *msg, size_t len, bool send_cancel) {
     // finally send End of Frame
     ZigbeeSerial->write(ZIGBEE_EZSP_EOF);		// 0x1A
   }
-	// Now send a MQTT message to report the sent message
-	char hex_char[(len * 2) + 2];
-  AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_ZIGBEE D_JSON_ZIGBEE_EZSP_SENT " %s"),
-                               		ToHex_P(msg, len, hex_char, sizeof(hex_char)));
+  // Now send a MQTT message to report the sent message
+  char hex_char[(len * 2) + 2];
+  AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_ZIGBEE D_JSON_ZIGBEE_EZSP_SENT_RAW " %s"),
+                                  ToHex_P(msg, len, hex_char, sizeof(hex_char)));
+}
+
+// Send an EZSP DATA frame, automatically calculating the correct frame numbers
+void ZigbeeEZSPSend(const uint8_t *msg, size_t len, bool send_cancel) {
+  uint8_t control_byte = ((EZSP_Serial.to_ack & 0x07) << 4) + (EZSP_Serial.from_ack & 0x07);
+  // increment to_ack
+  EZSP_Serial.to_ack = (EZSP_Serial.to_ack + 1) & 0x07;
+  // build complete frame
+  SBuffer buf(len+1);
+  buf.add8(control_byte);
+  buf.addBuffer(msg, len);
+  // send
+  ZigbeeEZSPSendRaw(buf.getBuffer(), buf.len(), true);
+}
+
+// Receive raw ASH frame (CRC was removed, data unstuffed) but still contains frame numbers
+int32_t ZigbeeProcessInputRaw(class SBuffer &buf) {
+  uint8_t control_byte = buf.get8(0);
+  uint8_t ack_num = control_byte & 0x07;        // keep 3 LSB
+  if (control_byte & 0x80) {
+
+    // non DATA frame
+    uint8_t frame_type = control_byte & 0xE0;   // keep 3 MSB
+    if (frame_type == 0x80) {
+
+      // ACK
+      EZSP_Serial.from_ack = ack_num;           // update ack num
+    } else if (frame_type == 0xA0) {
+
+      // NAK
+      AddLog_P2(LOG_LEVEL_INFO, PSTR("ZIG: Received NAK %d, resending not implemented"), ack_num);
+    } else if (control_byte == 0xC1) {
+      
+      // RSTACK
+      // received just after boot, either because of Power up, hardware reset or RST
+      Z_EZSP_RSTACK(buf.get8(2));
+    } else if (control_byte == 0xC2) {
+      
+      // ERROR
+      Z_EZSP_ERROR(buf.get8(2));
+      zigbee.active = false;           // stop all zigbee activities
+    } else {
+
+      // Unknown
+      AddLog_P2(LOG_LEVEL_DEBUG, PSTR("ZIG: Received unknown control byte 0x%02X"), control_byte);
+    }
+  } else {
+
+    // DATA Frame
+    // check the frame number, and send ACK or NAK
+    if ((control_byte & 0x07) != EZSP_Serial.to_ack) {
+      AddLog_P2(LOG_LEVEL_INFO, PSTR("ZIG: wrong ack, received %d, expected %d"), control_byte & 0x07, EZSP_Serial.to_ack);
+      //EZSP_Serial.to_ack = control_byte & 0x07;
+    }
+    // MCU acknowledged the correct frame
+    // we acknowledge the frame too
+    EZSP_Serial.from_ack = ((control_byte >> 4) + 1) & 0x07;
+    uint8_t ack_byte = 0x80 | EZSP_Serial.from_ack;
+    ZigbeeEZSPSendRaw(&ack_byte, 1, false);   // send a 1-byte ACK
+  }
 }
 
 //
 // Same code for `ZbZNPSend` and `ZbZNPReceive`
 // building the complete message (intro, length)
+//
+void CmndZbEZSPSendOrReceiveRaw(bool send)
+{
+  if (ZigbeeSerial && (XdrvMailbox.data_len > 0)) {
+    uint8_t code;
+
+    char *codes = RemoveSpace(XdrvMailbox.data);
+    int32_t size = strlen(XdrvMailbox.data);
+
+		SBuffer buf((size+1)/2);
+
+    while (size > 1) {
+      char stemp[3];
+      strlcpy(stemp, codes, sizeof(stemp));
+      code = strtol(stemp, nullptr, 16);
+			buf.add8(code);
+      size -= 2;
+      codes += 2;
+    }
+    if (send) {
+      // Command was `ZbEZSPSend`
+      ZigbeeEZSPSendRaw(buf.getBuffer(), buf.len(), true);
+    } else {
+      // Command was `ZbEZSPReceive`
+      ZigbeeProcessInputRaw(buf);
+    }
+  }
+  ResponseCmndDone();
+}
+
+// For debug purposes only, simulates a message received
+void CmndZbEZSPReceiveRaw(void)
+{
+  CmndZbEZSPSendOrReceiveRaw(false);
+}
+
+void CmndZbEZSPSendRaw(void)
+{
+  CmndZbEZSPSendOrReceiveRaw(true);
+}
+
+//
 //
 void CmndZbEZSPSendOrReceive(bool send)
 {
@@ -475,7 +586,7 @@ void CmndZbEZSPSendOrReceive(bool send)
   }
   ResponseCmndDone();
 }
-
+// Variants with managed ASH frame numbers
 // For debug purposes only, simulates a message received
 void CmndZbEZSPReceive(void)
 {

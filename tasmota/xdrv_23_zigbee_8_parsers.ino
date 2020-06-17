@@ -19,6 +19,53 @@
 
 #ifdef USE_ZIGBEE
 
+#ifdef USE_ZIGBEE_EZSP
+/*********************************************************************************************\
+ * Parsers for incoming EZSP messages
+\*********************************************************************************************/
+
+// EZSP: received ASH RSTACK frame, indicating that the MCU finished boot
+int32_t Z_EZSP_RSTACK(uint8_t reset_code) {
+  const char *reason_str;
+
+  switch (reset_code) {
+    case 0x01: reason_str = PSTR("External"); break;
+    case 0x02: reason_str = PSTR("Power-on"); break;
+    case 0x03: reason_str = PSTR("Watchdog"); break;
+    case 0x06: reason_str = PSTR("Assert"); break;
+    case 0x09: reason_str = PSTR("Bootloader"); break;
+    case 0x0B: reason_str = PSTR("Software"); break;
+    case 0x00:
+    default: reason_str = PSTR("Unknown"); break;
+  }
+  Response_P(PSTR("{\"" D_JSON_ZIGBEE_STATE "\":{"
+                  "\"Status\":%d,\"Message\":\"EFR32 booted\",\"RestartReason\":\"%s\""
+                  ",\"Code\":%d}}"),
+                  ZIGBEE_STATUS_BOOT, reason_str, reset_code);
+
+  MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEE_STATE));
+  XdrvRulesProcess();
+}
+
+// EZSP: received ASH ERROR frame, indicating that the MCU finished boot
+int32_t Z_EZSP_ERROR(uint8_t error_code) {
+  const char *reason_str;
+
+  switch (error_code) {
+    case 0x51: reason_str = PSTR("ACK timeout"); break;
+    default: reason_str = PSTR("Unknown"); break;
+  }
+  Response_P(PSTR("{\"" D_JSON_ZIGBEE_STATE "\":{"
+                  "\"Status\":%d,\"Message\":\"Failed state\",\"Error\":\"%s\""
+                  ",\"Code\":%d}}"),
+                  ZIGBEE_STATUS_ABORT, reason_str, error_code);
+
+  MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEE_STATE));
+  XdrvRulesProcess();
+}
+
+#endif // USE_ZIGBEE_EZSP
+
 /*********************************************************************************************\
  * Parsers for incoming ZNP messages
 \*********************************************************************************************/
