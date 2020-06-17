@@ -476,7 +476,7 @@ void ZigbeeEZSPSend_Out(uint8_t out_byte) {
 // - add EOF (0x7E)
 // - send frame
 // send_cancel: should we first send a EZSP_CANCEL (0x1A) before the message to clear any leftover
-void ZigbeeEZSPSend(const uint8_t *msg, size_t len, bool send_cancel = false) {
+void ZigbeeEZSPSend(const uint8_t *msg, size_t len, bool send_cancel) {
 	if ((len < 1) || (len > 252)) {
 		// abort, message cannot be less than 2 bytes for CMD1 and CMD2
 		AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_JSON_ZIGBEE_EZSP_SENT ": bad message len %d"), len);
@@ -553,7 +553,7 @@ void CmndZbEZSPSendOrReceive(bool send)
     }
     if (send) {
       // Command was `ZbEZSPSend`
-      ZigbeeEZSPSend(buf.getBuffer(), buf.len());
+      ZigbeeEZSPSend(buf.getBuffer(), buf.len(), true);
     } else {
       // Command was `ZbEZSPReceive`
       ZigbeeProcessInput(buf);
