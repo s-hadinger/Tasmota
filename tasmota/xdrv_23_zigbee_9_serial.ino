@@ -238,7 +238,7 @@ void ZigbeeInputLoop(void) {
         }
 
         ToHex_P((unsigned char*)ezsp_buffer.getBuffer(), ezsp_buffer.len(), hex_char, sizeof(hex_char));
-        Response_P(PSTR("{\"" D_JSON_ZIGBEE_EZSP_RECEIVED "\":\"%s\"}"), hex_char);
+        Response_P(PSTR("{\"" D_JSON_ZIGBEE_EZSP_RECEIVED "2\":\"%s\"}"), hex_char);
         if (Settings.flag3.tuya_serial_mqtt_publish) {
           MqttPublishPrefixTopic_P(TELE, PSTR(D_RSLT_SENSOR));
           XdrvRulesProcess();
