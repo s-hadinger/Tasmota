@@ -35,6 +35,7 @@ class EZSP_Serial_t {
 public:
   uint8_t  to_ack = 0;      // 0..7, frame number of next id to send
   uint8_t  from_ack = 0;    // 0..7, frame to ack
+  uint8_t  ezsp_seq = 0;    // 0..255, EZSP sequence number
 };
 
 EZSP_Serial_t EZSP_Serial;
@@ -452,8 +453,22 @@ void ZigbeeEZSPSendRaw(const uint8_t *msg, size_t len, bool send_cancel) {
                                   ToHex_P(msg, len, hex_char, sizeof(hex_char)));
 }
 
+// Send an EZSP command and data
+// Ex: Version with min v8 = 000008
+void ZigbeeEZSPSendCmd(const uint8_t *msg, size_t len, bool send_cancel) {
+  SBuffer cmd(len+3);   // prefix with seq number (1 byte) and frame control bytes (2 bytes)
+
+  cmd.add8(EZSP_Serial.ezsp_seq++);
+  cmd.add8(0x00);       // Low byte of Frame Control
+  cmd.add8(0x01);       // High byte of Frame Control, frameFormatVersion = 1
+  cmd.addBuffer(msg, len);
+
+  // send
+  ZigbeeEZSPSendDATA(cmd.getBuffer(), cmd.len(), send_cancel);
+}
+
 // Send an EZSP DATA frame, automatically calculating the correct frame numbers
-void ZigbeeEZSPSend(const uint8_t *msg, size_t len, bool send_cancel) {
+void ZigbeeEZSPSendDATA(const uint8_t *msg, size_t len, bool send_cancel) {
   uint8_t control_byte = ((EZSP_Serial.to_ack & 0x07) << 4) + (EZSP_Serial.from_ack & 0x07);
   // increment to_ack
   EZSP_Serial.to_ack = (EZSP_Serial.to_ack + 1) & 0x07;
@@ -462,7 +477,7 @@ void ZigbeeEZSPSend(const uint8_t *msg, size_t len, bool send_cancel) {
   buf.add8(control_byte);
   buf.addBuffer(msg, len);
   // send
-  ZigbeeEZSPSendRaw(buf.getBuffer(), buf.len(), true);
+  ZigbeeEZSPSendRaw(buf.getBuffer(), buf.len(), send_cancel);
 }
 
 // Receive raw ASH frame (CRC was removed, data unstuffed) but still contains frame numbers
@@ -486,6 +501,8 @@ int32_t ZigbeeProcessInputRaw(class SBuffer &buf) {
       // RSTACK
       // received just after boot, either because of Power up, hardware reset or RST
       Z_EZSP_RSTACK(buf.get8(2));
+      EZSP_Serial.from_ack = 0;
+      EZSP_Serial.to_ack = 0;
     } else if (control_byte == 0xC2) {
       
       // ERROR
@@ -516,47 +533,9 @@ int32_t ZigbeeProcessInputRaw(class SBuffer &buf) {
 // Same code for `ZbZNPSend` and `ZbZNPReceive`
 // building the complete message (intro, length)
 //
-void CmndZbEZSPSendOrReceiveRaw(bool send)
-{
-  if (ZigbeeSerial && (XdrvMailbox.data_len > 0)) {
-    uint8_t code;
-
-    char *codes = RemoveSpace(XdrvMailbox.data);
-    int32_t size = strlen(XdrvMailbox.data);
-
-		SBuffer buf((size+1)/2);
-
-    while (size > 1) {
-      char stemp[3];
-      strlcpy(stemp, codes, sizeof(stemp));
-      code = strtol(stemp, nullptr, 16);
-			buf.add8(code);
-      size -= 2;
-      codes += 2;
-    }
-    if (send) {
-      // Command was `ZbEZSPSend`
-      ZigbeeEZSPSendRaw(buf.getBuffer(), buf.len(), true);
-    } else {
-      // Command was `ZbEZSPReceive`
-      ZigbeeProcessInputRaw(buf);
-    }
-  }
-  ResponseCmndDone();
-}
-
-// For debug purposes only, simulates a message received
-void CmndZbEZSPReceiveRaw(void)
-{
-  CmndZbEZSPSendOrReceiveRaw(false);
-}
-
-void CmndZbEZSPSendRaw(void)
-{
-  CmndZbEZSPSendOrReceiveRaw(true);
-}
-
-//
+// ZbEZSPSend1 = high level EZSP command
+// ZbEZSPSend2 = low level EZSP DATA frame (with sequence numbers)
+// ZbEZSPSend3 = low level ASH frame
 //
 void CmndZbEZSPSendOrReceive(bool send)
 {
@@ -578,10 +557,15 @@ void CmndZbEZSPSendOrReceive(bool send)
     }
     if (send) {
       // Command was `ZbEZSPSend`
-      ZigbeeEZSPSend(buf.getBuffer(), buf.len(), true);
+      if      (2 == XdrvMailbox.index) { ZigbeeEZSPSendDATA(buf.getBuffer(), buf.len(), true); }
+      else if (3 == XdrvMailbox.index) { ZigbeeEZSPSendRaw(buf.getBuffer(), buf.len(), true); }
+      else                             { ZigbeeEZSPSendCmd(buf.getBuffer(), buf.len(), true); }
+      
     } else {
       // Command was `ZbEZSPReceive`
-      ZigbeeProcessInput(buf);
+      if      (2 == XdrvMailbox.index) { ZigbeeProcessInput(buf); }
+      else if (3 == XdrvMailbox.index) { ZigbeeProcessInputRaw(buf); }
+      else                             {  }   // TODO
     }
   }
   ResponseCmndDone();

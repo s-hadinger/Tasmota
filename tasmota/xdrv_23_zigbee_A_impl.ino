@@ -26,7 +26,6 @@ const char kZbCommands[] PROGMEM = D_PRFX_ZB "|"    // prefix
   D_CMND_ZIGBEEZNPSEND "|" D_CMND_ZIGBEEZNPRECEIVE "|"
 #endif // USE_ZIGBEE_ZNP
 #ifdef USE_ZIGBEE_EZSP
-  D_CMND_ZIGBEE_EZSP_SEND_RAW "|" D_CMND_ZIGBEE_EZSP_RECEIVE_RAW "|"
   D_CMND_ZIGBEE_EZSP_SEND "|" D_CMND_ZIGBEE_EZSP_RECEIVE "|"
 #endif // USE_ZIGBEE_EZSP
   D_CMND_ZIGBEE_PERMITJOIN "|"
@@ -42,7 +41,6 @@ void (* const ZigbeeCommand[])(void) PROGMEM = {
   &CmndZbZNPSend, &CmndZbZNPReceive,
 #endif // USE_ZIGBEE_ZNP
 #ifdef USE_ZIGBEE_EZSP
-  &CmndZbEZSPSendRaw, &CmndZbEZSPReceiveRaw,
   &CmndZbEZSPSend, &CmndZbEZSPReceive,
 #endif // USE_ZIGBEE_EZSP
   &CmndZbPermitJoin,
