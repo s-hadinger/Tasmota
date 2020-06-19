@@ -64,6 +64,26 @@ int32_t Z_EZSP_ERROR(uint8_t error_code) {
   XdrvRulesProcess();
 }
 
+/*********************************************************************************************\
+ * Default resolver
+\*********************************************************************************************/
+
+int32_t Z_Recv_Default(int32_t res, const class SBuffer &buf) {
+  // Default message handler for new messages
+  if (zigbee.init_phase) {
+    // if still during initialization phase, ignore any unexpected message
+  	return -1;	// ignore message
+  } else {
+    // TODO
+    // for (uint32_t i = 0; i < sizeof(Z_DispatchTable)/sizeof(Z_Dispatcher); i++) {
+    //   if (Z_ReceiveMatchPrefix(buf, Z_DispatchTable[i].match)) {
+    //     (*Z_DispatchTable[i].func)(res, buf);
+    //   }
+    // }
+    return -1;
+  }
+}
+
 #endif // USE_ZIGBEE_EZSP
 
 /*********************************************************************************************\
@@ -643,6 +663,15 @@ void Z_SendAFInfoRequest(uint16_t shortaddr) {
 /*********************************************************************************************\
  * Send specific EZS¨ messages
 \*********************************************************************************************/
+
+//
+// Callback for loading Zigbee configuration from Flash, called by the state machine
+//
+int32_t Z_Reset_Device(uint8_t value) {
+  // TODO - GPIO is hardwired to GPIO4
+  digitalWrite(4, value ? HIGH : LOW);
+  return 0;                              // continue
+}
 
 //
 // Send ZDO_IEEE_ADDR_REQ request to get IEEE long address

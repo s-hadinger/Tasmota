@@ -379,6 +379,7 @@ void ZigbeeEZSPSend_Out(uint8_t out_byte) {
     case 0x18:      // Substitute byte
     case 0x1A:      // Cancel byte
     case 0x7D:      // Escape byte
+    // case 0xFF:      // special wake-up
       ZigbeeSerial->write(ZIGBEE_EZSP_ESCAPE);      // send Escape byte 0x7D
       ZigbeeSerial->write(out_byte ^ 0x20);           // send with bit 5 inverted
       break;
@@ -456,6 +457,10 @@ void ZigbeeEZSPSendRaw(const uint8_t *msg, size_t len, bool send_cancel) {
 // Send an EZSP command and data
 // Ex: Version with min v8 = 000008
 void ZigbeeEZSPSendCmd(const uint8_t *msg, size_t len, bool send_cancel) {
+  char hex_char[len*2 + 2];
+  ToHex_P(msg, len, hex_char, sizeof(hex_char));
+  AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "ZbEZSPSend %s"), hex_char);
+
   SBuffer cmd(len+3);   // prefix with seq number (1 byte) and frame control bytes (2 bytes)
 
   cmd.add8(EZSP_Serial.ezsp_seq++);
@@ -480,6 +485,43 @@ void ZigbeeEZSPSendDATA(const uint8_t *msg, size_t len, bool send_cancel) {
   ZigbeeEZSPSendRaw(buf.getBuffer(), buf.len(), send_cancel);
 }
 
+// Receive a high-level EZSP command/response, starting with 16-bits frame ID 
+int32_t ZigbeeProcessInputEZSP(class SBuffer &buf) {
+  // verify errors in first 2 bytes.
+  // TODO
+  // uint8_t  sequence_num = buf.get8(0);
+  uint16_t frame_control = buf.get16(1);
+  bool truncated = frame_control & 0x02;
+  bool overflow = frame_control & 0x01;
+  bool callbackPending = frame_control & 0x04;
+  bool security_enabled = frame_control & 0x8000;
+  if (frame_control != 0x0180) {
+    AddLog_P2(LOG_LEVEL_INFO, PSTR("ZIG: specific frame_control 0x%04X"), frame_control);
+  }
+
+  // remove first 2 bytes, be
+  for (uint32_t i=0; i<buf.len()-3; i++) {
+    buf.set8(i, buf.get8(i+3));
+  }
+  buf.setLen(buf.len() - 3);
+
+  char hex_char[buf.len()*2 + 2];
+
+  // log message
+  ToHex_P((unsigned char*)buf.getBuffer(), buf.len(), hex_char, sizeof(hex_char));
+  Response_P(PSTR("{\"" D_JSON_ZIGBEE_EZSP_RECEIVED "\":\"%s\"}"), hex_char);
+  if (Settings.flag3.tuya_serial_mqtt_publish) {
+    MqttPublishPrefixTopic_P(TELE, PSTR(D_RSLT_SENSOR));
+    XdrvRulesProcess();
+  } else {
+    AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "%s"), mqtt_data);    // TODO move to LOG_LEVEL_DEBUG when stable
+  }
+
+  // Pass message to state machine
+  ZigbeeProcessInput(buf);
+}
+
+
 // Receive raw ASH frame (CRC was removed, data unstuffed) but still contains frame numbers
 int32_t ZigbeeProcessInputRaw(class SBuffer &buf) {
   uint8_t control_byte = buf.get8(0);
@@ -503,6 +545,13 @@ int32_t ZigbeeProcessInputRaw(class SBuffer &buf) {
       Z_EZSP_RSTACK(buf.get8(2));
       EZSP_Serial.from_ack = 0;
       EZSP_Serial.to_ack = 0;
+
+      // pass it to state machine with a special 0xFFFE frame code (EZSP_RSTACK_ID)
+      buf.set8(0, Z_B0(EZSP_rstAck));
+      buf.set8(1, Z_B1(EZSP_rstAck));
+      // keep byte #2 with code
+      buf.setLen(3);
+      ZigbeeProcessInput(buf);
     } else if (control_byte == 0xC2) {
       
       // ERROR
@@ -526,11 +575,20 @@ int32_t ZigbeeProcessInputRaw(class SBuffer &buf) {
     EZSP_Serial.from_ack = ((control_byte >> 4) + 1) & 0x07;
     uint8_t ack_byte = 0x80 | EZSP_Serial.from_ack;
     ZigbeeEZSPSendRaw(&ack_byte, 1, false);   // send a 1-byte ACK
+
+    // build the EZSP frame
+    // remove first byte
+    for (uint8_t i=0; i<buf.len()-1; i++) {
+      buf.set8(i, buf.get8(i+1));
+    }
+    buf.setLen(buf.len()-1);
+    // pass to next level
+    ZigbeeProcessInputEZSP(buf);
   }
 }
 
 //
-// Same code for `ZbZNPSend` and `ZbZNPReceive`
+// Same code for `ZbEZSPSend` and `ZbEZSPReceive`
 // building the complete message (intro, length)
 //
 // ZbEZSPSend1 = high level EZSP command
@@ -565,7 +623,7 @@ void CmndZbEZSPSendOrReceive(bool send)
       // Command was `ZbEZSPReceive`
       if      (2 == XdrvMailbox.index) { ZigbeeProcessInput(buf); }
       else if (3 == XdrvMailbox.index) { ZigbeeProcessInputRaw(buf); }
-      else                             {  }   // TODO
+      else                             { ZigbeeProcessInputEZSP(buf); }   // TODO
     }
   }
   ResponseCmndDone();
