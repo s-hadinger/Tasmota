@@ -243,7 +243,7 @@ void ZigbeeInputLoop(void) {
           MqttPublishPrefixTopic_P(TELE, PSTR(D_RSLT_SENSOR));
           XdrvRulesProcess();
         } else {
-          AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "%s"), mqtt_data);    // TODO move to LOG_LEVEL_DEBUG when stable
+          AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_ZIGBEE "%s"), mqtt_data);    // TODO move to LOG_LEVEL_DEBUG when stable
         }
         // now process the message
         ZigbeeProcessInputRaw(ezsp_buffer);

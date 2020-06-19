@@ -84,6 +84,14 @@ int32_t Z_Recv_Default(int32_t res, const class SBuffer &buf) {
   }
 }
 
+int32_t Z_ReadAPSUnicastMessage(int32_t res, class SBuffer &buf) {
+  // Called when receiving a response from getConfigurationValue
+  // Value is in bytes 2+3
+  uint16_t value = buf.get16(2);
+  return res;
+}
+
+
 #endif // USE_ZIGBEE_EZSP
 
 /*********************************************************************************************\

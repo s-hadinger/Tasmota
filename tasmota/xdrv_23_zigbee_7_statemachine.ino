@@ -651,6 +651,30 @@ ZBM(ZBS_SET_PACKET_BUF,   EZSP_setConfigurationValue, 0x00 /*high*/, EZSP_CONFIG
 ZBM(ZBR_SET_OK,  EZSP_setConfigurationValue, 0x00 /*high*/, 0x00 /*ok*/)   // 530000
 ZBM(ZBR_SET_OK2, 0x00, 0x00 /*high*/, 0x00 /*ok*/)   // 000000  - TODO why does setting EZSP_CONFIG_PACKET_BUFFER_COUNT has a different response?
 
+// Read some configuration values
+ZBM(ZBS_GET_APS_UNI,      EZSP_getConfigurationValue, 0x00 /*high*/, EZSP_CONFIG_APS_UNICAST_MESSAGE_COUNT)                   // 520003
+ZBM(ZBR_GET_OK,           EZSP_getConfigurationValue, 0x00 /*high*/, 0x00 /*ok*/)   // 5200 - followed by the value
+
+// Add Endpoints
+// ZBM(ZBS_ADD_ENDPOINT1,    EZSP_addEndpoint, 0x00 /*high*/, 0x01 /*ep*/, Z_B0(Z_PROF_HA), Z_B1(Z_PROF_HA),
+//                           0x05, 0x00 /* AppDeviceId */, 0x00 /* AppDevVer */,
+//                           0x0E /* inputClusterCount */,                        // actually all clusters will be received
+//                           0X00 /* outputClusterCount */,
+//                           0x00,0x00,  0x04,0x00,  0x05,0x00,  0x06,0x00,      // 0x0000, 0x0004, 0x0005, 0x0006
+//                           0x07,0x00,  0x08,0x00,  0x0A,0x00,  0x02,0x01,      // 0x0007, 0x0008, 0x000A, 0X0102
+//                           0x00,0x03,  0x00,0x04,  0x02,0x04,  0x03,0x04,      // 0x0300, 0x0400, 0x0402, 0x0403
+//                           0x05,0x04,  0x06,0x04,                              // 0x0405, 0x0406
+//                           )
+ZBM(ZBS_ADD_ENDPOINT1,    EZSP_addEndpoint, 0x00 /*high*/, 0x01 /*ep*/, Z_B0(Z_PROF_HA), Z_B1(Z_PROF_HA),
+                          0x05, 0x00 /* AppDeviceId */, 0x00 /* AppDevVer */,
+                          0x00 /* inputClusterCount */,                        // actually all clusters will be received
+                          0X00 /* outputClusterCount */ )
+ZBM(ZBS_ADD_ENDPOINTB,    EZSP_addEndpoint, 0x00 /*high*/, 0x0B /*ep*/, Z_B0(Z_PROF_HA), Z_B1(Z_PROF_HA),
+                          0x05, 0x00 /* AppDeviceId */, 0x00 /* AppDevVer */,
+                          0x00 /* inputClusterCount */,                        // actually all clusters will be received
+                          0X00 /* outputClusterCount */ )
+ZBM(ZBR_ADD_ENDPOINT,     EZSP_addEndpoint, 0x00 /*high*/, 0x00 /*ok*/)           // 020000
+
 const char kResetingDevice[] PROGMEM = D_LOG_ZIGBEE "resetting EZSP device";
 const char kAbort[] PROGMEM = "Abort";
 const char kZigbeeAbort[] PROGMEM = D_LOG_ZIGBEE "Abort";
@@ -690,6 +714,12 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     ZI_SEND(ZBS_SET_NETWORKS)           ZI_WAIT_RECV(500, ZBR_SET_OK)
     ZI_SEND(ZBS_SET_PACKET_BUF)         ZI_WAIT_RECV(500, ZBR_SET_OK2)
 
+    // read configuration
+    ZI_SEND(ZBS_GET_APS_UNI)            ZI_WAIT_RECV_FUNC(500, ZBR_GET_OK, &Z_ReadAPSUnicastMessage)
+
+    // add endpoint 0x01 and 0x0B
+    ZI_SEND(ZBS_ADD_ENDPOINT1)          ZI_WAIT_RECV(500, ZBR_ADD_ENDPOINT)
+    ZI_SEND(ZBS_ADD_ENDPOINTB)          ZI_WAIT_RECV(500, ZBR_ADD_ENDPOINT)
 
   ZI_LABEL(ZIGBEE_LABEL_MAIN_LOOP)
     ZI_WAIT_FOREVER()
