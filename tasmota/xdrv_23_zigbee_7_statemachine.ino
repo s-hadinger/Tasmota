@@ -532,7 +532,7 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     // ======================================================================
     // Start as Zigbee Router
     // ======================================================================
-  ZI_LABEL(ZIGBEE_LABEL_INIT_ROUTER)              // Init as a router
+  ZI_LABEL(ZIGBEE_LABEL_INIT_ROUTER)               // Init as a router
     // Check the configuration as Router
     ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_FACT_RESET_ROUTER)
     ZI_SEND(ZBS_ZNPHC)                            // check value of ZNP Has Configured
@@ -680,8 +680,6 @@ ZBM(ZBS_SET_CONCENTRATOR, EZSP_setConcentrator, 0x00 /*high*/, 0x00 /*false*/, 0
                           0x58,0x02 /*minTime*/, 0x08,0x07 /*maxTime*/, 0x02 /*errThr*/, 0x05 /*failThr*/, 0x00 /*maxHops*/)  // 100000F9FF58020807020500
 ZBM(ZBR_SET_CONCENTRATOR, EZSP_setConcentrator, 0x00 /*high*/, 0x00 /*ok*/)           // 100000
 
-//False, <EmberConcentratorType.HIGH_RAM_CONCENTRATOR: 65529>, 600, 1800, 2, 5, 0)
-
 const char kResetingDevice[] PROGMEM = D_LOG_ZIGBEE "resetting EZSP device";
 const char kAbort[] PROGMEM = "Abort";
 const char kZigbeeAbort[] PROGMEM = D_LOG_ZIGBEE "Abort";
@@ -722,7 +720,8 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     ZI_SEND(ZBS_SET_PACKET_BUF)         ZI_WAIT_RECV(500, ZBR_SET_OK2)
 
     // read configuration
-    ZI_SEND(ZBS_GET_APS_UNI)            ZI_WAIT_RECV_FUNC(500, ZBR_GET_OK, &Z_ReadAPSUnicastMessage)
+    // TODO - not sure it's useful
+    //ZI_SEND(ZBS_GET_APS_UNI)            ZI_WAIT_RECV_FUNC(500, ZBR_GET_OK, &Z_ReadAPSUnicastMessage)
 
     // add endpoint 0x01 and 0x0B
     ZI_SEND(ZBS_ADD_ENDPOINT1)          ZI_WAIT_RECV(500, ZBR_ADD_ENDPOINT)
