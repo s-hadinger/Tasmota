@@ -34,7 +34,9 @@
 
 Adafruit_ILI9341 *tft;
 
-uint16_t tft_scroll;
+uint16_t tft_scroll = TFT_TOP;
+uint16_t tft_top = TFT_TOP;
+uint16_t tft_bottom = TFT_BOTTOM;
 
 /*********************************************************************************************/
 
@@ -50,13 +52,15 @@ void Ili9341InitMode(void)
     tft->setTextColor(ILI9341_WHITE, ILI9341_BLACK);
     tft->setTextSize(1);
   } else {
-    tft->setScrollMargins(TFT_TOP, TFT_BOTTOM);
+    tft_top = TFT_TOP;
+    tft_bottom = TFT_BOTTOM;
+    tft->setScrollMargins(tft_top, tft_bottom);
     tft->setCursor(0, 0);
     tft->setTextColor(ILI9341_YELLOW, ILI9341_BLACK);
     tft->setTextSize(2);
 //    tft->println("HEADER");
 
-    tft_scroll = TFT_TOP;
+    tft_scroll = tft_top;
   }
 }
 
@@ -90,11 +94,8 @@ void Ili9341InitDriver(void)
     if (Settings.display_height != ILI9341_TFTHEIGHT) {
       Settings.display_height = ILI9341_TFTHEIGHT;
     }
-#ifdef ESP8266
+
     tft = new Adafruit_ILI9341(Pin(GPIO_SPI_CS), Pin(GPIO_SPI_DC));
-#else  // ESP32
-    tft = new Adafruit_ILI9341(Pin(GPIO_SPI_CS), Pin(GPIO_SPI_DC), Pin(GPIO_SPI_MOSI), Pin(GPIO_SPI_CLK), -1, Pin(GPIO_SPI_MISO));
-#endif
     tft->begin();
 
 #ifdef USE_DISPLAY_MODES1TO5
@@ -167,15 +168,15 @@ void Ili9341PrintLog(void)
         tft->setCursor(0, tft_scroll);
         tft->fillRect(0, tft_scroll, tft->width(), theight, ILI9341_BLACK);  // Erase line
         tft->print(txt);
-        tft_scroll += theight;
-        if (tft_scroll >= (tft->height() - TFT_BOTTOM)) {
-          tft_scroll = TFT_TOP;
+        if (tft_top) { tft_scroll += theight; }
+        if (tft_scroll >= (tft->height() - tft_bottom)) {
+          tft_scroll = tft_top;
         }
         tft->scrollTo(tft_scroll);
       } else {
         uint8_t last_row = Settings.display_rows -1;
 
-        tft_scroll = theight;  // Start below header
+        tft_scroll = (tft_top) ? theight : 0;  // Start below header
         tft->setCursor(0, tft_scroll);
         for (uint32_t i = 0; i < last_row; i++) {
           strlcpy(disp_screen_buffer[i], disp_screen_buffer[i +1], disp_screen_buffer_cols);
@@ -197,26 +198,38 @@ void Ili9341PrintLog(void)
 void Ili9341Refresh(void)  // Every second
 {
   if (Settings.display_mode) {  // Mode 0 is User text
-    if (Settings.display_cols[0] < 19) {
-      Settings.display_cols[0] = 19;
+    // 24-04-2017 13:45:43 = 19 + 1 ('\0') = 20
+    // 24-04-2017 13:45 = 16 + 1 ('\0') = 17
+
+    if (Settings.display_cols[0] > 17) {
+      char tftdt[Settings.display_cols[0] +1];
+      char date4[11];  // 24-04-2017
+      uint8_t time_size = (Settings.display_cols[0] >= 20) ? 9 : 6;  // 13:45:43 or 13:45
+      char spaces[Settings.display_cols[0] - (8 + time_size)];
+      char time[time_size];    // 13:45:43
+
+      tft_top = TFT_TOP;
+      tft_bottom = TFT_BOTTOM;
+      tft_scroll = tft_top;
+      tft->setScrollMargins(tft_top, tft_bottom);
+      tft->setTextSize(Settings.display_size);
+      tft->setTextColor(ILI9341_YELLOW, ILI9341_RED);   // Add background color to solve flicker
+      tft->setCursor(0, 0);
+
+      snprintf_P(date4, sizeof(date4), PSTR("%02d" D_MONTH_DAY_SEPARATOR "%02d" D_YEAR_MONTH_SEPARATOR "%04d"), RtcTime.day_of_month, RtcTime.month, RtcTime.year);
+      memset(spaces, 0x20, sizeof(spaces));
+      spaces[sizeof(spaces) -1] = '\0';
+      snprintf_P(time, sizeof(time), PSTR("%02d" D_HOUR_MINUTE_SEPARATOR "%02d" D_MINUTE_SECOND_SEPARATOR "%02d"), RtcTime.hour, RtcTime.minute, RtcTime.second);
+      snprintf_P(tftdt, sizeof(tftdt), PSTR("%s%s%s"), date4, spaces, time);
+
+      tft->print(tftdt);
+    } else {
+      tft_top = 0;
+      tft_bottom = 0;
+      tft_scroll = tft_top;
+      tft->setScrollMargins(tft_top, tft_bottom);
+      tft->setCursor(0, 0);
     }
-
-    char tftdt[Settings.display_cols[0] +1];
-    char date4[11];  // 24-04-2017
-    char space[Settings.display_cols[0] - 17];
-    char time[9];    // 13:45:43
-
-    tft->setTextSize(2);
-    tft->setTextColor(ILI9341_YELLOW, ILI9341_RED);   // Add background color to solve flicker
-    tft->setCursor(0, 0);
-
-    snprintf_P(date4, sizeof(date4), PSTR("%02d" D_MONTH_DAY_SEPARATOR "%02d" D_YEAR_MONTH_SEPARATOR "%04d"), RtcTime.day_of_month, RtcTime.month, RtcTime.year);
-    memset(space, 0x20, sizeof(space));
-    space[sizeof(space) -1] = '\0';
-    snprintf_P(time, sizeof(time), PSTR("%02d" D_HOUR_MINUTE_SEPARATOR "%02d" D_MINUTE_SECOND_SEPARATOR "%02d"), RtcTime.hour, RtcTime.minute, RtcTime.second);
-    snprintf_P(tftdt, sizeof(tftdt), PSTR("%s%s%s"), date4, space, time);
-
-    tft->print(tftdt);
 
     switch (Settings.display_mode) {
       case 1:  // Text
