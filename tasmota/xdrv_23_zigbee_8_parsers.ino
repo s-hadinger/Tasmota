@@ -95,6 +95,54 @@ int32_t Z_ReadAPSUnicastMessage(int32_t res, class SBuffer &buf) {
 #endif // USE_ZIGBEE_EZSP
 
 /*********************************************************************************************\
+ * Parsers for incoming EZSP messages
+\*********************************************************************************************/
+
+//
+// Handle a "getEui64" incoming message
+//
+int32_t Z_EZSPGetEUI64(int32_t res, class SBuffer &buf) {
+  localIEEEAddr = buf.get64(2);
+  return res;
+}
+
+//
+// Handle a "getEui64" incoming message
+//
+int32_t Z_EZSPGetNodeId(int32_t res, class SBuffer &buf) {
+  localShortAddr = buf.get8(2);
+  return res;
+}
+
+//
+// Handle a "getNetworkParameters" incoming message
+//
+int32_t Z_EZSPNetworkParameters(int32_t res, class SBuffer &buf) {
+  uint8_t  node_type = buf.get8(3);
+  // ext panid: 4->11
+  // panid: 12->13
+  // radioTxPower: 14
+  // radioChannel: 15
+
+  // Local short and long addresses are supposed to be already retrieved
+  // localIEEEAddr = long_adr;
+  // localShortAddr = short_adr;
+
+  char hex[20];
+  Uint64toHex(localIEEEAddr, hex, 64);
+  Response_P(PSTR("{\"" D_JSON_ZIGBEE_STATE "\":{"
+                  "\"Status\":%d,\"IEEEAddr\":\"0x%s\",\"ShortAddr\":\"0x%04X\""
+                  ",\"DeviceType\":%d}}"),
+                  ZIGBEE_STATUS_EZ_INFO, hex, localShortAddr, node_type);
+
+  MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEE_STATE));
+  XdrvRulesProcess();
+
+  return res;
+}
+
+
+/*********************************************************************************************\
  * Parsers for incoming ZNP messages
 \*********************************************************************************************/
 
@@ -117,6 +165,7 @@ int32_t Z_ReceiveDeviceInfo(int32_t res, class SBuffer &buf) {
 
   // keep track of the local IEEE address
   localIEEEAddr = long_adr;
+  localShortAddr = short_adr;
 
   char hex[20];
   Uint64toHex(long_adr, hex, 64);
@@ -194,6 +243,7 @@ int32_t Z_Reboot(int32_t res, class SBuffer &buf) {
 }
 
 int32_t Z_ReceiveCheckVersion(int32_t res, class SBuffer &buf) {
+#ifdef USE_ZIGBEE_ZNP
   // check that the version is supported
   // typical version for ZNP 1.2
   // 61020200-02.06.03.D9143401.0200000000
@@ -222,6 +272,34 @@ int32_t Z_ReceiveCheckVersion(int32_t res, class SBuffer &buf) {
   } else {
     return ZIGBEE_LABEL_UNSUPPORTED_VERSION;  // abort
   }
+#endif // USE_ZIGBEE_ZNP
+
+#ifdef USE_ZIGBEE_EZSP
+  uint8_t protocol_version = buf.get8(2);
+  uint8_t stack_type = buf.get8(3);
+  uint16_t stack_version = buf.get16(4);
+
+  Response_P(PSTR("{\"" D_JSON_ZIGBEE_STATE "\":{"
+                  "\"Status\":%d,\"Version\":\"%d.%d.%d.%d\",\"Protocol\":%d"
+                  ",\"Stack\":%d}}"),
+                  ZIGBEE_STATUS_EZ_VERSION, 
+                  (stack_version & 0xF000) >> 12,
+                  (stack_version & 0x0F00) >> 8,
+                  (stack_version & 0x00F0) >> 4,
+                  stack_version & 0x000F,
+                  protocol_version,
+                  stack_type
+                  );
+
+  MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEE_STATE));
+  XdrvRulesProcess();
+
+  if (0x08 == protocol_version) {
+  	return 0;	  // protocol v8 is ok
+  } else {
+    return ZIGBEE_LABEL_UNSUPPORTED_VERSION;  // abort
+  }
+#endif // USE_ZIGBEE_EZSP
 }
 
 // checks the device type (coordinator, router, end-device)
