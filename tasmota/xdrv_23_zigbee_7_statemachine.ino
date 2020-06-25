@@ -671,12 +671,22 @@ ZBM(ZBR_GET_OK,           EZSP_getConfigurationValue, 0x00 /*high*/, 0x00 /*ok*/
 //                           )
 ZBM(ZBS_ADD_ENDPOINT1,    EZSP_addEndpoint, 0x00 /*high*/, 0x01 /*ep*/, Z_B0(Z_PROF_HA), Z_B1(Z_PROF_HA),
                           0x05, 0x00 /* AppDeviceId */, 0x00 /* AppDevVer */,
-                          0x00 /* inputClusterCount */,                         // actually all clusters will be received
-                          0X00 /* outputClusterCount */ )                       // 02000104010500000000
+                          0x0E /* inputClusterCount */,                         // actually all clusters will be received
+                          0X00 /* outputClusterCount */,                        // 02000104010500000000
+                          0x00,0x00,  0x04,0x00,  0x05,0x00,  0x06,0x00,      // 0x0000, 0x0004, 0x0005, 0x0006
+                          0x07,0x00,  0x08,0x00,  0x0A,0x00,  0x02,0x01,      // 0x0007, 0x0008, 0x000A, 0X0102
+                          0x00,0x03,  0x00,0x04,  0x02,0x04,  0x03,0x04,      // 0x0300, 0x0400, 0x0402, 0x0403
+                          0x05,0x04,  0x06,0x04,                              // 0x0405, 0x0406
+                          )
 ZBM(ZBS_ADD_ENDPOINTB,    EZSP_addEndpoint, 0x00 /*high*/, 0x0B /*ep*/, Z_B0(Z_PROF_HA), Z_B1(Z_PROF_HA),
                           0x05, 0x00 /* AppDeviceId */, 0x00 /* AppDevVer */,
-                          0x00 /* inputClusterCount */,                         // actually all clusters will be received
-                          0X00 /* outputClusterCount */ )                       // 02000B04010500000000
+                          0x0E /* inputClusterCount */,                         // actually all clusters will be received
+                          0X00 /* outputClusterCount */,                        // 02000B04010500000000
+                          0x00,0x00,  0x04,0x00,  0x05,0x00,  0x06,0x00,      // 0x0000, 0x0004, 0x0005, 0x0006
+                          0x07,0x00,  0x08,0x00,  0x0A,0x00,  0x02,0x01,      // 0x0007, 0x0008, 0x000A, 0X0102
+                          0x00,0x03,  0x00,0x04,  0x02,0x04,  0x03,0x04,      // 0x0300, 0x0400, 0x0402, 0x0403
+                          0x05,0x04,  0x06,0x04,                              // 0x0405, 0x0406
+                          )
 ZBM(ZBR_ADD_ENDPOINT,     EZSP_addEndpoint, 0x00 /*high*/, 0x00 /*ok*/)           // 020000
 
 // set concentrator false
