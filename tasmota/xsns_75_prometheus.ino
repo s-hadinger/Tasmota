@@ -40,18 +40,26 @@ void HandleMetrics(void)
                   my_version, my_image, GetBuildDateAndTime().c_str());
   WSContentSend_P(PSTR("# TYPE tasmota_uptime_seconds gauge\ntasmota_uptime_seconds %d\n"), uptime);
   WSContentSend_P(PSTR("# TYPE tasmota_boot_count counter\ntasmota_boot_count %d\n"), Settings.bootcount);
+  WSContentSend_P(PSTR("# TYPE tasmota_flash_writes_total counter\ntasmota_flash_writes_total %d\n"), Settings.save_flag);
 
-  if (!isnan(global_temperature)) {
-    dtostrfd(global_temperature, Settings.flag2.temperature_resolution, parameter);
-    WSContentSend_P(PSTR("# TYPE global_temperature gauge\nglobal_temperature %s\n"), parameter);
+
+  // Pseudo-metric providing metadata about the WiFi station.
+  WSContentSend_P(PSTR("# TYPE tasmota_wifi_station_info gauge\ntasmota_wifi_station_info{bssid=\"%s\",ssid=\"%s\"} 1\n"), WiFi.BSSIDstr().c_str(), WiFi.SSID().c_str());
+
+  // Wi-Fi Signal strength
+  WSContentSend_P(PSTR("# TYPE tasmota_wifi_station_signal_dbm gauge\ntasmota_wifi_station_signal_dbm{mac_address=\"%s\"} %d\n"), WiFi.BSSIDstr().c_str(), WiFi.RSSI());
+
+  if (!isnan(global_temperature_celsius)) {
+    dtostrfd(global_temperature_celsius, Settings.flag2.temperature_resolution, parameter);
+    WSContentSend_P(PSTR("# TYPE global_temperature_celsius gauge\nglobal_temperature_celsius %s\n"), parameter);
   }
   if (global_humidity != 0) {
     dtostrfd(global_humidity, Settings.flag2.humidity_resolution, parameter);
     WSContentSend_P(PSTR("# TYPE global_humidity gauge\nglobal_humidity %s\n"), parameter);
   }
-  if (global_pressure != 0) {
-    dtostrfd(global_pressure, Settings.flag2.pressure_resolution, parameter);
-    WSContentSend_P(PSTR("# TYPE global_pressure gauge\nglobal_pressure %s\n"), parameter);
+  if (global_pressure_hpa != 0) {
+    dtostrfd(global_pressure_hpa, Settings.flag2.pressure_resolution, parameter);
+    WSContentSend_P(PSTR("# TYPE global_pressure_hpa gauge\nglobal_pressure_hpa %s\n"), parameter);
   }
 
 #ifdef USE_ENERGY_SENSOR
