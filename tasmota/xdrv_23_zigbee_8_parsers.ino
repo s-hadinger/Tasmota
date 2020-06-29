@@ -530,9 +530,10 @@ int32_t Z_ReceiveEndDeviceAnnonce(int32_t res, const class SBuffer &buf) {
   uint8_t           capabilities = buf.get8(14);
 #endif
 #ifdef USE_ZIGBEE_EZSP
-  Z_ShortAddress    nwkAddr = buf.get16(0);
-  Z_IEEEAddress     ieeeAddr = buf.get64(2);
-  uint8_t           capabilities = buf.get8(10);
+  // uint8_t           seq = buf.get8(0);
+  Z_ShortAddress    nwkAddr = buf.get16(1);
+  Z_IEEEAddress     ieeeAddr = buf.get64(3);
+  uint8_t           capabilities = buf.get8(11);
 #endif
 
   zigbee_devices.updateDevice(nwkAddr, ieeeAddr);
@@ -691,7 +692,6 @@ int32_t Z_MgmtBindRsp(int32_t res, const class SBuffer &buf) {
   return -1;
 }
 
-#ifdef USE_ZIGBEE_ZNP
 /*********************************************************************************************\
  * Send specific ZNP messages
 \*********************************************************************************************/
@@ -700,24 +700,32 @@ int32_t Z_MgmtBindRsp(int32_t res, const class SBuffer &buf) {
 // Send ZDO_IEEE_ADDR_REQ request to get IEEE long address
 //
 void Z_SendIEEEAddrReq(uint16_t shortaddr) {
+#ifdef USE_ZIGBEE_ZNP
   uint8_t IEEEAddrReq[] = { Z_SREQ | Z_ZDO, ZDO_IEEE_ADDR_REQ, Z_B0(shortaddr), Z_B1(shortaddr), 0x00, 0x00 };
 
   ZigbeeZNPSend(IEEEAddrReq, sizeof(IEEEAddrReq));
+#endif
 }
 
 //
 // Send ACTIVE_EP_REQ to collect active endpoints for this address
 //
 void Z_SendActiveEpReq(uint16_t shortaddr) {
+#ifdef USE_ZIGBEE_ZNP
   uint8_t ActiveEpReq[] = { Z_SREQ | Z_ZDO, ZDO_ACTIVE_EP_REQ, Z_B0(shortaddr), Z_B1(shortaddr), Z_B0(shortaddr), Z_B1(shortaddr) };
-
   ZigbeeZNPSend(ActiveEpReq, sizeof(ActiveEpReq));
+#endif
+#ifdef USE_ZIGBEE_EZSP
+  uint8_t ActiveEpReq[] = { Z_B0(shortaddr), Z_B1(shortaddr) };
+  EZ_SendZDO(shortaddr, ZDO_Active_EP_req, ActiveEpReq, sizeof(ActiveEpReq));
+#endif
 }
 
 //
 // Send AF Info Request
 //
 void Z_SendAFInfoRequest(uint16_t shortaddr) {
+#ifdef USE_ZIGBEE_ZNP
   uint8_t endpoint = zigbee_devices.findFirstEndpoint(shortaddr);
   if (0x00 == endpoint) { endpoint = 0x01; }    // if we don't know the endpoint, try 0x01
   uint8_t transacid = zigbee_devices.getNextSeqNumber(shortaddr);
@@ -727,9 +735,9 @@ void Z_SendAFInfoRequest(uint16_t shortaddr) {
                             0x00, transacid, ZCL_READ_ATTRIBUTES, 0x04, 0x00, 0x05, 0x00
                           };
   ZigbeeZNPSend(AFInfoReq, sizeof(AFInfoReq));
+#endif
 }
 
-#endif // USE_ZIGBEE_ZNP
 
 //
 // Handle trustCenterJoinHandler
@@ -851,14 +859,25 @@ void Z_IncomingMessage(ZCLFrame &zcl_received) {
  * Send ZDO Message
 \*********************************************************************************************/
 
-void EZ_SendZDO(uint16_t shortaddr, const class SBuffer &payload) {
-  SBuffer buf(payload.len() + 8);
+void EZ_SendZDO(uint16_t shortaddr, uint16_t cmd, const unsigned char *payload, size_t payload_len) {
+  SBuffer buf(payload_len + 20);
+  uint8_t seq = zigbee_devices.getNextSeqNumber(0x0000);
+
   buf.add8(EMBER_OUTGOING_DIRECT);    // 00
   buf.add16(shortaddr);               // dest addr
+  // ApsFrame
+  buf.add16(0x0000);                  // ZOD profile
+  buf.add16(cmd);                     // ZDO cmd in cluster
+  buf.add8(0);                        // srcEp
+  buf.add8(0);                        // dstEp
   buf.add16(EMBER_APS_OPTION_ENABLE_ROUTE_DISCOVERY | EMBER_APS_OPTION_RETRY);      // APS frame
+  buf.add16(0x0000);                  // groupId
+  buf.add8(seq);
+  // end of ApsFrame
   buf.add8(0x01);                     // tag TODO
-  buf.add8(payload.len());
-  buf.addBuffer(payload);
+  buf.add8(payload_len + 1);        // insert seq number
+  buf.add8(seq);
+  buf.addBuffer(payload, payload_len);
 }
 
 /*********************************************************************************************\
@@ -873,7 +892,7 @@ int32_t EZ_IncomingMessage(int32_t res, const class SBuffer &buf) {
   uint8_t         srcendpoint = buf.get8(7);
   uint8_t         dstendpoint = buf.get8(8);
   uint16_t        apsoptions = buf.get16(9); // see EZSP_EmberApsOption, usually EMBER_APS_OPTION_ENABLE_ADDRESS_DISCOVERY
-  bool            securityuse = (apsoptions & EMBER_APS_OPTION_ENCRYPTION);
+  bool            securityuse = (apsoptions & EMBER_APS_OPTION_ENCRYPTION) ? true : false;
   uint16_t        groupid = buf.get16(11);
   uint8_t         seqnumber = buf.get8(13);
   uint8_t         linkquality = buf.get8(14);
@@ -881,7 +900,7 @@ int32_t EZ_IncomingMessage(int32_t res, const class SBuffer &buf) {
   uint16_t        srcaddr = buf.get16(16);
   uint8_t         bindingindex = buf.get8(18);      // TODO not sure we need this one as a coordinator
   uint8_t         addressindex = buf.get8(19);      // TODO not sure how to handle this one
-  // offset 21 is len, and buffer starts at offset 22
+  // offset 20 is len, and buffer starts at offset 21
 
 
   if ((0x0000 == profileid) && (0x00 == srcendpoint))  {
@@ -911,24 +930,6 @@ int32_t Z_Reset_Device(uint8_t value) {
   // TODO - GPIO is hardwired to GPIO4
   digitalWrite(4, value ? HIGH : LOW);
   return 0;                              // continue
-}
-
-//
-// Send ZDO_IEEE_ADDR_REQ request to get IEEE long address
-//
-void Z_SendIEEEAddrReq(uint16_t shortaddr) {
-}
-
-//
-// Send ACTIVE_EP_REQ to collect active endpoints for this address
-//
-void Z_SendActiveEpReq(uint16_t shortaddr) {
-}
-
-//
-// Send AF Info Request
-//
-void Z_SendAFInfoRequest(uint16_t shortaddr) {
 }
 
 /*********************************************************************************************\

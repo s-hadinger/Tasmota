@@ -821,7 +821,7 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
 
   ZI_LABEL(ZIGBEE_LABEL_MAIN_LOOP)
     ZI_WAIT_FOREVER()
-    ZI_GOTO(ZIGBEE_LABEL_READY)
+    ZI_GOTO(ZIGBEE_LABEL_MAIN_LOOP)
 
   // Error: version of Z-Stack is not supported
   ZI_LABEL(ZIGBEE_LABEL_UNSUPPORTED_VERSION)
