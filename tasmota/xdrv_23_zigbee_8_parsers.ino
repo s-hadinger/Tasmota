@@ -862,8 +862,10 @@ void Z_IncomingMessage(ZCLFrame &zcl_received) {
 \*********************************************************************************************/
 
 void EZ_SendZDO(uint16_t shortaddr, uint16_t cmd, const unsigned char *payload, size_t payload_len) {
-  SBuffer buf(payload_len + 20);
+  SBuffer buf(payload_len + 22);
   uint8_t seq = zigbee_devices.getNextSeqNumber(0x0000);
+
+  buf.add16(EZSP_sendUnicast);
 
   buf.add8(EMBER_OUTGOING_DIRECT);    // 00
   buf.add16(shortaddr);               // dest addr
@@ -880,6 +882,8 @@ void EZ_SendZDO(uint16_t shortaddr, uint16_t cmd, const unsigned char *payload, 
   buf.add8(payload_len + 1);        // insert seq number
   buf.add8(seq);
   buf.addBuffer(payload, payload_len);
+
+  ZigbeeEZSPSendCmd(buf.buf(), buf.len(), true);
 }
 
 /*********************************************************************************************\
