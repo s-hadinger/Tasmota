@@ -743,6 +743,7 @@ void Z_SendAFInfoRequest(uint16_t shortaddr) {
 // Handle trustCenterJoinHandler
 // 2400
 //
+#ifdef USE_ZIGBEE_EZSP
 int32_t EZ_ReceiveTCJoinHandler(int32_t res, const class SBuffer &buf) {
   uint16_t      srcAddr = buf.get16(2);
   uint64_t      ieeeAddr = buf.get64(4);
@@ -769,6 +770,7 @@ int32_t EZ_ReceiveTCJoinHandler(int32_t res, const class SBuffer &buf) {
   }
   return -1;
 }
+#endif // USE_ZIGBEE_EZSP
 
 //
 // Parse incoming ZCL message. This code is common to ZNP and EZSP
