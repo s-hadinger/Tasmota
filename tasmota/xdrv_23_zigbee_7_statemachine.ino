@@ -883,8 +883,8 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     // ZI_GOTO(ZIGBEE_LABEL_CONFIGURE_EZSP)
 
     // // Try networkInit to restore settings, and check if network comes up
-    ZI_ON_TIMEOUT_GOTO(ZIGBEE_LABEL_CONFIGURE_EZSP)    // 
-    ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_CONFIGURE_EZSP)
+    ZI_ON_TIMEOUT_GOTO(ZIGBEE_LABEL_BAD_CONFIG)    // 
+    ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_BAD_CONFIG)
     ZI_SEND(ZBS_NETWORK_INIT)           ZI_WAIT_RECV(500, ZBR_NETWORK_INIT)
     ZI_WAIT_RECV(1500, ZBR_NETWORK_UP)    // wait for network to start
     // check if configuration is ok
@@ -894,16 +894,14 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     ZI_GOTO(ZIGBEE_LABEL_NETWORK_CONFIGURED)
 
   ZI_LABEL(ZIGBEE_LABEL_BAD_CONFIG)
+    ZI_MQTT_STATE(ZIGBEE_STATUS_RESET_CONF, kResetting)
     ZI_CALL(EZ_Set_ResetConfig, 1)           // change mode to reset_config
     ZI_GOTO(ZIGBEE_LABEL_RESTART)       // restart state_machine
 
   ZI_LABEL(ZIGBEE_LABEL_CONFIGURE_EZSP)
-    ZI_MQTT_STATE(ZIGBEE_STATUS_RESET_CONF, kResetting)
     // Set back normal error handlers
     ZI_ON_TIMEOUT_GOTO(ZIGBEE_LABEL_ABORT)
     ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_ABORT)
-    // leaveNetwork
-    // ZI_SEND(ZBS_LEAVE_NETWORK)          ZI_WAIT_RECV(500, ZBR_LEAVE_NETWORK)
     // formNetwork
     ZI_SEND(ZBS_FORM_NETWORK)           ZI_WAIT_RECV(500, ZBR_FORM_NETWORK)
     ZI_WAIT_RECV(5000, ZBR_NETWORK_UP)    // wait for network to start
