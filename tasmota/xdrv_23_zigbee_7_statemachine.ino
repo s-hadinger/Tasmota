@@ -106,6 +106,7 @@ enum Zigbee_StateMachine_Instruction_Set {
 #define ZI_WAIT_RECV_FUNC(x, m, f)  { .i = { ZGB_INSTR_WAIT_RECV_CALL, sizeof(m), (x)} },  { .p = (const void*)(m) }, { .p = (const void*)(f) },
 
 // Labels used in the State Machine -- internal only
+const uint8_t  ZIGBEE_LABEL_RESTART = 1;     // Restart the state_machine in a different mode
 const uint8_t  ZIGBEE_LABEL_INIT_COORD = 10;     // Start ZNP as coordinator
 const uint8_t  ZIGBEE_LABEL_START_COORD = 11;     // Start ZNP as coordinator
 const uint8_t  ZIGBEE_LABEL_INIT_ROUTER = 12;    // Init ZNP as router
@@ -119,6 +120,7 @@ const uint8_t  ZIGBEE_LABEL_FACT_RESET_ROUTER_DEVICE_POST = 19;   // common post
 const uint8_t  ZIGBEE_LABEL_READY = 20;   // goto label 20 for main loop
 const uint8_t  ZIGBEE_LABEL_MAIN_LOOP = 21;   // main loop
 const uint8_t  ZIGBEE_LABEL_NETWORK_CONFIGURED = 22;   // main loop
+const uint8_t  ZIGBEE_LABEL_BAD_CONFIG = 23;          // EZSP configuration is not the right one
 const uint8_t  ZIGBEE_LABEL_PERMIT_JOIN_CLOSE = 30;   // disable permit join
 const uint8_t  ZIGBEE_LABEL_PERMIT_JOIN_OPEN_60 = 31;    // enable permit join for 60 seconds
 const uint8_t  ZIGBEE_LABEL_PERMIT_JOIN_OPEN_XX = 32;    // enable permit join for 60 seconds
@@ -819,6 +821,8 @@ ZBW(ZBR_CHECK_NETW_PARM,      EZSP_getNetworkParameters, 0x00 /*high*/,
 static const Zigbee_Instruction zb_prog[] PROGMEM = {
   ZI_LABEL(0)
     ZI_NOOP()
+    ZI_CALL(EZ_Set_ResetConfig, 0)           // for the firt pass, don't do a reset_config
+  ZI_LABEL(ZIGBEE_LABEL_RESTART)
     ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_ABORT)
     ZI_ON_TIMEOUT_GOTO(ZIGBEE_LABEL_ABORT)
     ZI_ON_RECV_UNEXPECTED(&EZ_Recv_Default)
@@ -872,18 +876,26 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
 
     // set encryption keys
     ZI_SEND(ZBS_SET_SECURITY)           ZI_WAIT_RECV(500, ZBR_SET_SECURITY)
-    ZI_GOTO(ZIGBEE_LABEL_CONFIGURE_EZSP)
+
+    // Decide whether we try 'networkInit()' to restore configuration, or create a new network
+    ZI_CALL(&EZ_GotoIfResetConfig, ZIGBEE_LABEL_CONFIGURE_EZSP)    // goto ZIGBEE_LABEL_CONFIGURE_EZSP if reset_config is set
+
+    // ZI_GOTO(ZIGBEE_LABEL_CONFIGURE_EZSP)
 
     // // Try networkInit to restore settings, and check if network comes up
-    // ZI_ON_TIMEOUT_GOTO(ZIGBEE_LABEL_CONFIGURE_EZSP)    // 
-    // ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_CONFIGURE_EZSP)
-    // ZI_SEND(ZBS_NETWORK_INIT)           ZI_WAIT_RECV(500, ZBR_NETWORK_INIT)
-    // ZI_WAIT_RECV(1500, ZBR_NETWORK_UP)    // wait for network to start
-    // // check if configuration is ok
-    // ZI_SEND(ZBS_GET_CURR_SEC)           ZI_WAIT_RECV(500, ZBR_GET_CURR_SEC)
-    // ZI_SEND(ZBS_GET_NETW_PARM)          ZI_WAIT_RECV(500, ZBR_CHECK_NETW_PARM)
-    // // all ok, proceed to next step
-    // ZI_GOTO(ZIGBEE_LABEL_NETWORK_CONFIGURED)
+    ZI_ON_TIMEOUT_GOTO(ZIGBEE_LABEL_CONFIGURE_EZSP)    // 
+    ZI_ON_ERROR_GOTO(ZIGBEE_LABEL_CONFIGURE_EZSP)
+    ZI_SEND(ZBS_NETWORK_INIT)           ZI_WAIT_RECV(500, ZBR_NETWORK_INIT)
+    ZI_WAIT_RECV(1500, ZBR_NETWORK_UP)    // wait for network to start
+    // check if configuration is ok
+    ZI_SEND(ZBS_GET_CURR_SEC)           ZI_WAIT_RECV(500, ZBR_GET_CURR_SEC)
+    ZI_SEND(ZBS_GET_NETW_PARM)          ZI_WAIT_RECV(500, ZBR_CHECK_NETW_PARM)
+    // all ok, proceed to next step
+    ZI_GOTO(ZIGBEE_LABEL_NETWORK_CONFIGURED)
+
+  ZI_LABEL(ZIGBEE_LABEL_BAD_CONFIG)
+    ZI_CALL(EZ_Set_ResetConfig, 1)           // change mode to reset_config
+    ZI_GOTO(ZIGBEE_LABEL_RESTART)       // restart state_machine
 
   ZI_LABEL(ZIGBEE_LABEL_CONFIGURE_EZSP)
     ZI_MQTT_STATE(ZIGBEE_STATUS_RESET_CONF, kResetting)

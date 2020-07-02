@@ -327,6 +327,22 @@ int32_t EZ_ReceiveCheckVersion(int32_t res, class SBuffer &buf) {
     return ZIGBEE_LABEL_UNSUPPORTED_VERSION;  // abort
   }
 }
+
+static bool EZ_reset_config = false;
+
+// Set or clear reset_config
+int32_t EZ_Set_ResetConfig(uint8_t value) {
+  EZ_reset_config = value ? true : false;
+  return 0;
+}
+// checks if we need to reset the configuration of the device
+// if reset_config == 0, continue
+// if reset_config == 1, goto ZIGBEE_LABEL_CONFIGURE_EZSP
+int32_t EZ_GotoIfResetConfig(uint8_t value) {
+  if (EZ_reset_config) { return ZIGBEE_LABEL_CONFIGURE_EZSP; }
+  else                 { return 0; }
+}
+
 #endif // USE_ZIGBEE_EZSP
 
 // checks the device type (coordinator, router, end-device)
