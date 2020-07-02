@@ -1129,29 +1129,7 @@ int32_t Z_Reset_Device(uint8_t value) {
   return 0;                              // continue
 }
 
-/*********************************************************************************************\
- * Default resolver
-\*********************************************************************************************/
-
-int32_t Z_Recv_Default(int32_t res, const class SBuffer &buf) {
-  // Default message handler for new messages
-  if (zigbee.init_phase) {
-    // if still during initialization phase, ignore any unexpected message
-  	return -1;	// ignore message
-  } else {
-    switch (buf.get8(0)) {
-      case EZSP_incomingMessageHandler:
-        return EZ_IncomingMessage(res, buf);
-        break;
-      case EZSP_trustCenterJoinHandler:
-        return EZ_ReceiveTCJoinHandler(res, buf);
-        break;
-    }
-    return -1;
-  }
-}
-
-#endif // USE_ZIGBEE_EZSP
+#endif // USE_ZIGBEE_ZNP
 
 
 /*********************************************************************************************\
