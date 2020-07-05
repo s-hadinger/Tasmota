@@ -772,7 +772,7 @@ void CmndZbBindState(void) {
   // ZDO message payload (see Zigbee spec 2.4.3.3.4)
   uint8_t buf[] = { 0x00 };           // index = 0
 
-  EZ_SendZDO(shortaddr, ZDO_Mgmt_NWK_Update_req, buf, sizeof(buf));
+  EZ_SendZDO(shortaddr, ZDO_Mgmt_Bind_req, buf, sizeof(buf));
 #endif // USE_ZIGBEE_EZSP
 
   ResponseCmndDone();

@@ -731,12 +731,23 @@ int32_t Z_UnbindRsp(int32_t res, const class SBuffer &buf) {
 //
 // Handle MgMt Bind Rsp incoming message
 //
-int32_t ZNP_MgmtBindRsp(int32_t res, const class SBuffer &buf) {
+int32_t Z_MgmtBindRsp(int32_t res, const class SBuffer &buf) {
+#ifdef USE_ZIGBEE_ZNP
   uint16_t    shortaddr   = buf.get16(2);
   uint8_t     status      = buf.get8(4);
   uint8_t     bind_total  = buf.get8(5);
   uint8_t     bind_start  = buf.get8(6);
   uint8_t     bind_len    = buf.get8(7);
+  const size_t prefix_len = 8;
+#endif // USE_ZIGBEE_ZNP
+#ifdef USE_ZIGBEE_EZSP
+  uint16_t    shortaddr   = buf.get16(buf.len()-2);
+  uint8_t     status      = buf.get8(0);
+  uint8_t     bind_total  = buf.get8(1);
+  uint8_t     bind_start  = buf.get8(2);
+  uint8_t     bind_len    = buf.get8(3);
+  const size_t prefix_len = 4;
+#endif // USE_ZIGBEE_EZSP
 
   const char * friendlyName = zigbee_devices.getFriendlyName(shortaddr);
 
@@ -750,7 +761,7 @@ int32_t ZNP_MgmtBindRsp(int32_t res, const class SBuffer &buf) {
                         ",\"Bindings\":["
                         ), status, getZigbeeStatusMessage(status).c_str(), bind_total);
 
-  uint32_t idx = 8;
+  uint32_t idx = prefix_len;
   for (uint32_t i = 0; i < bind_len; i++) {
     if (idx + 14 > buf.len()) { break; }   // overflow, frame size is between 14 and 21
 
@@ -1024,19 +1035,16 @@ int32_t EZ_IncomingMessage(int32_t res, const class SBuffer &buf) {
     switch (clusterid) {
       case ZDO_Device_annce:
         return Z_ReceiveEndDeviceAnnonce(res, zdo_buf);
-        break;
       case ZDO_Active_EP_rsp:
         return Z_ReceiveActiveEp(res, zdo_buf);
-        break;
       case ZDO_IEEE_addr_rsp:
         return Z_ReceiveIEEEAddr(res, zdo_buf);
-        break;
       case ZDO_Bind_rsp:
         return Z_BindRsp(res, zdo_buf);
-        break;
       case ZDO_Unbind_rsp:
         return Z_UnbindRsp(res, zdo_buf);
-        break;
+      case ZDO_Mgmt_Bind_rsp:
+        return Z_MgmtBindRsp(res, zdo_buf);
     }
   } else {
     bool            defer_attributes = false;     // do we defer attributes reporting to coalesce
@@ -1209,7 +1217,7 @@ const Z_Dispatcher Z_DispatchTable[] PROGMEM = {
   { { Z_AREQ | Z_ZDO, ZDO_IEEE_ADDR_RSP },          &Z_ReceiveIEEEAddr },             // 4581
   { { Z_AREQ | Z_ZDO, ZDO_BIND_RSP },               &Z_BindRsp },                   // 45A1
   { { Z_AREQ | Z_ZDO, ZDO_UNBIND_RSP },             &Z_UnbindRsp },                 // 45A2
-  { { Z_AREQ | Z_ZDO, ZDO_MGMT_BIND_RSP },          &ZNP_MgmtBindRsp },               // 45B3
+  { { Z_AREQ | Z_ZDO, ZDO_MGMT_BIND_RSP },          &Z_MgmtBindRsp },               // 45B3
 };
 
 /*********************************************************************************************\

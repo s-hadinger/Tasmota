@@ -461,6 +461,7 @@ enum EZSP_ZDO {
   // Network Management Server Services Requests
   ZDO_Mgmt_Lqi_req = 0x0031,
   ZDO_Mgmt_Rtg_req = 0x0032,
+  ZDO_Mgmt_Bind_req = 0x0033,
   ZDO_Mgmt_Leave_req = 0x0034,
   ZDO_Mgmt_Permit_Joining_req = 0x0036,
   ZDO_Mgmt_NWK_Update_req = 0x0038,
@@ -496,6 +497,7 @@ enum EZSP_ZDO {
   // Network Management Server Services Responses
   ZDO_Mgmt_Lqi_rsp = 0x8031,
   ZDO_Mgmt_Rtg_rsp = 0x8032,
+  ZDO_Mgmt_Bind_rsp = 0x8033,
   ZDO_Mgmt_Leave_rsp = 0x8034,
   ZDO_Mgmt_Permit_Joining_rsp = 0x8036,
   ZDO_Mgmt_NWK_Update_rsp = 0x8038,
