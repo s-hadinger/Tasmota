@@ -791,7 +791,8 @@ void Z_SendIEEEAddrReq(uint16_t shortaddr) {
   ZigbeeZNPSend(IEEEAddrReq, sizeof(IEEEAddrReq));
 #endif
 #ifdef USE_ZIGBEE_EZSP
-  // TODO
+  uint8_t IEEEAddrReq[] = { Z_B0(shortaddr), Z_B1(shortaddr), 0x00, 0x00 };
+  EZ_SendZDO(shortaddr, ZDO_IEEE_addr_req, IEEEAddrReq, sizeof(IEEEAddrReq));
 #endif
 }
 
