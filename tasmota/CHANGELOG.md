@@ -1,4 +1,43 @@
+## Released
+
+### 8.4.0 20200716
+
+- Release George
+
 ## Unreleased (development)
+
+### 8.3.1.6 20200617
+
+- Add command ``Module2`` to configure fallback module on fast reboot (#8464)
+- Add command ``SetOption97 0/1`` to switch between Tuya serial speeds 9600 bps (0) or 115200 bps (1)
+- Add command ``SetOption98 0/1`` to provide rotary rule triggers (1) instead of controlling light (0)
+- Add support for Energy sensor (Denky) for French Smart Metering meter provided by global Energy Providers, need a adaptater. See dedicated full [blog](http://hallard.me/category/tinfo/) about French teleinformation stuff
+- Add library to be used for decoding Teleinfo (French Metering Smart Meter)
+- Add support for single wire LMT01 temperature Sensor by justifiably (#8713)
+- Add compile time interlock parameters (#8759)
+- Add compile time user template (#8766)
+- Add rotary encoder support for light dimmer and optional color temperature if button1 still pressed (#8670)
+- Fix exception or watchdog on rule re-entry (#8757)
+- Change ESP32 USER GPIO template representation decreasing template message size
+- Change define USE_TASMOTA_SLAVE into USE_TASMOTA_CLIENT
+- Change commands ``SlaveSend`` and ``SlaveReset`` into ``ClientSend`` and ``ClientReset``
+- Change IRremoteESP8266 library updated to v2.7.8
+
+### 8.3.1.5 20200616
+
+- Add ESP32 ethernet commands ``EthType 0/1``, ``EthAddress 0..31`` and ``EthClockMode 0..3``
+- Add Zigbee initial support for EmberZNet protocol (raw send/receive only)
+
+### 8.3.1.4 20200615
+
+- Add basic support for ESP32 ethernet adding commands ``Wifi 0/1`` and ``Ethernet 0/1`` both default ON
+
+### 8.3.1.3 20200611
+
+- Add initial support for Telegram bot (#8619)
+- Add support for HP303B Temperature and Pressure sensor by Robert Jaakke (#8638)
+- Add rule trigger ``System#Init`` to allow early rule execution without wifi and mqtt initialized yet
+- Add serial to TCP bridge, ``TCPStart`` and ``TCPBaudRate`` (needs #define USE_TCP_BRIDGE)
 
 ### 8.3.1.2 20200522
 
@@ -28,8 +67,6 @@
 - Add support for VEML6075 UVA/UVB/UVINDEX Sensor by device111 (#8432)
 - Add support for VEML7700 Ambient light intensity Sensor by device111 (#8432)
 
-## Released
-
 ### 8.3.1 20200518
 
 - Release Fred
@@ -45,8 +82,6 @@
 - Change Mutichannel Gas sensor pow function to approximative pow saving 5k of code space
 - Change Quick Power Cycle detection from 4 to 7 power interrupts (#4066)
 - Fix default state of ``SetOption73 0`` for button decoupling and send multi-press and hold MQTT messages
-
-## Released
 
 ### 8.3.0 20200514
 
@@ -131,8 +166,6 @@
 - Add Zigbee command ``ZbUnbind``
 - Add support for unreachable (unplugged) Zigbee devices in Philips Hue emulation and Alexa
 - Add support for 64x48 SSD1306 OLED (#6740)
-
-## Released
 
 ### 8.2.0 20200321
 

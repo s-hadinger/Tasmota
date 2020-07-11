@@ -128,6 +128,7 @@ enum Z_ConvOperators {
   Z_AqaraSensor,        // decode prioprietary Aqara Sensor message
   Z_AqaraVibration,     // decode Aqara vibration modes
   Z_AqaraCube,          // decode Aqara cube
+  Z_BatteryPercentage,  // memorize Battery Percentage in RAM
 };
 
 ZF(ZCLVersion) ZF(AppVersion) ZF(StackVersion) ZF(HWVersion) ZF(Manufacturer) ZF(ModelId)
@@ -230,7 +231,7 @@ const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
   { Zstring,  Cx0000, 0x0006,  Z(DateCode),             1,  Z_Nop },
   { Zenum8,   Cx0000, 0x0007,  Z(PowerSource),          1,  Z_Nop },
   { Zstring,  Cx0000, 0x4000,  Z(SWBuildID),            1,  Z_Nop },
-  { Zunk,     Cx0000, 0xFFFF,  nullptr,                 0,  Z_Nop },    // Remove all other values
+  // { Zunk,     Cx0000, 0xFFFF,  nullptr,                 0,  Z_Nop },    // Remove all other values
   // Cmd 0x0A - Cluster 0x0000, attribute 0xFF01 - proprietary
   { Zmap8,    Cx0000, 0xFF01,  nullptr,                 0,  Z_AqaraSensor },    // Occupancy (map8)
 
@@ -238,7 +239,7 @@ const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
   { Zuint16,  Cx0001, 0x0000,  Z(MainsVoltage),         1,  Z_Nop },
   { Zuint8,   Cx0001, 0x0001,  Z(MainsFrequency),       1,  Z_Nop },
   { Zuint8,   Cx0001, 0x0020,  Z(BatteryVoltage),       -10,Z_Nop },   // divide by 10
-  { Zuint8,   Cx0001, 0x0021,  Z(BatteryPercentage),    -2, Z_Nop },   // divide by 2
+  { Zuint8,   Cx0001, 0x0021,  Z(BatteryPercentage),    -2, Z_BatteryPercentage },   // divide by 2
 
   // Device Temperature Configuration cluster
   { Zint16,   Cx0002, 0x0000,  Z(CurrentTemperature),   1,  Z_Nop },
@@ -594,14 +595,12 @@ public:
   ZCLFrame(uint8_t frame_control, uint16_t manuf_code, uint8_t transact_seq, uint8_t cmd_id,
     const char *buf, size_t buf_len, uint16_t clusterid, uint16_t groupaddr,
     uint16_t srcaddr, uint8_t srcendpoint, uint8_t dstendpoint, uint8_t wasbroadcast,
-    uint8_t linkquality, uint8_t securityuse, uint8_t seqnumber,
-    uint32_t timestamp):
+    uint8_t linkquality, uint8_t securityuse, uint8_t seqnumber):
     _manuf_code(manuf_code), _transact_seq(transact_seq), _cmd_id(cmd_id),
     _payload(buf_len ? buf_len : 250),      // allocate the data frame from source or preallocate big enough
     _cluster_id(clusterid), _groupaddr(groupaddr),
     _srcaddr(srcaddr), _srcendpoint(srcendpoint), _dstendpoint(dstendpoint), _wasbroadcast(wasbroadcast),
-    _linkquality(linkquality), _securityuse(securityuse), _seqnumber(seqnumber),
-    _timestamp(timestamp)
+    _linkquality(linkquality), _securityuse(securityuse), _seqnumber(seqnumber)
     {
       _frame_control.d8 = frame_control;
       _payload.addBuffer(buf, buf_len);
@@ -615,13 +614,11 @@ public:
                     "\"groupid\":%d," "\"clusterid\":%d," "\"srcaddr\":\"0x%04X\","
                     "\"srcendpoint\":%d," "\"dstendpoint\":%d," "\"wasbroadcast\":%d,"
                     "\"" D_CMND_ZIGBEE_LINKQUALITY "\":%d," "\"securityuse\":%d," "\"seqnumber\":%d,"
-                    "\"timestamp\":%d,"
                     "\"fc\":\"0x%02X\",\"manuf\":\"0x%04X\",\"transact\":%d,"
                     "\"cmdid\":\"0x%02X\",\"payload\":\"%s\"}}"),
                     _groupaddr, _cluster_id, _srcaddr,
                     _srcendpoint, _dstendpoint, _wasbroadcast,
                     _linkquality, _securityuse, _seqnumber,
-                    _timestamp,
                     _frame_control, _manuf_code, _transact_seq, _cmd_id,
                     hex_char);
     if (Settings.flag3.tuya_serial_mqtt_publish) {
@@ -634,8 +631,7 @@ public:
 
   static ZCLFrame parseRawFrame(const SBuffer &buf, uint8_t offset, uint8_t len, uint16_t clusterid, uint16_t groupid,
                                 uint16_t srcaddr, uint8_t srcendpoint, uint8_t dstendpoint, uint8_t wasbroadcast,
-                                uint8_t linkquality, uint8_t securityuse, uint8_t seqnumber,
-                                uint32_t timestamp) { // parse a raw frame and build the ZCL frame object
+                                uint8_t linkquality, uint8_t securityuse, uint8_t seqnumber) { // parse a raw frame and build the ZCL frame object
     uint32_t i = offset;
     ZCLHeaderFrameControl_t frame_control;
     uint16_t manuf_code = 0;
@@ -653,8 +649,7 @@ public:
                        (const char *)(buf.buf() + i), len + offset - i,
                        clusterid, groupid,
                        srcaddr, srcendpoint, dstendpoint, wasbroadcast,
-                       linkquality, securityuse, seqnumber,
-                       timestamp);
+                       linkquality, securityuse, seqnumber);
     return zcl_frame;
   }
 
@@ -678,17 +673,12 @@ public:
     _cluster_id = clusterid;
   }
 
-  inline uint8_t getCmdId(void) const {
-    return _cmd_id;
-  }
-
-  inline uint16_t getClusterId(void) const {
-    return _cluster_id;
-  }
-
-  inline uint16_t getSrcEndpoint(void) const {
-    return _srcendpoint;
-  }
+  inline uint16_t getSrcAddr(void) const { return _srcaddr; }
+  inline uint16_t getGroupAddr(void) const { return _groupaddr; }
+  inline uint16_t getClusterId(void) const { return _cluster_id; }
+  inline uint8_t  getLinkQuality(void) const { return _linkquality; }
+  inline uint8_t getCmdId(void) const { return _cmd_id; }
+  inline uint16_t getSrcEndpoint(void) const { return _srcendpoint; }
 
   const SBuffer &getPayload(void) const {
     return _payload;
@@ -697,6 +687,7 @@ public:
   uint16_t getManufCode(void) const {
     return _manuf_code;
   }
+
 
 private:
   ZCLHeaderFrameControl_t _frame_control = { .d8 = 0 };
@@ -714,7 +705,6 @@ private:
   uint8_t                 _linkquality;
   uint8_t                 _securityuse;
   uint8_t                 _seqnumber;
-  uint32_t                _timestamp;
 };
 
 // Zigbee ZCL converters
@@ -1176,14 +1166,17 @@ void ZCLFrame::parseClusterSpecificCommand(JsonObject& json, uint8_t offset) {
 // ======================================================================
 // Record Manuf
 int32_t Z_ManufKeepFunc(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const String &new_name, uint16_t cluster, uint16_t attr) {
-  json[new_name] = value;
   zigbee_devices.setManufId(shortaddr, value.as<const char*>());
   return 1;
 }
-//
+// Record ModelId
 int32_t Z_ModelKeepFunc(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const String &new_name, uint16_t cluster, uint16_t attr) {
-  json[new_name] = value;
   zigbee_devices.setModelId(shortaddr, value.as<const char*>());
+  return 1;
+}
+// Record BatteryPercentage
+int32_t Z_BatteryPercentageKeepFunc(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const String &new_name, uint16_t cluster, uint16_t attr) {
+  zigbee_devices.setBatteryPercent(shortaddr, json[new_name]);
   return 1;
 }
 
@@ -1191,22 +1184,6 @@ int32_t Z_ModelKeepFunc(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObjec
 int32_t Z_AddPressureUnitFunc(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const String &new_name, uint16_t cluster, uint16_t attr) {
   json[new_name] = F(D_UNIT_PRESSURE);
   return 0;   // keep original key
-}
-
-// Convert int to float and divide by 100
-int32_t Z_FloatDiv100Func(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const String &new_name, uint16_t cluster, uint16_t attr) {
-  json[new_name] = ((float)value) / 100.0f;
-  return 1;   // remove original key
-}
-// Convert int to float and divide by 10
-int32_t Z_FloatDiv10Func(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const String &new_name, uint16_t cluster, uint16_t attr) {
-  json[new_name] = ((float)value) / 10.0f;
-  return 1;   // remove original key
-}
-// Convert int to float and divide by 10
-int32_t Z_FloatDiv2Func(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const String &new_name, uint16_t cluster, uint16_t attr) {
-  json[new_name] = ((float)value) / 2.0f;
-  return 1;   // remove original key
 }
 
 // Publish a message for `"Occupancy":0` when the timer expired
@@ -1219,39 +1196,43 @@ int32_t Z_OccupancyCallback(uint16_t shortaddr, uint16_t groupaddr, uint16_t clu
 
 // Aqara Cube
 int32_t Z_AqaraCubeFunc(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const String &new_name, uint16_t cluster, uint16_t attr) {
-  json[new_name] = value;   // copy the original value
-  int32_t val = value;
-  const __FlashStringHelper *aqara_cube = F("AqaraCube");
-  const __FlashStringHelper *aqara_cube_side = F("AqaraCubeSide");
-  const __FlashStringHelper *aqara_cube_from_side = F("AqaraCubeFromSide");
+  const char * modelId_c = zigbee_devices.getModelId(shortaddr);  // null if unknown
+  String modelId((char*) modelId_c);
 
-  switch (val) {
-    case 0:
-      json[aqara_cube] = F("shake");
-      break;
-    case 2:
-      json[aqara_cube] = F("wakeup");
-      break;
-    case 3:
-      json[aqara_cube] = F("fall");
-      break;
-    case 64 ... 127:
-      json[aqara_cube] = F("flip90");
-      json[aqara_cube_side] = val % 8;
-      json[aqara_cube_from_side] = (val - 64) / 8;
-      break;
-    case 128 ... 132:
-      json[aqara_cube] = F("flip180");
-      json[aqara_cube_side] = val - 128;
-      break;
-    case 256 ... 261:
-      json[aqara_cube] = F("slide");
-      json[aqara_cube_side] = val - 256;
-      break;
-    case 512 ... 517:
-      json[aqara_cube] = F("tap");
-      json[aqara_cube_side] = val - 512;
-      break;
+  if (modelId.startsWith(F("lumi.sensor_cube"))) {   // only for Aqara cube
+    int32_t val = value;
+    const __FlashStringHelper *aqara_cube = F("AqaraCube");
+    const __FlashStringHelper *aqara_cube_side = F("AqaraCubeSide");
+    const __FlashStringHelper *aqara_cube_from_side = F("AqaraCubeFromSide");
+
+    switch (val) {
+      case 0:
+        json[aqara_cube] = F("shake");
+        break;
+      case 2:
+        json[aqara_cube] = F("wakeup");
+        break;
+      case 3:
+        json[aqara_cube] = F("fall");
+        break;
+      case 64 ... 127:
+        json[aqara_cube] = F("flip90");
+        json[aqara_cube_side] = val % 8;
+        json[aqara_cube_from_side] = (val - 64) / 8;
+        break;
+      case 128 ... 132:
+        json[aqara_cube] = F("flip180");
+        json[aqara_cube_side] = val - 128;
+        break;
+      case 256 ... 261:
+        json[aqara_cube] = F("slide");
+        json[aqara_cube_side] = val - 256;
+        break;
+      case 512 ... 517:
+        json[aqara_cube] = F("tap");
+        json[aqara_cube_side] = val - 512;
+        break;
+    }
   }
 
   //     Source: https://github.com/kirovilya/ioBroker.zigbee
@@ -1347,7 +1328,13 @@ int32_t Z_AqaraSensorFunc(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObj
     json.remove(tmp);
     bool translated = false;    // were we able to translate to a known format?
     if (0x01 == attrid) {
-      json[F(D_JSON_VOLTAGE)] = val / 1000.0f;
+      float batteryvoltage = val / 1000.0f;
+      json[F("BatteryVoltage")] = batteryvoltage;
+      uint8_t batterypercentage = toPercentageCR2032(val);
+      json[F("BatteryPercentage")] = batterypercentage;
+      zigbee_devices.setBatteryPercent(shortaddr, batterypercentage);
+      // deprecated
+      json[F(D_JSON_VOLTAGE)] = batteryvoltage;
       json[F("Battery")] = toPercentageCR2032(val);
     } else if ((nullptr != modelId) && (0 == zcl->getManufCode())) {
       translated = true;
@@ -1424,6 +1411,9 @@ int32_t Z_ApplyConverter(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObje
       break;
     case Z_AqaraCube:
       func = &Z_AqaraCubeFunc;
+      break;
+    case Z_BatteryPercentage:
+      func = &Z_BatteryPercentageKeepFunc;
       break;
   };
 

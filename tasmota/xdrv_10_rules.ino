@@ -165,9 +165,10 @@ struct RULES {
   long old_dimm = -1;
 
   uint16_t last_minute = 60;
-  uint16_t vars_event = 0;
-  uint8_t mems_event = 0;
+  uint16_t vars_event = 0;   // Bitmask supporting MAX_RULE_VARS bits
+  uint16_t mems_event = 0;   // Bitmask supporting MAX_RULE_MEMS bits
   bool teleperiod = false;
+  bool busy = false;
 
   char event_data[100];
 } Rules;
@@ -564,7 +565,6 @@ bool RulesRuleMatch(uint8_t rule_set, String &event, String &rule)
 
 //AddLog_P2(LOG_LEVEL_DEBUG, PSTR("RUL: Match 1 %d"), match);
 
-
   if (bitRead(Settings.rule_once, rule_set)) {
     if (match) {                                       // Only allow match state changes
       if (!bitRead(Rules.triggers[rule_set], Rules.trigger_count[rule_set])) {
@@ -711,7 +711,7 @@ bool RuleSetProcess(uint8_t rule_set, String &event_saved)
       RulesVarReplace(commands, F("%UTCTIME%"), String(UtcTime()));
       RulesVarReplace(commands, F("%UPTIME%"), String(MinutesUptime()));
       RulesVarReplace(commands, F("%TIMESTAMP%"), GetDateAndTime(DT_LOCAL));
-      RulesVarReplace(commands, F("%TOPIC%"), SettingsText(SET_MQTT_TOPIC));
+      RulesVarReplace(commands, F("%TOPIC%"), mqtt_topic);
 #if defined(USE_TIMERS) && defined(USE_SUNRISE)
       RulesVarReplace(commands, F("%SUNRISE%"), String(SunMinutes(0)));
       RulesVarReplace(commands, F("%SUNSET%"), String(SunMinutes(1)));
@@ -749,6 +749,9 @@ bool RuleSetProcess(uint8_t rule_set, String &event_saved)
 
 bool RulesProcessEvent(char *json_event)
 {
+  if (Rules.busy) { return false; }
+
+  Rules.busy = true;
   bool serviced = false;
 
 #ifdef USE_DEBUG_DRIVER
@@ -774,6 +777,9 @@ bool RulesProcessEvent(char *json_event)
       if (RuleSetProcess(i, event_saved)) { serviced = true; }
     }
   }
+
+  Rules.busy = false;
+
   return serviced;
 }
 
@@ -796,7 +802,7 @@ void RulesInit(void)
 
 void RulesEvery50ms(void)
 {
-  if (Settings.rule_enabled) {  // Any rule enabled
+  if (Settings.rule_enabled && !Rules.busy) {  // Any rule enabled
     char json_event[120];
 
     if (-1 == Rules.new_power) { Rules.new_power = power; }
@@ -887,17 +893,18 @@ void RulesEvery50ms(void)
           rules_flag.data ^= mask;
           json_event[0] = '\0';
           switch (i) {
-            case 0: strncpy_P(json_event, PSTR("{\"System\":{\"Boot\":1}}"), sizeof(json_event)); break;
-            case 1: snprintf_P(json_event, sizeof(json_event), PSTR("{\"Time\":{\"Initialized\":%d}}"), MinutesPastMidnight()); break;
-            case 2: snprintf_P(json_event, sizeof(json_event), PSTR("{\"Time\":{\"Set\":%d}}"), MinutesPastMidnight()); break;
-            case 3: strncpy_P(json_event, PSTR("{\"MQTT\":{\"Connected\":1}}"), sizeof(json_event)); break;
-            case 4: strncpy_P(json_event, PSTR("{\"MQTT\":{\"Disconnected\":1}}"), sizeof(json_event)); break;
-            case 5: strncpy_P(json_event, PSTR("{\"WIFI\":{\"Connected\":1}}"), sizeof(json_event)); break;
-            case 6: strncpy_P(json_event, PSTR("{\"WIFI\":{\"Disconnected\":1}}"), sizeof(json_event)); break;
-            case 7: strncpy_P(json_event, PSTR("{\"HTTP\":{\"Initialized\":1}}"), sizeof(json_event)); break;
+            case 0: strncpy_P(json_event, PSTR("{\"System\":{\"Init\":1}}"), sizeof(json_event)); break;
+            case 1: strncpy_P(json_event, PSTR("{\"System\":{\"Boot\":1}}"), sizeof(json_event)); break;
+            case 2: snprintf_P(json_event, sizeof(json_event), PSTR("{\"Time\":{\"Initialized\":%d}}"), MinutesPastMidnight()); break;
+            case 3: snprintf_P(json_event, sizeof(json_event), PSTR("{\"Time\":{\"Set\":%d}}"), MinutesPastMidnight()); break;
+            case 4: strncpy_P(json_event, PSTR("{\"MQTT\":{\"Connected\":1}}"), sizeof(json_event)); break;
+            case 5: strncpy_P(json_event, PSTR("{\"MQTT\":{\"Disconnected\":1}}"), sizeof(json_event)); break;
+            case 6: strncpy_P(json_event, PSTR("{\"WIFI\":{\"Connected\":1}}"), sizeof(json_event)); break;
+            case 7: strncpy_P(json_event, PSTR("{\"WIFI\":{\"Disconnected\":1}}"), sizeof(json_event)); break;
+            case 8: strncpy_P(json_event, PSTR("{\"HTTP\":{\"Initialized\":1}}"), sizeof(json_event)); break;
 #ifdef USE_SHUTTER
-            case 8: strncpy_P(json_event, PSTR("{\"SHUTTER\":{\"Moved\":1}}"), sizeof(json_event)); break;
-            case 9: strncpy_P(json_event, PSTR("{\"SHUTTER\":{\"Moving\":1}}"), sizeof(json_event)); break;
+            case 9: strncpy_P(json_event, PSTR("{\"SHUTTER\":{\"Moved\":1}}"), sizeof(json_event)); break;
+            case 10: strncpy_P(json_event, PSTR("{\"SHUTTER\":{\"Moving\":1}}"), sizeof(json_event)); break;
 #endif  // USE_SHUTTER
           }
           if (json_event[0]) {
@@ -915,7 +922,7 @@ uint8_t rules_xsns_index = 0;
 
 void RulesEvery100ms(void)
 {
-  if (Settings.rule_enabled && (uptime > 4)) {  // Any rule enabled and allow 4 seconds start-up time for sensors (#3811)
+  if (Settings.rule_enabled && !Rules.busy && (uptime > 4)) {  // Any rule enabled and allow 4 seconds start-up time for sensors (#3811)
     mqtt_data[0] = '\0';
     int tele_period_save = tele_period;
     tele_period = 2;                                   // Do not allow HA updates during next function call
@@ -924,14 +931,14 @@ void RulesEvery100ms(void)
     if (strlen(mqtt_data)) {
       mqtt_data[0] = '{';                              // {"INA219":{"Voltage":4.494,"Current":0.020,"Power":0.089}
       ResponseJsonEnd();
-      RulesProcess();
+      RulesProcessEvent(mqtt_data);
     }
   }
 }
 
 void RulesEverySecond(void)
 {
-  if (Settings.rule_enabled) {  // Any rule enabled
+  if (Settings.rule_enabled && !Rules.busy) {  // Any rule enabled
     char json_event[120];
 
     if (RtcTime.valid) {
@@ -955,7 +962,7 @@ void RulesEverySecond(void)
 
 void RulesSaveBeforeRestart(void)
 {
-  if (Settings.rule_enabled) {  // Any rule enabled
+  if (Settings.rule_enabled && !Rules.busy) {  // Any rule enabled
     char json_event[32];
 
     strncpy_P(json_event, PSTR("{\"System\":{\"Save\":1}}"), sizeof(json_event));

@@ -49,6 +49,7 @@
 #define SPECIAL_SS
 #endif
 
+#undef TMSBSIZ
 #define TMSBSIZ 256
 
 // addresses a bug in meter DWS74
@@ -957,6 +958,9 @@ double dval;
   if (*cp==0x64 && *cpx==0 && *(cpx+1)==0x01 && *(cpx+2)==0x08 && *(cpx+3)==0) {
       sml_status[g_mindex]=*(cp+3);
   }
+  if (*cp==0x63 && *cpx==0 && *(cpx+1)==0x01 && *(cpx+2)==0x08 && *(cpx+3)==0) {
+      sml_status[g_mindex]=*(cp+2);
+  }
 #endif
 
   cp=skip_sml(cp,&result);
@@ -1785,6 +1789,7 @@ struct SML_COUNTER {
   uint32_t sml_cnt_last_ts;
   uint32_t sml_counter_ltime;
   uint16_t sml_debounce;
+  uint8_t sml_cnt_updated;
 
 #ifdef ANALOG_OPTO_SENSOR
   int16_t ana_curr;
@@ -1813,7 +1818,8 @@ void SML_CounterUpd(uint8_t index) {
     sml_counters[index].sml_counter_ltime=millis();
     if (ltime>sml_counters[index].sml_debounce) {
       RtcSettings.pulse_counter[index]++;
-      InjektCounterValue(sml_counters[index].sml_cnt_old_state,RtcSettings.pulse_counter[index]);
+      sml_counters[index].sml_cnt_updated=1;
+      //InjektCounterValue(sml_counters[index].sml_cnt_old_state,RtcSettings.pulse_counter[index]);
     }
   } else {
     // rising edge
@@ -2194,11 +2200,7 @@ uint32_t SML_SetBaud(uint32_t meter, uint32_t br) {
 
 #ifdef ESP32
   meter_ss[meter]->flush();
-  if (meter_desc_p[meter].type=='M') {
-    meter_ss[meter]->begin(br,SERIAL_8E1,meter_desc_p[meter].srcpin,meter_desc_p[meter].trxpin);
-  } else {
-    meter_ss[meter]->begin(br,SERIAL_8N1,meter_desc_p[meter].srcpin,meter_desc_p[meter].trxpin);
-  }
+  meter_ss[meter]->updateBaudRate(br);
 #else
   if (meter_ss[meter]->begin(br)) {
     meter_ss[meter]->flush();
@@ -2310,6 +2312,13 @@ uint32_t ctime=millis();
           if (cindex==1) SetDBGLed(meter_desc_p[meters].srcpin,DEBUG_CNT_LED2);
 #endif
         }
+
+        if (sml_counters[cindex].sml_cnt_updated) {
+          InjektCounterValue(sml_counters[cindex].sml_cnt_old_state,RtcSettings.pulse_counter[cindex]);
+          sml_counters[cindex].sml_cnt_updated=0;
+        }
+
+
       }
       cindex++;
     }
@@ -2405,12 +2414,13 @@ void SML_Send_Seq(uint32_t meter,char *seq) {
     if (!rflg) {
       *ucp++=0;
       *ucp++=2;
+      slen+=2;
     }
     // append crc
-    uint16_t crc = MBUS_calculateCRC(sbuff,6);
+    uint16_t crc = MBUS_calculateCRC(sbuff,slen);
     *ucp++=lowByte(crc);
     *ucp++=highByte(crc);
-    slen+=4;
+    slen+=2;
   }
   if (script_meter_desc[meter].type=='o') {
     for (uint32_t cnt=0;cnt<slen;cnt++) {
