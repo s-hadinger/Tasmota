@@ -239,6 +239,8 @@ enum UserSelectablePins {
   GPIO_TELEINFO_RX,    // TELEINFO serial interface
   GPIO_TELEINFO_ENABLE,// TELEINFO Enable PIN
   GPIO_LMT01,          // LMT01 input counting pin
+  GPIO_IEM3000_TX,     // IEM3000 Serial interface
+  GPIO_IEM3000_RX,     // IEM3000 Serial interface
   GPIO_SENSOR_END };
 
 // Programmer selectable GPIO functionality
@@ -332,7 +334,8 @@ const char kSensorNames[] PROGMEM =
   D_SENSOR_BL0940_RX "|"
   D_SENSOR_TCP_TXD "|" D_SENSOR_TCP_RXD "|"
   D_SENSOR_TELEINFO_RX "|" D_SENSOR_TELEINFO_ENABLE "|"
-  D_SENSOR_LMT01_PULSE
+  D_SENSOR_LMT01_PULSE "|"
+  D_SENSOR_IEM3000_TX "|" D_SENSOR_IEM3000_RX
   ;
 
 const char kSensorNamesFixed[] PROGMEM =
@@ -373,6 +376,12 @@ const uint8_t kGpioNiceList[] PROGMEM = {
   GPIO_SWT7_NP,
   GPIO_SWT8,
   GPIO_SWT8_NP,
+#ifdef ROTARY_V1
+  GPIO_ROT1A,          // Rotary switch1 A Pin
+  GPIO_ROT1B,          // Rotary switch1 B Pin
+  GPIO_ROT2A,          // Rotary switch2 A Pin
+  GPIO_ROT2B,          // Rotary switch2 B Pin
+#endif
   GPIO_REL1,           // Relays
   GPIO_REL1_INV,
   GPIO_REL2,
@@ -578,6 +587,10 @@ const uint8_t kGpioNiceList[] PROGMEM = {
 #ifdef USE_BL0940
   GPIO_BL0940_RX,     // BL0940 Serial interface
 #endif
+#ifdef USE_IEM3000
+  GPIO_IEM3000_TX,    // IEM3000 Serial interface
+  GPIO_IEM3000_RX,    // IEM3000 Serial interface
+#endif
 #endif  // USE_ENERGY_SENSOR
 
 // Serial
@@ -664,12 +677,6 @@ const uint8_t kGpioNiceList[] PROGMEM = {
   GPIO_MAX31855CS,     // MAX31855 Serial interface
   GPIO_MAX31855CLK,    // MAX31855 Serial interface
   GPIO_MAX31855DO,     // MAX31855 Serial interface
-#endif
-#ifdef ROTARY_V1
-  GPIO_ROT1A,          // Rotary switch1 A Pin
-  GPIO_ROT1B,          // Rotary switch1 B Pin
-  GPIO_ROT2A,          // Rotary switch2 A Pin
-  GPIO_ROT2B,          // Rotary switch2 B Pin
 #endif
 #ifdef USE_HRE
   GPIO_HRE_CLOCK,

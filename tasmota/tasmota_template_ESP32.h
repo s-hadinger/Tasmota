@@ -88,7 +88,10 @@ enum UserSelectablePins {
   GPIO_CSE7766_TX, GPIO_CSE7766_RX,    // CSE7766 Serial interface (S31 and Pow R2)
   GPIO_ARIRFRCV, GPIO_ARIRFSEL,        // Arilux RF Receive input
   GPIO_TXD, GPIO_RXD,                  // Serial interface
-  GPIO_ROT1A, GPIO_ROT1B, GPIO_ROT2A, GPIO_ROT2B,  // Rotary switch
+  GPIO_ROT1A, GPIO_ROT1B,              // Rotary switch
+
+  GPIO_SPARE1, GPIO_SPARE2,            // Spare GPIOs
+
   GPIO_HRE_CLOCK, GPIO_HRE_DATA,       // HR-E Water Meter
   GPIO_ADE7953_IRQ,                    // ADE7953 IRQ
   GPIO_SOLAXX1_TX, GPIO_SOLAXX1_RX,    // Solax Inverter Serial interface
@@ -134,6 +137,7 @@ enum UserSelectablePins {
   GPIO_TELEINFO_RX,                    // Teleinfo telemetry data receive pin
   GPIO_TELEINFO_ENABLE,                // Teleinfo Enable Receive Pin
   GPIO_LMT01,                          // LMT01 input counting pin
+  GPIO_IEM3000_TX, GPIO_IEM3000_RX,    // IEM3000 Serial interface
   GPIO_SENSOR_END };
 
 enum ProgramSelectablePins {
@@ -188,7 +192,10 @@ const char kSensorNames[] PROGMEM =
   D_SENSOR_CSE7766_TX "|" D_SENSOR_CSE7766_RX "|"
   D_SENSOR_ARIRFRCV "|" D_SENSOR_ARIRFSEL "|"
   D_SENSOR_TXD "|" D_SENSOR_RXD "|"
-  D_SENSOR_ROTARY "_1a|" D_SENSOR_ROTARY "_1b|" D_SENSOR_ROTARY "_2a|" D_SENSOR_ROTARY "_2b|"
+  D_SENSOR_ROTARY "_a|" D_SENSOR_ROTARY "_b|"
+
+  "Spare1|Spare2|"
+
   D_SENSOR_HRE_CLOCK "|" D_SENSOR_HRE_DATA "|"
   D_SENSOR_ADE7953_IRQ "|"
   D_SENSOR_SOLAXX1_TX "|" D_SENSOR_SOLAXX1_RX "|"
@@ -227,7 +234,8 @@ const char kSensorNames[] PROGMEM =
   D_SENSOR_TCP_TXD "|" D_SENSOR_TCP_RXD "|"
   D_SENSOR_ETH_PHY_POWER "|" D_SENSOR_ETH_PHY_MDC "|" D_SENSOR_ETH_PHY_MDIO "|"
   D_SENSOR_TELEINFO_RX "|" D_SENSOR_TELEINFO_ENABLE "|"
-  D_SENSOR_LMT01_PULSE
+  D_SENSOR_LMT01_PULSE "|"
+  D_SENSOR_IEM3000_TX "|" D_SENSOR_IEM3000_RX
   ;
 
 const char kSensorNamesFixed[] PROGMEM =
@@ -245,6 +253,10 @@ const uint16_t kGpioNiceList[] PROGMEM = {
   AGPIO(GPIO_KEY1_TC) + MAX_KEYS,       // Touch button
   AGPIO(GPIO_SWT1) + MAX_SWITCHES,      // User connected external switches
   AGPIO(GPIO_SWT1_NP) + MAX_SWITCHES,
+#ifdef ROTARY_V1
+  AGPIO(GPIO_ROT1A) + MAX_ROTARIES,     // Rotary A Pin
+  AGPIO(GPIO_ROT1B) + MAX_ROTARIES,     // Rotary B Pin
+#endif
   AGPIO(GPIO_REL1) + MAX_RELAYS,        // Relays
   AGPIO(GPIO_REL1_INV) + MAX_RELAYS,
   AGPIO(GPIO_LED1) + MAX_LEDS,          // Leds
@@ -421,6 +433,10 @@ const uint16_t kGpioNiceList[] PROGMEM = {
 #ifdef USE_BL0940
   AGPIO(GPIO_BL0940_RX),     // BL0940 Serial interface
 #endif
+#ifdef USE_IEM3000
+  AGPIO(GPIO_IEM3000_TX),    // IEM3000 Serial interface
+  AGPIO(GPIO_IEM3000_RX),    // IEM3000 Serial interface
+#endif
 #endif  // USE_ENERGY_SENSOR
 
 // Serial
@@ -507,12 +523,6 @@ const uint16_t kGpioNiceList[] PROGMEM = {
   AGPIO(GPIO_MAX31855CS),     // MAX31855 Serial interface
   AGPIO(GPIO_MAX31855CLK),    // MAX31855 Serial interface
   AGPIO(GPIO_MAX31855DO),     // MAX31855 Serial interface
-#endif
-#ifdef ROTARY_V1
-  AGPIO(GPIO_ROT1A),          // Rotary switch1 A Pin
-  AGPIO(GPIO_ROT1B),          // Rotary switch1 B Pin
-  AGPIO(GPIO_ROT2A),          // Rotary switch2 A Pin
-  AGPIO(GPIO_ROT2B),          // Rotary switch2 B Pin
 #endif
 #ifdef USE_HRE
   AGPIO(GPIO_HRE_CLOCK),

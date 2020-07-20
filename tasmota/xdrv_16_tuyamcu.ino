@@ -21,7 +21,7 @@
 #ifdef USE_TUYA_MCU
 
 #define XDRV_16                16
-#define XNRG_16                16   // Needs to be the last XNRG_xx
+#define XNRG_32                32   // Needs to be the last XNRG_xx
 
 #ifndef TUYA_DIMMER_ID
 #define TUYA_DIMMER_ID         0
@@ -455,7 +455,7 @@ void TuyaProcessStatePacket(void) {
 
       }
       else if (Tuya.buffer[dpidStart + 1] == 2) {  // Data Type 2
-        bool tuya_energy_enabled = (XNRG_16 == energy_flg);
+        bool tuya_energy_enabled = (XNRG_32 == energy_flg);
         uint16_t packetValue = Tuya.buffer[dpidStart + 6] << 8 | Tuya.buffer[dpidStart + 7];
         if (fnId == TUYA_MCU_FUNC_DIMMER) {
           AddLog_P2(LOG_LEVEL_DEBUG, PSTR("TYA: RX Dim State=%d"), packetValue);
@@ -540,9 +540,6 @@ void TuyaNormalPowerModePacketProcess(void)
       if (Tuya.buffer[6] == 0) {
         AddLog_P(LOG_LEVEL_DEBUG, PSTR("TYA: Detected MCU restart"));
         Tuya.wifi_state = -2;
-        #ifdef USE_TUYA_TIME
-        TuyaSetTime();
-        #endif
       }
       break;
 
@@ -805,8 +802,9 @@ void TuyaSetWifiLed(void)
 }
 
 #ifdef USE_TUYA_TIME
-void TuyaSetTime(void)
-{
+void TuyaSetTime(void) {
+  if (!RtcTime.valid) { return; }
+
   uint16_t payload_len = 8;
   uint8_t payload_buffer[8];
   payload_buffer[0] = 0x01;
@@ -827,7 +825,7 @@ void TuyaSetTime(void)
  * Energy Interface
 \*********************************************************************************************/
 
-bool Xnrg16(uint8_t function)
+bool Xnrg32(uint8_t function)
 {
   bool result = false;
 
@@ -840,7 +838,7 @@ bool Xnrg16(uint8_t function)
         if (TuyaGetDpId(TUYA_MCU_FUNC_VOLTAGE) == 0) {
           Energy.voltage_available = false;
         }
-        energy_flg = XNRG_16;
+        energy_flg = XNRG_32;
       }
     }
   }
@@ -881,8 +879,13 @@ bool Xdrv16(uint8_t function)
             Tuya.heartbeat_timer = 0;
             TuyaSendCmd(TUYA_CMD_HEARTBEAT);
           }
+#ifdef USE_TUYA_TIME
+          if (!(uptime % 60)) {
+            TuyaSetTime();
+          }
+#endif  //USE_TUYA_TIME
         } else {
-            TuyaSendLowPowerSuccessIfNeeded();
+          TuyaSendLowPowerSuccessIfNeeded();
         }
         break;
       case FUNC_SET_CHANNELS:
