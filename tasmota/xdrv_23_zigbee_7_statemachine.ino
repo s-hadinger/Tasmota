@@ -872,7 +872,8 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     ZI_WAIT_RECV(1500, ZBR_NETWORK_UP)    // wait for network to start
     // check if configuration is ok
     ZI_SEND(ZBS_GET_CURR_SEC)           ZI_WAIT_RECV(500, ZBR_GET_CURR_SEC)
-    ZI_SEND(ZBS_GET_NETW_PARM)          ZI_WAIT_RECV(500, ZBR_CHECK_NETW_PARM)
+    ZI_SEND(ZBS_GET_NETW_PARM)          ZI_WAIT_RECV_FUNC(500, ZBR_CHECK_NETW_PARM, &EZ_NetworkParameters)
+
     // all ok, proceed to next step
     ZI_GOTO(ZIGBEE_LABEL_NETWORK_CONFIGURED)
 
@@ -896,7 +897,6 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     // Query device information
     ZI_SEND(ZBS_GET_EUI64)              ZI_WAIT_RECV_FUNC(500, ZBR_GET_EUI64, &EZ_GetEUI64)
     ZI_SEND(ZBS_GET_NODEID)             ZI_WAIT_RECV_FUNC(500, ZBR_GET_NODEID, &EZ_GetNodeId)
-    ZI_SEND(ZBS_GET_NETW_PARM)          ZI_WAIT_RECV_FUNC(500, ZBR_GET_NETW_PARM, &EZ_NetworkParameters)
 
   ZI_LABEL(ZIGBEE_LABEL_READY)
     ZI_MQTT_STATE(ZIGBEE_STATUS_OK, kStarted)
