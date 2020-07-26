@@ -760,18 +760,20 @@ void CmndZbUnbind(void) {
 
 //
 // Command `ZbBindState`
+// `ZbBindState<x>` as index if it does not fit. If default, `1` starts at the beginning
 //
 void CmndZbBindState(void) {
   if (zigbee.init_phase) { ResponseCmndChar_P(PSTR(D_ZIGBEE_NOT_STARTED)); return; }
   uint16_t shortaddr = zigbee_devices.parseDeviceParam(XdrvMailbox.data);
   if (BAD_SHORTADDR == shortaddr) { ResponseCmndChar_P(PSTR("Unknown device")); return; }
+  uint8_t index = XdrvMailbox.index - 1;   // change default 1 to 0
 
 #ifdef USE_ZIGBEE_ZNP
   SBuffer buf(10);
   buf.add8(Z_SREQ | Z_ZDO);             // 25
   buf.add8(ZDO_MGMT_BIND_REQ);          // 33
   buf.add16(shortaddr);                 // shortaddr
-  buf.add8(0);                          // StartIndex = 0
+  buf.add8(index);                      // StartIndex = 0
 
   ZigbeeZNPSend(buf.getBuffer(), buf.len());
 #endif // USE_ZIGBEE_ZNP
@@ -779,7 +781,7 @@ void CmndZbBindState(void) {
 
 #ifdef USE_ZIGBEE_EZSP
   // ZDO message payload (see Zigbee spec 2.4.3.3.4)
-  uint8_t buf[] = { 0x00 };           // index = 0
+  uint8_t buf[] = { index };           // index = 0
 
   EZ_SendZDO(shortaddr, ZDO_Mgmt_Bind_req, buf, sizeof(buf));
 #endif // USE_ZIGBEE_EZSP
