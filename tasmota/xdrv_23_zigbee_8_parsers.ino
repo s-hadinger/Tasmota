@@ -124,7 +124,7 @@ int32_t EZ_RouteError(int32_t res, const class SBuffer &buf) {
 
   Response_P(PSTR("{\"" D_JSON_ZIGBEE_ROUTE_ERROR "\":{"
                   "\"ShortAddr\":\"0x%04X\",\"" D_JSON_ZIGBEE_STATUS "\":%d,\"" D_JSON_ZIGBEE_STATUS_MSG "\":\"0x%s\"}}"),
-                  shortaddr, status, "");
+                  shortaddr, status, getEmberStatus(status).c_str());
 
   MqttPublishPrefixTopicRulesProcess_P(RESULT_OR_TELE, PSTR(D_JSON_ZIGBEE_STATE));
 
