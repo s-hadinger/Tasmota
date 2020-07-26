@@ -58,11 +58,20 @@ void ZigbeeInit(void)
 {
   // Check if settings in Flash are set
   if (0 == Settings.zb_channel) {
-    AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "Initializing Zigbee parameters from defaults"));
-    Settings.zb_ext_panid = USE_ZIGBEE_EXTPANID;
-    Settings.zb_precfgkey_l = USE_ZIGBEE_PRECFGKEY_L;
-    Settings.zb_precfgkey_h = USE_ZIGBEE_PRECFGKEY_H;
-    Settings.zb_pan_id = USE_ZIGBEE_PANID;
+    AddLog_P2(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "Randomizing Zigbee parameters, please check with 'ZbConfig'"));
+    uint64_t mac64 = 0;     // stuff mac address into 64 bits
+    WiFi.macAddress((uint8_t*) &mac64);
+    uint32_t esp_id = ESP.getChipId();
+    uint32_t flash_id = ESP.getFlashChipId();
+
+    uint16_t  pan_id = (mac64 & 0x3FFF);
+    if (0x0000 == pan_id) { pan_id = 0x0001; }    // avoid extreme values
+    if (0x3FFF == pan_id) { pan_id = 0x3FFE; }    // avoid extreme values
+    Settings.zb_pan_id = pan_id;
+
+    Settings.zb_ext_panid = 0xCCCCCCCC00000000L | (mac64 & 0x00000000FFFFFFFFL);
+    Settings.zb_precfgkey_l = (mac64 << 32) | (esp_id << 16) | flash_id;
+    Settings.zb_precfgkey_h = (mac64 << 32) | (esp_id << 16) | flash_id;
     Settings.zb_channel = USE_ZIGBEE_CHANNEL;
     Settings.zb_txradio_dbm = USE_ZIGBEE_TXRADIO_DBM;
   }
