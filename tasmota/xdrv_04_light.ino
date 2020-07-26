@@ -2782,20 +2782,36 @@ void CmndDimmer(void)
   // Dimmer3 0..100 - Change both RGB and W(W) Dimmers with no fading
   // Dimmer<x> +    - Incerement Dimmer in steps of 10
   // Dimmer<x> -    - Decrement Dimmer in steps of 10
+  // 
+  // or if `SetOption68 1`, Dimmer is an alternative to `Channel<x>``
+  // Dimmer<x>      - Show the channel value (0..100), <x> starts at 1 even if there are Relays, unlike Channel
+  // Dimmer<x>
   uint32_t dimmer;
-  if (XdrvMailbox.index == 3) {
-    skip_light_fade = true;
-    XdrvMailbox.index = 0;
-  }
-  else if (XdrvMailbox.index > 2) {
-    XdrvMailbox.index = 1;
+
+  // Check parameters
+  if (Light.pwm_multi_channels) {
+    if (XdrvMailbox.index > Light.subtype) { return; }    // out of bounds
+  } else {
+    if (XdrvMailbox.index == 3) {
+      skip_light_fade = true;
+      XdrvMailbox.index = 0;
+    }
+    else if (XdrvMailbox.index > 2) {
+      XdrvMailbox.index = 1;
+    }
   }
 
-  if ((light_controller.isCTRGBLinked()) || (0 == XdrvMailbox.index)) {
-    dimmer = light_state.getDimmer();
+  // read the current value of the dimmer
+  if (Light.pwm_multi_channels) {
+    dimmer = changeUIntScale(Light.current_color[XdrvMailbox.index - 1],0,255,0,100);   // 0..100
   } else {
-    dimmer = light_state.getDimmer(XdrvMailbox.index);
+    if ((light_controller.isCTRGBLinked()) || (0 == XdrvMailbox.index)) {
+      dimmer = light_state.getDimmer();
+    } else {
+      dimmer = light_state.getDimmer(XdrvMailbox.index);
+    }
   }
+
   // Handle +/- special command
   if (1 == XdrvMailbox.data_len) {
     if ('+' == XdrvMailbox.data[0]) {
@@ -2804,9 +2820,13 @@ void CmndDimmer(void)
       XdrvMailbox.payload = (dimmer < 11) ? 1 : dimmer - 10;
     }
   }
+
   // If value is ok, change it, otherwise report old value
   if ((XdrvMailbox.payload >= 0) && (XdrvMailbox.payload <= 100)) {
-    if (light_controller.isCTRGBLinked()) {
+    if (Light.pwm_multi_channels) {
+      Light.current_color[XdrvMailbox.index - 1] = changeUIntScale(XdrvMailbox.payload,0,100,0,255);
+      LightPreparePower(1 << (XdrvMailbox.index - 1));
+    } else if (light_controller.isCTRGBLinked()) {
       // normal state, linked RGB and CW
       light_controller.changeDimmer(XdrvMailbox.payload);
       LightPreparePower();
