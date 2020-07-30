@@ -1629,8 +1629,9 @@ void ResponseLightState(uint8_t append)
       GetPowerDevice(scommand, Light.device + i, sizeof(scommand), 1);
       uint32_t light_power_masked = Light.power & (1 << i);    // the Light.power value for this device
       light_power_masked = light_power_masked ? 1 : 0;                    // convert to on/off
-      ResponseAppend_P(PSTR("\"%s\":\"%s\",\"" D_CMND_CHANNEL "%d\":%d,"), scommand, GetStateText(light_power_masked), Light.device + i,
-        changeUIntScale(Light.current_color[i], 0, 255, 0, 100));
+      uint8_t channel_value = changeUIntScale(Light.current_color[i], 0, 255, 0, 100);
+      ResponseAppend_P(PSTR("\"%s\":\"%s\",\"" D_CMND_CHANNEL "%d\":%d,\"" D_CMND_DIMMER "%d\":%d,"), scommand, GetStateText(light_power_masked), Light.device + i,
+        channel_value, 1 + i, channel_value);
     }
     ResponseAppend_P(PSTR("\"" D_CMND_COLOR "\":\"%s\""), LightGetColor(scolor));
   }   // Light.pwm_multi_channels
@@ -2825,6 +2826,7 @@ void CmndDimmer(void)
   if ((XdrvMailbox.payload >= 0) && (XdrvMailbox.payload <= 100)) {
     if (Light.pwm_multi_channels) {
       Light.current_color[XdrvMailbox.index - 1] = changeUIntScale(XdrvMailbox.payload,0,100,0,255);
+      light_controller.changeChannels(Light.current_color);
       LightPreparePower(1 << (XdrvMailbox.index - 1));
     } else if (light_controller.isCTRGBLinked()) {
       // normal state, linked RGB and CW
