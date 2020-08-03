@@ -707,14 +707,26 @@ void ZbBindUnbind(bool unbind) {    // false = bind, true = unbind
   const JsonVariant &val_cluster = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_CLUSTER));
   if (nullptr != &val_cluster) { cluster = strToUInt(val_cluster); }
 
+  // Or Group Address - we don't need a dstEndpoint in this case
+  const JsonVariant &to_group = GetCaseInsensitive(json, PSTR("ToGroup"));
+  if (nullptr != &to_group) { toGroup = strToUInt(to_group); }
+
   // Either Device address
   // In this case the following parameters are mandatory
   //  - "ToDevice" and the device must have a known IEEE address
   //  - "ToEndpoint"
   const JsonVariant &dst_device = GetCaseInsensitive(json, PSTR("ToDevice"));
-  if (nullptr != &dst_device) {
-    dstDevice = zigbee_devices.parseDeviceParam(dst_device.as<char*>());
-    if (BAD_SHORTADDR == dstDevice) { ResponseCmndChar_P(PSTR("Invalid parameter")); return; }
+
+  // If no target is specified, we default to coordinator 0x0000
+  if ((nullptr == &to_group) && (nullptr == &dst_device)) {
+    dstDevice = 0x0000;
+  }
+
+  if ((nullptr != &dst_device) || (BAD_SHORTADDR != dstDevice)) {
+    if (BAD_SHORTADDR == dstDevice) {
+      dstDevice = zigbee_devices.parseDeviceParam(dst_device.as<char*>());
+      if (BAD_SHORTADDR == dstDevice) { ResponseCmndChar_P(PSTR("Invalid parameter")); return; }
+    }
     if (0x0000 == dstDevice) {
       dstLongAddr = localIEEEAddr;
     } else {
@@ -723,12 +735,9 @@ void ZbBindUnbind(bool unbind) {    // false = bind, true = unbind
     if (0 == dstLongAddr) { ResponseCmndChar_P(PSTR("Unknown dest IEEE address")); return; }
 
     const JsonVariant &val_toendpoint = GetCaseInsensitive(json, PSTR("ToEndpoint"));
-    if (nullptr != &val_toendpoint) { toendpoint = strToUInt(val_endpoint); } else { toendpoint = endpoint; }
+    if (nullptr != &val_toendpoint) { toendpoint = strToUInt(val_toendpoint); }
+    else { toendpoint = 0x01; }   // default to endpoint 1
   }
-
-  // Or Group Address - we don't need a dstEndpoint in this case
-  const JsonVariant &to_group = GetCaseInsensitive(json, PSTR("ToGroup"));
-  if (nullptr != &to_group) { toGroup = strToUInt(to_group); }
 
   // make sure we don't have conflicting parameters
   if (&to_group && dstLongAddr) { ResponseCmndChar_P(PSTR("Cannot have both \"ToDevice\" and \"ToGroup\"")); return; }
