@@ -428,33 +428,44 @@ void ZbSendSend(const JsonVariant &val_cmd, uint16_t device, uint16_t groupaddr,
 
 
 // Parse the "Send" attribute and send the command
-void ZbSendRead(const JsonVariant &val_attr, uint16_t device, uint16_t groupaddr, uint16_t cluster, uint8_t endpoint, uint16_t manuf) {
+void ZbSendRead(const JsonVariant &val_attr, uint16_t device, uint16_t groupaddr, uint16_t cluster, uint8_t endpoint, uint16_t manuf, uint32_t operation) {
   // ZbSend {"Device":"0xF289","Cluster":0,"Endpoint":3,"Read":5}
   // ZbSend {"Device":"0xF289","Cluster":"0x0000","Endpoint":"0x0003","Read":"0x0005"}
   // ZbSend {"Device":"0xF289","Cluster":0,"Endpoint":3,"Read":[5,6,7,4]}
   // ZbSend {"Device":"0xF289","Endpoint":3,"Read":{"ModelId":true}}
   // ZbSend {"Device":"0xF289","Read":{"ModelId":true}}
 
+  // ZbSend {"Device":"0xF289","ReadConig":{"Power":true}}
+  // ZbSend {"Device":"0xF289","Cluster":6,"Endpoint":3,"ReadConfig":0}
+
   // params
   size_t   attrs_len = 0;
   uint8_t* attrs = nullptr;       // empty string is valid
+  size_t   attr_item_len = 2;     // how many bytes per attribute, standard for "Read"
+  size_t   attr_item_offset = 0;  // how many bytes do we offset to store attribute
+  if (ZCL_READ_REPORTING_CONFIGURATION == operation) {
+    attr_item_len = 3;
+    attr_item_offset = 1;
+  }
 
   uint16_t val = strToUInt(val_attr);
   if (val_attr.is<JsonArray>()) {
     const JsonArray& attr_arr = val_attr.as<const JsonArray&>();
-    attrs_len = attr_arr.size() * 2;
-    attrs = new uint8_t[attrs_len];
+    attrs_len = attr_arr.size() * attr_item_len;
+    attrs = (uint8_t*) calloc(attrs_len, 1);
 
     uint32_t i = 0;
     for (auto value : attr_arr) {
       uint16_t val = strToUInt(value);
+      i += attr_item_offset;
       attrs[i++] = val & 0xFF;
       attrs[i++] = val >> 8;
+      i += attr_item_len - 2 - attr_item_offset;    // normally 0
     }
   } else if (val_attr.is<JsonObject>()) {
     const JsonObject& attr_obj = val_attr.as<const JsonObject&>();
-    attrs_len = attr_obj.size() * 2;
-    attrs = new uint8_t[attrs_len];
+    attrs_len = attr_obj.size() * attr_item_len;
+    attrs = (uint8_t*) calloc(attrs_len, 1);
     uint32_t actual_attr_len = 0;
 
     // iterate on keys
@@ -475,15 +486,17 @@ void ZbSendRead(const JsonVariant &val_attr, uint16_t device, uint16_t groupaddr
           // match name
           // check if there is a conflict with cluster
           // TODO
+          actual_attr_len += attr_item_offset;
           attrs[actual_attr_len++] = local_attr_id & 0xFF;
           attrs[actual_attr_len++] = local_attr_id >> 8;
+          actual_attr_len += attr_item_len - 2 - attr_item_offset;    // normally 0
           found = true;
           // check cluster
           if (0xFFFF == cluster) {
             cluster = local_cluster_id;
           } else if (cluster != local_cluster_id) {
             ResponseCmndChar_P(PSTR("No more than one cluster id per command"));
-            if (attrs) { delete[] attrs; }
+            if (attrs) { free(attrs); }
             return;
           }
           break;    // found, exit loop
@@ -496,20 +509,20 @@ void ZbSendRead(const JsonVariant &val_attr, uint16_t device, uint16_t groupaddr
 
     attrs_len = actual_attr_len;
   } else {
-    attrs_len = 2;
-    attrs = new uint8_t[attrs_len];
-    attrs[0] = val & 0xFF;    // little endian
-    attrs[1] = val >> 8;
+    attrs_len = attr_item_len;
+    attrs = (uint8_t*) calloc(attrs_len, 1);
+    attrs[0 + attr_item_offset] = val & 0xFF;    // little endian
+    attrs[1 + attr_item_offset] = val >> 8;
   }
 
   if (attrs_len > 0) {
-    ZigbeeZCLSend_Raw(device, groupaddr, cluster, endpoint, ZCL_READ_ATTRIBUTES, false, manuf, attrs, attrs_len, true /* we do want a response */, zigbee_devices.getNextSeqNumber(device));
+    ZigbeeZCLSend_Raw(device, groupaddr, cluster, endpoint, operation, false, manuf, attrs, attrs_len, true /* we do want a response */, zigbee_devices.getNextSeqNumber(device));
     ResponseCmndDone();
   } else {
     ResponseCmndChar_P(PSTR("Missing parameters"));
   }
 
-  if (attrs) { delete[] attrs; }
+  if (attrs) { free(attrs); }
 }
 
 //
@@ -594,9 +607,12 @@ void CmndZbSend(void) {
   const JsonVariant &val_write = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_WRITE));
   const JsonVariant &val_publish = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_REPORT));
   const JsonVariant &val_response = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_RESPONSE));
-  uint32_t multi_cmd = (nullptr != &val_cmd) + (nullptr != &val_read) + (nullptr != &val_write) + (nullptr != &val_publish)+ (nullptr != &val_response);
+  const JsonVariant &val_read_config = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_READ_CONFIG));
+  const JsonVariant &val_config = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_CONFIG));
+  uint32_t multi_cmd = (nullptr != &val_cmd) + (nullptr != &val_read) + (nullptr != &val_write) + (nullptr != &val_publish)
+                     + (nullptr != &val_response) + (nullptr != &val_read_config) + (nullptr != &val_config);
   if (multi_cmd > 1) {
-    ResponseCmndChar_P(PSTR("Can only have one of: 'Send', 'Read', 'Write', 'Report' or 'Reponse'"));
+    ResponseCmndChar_P(PSTR("Can only have one of: 'Send', 'Read', 'Write', 'Report', 'Reponse', 'ReadConfig' or 'Config'"));
     return;
   }
   // from here we have one and only one command
@@ -608,7 +624,7 @@ void CmndZbSend(void) {
   } else if (nullptr != &val_read) {
     // "Read":{...attributes...}, "Read":attribute or "Read":[...attributes...]
     // we accept eitehr a number, a string, an array of numbers/strings, or a JSON object
-    ZbSendRead(val_read, device, groupaddr, cluster, endpoint, manuf);
+    ZbSendRead(val_read, device, groupaddr, cluster, endpoint, manuf, ZCL_READ_ATTRIBUTES);
   } else if (nullptr != &val_write) {
     // only KSON object
     if (!val_write.is<JsonObject>()) {
@@ -618,7 +634,7 @@ void CmndZbSend(void) {
     // "Write":{...attributes...}
     ZbSendReportWrite(val_write, device, groupaddr, cluster, endpoint, manuf, ZCL_WRITE_ATTRIBUTES);
   } else if (nullptr != &val_publish) {
-    // "Report":{...attributes...}
+    // "Publish":{...attributes...}
     // only KSON object
     if (!val_publish.is<JsonObject>()) {
       ResponseCmndChar_P(PSTR("Missing parameters"));
@@ -633,6 +649,18 @@ void CmndZbSend(void) {
       return;
     }
     ZbSendReportWrite(val_response, device, groupaddr, cluster, endpoint, manuf, ZCL_READ_ATTRIBUTES_RESPONSE);
+  } else if (nullptr != &val_read_config) {
+    // "ReadConfg":{...attributes...}, "ReadConfg":attribute or "ReadConfg":[...attributes...]
+    // we accept eitehr a number, a string, an array of numbers/strings, or a JSON object
+    ZbSendRead(val_read_config, device, groupaddr, cluster, endpoint, manuf, ZCL_READ_REPORTING_CONFIGURATION);
+  } else if (nullptr != &val_config) {
+    // "Publish":{...attributes...}
+    // only KSON object
+    if (!val_publish.is<JsonObject>()) {
+      ResponseCmndChar_P(PSTR("Missing parameters"));
+      return;
+    }
+    ZbSendReportWrite(val_config, device, groupaddr, cluster, endpoint, manuf, ZCL_CONFIGURE_REPORTING);
   } else {
     Response_P(PSTR("Missing zigbee 'Send', 'Write', 'Report' or 'Response'"));
     return;
