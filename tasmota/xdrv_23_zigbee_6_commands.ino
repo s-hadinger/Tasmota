@@ -425,8 +425,12 @@ void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, boo
       if ((cluster == 0x0500) && (cmd == 0x00)) {
         // "ZoneStatusChange"
         json[command_name] = xyz.x;
-        json[command_name2 + F("Ext")] = xyz.y;
-        json[command_name2 + F("Zone")] = xyz.z;
+        if (0 != xyz.y) {
+          json[command_name2 + F("Ext")] = xyz.y;
+        }
+        if ((0 != xyz.z) && (0xFF != xyz.z)) {
+          json[command_name2 + F("Zone")] = xyz.z;
+        }
       } else if ((cluster == 0x0004) && ((cmd == 0x00) || (cmd == 0x01) || (cmd == 0x03))) {
         // AddGroupResp or ViewGroupResp (group name ignored) or RemoveGroup
         json[command_name] = xyz.y;
