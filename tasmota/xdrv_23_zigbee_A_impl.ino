@@ -695,7 +695,7 @@ void ZbBindUnbind(bool unbind) {    // false = bind, true = unbind
     if (0 == dstLongAddr) { ResponseCmndChar_P(PSTR("Unknown dest IEEE address")); return; }
 
     const JsonVariant &val_toendpoint = GetCaseInsensitive(json, PSTR("ToEndpoint"));
-    if (nullptr != &val_toendpoint) { toendpoint = strToUInt(val_endpoint); } else { toendpoint = endpoint; }
+    if (nullptr != &val_toendpoint) { toendpoint = strToUInt(val_toendpoint); } else { toendpoint = endpoint; }
   }
 
   // Or Group Address - we don't need a dstEndpoint in this case
