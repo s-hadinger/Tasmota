@@ -186,6 +186,7 @@ const char kZNP12[] PROGMEM = "Only ZNP 1.2 is currently supported";
 const char kEZ8[] PROGMEM = "Only EZSP protocol v8 is currently supported";
 const char kAbort[] PROGMEM = "Abort";
 const char kZigbeeAbort[] PROGMEM = D_LOG_ZIGBEE "Abort";
+const char kZigbeeGroup0[] PROGMEM = D_LOG_ZIGBEE "Subscribe to group 0 'ZbListen0 0'";
 
 #ifdef USE_ZIGBEE_ZNP
 
@@ -746,6 +747,11 @@ ZBM(ZBR_GET_EUI64,        EZSP_getEui64, 0x00 /*high*/)   // 2600
 ZBM(ZBS_GET_NODEID,       EZSP_getNodeId, 0x00 /*high*/)   // 2700
 ZBM(ZBR_GET_NODEID,       EZSP_getNodeId, 0x00 /*high*/)   // 2700
 
+// auto subscribe to group 0 in slot 0
+ZBM(ZBS_SET_MCAST_ENTRY,  EZSP_setMulticastTableEntry, 0x00 /*high*/,
+                          0x00 /* slot */, 0x00,0x00 /* group */, 0x01 /* endpoint */, 0x00 /* network */)  // 64000000000100
+ZBM(ZBR_SET_MCAST_ENTRY,  EZSP_setMulticastTableEntry, 0x00 /*high*/, 0x00 /* status */)
+
 // getCurrentSecurityState
 // TODO double check the security bitmask
 ZBM(ZBS_GET_CURR_SEC,     EZSP_getCurrentSecurityState, 0x00 /*high*/)   // 6900
@@ -898,8 +904,11 @@ static const Zigbee_Instruction zb_prog[] PROGMEM = {
     // Query device information
     ZI_SEND(ZBS_GET_EUI64)              ZI_WAIT_RECV_FUNC(500, ZBR_GET_EUI64, &EZ_GetEUI64)
     ZI_SEND(ZBS_GET_NODEID)             ZI_WAIT_RECV_FUNC(500, ZBR_GET_NODEID, &EZ_GetNodeId)
+    // auto-register multicast group 0x0000
+    ZI_LOG(LOG_LEVEL_INFO, kZigbeeGroup0)
+    ZI_SEND(ZBS_SET_MCAST_ENTRY)        ZI_WAIT_RECV(500, ZBR_SET_MCAST_ENTRY)
 
-  ZI_LABEL(ZIGBEE_LABEL_READY)
+  // ZI_LABEL(ZIGBEE_LABEL_READY)
     ZI_MQTT_STATE(ZIGBEE_STATUS_OK, kStarted)
     ZI_LOG(LOG_LEVEL_INFO, kZigbeeStarted)
     ZI_CALL(&Z_State_Ready, 1)                    // Now accept incoming messages
