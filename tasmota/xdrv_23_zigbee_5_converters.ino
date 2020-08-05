@@ -79,6 +79,16 @@ uint8_t Z_getDatatypeLen(uint8_t t) {
   }
 }
 
+// is the type a discrete type, cf. section 2.6.2 of ZCL spec
+bool Z_isDiscreteDataType(uint8_t t) {
+  if ( ((t >= 0x20) && (t <= 0x2F)) ||      // uint8 - int64
+       ((t >= 0x38) && (t <= 0x3A)) ||      // semi - double
+       ((t >= 0xE0) && (t <= 0xE2))  ) {    // ToD - UTC
+    return false;
+  } else {
+    return true;
+  }
+}
 
 // return value:
 // 0 = keep initial value
@@ -667,6 +677,7 @@ public:
   void parseReportAttributes(JsonObject& json, uint8_t offset = 0);
   void parseReadAttributes(JsonObject& json, uint8_t offset = 0);
   void parseReadAttributesResponse(JsonObject& json, uint8_t offset = 0);
+  void parseReadConfigAttributes(JsonObject& json, uint8_t offset = 0);
   void parseResponse(void);
   void parseClusterSpecificCommand(JsonObject& json, uint8_t offset = 0);
   void postProcessAttributes(uint16_t shortaddr, JsonObject& json);
@@ -1098,6 +1109,70 @@ void ZCLFrame::parseReadAttributes(JsonObject& json, uint8_t offset) {
       }
     }
     i += 2;
+  }
+}
+
+// ZCL_READ_REPORTING_CONFIGURATION_RESPONSE
+// TODO
+void ZCLFrame::parseReadConfigAttributes(JsonObject& json, uint8_t offset) {
+  uint32_t i = offset;
+  uint32_t len = _payload.len();
+
+  // json[F(D_CMND_ZIGBEE_CLUSTER)] = _cluster_id;   // TODO is it necessary?
+
+  // JsonArray &attr_list = json.createNestedArray(F("ReadConfig"));
+  JsonObject &attr_names = json.createNestedObject(F("ReadConfig"));
+  while (len - i >= 4) {
+    uint8_t  status = _payload.get8(i);
+    uint8_t  direction = _payload.get8(i+1);
+    uint16_t attrid = _payload.get16(i+2);
+    char attr_hex[12];
+    snprintf_P(attr_hex, sizeof(attr_hex), "%04X_%04X", _cluster_id, attrid);
+    JsonObject &attr_details = attr_names.createNestedObject(attr_hex);
+
+    if (direction) {
+      attr_details[F("Received")] = true;
+    }
+
+    // find the attribute name
+    for (uint32_t i = 0; i < ARRAY_SIZE(Z_PostProcess); i++) {
+      const Z_AttributeConverter *converter = &Z_PostProcess[i];
+      uint16_t conv_cluster = CxToCluster(pgm_read_byte(&converter->cluster_short));
+      uint16_t conv_attribute = pgm_read_word(&converter->attribute);
+
+      if ((conv_cluster == _cluster_id) && (conv_attribute == attrid)) {
+        attr_details[(const __FlashStringHelper*) converter->name] = true;
+        break;
+      }
+    }
+    i += 4;
+    if (0 != status) {
+      attr_details[F("Status")] = status;
+      attr_details[F("StatusMsg")] = getZigbeeStatusMessage(status);
+    } else {
+      // no error, decode data
+      if (direction) {
+        // only Timeout period is present
+        uint16_t attr_timeout = _payload.get16(i);
+        i += 2;
+        attr_details[F("TimeoutPeriod")] = (0xFFFF == attr_timeout) ? -1 : attr_timeout;
+      } else {
+        // direction == 0, we have a data type
+        uint8_t attr_type = _payload.get8(i);
+        bool attr_discrete = Z_isDiscreteDataType(attr_type);
+        uint16_t attr_min_interval = _payload.get16(i+1);
+        uint16_t attr_max_interval = _payload.get16(i+3);
+        i += 5;
+        attr_details[F("MinInterval")] = (0xFFFF == attr_min_interval) ? -1 : attr_min_interval;
+        attr_details[F("MaxInterval")] = (0xFFFF == attr_max_interval) ? -1 : attr_max_interval;
+        if (!attr_discrete) {
+          // decode Reportable Change
+          // TODO decode value
+          attr_details[F("ReportableChange")] = 0;
+          i += Z_getDatatypeLen(attr_type);     // skip the data value
+        }
+      }
+    }
   }
 }
 

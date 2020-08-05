@@ -1009,6 +1009,8 @@ void Z_IncomingMessage(ZCLFrame &zcl_received) {
     } else if ( (!zcl_received.isClusterSpecificCommand()) && (ZCL_READ_ATTRIBUTES == zcl_received.getCmdId())) {
       zcl_received.parseReadAttributes(json);
       // never defer read_attributes, so the auto-responder can send response back on a per cluster basis
+    } else if ( (!zcl_received.isClusterSpecificCommand()) && (ZCL_READ_REPORTING_CONFIGURATION_RESPONSE == zcl_received.getCmdId())) {
+      zcl_received.parseReadConfigAttributes(json);
     } else if (zcl_received.isClusterSpecificCommand()) {
       zcl_received.parseClusterSpecificCommand(json);
     }
