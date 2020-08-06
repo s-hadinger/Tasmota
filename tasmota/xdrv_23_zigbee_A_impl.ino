@@ -1100,7 +1100,7 @@ void CmndZbPermitJoin(void) {
 void CmndZbEZSPListen(void) {
   if (zigbee.init_phase) { ResponseCmndChar_P(PSTR(D_ZIGBEE_NOT_STARTED)); return; }
 
-  int32_t  index = XdrvMailbox.index - 1;   // 0 based
+  int32_t  index = XdrvMailbox.index;   // 0 is reserved for group 0 (auto-config)
   int32_t  group = XdrvMailbox.payload;
 
   if (group <= 0) {
