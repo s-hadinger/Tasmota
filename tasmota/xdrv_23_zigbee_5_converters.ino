@@ -844,8 +844,7 @@ int32_t encodeSingleAttribute(class SBuffer &buf, const JsonVariant &val, float 
   return len + (status ? 4 : 3);
 }
 
-uint32_t parseSingleAttribute(JsonObject& json, char *attrid_str, class SBuffer &buf,
-                              uint32_t offset, uint32_t buflen) {
+uint32_t parseSingleAttribute(JsonObject& json, char *attrid_str, class SBuffer &buf, uint32_t offset) {
 
   uint32_t i = offset;
   uint32_t attrtype = buf.get8(i++);
@@ -1079,7 +1078,7 @@ void ZCLFrame::parseReportAttributes(JsonObject& json, uint8_t offset) {
         _payload.set8(i, 0x41);   // change type from 0x42 to 0x41
       }
     }
-    i += parseSingleAttribute(json, key, _payload, i, len);
+    i += parseSingleAttribute(json, key, _payload, i);
   }
 }
 
@@ -1190,7 +1189,7 @@ void ZCLFrame::parseReadAttributesResponse(JsonObject& json, uint8_t offset) {
       char key[16];
       generateAttributeName(json, _cluster_id, attrid, key, sizeof(key));
 
-      i += parseSingleAttribute(json, key, _payload, i, len);
+      i += parseSingleAttribute(json, key, _payload, i);
     }
   }
 }
@@ -1406,7 +1405,7 @@ int32_t Z_AqaraSensorFunc(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObj
   while (len - i >= 2) {
     uint8_t attrid = buf2.get8(i++);
 
-    i += parseSingleAttribute(json, tmp, buf2, i, len);
+    i += parseSingleAttribute(json, tmp, buf2, i);
     float val = json[tmp];
     json.remove(tmp);
     bool translated = false;    // were we able to translate to a known format?
