@@ -1106,7 +1106,7 @@ void ZCLFrame::parseReadAttributes(JsonObject& json, uint8_t offset) {
 
   JsonArray &attr_list = json.createNestedArray(F("Read"));
   JsonObject &attr_names = json.createNestedObject(F("ReadNames"));
-  while (len - i >= 2) {
+  while (len >= 2 + i) {
     uint16_t attrid = _payload.get16(i);
     attr_list.add(attrid);
 
@@ -1133,9 +1133,8 @@ void ZCLFrame::parseReadConfigAttributes(JsonObject& json, uint8_t offset) {
 
   // json[F(D_CMND_ZIGBEE_CLUSTER)] = _cluster_id;   // TODO is it necessary?
 
-  // JsonArray &attr_list = json.createNestedArray(F("ReadConfig"));
   JsonObject &attr_names = json.createNestedObject(F("ReadConfig"));
-  while (len - i >= 4) {
+  while (len >= i + 4) {
     uint8_t  status = _payload.get8(i);
     uint8_t  direction = _payload.get8(i+1);
     uint16_t attrid = _payload.get16(i+2);
@@ -1180,9 +1179,9 @@ void ZCLFrame::parseReadConfigAttributes(JsonObject& json, uint8_t offset) {
         attr_details[F("MaxInterval")] = (0xFFFF == attr_max_interval) ? -1 : attr_max_interval;
         if (!attr_discrete) {
           // decode Reportable Change
-          // TODO decode value
-          attr_details[F("ReportableChange")] = 0;
-          i += Z_getDatatypeLen(attr_type);     // skip the data value
+          char attr_name[20];
+          strcpy_P(attr_name, PSTR("ReportableChange"));
+          i += parseSingleAttribute(attr_details, attr_name, _payload, i, attr_type);
         }
       }
     }
@@ -1416,7 +1415,7 @@ int32_t Z_AqaraSensorFunc(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObj
   const char * modelId_c = zigbee_devices.getModelId(shortaddr);  // null if unknown
   String modelId((char*) modelId_c);
 
-  while (len - i >= 2) {
+  while (len >= 2 + i) {
     uint8_t attrid = buf2.get8(i++);
 
     i += parseSingleAttribute(json, tmp, buf2, i);
