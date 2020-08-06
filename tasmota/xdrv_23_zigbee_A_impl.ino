@@ -471,7 +471,7 @@ void ZbSendRead(const JsonVariant &val_attr, uint16_t device, uint16_t groupaddr
     // iterate on keys
     for (JsonObject::const_iterator it=attr_obj.begin(); it!=attr_obj.end(); ++it) {
       const char *key = it->key;
-      // const JsonVariant &value = it->value;      // we don't need the value here, only keys are relevant
+      const JsonVariant &value = it->value;      // we don't need the value here, only keys are relevant
 
       bool found = false;
       // scan attributes to find by name, and retrieve type
@@ -486,6 +486,10 @@ void ZbSendRead(const JsonVariant &val_attr, uint16_t device, uint16_t groupaddr
           // match name
           // check if there is a conflict with cluster
           // TODO
+          if (!value && attr_item_offset) {
+            // If value is false (non-default) then set direction to 1 (for ReadConfig)
+            attrs[actual_attr_len] = 0x01;
+          }
           actual_attr_len += attr_item_offset;
           attrs[actual_attr_len++] = local_attr_id & 0xFF;
           attrs[actual_attr_len++] = local_attr_id >> 8;
@@ -655,7 +659,7 @@ void CmndZbSend(void) {
     ZbSendRead(val_read_config, device, groupaddr, cluster, endpoint, manuf, ZCL_READ_REPORTING_CONFIGURATION);
   } else if (nullptr != &val_config) {
     // "Publish":{...attributes...}
-    // only KSON object
+    // only JSON object
     if (!val_publish.is<JsonObject>()) {
       ResponseCmndChar_P(PSTR("Missing parameters"));
       return;
