@@ -844,10 +844,24 @@ int32_t encodeSingleAttribute(class SBuffer &buf, const JsonVariant &val, float 
   return len + (status ? 4 : 3);
 }
 
-uint32_t parseSingleAttribute(JsonObject& json, char *attrid_str, class SBuffer &buf, uint32_t offset) {
+//
+// parse a single attribute
+//
+// Input:
+//   json: json Object where to add the attribute
+//   attrid_str: the key for the attribute
+//   buf:  the buffer to read from
+//   offset: location in the buffer to read from
+//   attrtype: type of attribute (byte) or -1 to read from the stream as first byte
+// Output:
+//   return: the length in bytes of the attribute
+uint32_t parseSingleAttribute(JsonObject& json, char *attrid_str, class SBuffer &buf,
+                              uint32_t offset, int32_t attrtype = -1) {
 
   uint32_t i = offset;
-  uint32_t attrtype = buf.get8(i++);
+  if (attrtype < 0) {
+    attrtype = buf.get8(i++);
+  }
 
   // fallback - enter a null value
   json[attrid_str] = (char*) nullptr;
