@@ -299,7 +299,7 @@ void ZbSendReportWrite(const JsonObject &val_pubwrite, uint16_t device, uint16_t
         buf.add8(Z_SUCCESS);  // status OK = 0x00
       }
       buf.add8(type_id);     // prepend with attribute type
-      int32_t res = encodeSingleAttribute(buf, val_d, val_str, type_id); // force status if Reponse
+      int32_t res = encodeSingleAttribute(buf, val_d, val_str, type_id);
       if (res < 0) {
         // remove the attribute type we just added
         // buf.setLen(buf.len() - (operation == ZCL_READ_ATTRIBUTES_RESPONSE ? 4 : 3));
@@ -346,8 +346,26 @@ void ZbSendReportWrite(const JsonObject &val_pubwrite, uint16_t device, uint16_t
       const JsonVariant &val_attr_timeout = GetCaseInsensitive(attr_config, PSTR("TimeoutPeriod"));
       if (nullptr != &val_attr_timeout) { attr_timeout = strToUInt(val_attr_timeout); }
 
-      // all fields are gathered, output the butes into the buffer
-      // TODO
+      bool attr_discrete = Z_isDiscreteDataType(type_id);
+
+      // all fields are gathered, output the butes into the buffer, ZCL 2.5.7.1
+      // common bytes
+      buf.add8(attr_direction ? 0x01 : 0x00);
+      buf.add16(attr_id);
+      if (attr_direction) {
+        buf.add16(attr_timeout);
+      } else {
+        buf.add8(type_id);
+        buf.add16(val_attr_min);
+        buf.add16(val_attr_max);
+        if (!attr_discrete) {
+          int32_t res = encodeSingleAttribute(buf, val_d, val_str, type_id);
+          if (res < 0) {
+            Response_P(PSTR("{\"%s\":\"%s'%s' 0x%02X\"}"), XdrvMailbox.command, PSTR("Unsupported attribute type "), key, type_id);
+            return;
+          }
+        }
+      }
     }
   }
 
