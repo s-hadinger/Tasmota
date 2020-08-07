@@ -332,6 +332,22 @@ void ZbSendReportWrite(const JsonObject &val_pubwrite, uint16_t device, uint16_t
       if (nullptr != &val_attr_min) { attr_min_interval = strToUInt(val_attr_min); }
       const JsonVariant &val_attr_max = GetCaseInsensitive(attr_config, PSTR("MaxInterval"));
       if (nullptr != &val_attr_max) { attr_max_interval = strToUInt(val_attr_max); }
+
+      // read ReportableChange
+      const JsonVariant &val_attr_rc = GetCaseInsensitive(attr_config, PSTR("ReportableChange"));
+      if (nullptr != &val_attr_rc) {
+        val_d = val_attr_rc.as<double>();
+        val_str = val_attr_rc.as<const char*>();
+        ZbApplyMultiplier(val_d, multiplier);
+      }
+
+      // read TimeoutPeriod
+      uint16_t attr_timeout = 0x0000;
+      const JsonVariant &val_attr_timeout = GetCaseInsensitive(attr_config, PSTR("TimeoutPeriod"));
+      if (nullptr != &val_attr_timeout) { attr_timeout = strToUInt(val_attr_timeout); }
+
+      // all fields are gathered, output the butes into the buffer
+      // TODO
     }
   }
 
