@@ -185,7 +185,7 @@ void zigbeeZCLSendStr(uint16_t shortaddr, uint16_t groupaddr, uint8_t endpoint, 
   }
 }
 
-// Parse "Report", "Write" or "Response" attribute
+// Parse "Report", "Write", "Response" or "Condig" attribute
 // Operation is one of: ZCL_REPORT_ATTRIBUTES (0x0A), ZCL_WRITE_ATTRIBUTES (0x02) or ZCL_READ_ATTRIBUTES_RESPONSE (0x01)
 void ZbSendReportWrite(const JsonObject &val_pubwrite, uint16_t device, uint16_t groupaddr, uint16_t cluster, uint8_t endpoint, uint16_t manuf, uint32_t operation) {
   SBuffer buf(200);       // buffer to store the binary output of attibutes
@@ -268,20 +268,45 @@ void ZbSendReportWrite(const JsonObject &val_pubwrite, uint16_t device, uint16_t
       ResponseCmndChar_P(PSTR("No more than one cluster id per command"));
       return;
     }
-    // apply multiplier if needed
     bool use_val = true;
-    if ((0 != multiplier) && (1 != multiplier)) {
-      val_f = value;
-      if (multiplier > 0) {         // inverse of decoding
-        val_f = val_f / multiplier;
-      } else {
-        val_f = val_f * (-multiplier);
+    if (operation != ZCL_READ_ATTRIBUTES_RESPONSE) {
+      // apply multiplier if needed
+      if ((0 != multiplier) && (1 != multiplier)) {
+        val_f = value;
+        if (multiplier > 0) {         // inverse of decoding
+          val_f = val_f / multiplier;
+        } else {
+          val_f = val_f * (-multiplier);
+        }
+        use_val = false;
       }
-      use_val = false;
+    } else {
+      // if (!value.is<JsonObject>()) {
+      //   ResponseCmndChar_P(PSTR("Config requires JSON objects"));
+      //   return;
+      // }
+      // JsonObject &attr_config = value.as<JsonObject>();
+      // bool attr_direction = false;
+
+      // const JsonVariant &val_attr_direction = GetCaseInsensitive(json, PSTR("DirectionReceived"));
+      // if ((nullptr != &val_attr_direction) && (val_attr_direction.as<bool>())) {
+      //   attr_direction = true;
+      // }
+      // const JsonVariant &val_attr_min = GetCaseInsensitive(json, PSTR("DirectionReceived"));
+      // const JsonVariant &val_attr_max = GetCaseInsensitive(json, PSTR("DirectionReceived"));
+      // uint16_t attr_min_interval = _payload.get16(i+1);
+      // uint16_t attr_max_interval = _payload.get16(i+3);
     }
     // push the value in the buffer
-    int32_t res = encodeSingleAttribute(buf, use_val ? value : *(const JsonVariant*)nullptr, val_f, attr_id, type_id, operation == ZCL_READ_ATTRIBUTES_RESPONSE); // force status if Reponse
+    buf.add16(attr_id);        // prepend with attribute identifier
+    if (operation == ZCL_READ_ATTRIBUTES_RESPONSE) {
+      buf.add8(Z_SUCCESS);  // status OK = 0x00
+    }
+    buf.add8(type_id);     // prepend with attribute type
+    int32_t res = encodeSingleAttribute(buf, use_val ? value : *(const JsonVariant*)nullptr, val_f, type_id); // force status if Reponse
     if (res < 0) {
+      // remove the attribute type we just added
+      // buf.setLen(buf.len() - (operation == ZCL_READ_ATTRIBUTES_RESPONSE ? 4 : 3));
       Response_P(PSTR("{\"%s\":\"%s'%s' 0x%02X\"}"), XdrvMailbox.command, PSTR("Unsupported attribute type "), key, type_id);
       return;
     }
@@ -658,7 +683,7 @@ void CmndZbSend(void) {
     // we accept eitehr a number, a string, an array of numbers/strings, or a JSON object
     ZbSendRead(val_read_config, device, groupaddr, cluster, endpoint, manuf, ZCL_READ_REPORTING_CONFIGURATION);
   } else if (nullptr != &val_config) {
-    // "Publish":{...attributes...}
+    // "Config":{...attributes...}
     // only JSON object
     if (!val_publish.is<JsonObject>()) {
       ResponseCmndChar_P(PSTR("Missing parameters"));

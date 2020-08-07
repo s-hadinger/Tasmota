@@ -750,12 +750,9 @@ uint8_t toPercentageCR2032(uint32_t voltage) {
 //
 // Appends the attribute value to Write or to Report
 // Adds to buf:
-// - 2 bytes: attribute identigier
-// - 1 byte: attribute type
 // - n bytes: value (typically between 1 and 4 bytes, or bigger for strings)
 // returns number of bytes of attribute, or <0 if error
-// status: shall we insert a status OK (0x00) as required by ReadResponse
-int32_t encodeSingleAttribute(class SBuffer &buf, const JsonVariant &val, float val_f, uint16_t attr, uint8_t attrtype, bool status = false) {
+int32_t encodeSingleAttribute(class SBuffer &buf, const JsonVariant &val, float val_f, uint8_t attrtype) {
   uint32_t len = Z_getDatatypeLen(attrtype);    // pre-compute lenght, overloaded for variable length attributes
   uint32_t u32;
   int32_t  i32;
@@ -770,12 +767,6 @@ int32_t encodeSingleAttribute(class SBuffer &buf, const JsonVariant &val, float 
     i32 = val_f;
     f32 = val_f;
   }
-
-  buf.add16(attr);        // prepend with attribute identifier
-  if (status) {
-    buf.add8(Z_SUCCESS);  // status OK = 0x00
-  }
-  buf.add8(attrtype);     // prepend with attribute type
 
   switch (attrtype) {
     // unsigned 8
@@ -837,11 +828,9 @@ int32_t encodeSingleAttribute(class SBuffer &buf, const JsonVariant &val, float 
       break;
 
     default:
-      // remove the attribute type we just added
-      buf.setLen(buf.len() - (status ? 4 : 3));
       return -1;
   }
-  return len + (status ? 4 : 3);
+  return len;
 }
 
 //
@@ -1143,7 +1132,7 @@ void ZCLFrame::parseReadConfigAttributes(JsonObject& json, uint8_t offset) {
     JsonObject &attr_details = attr_names.createNestedObject(attr_hex);
 
     if (direction) {
-      attr_details[F("Received")] = true;
+      attr_details[F("DirectionReceived")] = true;
     }
 
     // find the attribute name
