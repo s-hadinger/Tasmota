@@ -190,7 +190,7 @@ void zigbeeZCLSendStr(uint16_t shortaddr, uint16_t groupaddr, uint8_t endpoint, 
 // multiplier == 1: ignore
 // multiplier > 0: divide by the multiplier
 // multiplier < 0: multiply by the -multiplier (positive)
-double ZbApplyMultiplier(double val_d, int16_t multiplier) {
+void ZbApplyMultiplier(double &val_d, int16_t multiplier) {
   if ((0 != multiplier) && (1 != multiplier)) {
     if (multiplier > 0) {         // inverse of decoding
       val_d = val_d / multiplier;
@@ -198,7 +198,6 @@ double ZbApplyMultiplier(double val_d, int16_t multiplier) {
       val_d = val_d * (-multiplier);
     }
   }
-  return val_d;
 }
 
 // Parse "Report", "Write", "Response" or "Condig" attribute
@@ -219,7 +218,7 @@ void ZbSendReportWrite(const JsonObject &val_pubwrite, uint16_t device, uint16_t
     uint16_t cluster_id = 0xFFFF;
     uint8_t  type_id = Znodata;
     int16_t  multiplier = 1;        // multiplier to adjust the key value
-    float    val_d = 0;             // I try to avoid `double` but this type capture both float and (u)int32_t without prevision loss
+    double   val_d = 0;             // I try to avoid `double` but this type capture both float and (u)int32_t without prevision loss
     const char* val_str = "";       // variant as string
 
     // check if the name has the format "XXXX/YYYY" where XXXX is the cluster, YYYY the attribute id
@@ -292,7 +291,7 @@ void ZbSendReportWrite(const JsonObject &val_pubwrite, uint16_t device, uint16_t
       // apply multiplier if needed
       val_d = value.as<double>();
       val_str = value.as<const char*>();
-      val_d = ZbApplyMultiplier(val_d, multiplier);
+      ZbApplyMultiplier(val_d, multiplier);
 
       // push the value in the buffer
       buf.add16(attr_id);        // prepend with attribute identifier
