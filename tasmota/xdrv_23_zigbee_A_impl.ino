@@ -185,6 +185,22 @@ void zigbeeZCLSendStr(uint16_t shortaddr, uint16_t groupaddr, uint8_t endpoint, 
   }
 }
 
+// Special encoding for multiplier:
+// multiplier == 0: ignore
+// multiplier == 1: ignore
+// multiplier > 0: divide by the multiplier
+// multiplier < 0: multiply by the -multiplier (positive)
+double ZbApplyMultiplier(double val_d, int16_t multiplier) {
+  if ((0 != multiplier) && (1 != multiplier)) {
+    if (multiplier > 0) {         // inverse of decoding
+      val_d = val_d / multiplier;
+    } else {
+      val_d = val_d * (-multiplier);
+    }
+  }
+  return val_d;
+}
+
 // Parse "Report", "Write", "Response" or "Condig" attribute
 // Operation is one of: ZCL_REPORT_ATTRIBUTES (0x0A), ZCL_WRITE_ATTRIBUTES (0x02) or ZCL_READ_ATTRIBUTES_RESPONSE (0x01)
 void ZbSendReportWrite(const JsonObject &val_pubwrite, uint16_t device, uint16_t groupaddr, uint16_t cluster, uint8_t endpoint, uint16_t manuf, uint32_t operation) {
@@ -203,8 +219,8 @@ void ZbSendReportWrite(const JsonObject &val_pubwrite, uint16_t device, uint16_t
     uint16_t cluster_id = 0xFFFF;
     uint8_t  type_id = Znodata;
     int16_t  multiplier = 1;        // multiplier to adjust the key value
-    float    val_d;                 // I try to avoid `double` but this type capture both float and (u)int32_t without prevision loss
-    const char* val_str;            // variant as string
+    float    val_d = 0;             // I try to avoid `double` but this type capture both float and (u)int32_t without prevision loss
+    const char* val_str = "";       // variant as string
 
     // check if the name has the format "XXXX/YYYY" where XXXX is the cluster, YYYY the attribute id
     // alternative "XXXX/YYYY%ZZ" where ZZ is the type (for unregistered attributes)
@@ -270,46 +286,53 @@ void ZbSendReportWrite(const JsonObject &val_pubwrite, uint16_t device, uint16_t
       return;
     }
     
+    // ////////////////////////////////////////////////////////////////////////////////
+    // Split encoding depending on message
     if (operation != ZCL_READ_ATTRIBUTES_RESPONSE) {
       // apply multiplier if needed
       val_d = value.as<double>();
       val_str = value.as<const char*>();
-      if ((0 != multiplier) && (1 != multiplier)) {
-        if (multiplier > 0) {         // inverse of decoding
-          val_d = val_d / multiplier;
-        } else {
-          val_d = val_d * (-multiplier);
+      val_d = ZbApplyMultiplier(val_d, multiplier);
+
+      // push the value in the buffer
+      buf.add16(attr_id);        // prepend with attribute identifier
+      if (operation == ZCL_READ_ATTRIBUTES_RESPONSE) {
+        buf.add8(Z_SUCCESS);  // status OK = 0x00
+      }
+      buf.add8(type_id);     // prepend with attribute type
+      int32_t res = encodeSingleAttribute(buf, val_d, val_str, type_id); // force status if Reponse
+      if (res < 0) {
+        // remove the attribute type we just added
+        // buf.setLen(buf.len() - (operation == ZCL_READ_ATTRIBUTES_RESPONSE ? 4 : 3));
+        Response_P(PSTR("{\"%s\":\"%s'%s' 0x%02X\"}"), XdrvMailbox.command, PSTR("Unsupported attribute type "), key, type_id);
+        return;
+      }
+
+    } else {
+      // ////////////////////////////////////////////////////////////////////////////////
+      // ZCL_READ_ATTRIBUTES_RESPONSE
+      if (!value.is<JsonObject>()) {
+        ResponseCmndChar_P(PSTR("Config requires JSON objects"));
+        return;
+      }
+      JsonObject &attr_config = value.as<JsonObject>();
+      bool attr_direction = false;
+
+      const JsonVariant &val_attr_direction = GetCaseInsensitive(attr_config, PSTR("DirectionReceived"));
+      if (nullptr != &val_attr_direction) {
+        uint32_t dir = strToUInt(val_attr_direction);
+        if (dir) {
+          attr_direction = true;
         }
       }
-    } else {
-      // if (!value.is<JsonObject>()) {
-      //   ResponseCmndChar_P(PSTR("Config requires JSON objects"));
-      //   return;
-      // }
-      // JsonObject &attr_config = value.as<JsonObject>();
-      // bool attr_direction = false;
 
-      // const JsonVariant &val_attr_direction = GetCaseInsensitive(json, PSTR("DirectionReceived"));
-      // if ((nullptr != &val_attr_direction) && (val_attr_direction.as<bool>())) {
-      //   attr_direction = true;
-      // }
-      // const JsonVariant &val_attr_min = GetCaseInsensitive(json, PSTR("DirectionReceived"));
-      // const JsonVariant &val_attr_max = GetCaseInsensitive(json, PSTR("DirectionReceived"));
-      // uint16_t attr_min_interval = _payload.get16(i+1);
-      // uint16_t attr_max_interval = _payload.get16(i+3);
-    }
-    // push the value in the buffer
-    buf.add16(attr_id);        // prepend with attribute identifier
-    if (operation == ZCL_READ_ATTRIBUTES_RESPONSE) {
-      buf.add8(Z_SUCCESS);  // status OK = 0x00
-    }
-    buf.add8(type_id);     // prepend with attribute type
-    int32_t res = encodeSingleAttribute(buf, val_d, val_str, type_id); // force status if Reponse
-    if (res < 0) {
-      // remove the attribute type we just added
-      // buf.setLen(buf.len() - (operation == ZCL_READ_ATTRIBUTES_RESPONSE ? 4 : 3));
-      Response_P(PSTR("{\"%s\":\"%s'%s' 0x%02X\"}"), XdrvMailbox.command, PSTR("Unsupported attribute type "), key, type_id);
-      return;
+      // read MinInterval and MaxInterval, default to 0xFFFF if not specified
+      uint16_t attr_min_interval = 0xFFFF;
+      uint16_t attr_max_interval = 0xFFFF;
+      const JsonVariant &val_attr_min = GetCaseInsensitive(attr_config, PSTR("MinInterval"));
+      if (nullptr != &val_attr_min) { attr_min_interval = strToUInt(val_attr_min); }
+      const JsonVariant &val_attr_max = GetCaseInsensitive(attr_config, PSTR("MaxInterval"));
+      if (nullptr != &val_attr_max) { attr_max_interval = strToUInt(val_attr_max); }
     }
   }
 
