@@ -203,7 +203,8 @@ void ZbSendReportWrite(const JsonObject &val_pubwrite, uint16_t device, uint16_t
     uint16_t cluster_id = 0xFFFF;
     uint8_t  type_id = Znodata;
     int16_t  multiplier = 1;        // multiplier to adjust the key value
-    float    val_f = 0.0f;          // alternative value if multiplier is used
+    float    val_d;                 // I try to avoid `double` but this type capture both float and (u)int32_t without prevision loss
+    const char* val_str;            // variant as string
 
     // check if the name has the format "XXXX/YYYY" where XXXX is the cluster, YYYY the attribute id
     // alternative "XXXX/YYYY%ZZ" where ZZ is the type (for unregistered attributes)
@@ -268,17 +269,17 @@ void ZbSendReportWrite(const JsonObject &val_pubwrite, uint16_t device, uint16_t
       ResponseCmndChar_P(PSTR("No more than one cluster id per command"));
       return;
     }
-    bool use_val = true;
+    
     if (operation != ZCL_READ_ATTRIBUTES_RESPONSE) {
       // apply multiplier if needed
+      val_d = value.as<double>();
+      val_str = value.as<const char*>();
       if ((0 != multiplier) && (1 != multiplier)) {
-        val_f = value;
         if (multiplier > 0) {         // inverse of decoding
-          val_f = val_f / multiplier;
+          val_d = val_d / multiplier;
         } else {
-          val_f = val_f * (-multiplier);
+          val_d = val_d * (-multiplier);
         }
-        use_val = false;
       }
     } else {
       // if (!value.is<JsonObject>()) {
@@ -303,7 +304,7 @@ void ZbSendReportWrite(const JsonObject &val_pubwrite, uint16_t device, uint16_t
       buf.add8(Z_SUCCESS);  // status OK = 0x00
     }
     buf.add8(type_id);     // prepend with attribute type
-    int32_t res = encodeSingleAttribute(buf, use_val ? value : *(const JsonVariant*)nullptr, val_f, type_id); // force status if Reponse
+    int32_t res = encodeSingleAttribute(buf, val_d, val_str, type_id); // force status if Reponse
     if (res < 0) {
       // remove the attribute type we just added
       // buf.setLen(buf.len() - (operation == ZCL_READ_ATTRIBUTES_RESPONSE ? 4 : 3));
