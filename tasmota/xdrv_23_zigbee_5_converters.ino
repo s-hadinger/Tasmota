@@ -699,6 +699,7 @@ public:
   void parseReadAttributes(JsonObject& json, uint8_t offset = 0);
   void parseReadAttributesResponse(JsonObject& json, uint8_t offset = 0);
   void parseReadConfigAttributes(JsonObject& json, uint8_t offset = 0);
+  void parseConfigAttributes(JsonObject& json, uint8_t offset = 0);
   void parseResponse(void);
   void parseClusterSpecificCommand(JsonObject& json, uint8_t offset = 0);
   void postProcessAttributes(uint16_t shortaddr, JsonObject& json);
@@ -1124,8 +1125,18 @@ void ZCLFrame::parseReadAttributes(JsonObject& json, uint8_t offset) {
   }
 }
 
+// ZCL_CONFIGURE_REPORTING_RESPONSE
+void ZCLFrame::parseConfigAttributes(JsonObject& json, uint8_t offset) {
+  uint32_t i = offset;
+  uint32_t len = _payload.len();
+
+  JsonObject &config_rsp = json.createNestedObject(F("ConfigResponse"));
+  uint8_t  status = _payload.get8(i);
+  config_rsp[F("Status")] = status;
+  config_rsp[F("StatusMsg")] = getZigbeeStatusMessage(status);
+}
+
 // ZCL_READ_REPORTING_CONFIGURATION_RESPONSE
-// TODO
 void ZCLFrame::parseReadConfigAttributes(JsonObject& json, uint8_t offset) {
   uint32_t i = offset;
   uint32_t len = _payload.len();
