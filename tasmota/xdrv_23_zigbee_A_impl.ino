@@ -287,7 +287,7 @@ void ZbSendReportWrite(const JsonObject &val_pubwrite, uint16_t device, uint16_t
     
     // ////////////////////////////////////////////////////////////////////////////////
     // Split encoding depending on message
-    if (operation != ZCL_READ_ATTRIBUTES_RESPONSE) {
+    if (operation != ZCL_CONFIGURE_REPORTING) {
       // apply multiplier if needed
       val_d = value.as<double>();
       val_str = value.as<const char*>();
@@ -309,7 +309,7 @@ void ZbSendReportWrite(const JsonObject &val_pubwrite, uint16_t device, uint16_t
 
     } else {
       // ////////////////////////////////////////////////////////////////////////////////
-      // ZCL_READ_ATTRIBUTES_RESPONSE
+      // ZCL_CONFIGURE_REPORTING
       if (!value.is<JsonObject>()) {
         ResponseCmndChar_P(PSTR("Config requires JSON objects"));
         return;
@@ -742,11 +742,11 @@ void CmndZbSend(void) {
   } else if (nullptr != &val_config) {
     // "Config":{...attributes...}
     // only JSON object
-    if (!val_publish.is<JsonObject>()) {
+    if (!val_config.is<JsonObject>()) {
       ResponseCmndChar_P(PSTR("Missing parameters"));
       return;
     }
-    ZbSendReportWrite(val_config, device, groupaddr, cluster, endpoint, manuf, ZCL_CONFIGURE_REPORTING);
+   ZbSendReportWrite(val_config, device, groupaddr, cluster, endpoint, manuf, ZCL_CONFIGURE_REPORTING);
   } else {
     Response_P(PSTR("Missing zigbee 'Send', 'Write', 'Report' or 'Response'"));
     return;
