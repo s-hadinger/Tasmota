@@ -52,6 +52,22 @@ EZSP_Serial_t EZSP_Serial;
 #include <TasmotaSerial.h>
 TasmotaSerial *ZigbeeSerial = nullptr;
 
+//
+// Blink Led Status
+//
+bool Z_LedStatusSet(bool onoff) {
+  static bool led_status_on = false;
+
+  if (onoff) {
+    SetLedPowerIdx(ZIGBEE_LED_RECEIVE, 1);
+    led_status_on = true;
+  } else if (led_status_on) {
+    SetLedPowerIdx(ZIGBEE_LED_RECEIVE, 0);
+    led_status_on = false;
+  }
+  return led_status_on;
+}
+
 /********************************************************************************************/
 //
 // Called at event loop, checks for incoming data from the CC2530
@@ -150,16 +166,13 @@ void ZigbeeInputLoop(void) {
 	static uint32_t zigbee_polling_window = 0;    // number of milliseconds since first byte
   static bool escape = false;                          // was the previous byte an escape?
   bool frame_complete = false;                  // frame is ready and complete
-  bool led_status_on = false;                   // did we turn on the led receive led
   // Receive only valid EZSP frames:
   // 1A - Cancel - cancel all previous bytes
   // 7D - Escape byte - following byte is escaped
   // 7E - end of frame
 
   while (ZigbeeSerial->available()) {
-    // turn on receive LED<1>
-    SetLedPowerIdx(ZIGBEE_LED_RECEIVE, 1);
-    led_status_on = true;     // don't forget to switch it off
+    Z_LedStatusSet(true); // turn on receive LED<1>
 
     yield();
     uint8_t zigbee_in_byte = ZigbeeSerial->read();
@@ -206,9 +219,7 @@ void ZigbeeInputLoop(void) {
     }   // adding bytes
   }     // while (ZigbeeSerial->available())
   // turn receive led off
-  if (led_status_on) {
-    SetLedPowerIdx(ZIGBEE_LED_RECEIVE, 0);
-  }
+  Z_LedStatusSet(false);
 
   uint32_t frame_len = zigbee_buffer->len();
   if (frame_complete || (frame_len && (millis() > (zigbee_polling_window + ZIGBEE_POLLING)))) {
@@ -427,8 +438,6 @@ void ZigbeeEZSPSend_Out(uint8_t out_byte) {
 // - send frame
 // send_cancel: should we first send a EZSP_CANCEL (0x1A) before the message to clear any leftover
 void ZigbeeEZSPSendRaw(const uint8_t *msg, size_t len, bool send_cancel) {
-  bool led_status_on = false;
-
 	if ((len < 1) || (len > 252)) {
 		// abort, message cannot be less than 2 bytes for CMD1 and CMD2
 		AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_JSON_ZIGBEE_EZSP_SENT ": bad message len %d"), len);
@@ -437,8 +446,7 @@ void ZigbeeEZSPSendRaw(const uint8_t *msg, size_t len, bool send_cancel) {
 	uint8_t data_len = len - 2;		// removing CMD1 and CMD2
 
   // turn send led on
-  SetLedPowerIdx(ZIGBEE_LED_SEND, 1);
-  led_status_on = true;
+  Z_LedStatusSet(true);
 
   if (ZigbeeSerial) {
     if (send_cancel) {
@@ -480,9 +488,7 @@ void ZigbeeEZSPSendRaw(const uint8_t *msg, size_t len, bool send_cancel) {
     ZigbeeSerial->write(ZIGBEE_EZSP_EOF);		// 0x1A
   }
   // turn send led off
-  if (led_status_on) {
-    SetLedPowerIdx(ZIGBEE_LED_SEND, 0);
-  }
+  Z_LedStatusSet(false);
 
   // Now send a MQTT message to report the sent message
   char hex_char[(len * 2) + 2];
