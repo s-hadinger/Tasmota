@@ -529,6 +529,7 @@ void convertClusterSpecific(JsonObject& json, uint16_t cluster, uint8_t cmd, boo
 // If not found:
 //  - returns nullptr
 const __FlashStringHelper* zigbeeFindCommand(const char *command, uint16_t *cluster, uint16_t *cmd) {
+  if (nullptr == command) { return nullptr; }
   for (uint32_t i = 0; i < sizeof(Z_Commands) / sizeof(Z_Commands[0]); i++) {
     const Z_CommandConverter *conv = &Z_Commands[i];
     uint8_t conv_direction = pgm_read_byte(&conv->direction);

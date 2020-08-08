@@ -606,6 +606,27 @@ typedef union ZCLHeaderFrameControl_t {
 } ZCLHeaderFrameControl_t;
 
 
+
+// Find the attribute details by attribute name
+// If not found:
+//  - returns nullptr
+const __FlashStringHelper* zigbeeFindAttributeByName(const char *command,
+                                    uint16_t *cluster, uint16_t *attribute, int16_t *multiplier,
+                                    uint8_t  *cb) {
+  for (uint32_t i = 0; i < ARRAY_SIZE(Z_PostProcess); i++) {
+    const Z_AttributeConverter *converter = &Z_PostProcess[i];
+    if (nullptr == converter->name) { continue; }         // avoid strcasecmp_P() from crashing
+    if (0 == strcasecmp_P(command, converter->name)) {
+      if (cluster)      { *cluster    = CxToCluster(pgm_read_byte(&converter->cluster_short)); }
+      if (attribute)    { *attribute  = pgm_read_word(&converter->attribute); }
+      if (multiplier)   { *multiplier = pgm_read_word(&converter->multiplier); }
+      if (cb)           { *cb         = pgm_read_byte(&converter->cb); }
+      return (const __FlashStringHelper*) converter->name;
+    }
+  }
+  return nullptr;
+}
+
 class ZCLFrame {
 public:
 
@@ -1117,7 +1138,7 @@ void ZCLFrame::parseReadConfigAttributes(JsonObject& json, uint8_t offset) {
     uint8_t  direction = _payload.get8(i+1);
     uint16_t attrid = _payload.get16(i+2);
     char attr_hex[12];
-    snprintf_P(attr_hex, sizeof(attr_hex), "%04X_%04X", _cluster_id, attrid);
+    snprintf_P(attr_hex, sizeof(attr_hex), "%04X/%04X", _cluster_id, attrid);
     JsonObject &attr_details = attr_names.createNestedObject(attr_hex);
 
     if (direction) {
@@ -1450,7 +1471,7 @@ int32_t Z_AqaraSensorFunc(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObj
 
 // apply the transformation from the converter
 int32_t Z_ApplyConverter(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const String &new_name,
-                        uint16_t cluster, uint16_t attr, int16_t multiplier, uint16_t cb) {
+                        uint16_t cluster, uint16_t attr, int16_t multiplier, uint8_t cb) {
   // apply multiplier if needed
   if (1 == multiplier) {          // copy unchanged
       json[new_name] = value;
@@ -1555,12 +1576,12 @@ void ZCLFrame::postProcessAttributes(uint16_t shortaddr, JsonObject& json) {
       }
 
       // Iterate on filter
-      for (uint32_t i = 0; i < sizeof(Z_PostProcess) / sizeof(Z_PostProcess[0]); i++) {
+      for (uint32_t i = 0; i < ARRAY_SIZE(Z_PostProcess); i++) {
         const Z_AttributeConverter *converter = &Z_PostProcess[i];
         uint16_t conv_cluster = CxToCluster(pgm_read_byte(&converter->cluster_short));
         uint16_t conv_attribute = pgm_read_word(&converter->attribute);
         int16_t  conv_multiplier = pgm_read_word(&converter->multiplier);
-        uint16_t conv_cb = pgm_read_word(&converter->cb);                   // callback id
+        uint8_t  conv_cb = pgm_read_byte(&converter->cb);                   // callback id
 
         if ((conv_cluster == cluster) &&
             ((conv_attribute == attribute) || (conv_attribute == 0xFFFF)) ) {

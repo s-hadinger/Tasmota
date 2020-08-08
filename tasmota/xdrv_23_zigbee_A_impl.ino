@@ -356,8 +356,8 @@ void ZbSendReportWrite(const JsonObject &val_pubwrite, uint16_t device, uint16_t
         buf.add16(attr_timeout);
       } else {
         buf.add8(type_id);
-        buf.add16(val_attr_min);
-        buf.add16(val_attr_max);
+        buf.add16(attr_min_interval);
+        buf.add16(attr_max_interval);
         if (!attr_discrete) {
           int32_t res = encodeSingleAttribute(buf, val_d, val_str, type_id);
           if (res < 0) {
@@ -791,7 +791,12 @@ void ZbBindUnbind(bool unbind) {    // false = bind, true = unbind
   if (nullptr != &val_endpoint) { endpoint = strToUInt(val_endpoint); }
   // look for source cluster
   const JsonVariant &val_cluster = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_CLUSTER));
-  if (nullptr != &val_cluster) { cluster = strToUInt(val_cluster); }
+  if (nullptr != &val_cluster) {
+    cluster = strToUInt(val_cluster);   // first convert as number
+    if (0 == cluster) {
+      zigbeeFindAttributeByName(val_cluster.as<const char*>(), &cluster, nullptr, nullptr, nullptr);
+    }
+  }
 
   // Or Group Address - we don't need a dstEndpoint in this case
   const JsonVariant &to_group = GetCaseInsensitive(json, PSTR("ToGroup"));
