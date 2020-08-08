@@ -55,13 +55,16 @@ TasmotaSerial *ZigbeeSerial = nullptr;
 //
 // Blink Led Status
 //
+const uint32_t Z_LED_STATUS_ON_MILLIS = 50;   // keep led on at least 50 ms
 bool Z_LedStatusSet(bool onoff) {
   static bool led_status_on = false;
+  static uint32_t led_on_time = 0;
 
   if (onoff) {
     SetLedPowerIdx(ZIGBEE_LED_RECEIVE, 1);
     led_status_on = true;
-  } else if (led_status_on) {
+    led_on_time = millis();
+  } else if ((led_status_on) && (TimePassedSince(led_on_time) >= Z_LED_STATUS_ON_MILLIS)) {
     SetLedPowerIdx(ZIGBEE_LED_RECEIVE, 0);
     led_status_on = false;
   }
@@ -171,6 +174,8 @@ void ZigbeeInputLoop(void) {
   // 7D - Escape byte - following byte is escaped
   // 7E - end of frame
 
+  Z_LedStatusSet(false);
+
   while (ZigbeeSerial->available()) {
     Z_LedStatusSet(true); // turn on receive LED<1>
 
@@ -218,8 +223,6 @@ void ZigbeeInputLoop(void) {
       zigbee_polling_window = millis();                               // Wait for more data
     }   // adding bytes
   }     // while (ZigbeeSerial->available())
-  // turn receive led off
-  Z_LedStatusSet(false);
 
   uint32_t frame_len = zigbee_buffer->len();
   if (frame_complete || (frame_len && (millis() > (zigbee_polling_window + ZIGBEE_POLLING)))) {
@@ -487,8 +490,6 @@ void ZigbeeEZSPSendRaw(const uint8_t *msg, size_t len, bool send_cancel) {
     // finally send End of Frame
     ZigbeeSerial->write(ZIGBEE_EZSP_EOF);		// 0x1A
   }
-  // turn send led off
-  Z_LedStatusSet(false);
 
   // Now send a MQTT message to report the sent message
   char hex_char[(len * 2) + 2];
