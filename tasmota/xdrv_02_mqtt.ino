@@ -158,11 +158,12 @@ void MqttInit(void)
 #endif
 
 #ifdef USE_MQTT_TLS_CA_CERT
-#ifdef USE_MQTT_AWS_IOT
-  tlsClient->setTrustAnchor(&AmazonRootCA1_TA);
-#else
-  tlsClient->setTrustAnchor(&LetsEncryptX3CrossSigned_TA);
-#endif // USE_MQTT_AWS_IOT
+  tlsClient->setTrustAnchor(Tasmota_TA, ARRAY_SIZE(Tasmota_TA));
+// #ifdef USE_MQTT_AWS_IOT
+//   tlsClient->setTrustAnchor(&AmazonRootCA1_TA);
+// #else
+//   tlsClient->setTrustAnchor(&LetsEncryptX3CrossSigned_TA);
+// #endif // USE_MQTT_AWS_IOT
 #endif // USE_MQTT_TLS_CA_CERT
 
   MqttClient.setClient(*tlsClient);

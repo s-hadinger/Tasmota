@@ -146,6 +146,14 @@ const br_x509_trust_anchor PROGMEM AmazonRootCA1_TA = {
 	}
 };
 
+// cumulative CA
+const br_x509_trust_anchor PROGMEM Tasmota_TA[] = {
+	LetsEncryptX3CrossSigned_TA,
+	AmazonRootCA1_TA
+};
+
+const size_t Tasmota_TA_size = ARRAY_SIZE(Tasmota_TA);
+
 // we add a separate CA for telegram
 /*********************************************************************************************\
  * GoDaddy Daddy Secure Certificate Authority - G2, RSA 2048 bits SHA 256, valid until 20220523
