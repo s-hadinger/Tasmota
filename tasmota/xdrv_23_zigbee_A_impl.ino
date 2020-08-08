@@ -789,6 +789,7 @@ void ZbBindUnbind(bool unbind) {    // false = bind, true = unbind
   // look for source endpoint
   const JsonVariant &val_endpoint = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_ENDPOINT));
   if (nullptr != &val_endpoint) { endpoint = strToUInt(val_endpoint); }
+  else { endpoint = zigbee_devices.findFirstEndpoint(srcDevice); }
   // look for source cluster
   const JsonVariant &val_cluster = GetCaseInsensitive(json, PSTR(D_CMND_ZIGBEE_CLUSTER));
   if (nullptr != &val_cluster) {
