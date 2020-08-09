@@ -336,6 +336,7 @@
 #define D_MQTT_TOPIC "MQTT נושא"
 #define D_MQTT_GROUP_TOPIC "MQTT נושא קבוצת"
 #define D_MQTT_FULL_TOPIC "MQTT נושא מלא"
+#define D_MQTT_NO_RETAIN "MQTT No Retain"
 #define D_MDNS_DISCOVERY "mDNS זיהוי"
 #define D_MDNS_ADVERTISE "mDNS פרסום"
 #define D_ESP_CHIP_ID "ESP מס' רכיב"

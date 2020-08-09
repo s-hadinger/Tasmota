@@ -336,6 +336,7 @@
 #define D_MQTT_TOPIC "MQTT 主題(Topic)"
 #define D_MQTT_GROUP_TOPIC "MQTT 群組主題"
 #define D_MQTT_FULL_TOPIC "MQTT 完整主題"
+#define D_MQTT_NO_RETAIN "MQTT No Retain"
 #define D_MDNS_DISCOVERY "mDNS 探索"
 #define D_MDNS_ADVERTISE "mDNS 廣播"
 #define D_ESP_CHIP_ID "ESP晶片ID"

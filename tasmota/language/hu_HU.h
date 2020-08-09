@@ -336,6 +336,7 @@
 #define D_MQTT_TOPIC "MQTT topic"
 #define D_MQTT_GROUP_TOPIC "MQTT csoport topic"
 #define D_MQTT_FULL_TOPIC "MQTT teljes topic"
+#define D_MQTT_NO_RETAIN "MQTT No Retain"
 #define D_MDNS_DISCOVERY "mDNS láthatóság"
 #define D_MDNS_ADVERTISE "mDNS hirdetés"
 #define D_ESP_CHIP_ID "ESP chip ID"

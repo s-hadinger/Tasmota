@@ -336,6 +336,7 @@
 #define D_MQTT_TOPIC "Topic MQTT"
 #define D_MQTT_GROUP_TOPIC "Topic skupiny MQTT"
 #define D_MQTT_FULL_TOPIC "Celý topic MQTT"
+#define D_MQTT_NO_RETAIN "MQTT No Retain"
 #define D_MDNS_DISCOVERY "Získávání mDNS"
 #define D_MDNS_ADVERTISE "Rozesílání mDNS"
 #define D_ESP_CHIP_ID "ID systému ESP"

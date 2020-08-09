@@ -336,6 +336,7 @@
 #define D_MQTT_TOPIC "MQTT Топік"
 #define D_MQTT_GROUP_TOPIC "MQTT Топік групи"
 #define D_MQTT_FULL_TOPIC "MQTT Топік повний"
+#define D_MQTT_NO_RETAIN "MQTT No Retain"
 #define D_MDNS_DISCOVERY "mDNS Виявлення"
 #define D_MDNS_ADVERTISE "mDNS Анонс"
 #define D_ESP_CHIP_ID "ID чипу ESP"

@@ -336,6 +336,7 @@
 #define D_MQTT_TOPIC "MQTT Топик"
 #define D_MQTT_GROUP_TOPIC "MQTT Топик группы"
 #define D_MQTT_FULL_TOPIC "MQTT Топик полный"
+#define D_MQTT_NO_RETAIN "MQTT No Retain"
 #define D_MDNS_DISCOVERY "mDNS Обнаружение"
 #define D_MDNS_ADVERTISE "mDNS Транcляция"
 #define D_ESP_CHIP_ID "ID чипа ESP"

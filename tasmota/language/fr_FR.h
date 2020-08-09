@@ -336,6 +336,7 @@
 #define D_MQTT_TOPIC "Topic MQTT"
 #define D_MQTT_GROUP_TOPIC "Groupe topic MQTT"
 #define D_MQTT_FULL_TOPIC "Topic complet MQTT"
+#define D_MQTT_NO_RETAIN "MQTT No Retain"
 #define D_MDNS_DISCOVERY "Découverte mDNS"
 #define D_MDNS_ADVERTISE "Annonce mDNS"
 #define D_ESP_CHIP_ID "ESP Chip Id"
