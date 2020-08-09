@@ -24,9 +24,8 @@
 #ifdef USE_MQTT_TLS
   #include "WiFiClientSecureLightBearSSL.h"
   BearSSL::WiFiClientSecure_light *tlsClient;
-#else
-  WiFiClient EspClient;                     // Wifi Client
 #endif
+WiFiClient EspClient;                     // Wifi Client - non-TLS
 
 const char kMqttCommands[] PROGMEM = "|"  // No prefix
 #if defined(USE_MQTT_TLS) && !defined(USE_MQTT_TLS_CA_CERT)
@@ -1251,6 +1250,9 @@ const char HTTP_FORM_MQTT1[] PROGMEM =
   "<form method='get' action='" WEB_HANDLE_MQTT "'>"
   "<p><b>" D_HOST "</b> (" MQTT_HOST ")<br><input id='mh' placeholder=\"" MQTT_HOST "\" value=\"%s\"></p>"
   "<p><b>" D_PORT "</b> (" STR(MQTT_PORT) ")<br><input id='ml' placeholder='" STR(MQTT_PORT) "' value='%d'></p>"
+#ifdef USE_MQTT_TLS
+  "<p><label><input id='b3' type='checkbox'%s><b>" D_MQTT_TLS_ENABLE "</b></label><br>"
+#endif // USE_MQTT_TLS
   "<p><b>" D_CLIENT "</b> (%s)<br><input id='mc' placeholder=\"%s\" value=\"%s\"></p>";
 const char HTTP_FORM_MQTT2[] PROGMEM =
   "<p><b>" D_USER "</b> (" MQTT_USER ")<br><input id='mu' placeholder=\"" MQTT_USER "\" value=\"%s\"></p>"
@@ -1277,6 +1279,9 @@ void HandleMqttConfiguration(void)
   WSContentSend_P(HTTP_FORM_MQTT1,
     SettingsText(SET_MQTT_HOST),
     Settings.mqtt_port,
+#ifdef USE_MQTT_TLS
+    Settings.flag4.mqtt_tls ? " checked" : "",      // SetOption102 - Enable MQTT TLS
+#endif // USE_MQTT_TLS
     Format(str, MQTT_CLIENT_ID, sizeof(str)), MQTT_CLIENT_ID, SettingsText(SET_MQTT_CLIENT));
   WSContentSend_P(HTTP_FORM_MQTT2,
     (!strlen(SettingsText(SET_MQTT_USER))) ? "0" : SettingsText(SET_MQTT_USER),
