@@ -307,6 +307,7 @@
 #define D_DEVICE_NAME "Device Name"
 #define D_WEB_ADMIN_PASSWORD "Webbadmin-lösenord"
 #define D_MQTT_ENABLE "MQTT aktivera"
+#define D_MQTT_TLS_ENABLE "MQTT TLS"
 #define D_FRIENDLY_NAME "Läsbart namn"
 #define D_BELKIN_WEMO "Belkin WeMo"
 #define D_HUE_BRIDGE "Hue Bridge"

@@ -307,6 +307,7 @@
 #define D_DEVICE_NAME "Device Name"
 #define D_WEB_ADMIN_PASSWORD "Κωδικός διαχειριστή"
 #define D_MQTT_ENABLE "Ενεργοποίηση MQTT"
+#define D_MQTT_TLS_ENABLE "MQTT TLS"
 #define D_FRIENDLY_NAME "Φιλική ονομασία"
 #define D_BELKIN_WEMO "Belkin WeMo"
 #define D_HUE_BRIDGE "Hue Bridge"

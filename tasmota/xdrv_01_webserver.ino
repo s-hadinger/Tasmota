@@ -703,6 +703,10 @@ const char HTTP_FORM_OTHER[] PROGMEM =
   "<br>"
   "<label><input id='b1' type='checkbox'%s><b>" D_MQTT_ENABLE "</b></label><br>"
   "<br>"
+#ifdef USE_MQTT_TLS
+  "<label><input id='b3' type='checkbox'%s><b>" D_MQTT_TLS_ENABLE "</b></label><br>"
+  "<br>"
+#endif // USE_MQTT_TLS
   "<label><b>" D_DEVICE_NAME "</b> (%s)</label><br><input id='dn' placeholder=\"\" value=\"%s\"><br>"
   "<br>";
 

@@ -148,6 +148,10 @@ PubSubClient MqttClient(EspClient);
 void MqttInit(void)
 {
 #ifdef USE_MQTT_TLS
+  if ((8883 == Settings.mqtt_port) || (8884 == Settings.mqtt_port)) {
+    // Turn on TLS for port 8883 (TLS) and 8884 (TLS, client certificate)
+    Settings.flag4.mqtt_tls = true;
+  }
   tlsClient = new BearSSL::WiFiClientSecure_light(1024,1024);
 
 #ifdef USE_MQTT_AWS_IOT
@@ -159,11 +163,6 @@ void MqttInit(void)
 
 #ifdef USE_MQTT_TLS_CA_CERT
   tlsClient->setTrustAnchor(Tasmota_TA, ARRAY_SIZE(Tasmota_TA));
-// #ifdef USE_MQTT_AWS_IOT
-//   tlsClient->setTrustAnchor(&AmazonRootCA1_TA);
-// #else
-//   tlsClient->setTrustAnchor(&LetsEncryptX3CrossSigned_TA);
-// #endif // USE_MQTT_AWS_IOT
 #endif // USE_MQTT_TLS_CA_CERT
 
   MqttClient.setClient(*tlsClient);

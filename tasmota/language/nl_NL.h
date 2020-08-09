@@ -307,6 +307,7 @@
 #define D_DEVICE_NAME "Apparaatnaam"
 #define D_WEB_ADMIN_PASSWORD "Web Admin Wachtwoord"
 #define D_MQTT_ENABLE "MQTT ingeschakeld"
+#define D_MQTT_TLS_ENABLE "MQTT TLS"
 #define D_FRIENDLY_NAME "Beschrijvende naam"
 #define D_BELKIN_WEMO "Belkin WeMo"
 #define D_HUE_BRIDGE "Hue Bridge"

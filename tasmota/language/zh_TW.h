@@ -307,6 +307,7 @@
 #define D_DEVICE_NAME "裝置名稱"
 #define D_WEB_ADMIN_PASSWORD "網頁上的管理員密碼"
 #define D_MQTT_ENABLE "MQTT的啟用"
+#define D_MQTT_TLS_ENABLE "MQTT TLS"
 #define D_FRIENDLY_NAME "暱稱"
 #define D_BELKIN_WEMO "貝爾金 WeMo"
 #define D_HUE_BRIDGE "Hue 橋接器"
