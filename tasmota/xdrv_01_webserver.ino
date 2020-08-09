@@ -2490,6 +2490,7 @@ void HandleInformation(void)
     }
     WSContentSend_P(PSTR("}1" D_MQTT_FULL_TOPIC "}2%s"), GetTopic_P(stopic, CMND, mqtt_topic, ""));
     WSContentSend_P(PSTR("}1" D_MQTT " " D_FALLBACK_TOPIC "}2%s"), GetFallbackTopic_P(stopic, ""));
+    WSContentSend_P(PSTR("}1" "MQTT No Retain" "}2%s"), Settings.flag4.mqtt_no_retain ? "true" : "false");
   } else {
     WSContentSend_P(PSTR("}1" D_MQTT "}2" D_DISABLED));
   }
