@@ -151,7 +151,8 @@ void MqttInit(void)
   }
 
   // Detect AWS IoT and set default parameters
-  if (1) {        // TODO look for ".iot." and ".amazonaws.com" in the domain name
+  String host = String(SettingsText(SET_MQTT_HOST));
+  if (host.indexOf(".iot.") && host.endsWith(".amazonaws.com")) {  // look for ".iot." and ".amazonaws.com" in the domain name
     Settings.flag4.mqtt_no_retain = true;
     Mqtt.tls_private_key = true;
   }
