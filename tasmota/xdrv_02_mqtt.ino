@@ -1341,6 +1341,9 @@ void MqttSaveSettings(void)
   SettingsUpdateText(SET_MQTT_HOST, (!strlen(tmp)) ? MQTT_HOST : (!strcmp(tmp,"0")) ? "" : tmp);
   WebGetArg("ml", tmp, sizeof(tmp));
   Settings.mqtt_port = (!strlen(tmp)) ? MQTT_PORT : atoi(tmp);
+#ifdef USE_MQTT_TLS
+  Settings.flag4.mqtt_tls = Webserver->hasArg("b3");  // SetOption102 - Enable MQTT TLS
+#endif
   WebGetArg("mc", tmp, sizeof(tmp));
   SettingsUpdateText(SET_MQTT_CLIENT, (!strlen(tmp)) ? MQTT_CLIENT_ID : tmp);
 #if defined(USE_MQTT_TLS) && defined(USE_MQTT_AWS_IOT)
