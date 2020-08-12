@@ -107,7 +107,7 @@ typedef union {                            // Restricted by MISRA-C Rule 18.4 bu
     uint32_t device_groups_enabled : 1;    // bit 3 (v8.1.0.9)   - SetOption85 - Enable Device Groups
     uint32_t led_timeout : 1;              // bit 4 (v8.1.0.9)   - SetOption86 - PWM Dimmer Turn brightness LED's off 5 seconds after last change
     uint32_t powered_off_led : 1;          // bit 5 (v8.1.0.9)   - SetOption87 - PWM Dimmer Turn red LED on when powered off
-    uint32_t remote_device_mode : 1;       // bit 6 (v8.1.0.9)   - SetOption88 - Enable relays in separate device groups/PWM Dimmer Buttons control remote devices
+    uint32_t multiple_device_groups : 1;   // bit 6 (v8.1.0.9)   - SetOption88 - Enable relays in separate device groups/PWM Dimmer Buttons control remote devices
     uint32_t zigbee_distinct_topics : 1;   // bit 7 (v8.1.0.10)  - SetOption89 - Distinct MQTT topics per device for Zigbee (#7835)
     uint32_t only_json_message : 1;        // bit 8 (v8.2.0.3)   - SetOption90 - Disable non-json MQTT response
     uint32_t fade_at_startup : 1;          // bit 9 (v8.2.0.3)   - SetOption91 - Enable light fading at start/power on
@@ -121,9 +121,9 @@ typedef union {                            // Restricted by MISRA-C Rule 18.4 bu
     uint32_t zerocross_dimmer : 1;         // bit 17 (v8.3.1.4)  - SetOption99 - Enable zerocross dimmer on PWM DIMMER
     uint32_t remove_zbreceived : 1;        // bit 18 (v8.3.1.7)  - SetOption100 - Remove ZbReceived form JSON message
     uint32_t zb_index_ep : 1;              // bit 19 (v8.3.1.7)  - SetOption101 - Add the source endpoint as suffix to attributes, ex `Power3` instead of `Power` if sent from endpoint 3
-    uint32_t mqtt_tls : 1;                 // bit 20 (v8.4.0.1)  - SetOption102 - Enable TLS mode (requires TLS version)
-    uint32_t mqtt_no_retain : 1;           // bit 21 (v8.4.0.1)  - SetOption103 - No Retain - disable all MQTT retained messages, some brokers don't support it: AWS IoT, Losant
-    uint32_t spare22 : 1;
+    uint32_t teleinfo_baudrate : 1;        // bit 20 (v8.4.0.1)  - SetOption102 - Set Baud rate for Teleinfo communication (0 = 1200 or 1 = 9600)
+    uint32_t mqtt_tls : 1;                 // bit 21 (v8.4.0.1)  - SetOption103 - Enable TLS mode (requires TLS version)
+    uint32_t mqtt_no_retain : 1;           // bit 22 (v8.4.0.1)  - SetOption104 - No Retain - disable all MQTT retained messages, some brokers don't support it: AWS IoT, Losant
     uint32_t spare23 : 1;
     uint32_t spare24 : 1;
     uint32_t spare25 : 1;
