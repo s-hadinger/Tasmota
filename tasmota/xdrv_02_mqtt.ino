@@ -642,10 +642,13 @@ void MqttReconnect(void)
 
   uint32_t mqtt_connect_time = millis();
 #if defined(USE_MQTT_TLS) && !defined(USE_MQTT_TLS_CA_CERT)
+  bool allow_all_fingerprints;
+  bool learn_fingerprint1;
+  bool learn_fingerprint2;
   if (Settings.flag4.mqtt_tls) {
-    bool allow_all_fingerprints = false;
-    bool learn_fingerprint1 = is_fingerprint_mono_value(Settings.mqtt_fingerprint[0], 0x00);
-    bool learn_fingerprint2 = is_fingerprint_mono_value(Settings.mqtt_fingerprint[1], 0x00);
+    allow_all_fingerprints = false;
+    learn_fingerprint1 = is_fingerprint_mono_value(Settings.mqtt_fingerprint[0], 0x00);
+    learn_fingerprint2 = is_fingerprint_mono_value(Settings.mqtt_fingerprint[1], 0x00);
     allow_all_fingerprints |= is_fingerprint_mono_value(Settings.mqtt_fingerprint[0], 0xff);
     allow_all_fingerprints |= is_fingerprint_mono_value(Settings.mqtt_fingerprint[1], 0xff);
     allow_all_fingerprints |= learn_fingerprint1;
