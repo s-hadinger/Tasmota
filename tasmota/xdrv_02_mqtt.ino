@@ -731,8 +731,8 @@ void MqttReconnect(void)
       }
   // **** End patch Castellucci
 #endif // !USE_MQTT_TLS_CA_CERT
-#endif // USE_MQTT_TLS
     }
+#endif // USE_MQTT_TLS
     MqttConnected();
   } else {
 #ifdef USE_MQTT_TLS
