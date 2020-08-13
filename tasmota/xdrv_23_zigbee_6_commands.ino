@@ -142,7 +142,7 @@ const Z_CommandConverter Z_Commands[] PROGMEM = {
   { Z(ArrowHold),      0x0005, 0x08, 0x01,   Z(xx) },         // xx == 0x01 = left, 0x00 = right
   { Z(ArrowRelease),   0x0005, 0x09, 0x01,   Z() },
   // Response for Indetify cluster
-  { Z(IdentifyQuery),  0x0003, 0x01, 0x02,   Z(xxxx) },             // timeout in seconds
+  { Z(IdentifyQuery),  0x0003, 0x00, 0x02,   Z(xxxx) },             // timeout in seconds
   // IAS - Intruder Alarm System + leak/fire detection
   { Z(ZoneStatusChange),0x0500, 0x00, 0x82,  Z(xxxxyyzz) },   // xxxx = zone status, yy = extended status, zz = zone id, Delay is ignored
   // responses for Group cluster commands
