@@ -417,8 +417,8 @@ uint16_t Z_Devices::isKnownFriendlyName(const char * name) const {
 }
 
 uint64_t Z_Devices::getDeviceLongAddr(uint16_t shortaddr) const {
-  const Z_Device & device = getShortAddrConst(shortaddr);
-  return device.longaddr;
+  const Z_Device &device = getShortAddrConst(shortaddr);
+  return (&device != nullptr) ? device.longaddr : 0;
 }
 
 //
@@ -998,6 +998,7 @@ void Z_Devices::clean(void) {
 // - a number 0..99, the index number in ZigbeeStatus
 // - a friendly name, between quotes, example: "Room_Temp"
 uint16_t Z_Devices::parseDeviceParam(const char * param, bool short_must_be_known) const {
+Serial.printf("+++ 1\n"); Serial.flush();
   if (nullptr == param) { return 0; }
   size_t param_len = strlen(param);
   char dataBuf[param_len + 1];
@@ -1005,19 +1006,23 @@ uint16_t Z_Devices::parseDeviceParam(const char * param, bool short_must_be_know
   RemoveSpace(dataBuf);
   uint16_t shortaddr = BAD_SHORTADDR;    // start with unknown
 
+Serial.printf("+++ 2\n"); Serial.flush();
   if (strlen(dataBuf) < 4) {
     // simple number 0..99
     if ((XdrvMailbox.payload > 0) && (XdrvMailbox.payload <= 99)) {
       shortaddr = zigbee_devices.isKnownIndex(XdrvMailbox.payload - 1);
     }
   } else if ((dataBuf[0] == '0') && ((dataBuf[1] == 'x') || (dataBuf[1] == 'X'))) {
+Serial.printf("+++ 3\n"); Serial.flush();
     // starts with 0x
     if (strlen(dataBuf) < 18) {
       // expect a short address
       shortaddr = strtoull(dataBuf, nullptr, 0);
+Serial.printf("+++ 4\n"); Serial.flush();
       if (short_must_be_known) {
         shortaddr = zigbee_devices.isKnownShortAddr(shortaddr);
       }
+Serial.printf("+++ 5\n"); Serial.flush();
       // else we don't check if it's already registered to force unregistered devices
     } else {
       // expect a long address
