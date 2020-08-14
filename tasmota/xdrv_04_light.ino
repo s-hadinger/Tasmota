@@ -1314,6 +1314,12 @@ void LightCalcPWMRange(void) {
 
 void LightInit(void)
 {
+  // move white blend mode from deprecated `RGBWWTable` to `SetOption105`
+  if (0 == Settings.rgbwwTable[4]) {
+    Settings.flag4.white_blend_mode = true;
+    Settings.rgbwwTable[4] = 255;       // set RGBWWTable value to its default
+  }
+
   Light.device = devices_present;
   Light.subtype = (light_type & 7) > LST_MAX ? LST_MAX : (light_type & 7); // Always 0 - LST_MAX (5)
   Light.pwm_multi_channels = Settings.flag3.pwm_multi_channels;  // SetOption68 - Enable multi-channels PWM instead of Color PWM
@@ -1954,7 +1960,7 @@ void LightAnimate(void)
 
         // Now see if we need to mix RGB and True White
         // Valid only for LST_RGBW, LST_RGBCW, rgbwwTable[4] is zero, and white is zero (see doc)
-        if ((LST_RGBW <= Light.subtype) && (0 == Settings.rgbwwTable[4]) && (0 == cur_col_10[3]+cur_col_10[4])) {
+        if ((LST_RGBW <= Light.subtype) && (Settings.flag4.white_blend_mode) && (0 == cur_col_10[3]+cur_col_10[4])) {
           uint32_t min_rgb_10 = min3(cur_col_10[0], cur_col_10[1], cur_col_10[2]);
           for (uint32_t i=0; i<3; i++) {
             // substract white and adjust according to rgbwwTable
@@ -1977,8 +1983,8 @@ void LightAnimate(void)
         }
       }
 
-      // Apply RGBWWTable only if Settings.rgbwwTable[4] != 0
-      if (0 != Settings.rgbwwTable[4]) {
+      // Apply RGBWWTable only if not Settings.flag4.white_blend_mode
+      if (!Settings.flag4.white_blend_mode) {
         for (uint32_t i = 0; i<Light.subtype; i++) {
           uint32_t adjust = change8to10(Settings.rgbwwTable[i]);
           cur_col_10[i] = changeUIntScale(cur_col_10[i], 0, 1023, 0, adjust);
