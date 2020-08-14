@@ -284,6 +284,7 @@ struct LIGHT {
 
   bool update = true;
   bool pwm_multi_channels = false;        // SetOption68, treat each PWM channel as an independant dimmer
+  bool virtual_ct = false;                // SetOption106, add a 5th virtual channel
 
   bool     fade_initialized = false;      // dont't fade at startup
   bool     fade_running = false;
@@ -1281,13 +1282,16 @@ bool LightModuleInit(void)
   }
 
   // post-process for lights
+  uint32_t pwm_channels = (light_type & 7) > LST_MAX ? LST_MAX : (light_type & 7);
   if (Settings.flag3.pwm_multi_channels) {  // SetOption68 - Enable multi-channels PWM instead of Color PWM
-    uint32_t pwm_channels = (light_type & 7) > LST_MAX ? LST_MAX : (light_type & 7);
     if (0 == pwm_channels) { pwm_channels = 1; }
     devices_present += pwm_channels - 1;    // add the pwm channels controls at the end
-  } else if ((Settings.param[P_RGB_REMAP] & 128) && (LST_RGBW <= (light_type & 7))) {
+  } else if ((Settings.param[P_RGB_REMAP] & 128) && (LST_RGBW <= pwm_channels)) {
     // if RGBW or RGBCW, and SetOption37 >= 128, we manage RGB and W separately, hence adding a device
     devices_present++;
+  } else if ((Settings.flag4.virtual_ct) && (LST_RGBW == pwm_channels)) {
+    Light.virtual_ct = true;    // enabled
+    light_type++;               // create an additional virtual 5th channel
   }
 
   return (light_type > LT_BASIC);
