@@ -1363,7 +1363,6 @@ int32_t Z_AqaraCubeFunc(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObjec
   //     presentValue = x + 128 = 180º flip to side x on top
   //     presentValue = x + 256 = push/slide cube while side x is on top
   //     presentValue = x + 512 = double tap while side x is on top
-
   return 0;
 }
 
