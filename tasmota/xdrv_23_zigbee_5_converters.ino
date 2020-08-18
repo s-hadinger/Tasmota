@@ -145,7 +145,7 @@ ZF(ZCLVersion) ZF(AppVersion) ZF(StackVersion) ZF(HWVersion) ZF(Manufacturer) ZF
 ZF(DateCode) ZF(PowerSource) ZF(SWBuildID) ZF(Power) ZF(SwitchType) ZF(Dimmer)
 ZF(MainsVoltage) ZF(MainsFrequency) ZF(BatteryVoltage) ZF(BatteryPercentage)
 ZF(CurrentTemperature) ZF(MinTempExperienced) ZF(MaxTempExperienced) ZF(OverTempTotalDwell)
-ZF(IdentifyTime)
+ZF(IdentifyTime) ZF(GroupNameSupport)
 ZF(SceneCount) ZF(CurrentScene) ZF(CurrentGroup) ZF(SceneValid)
 ZF(AlarmCount) ZF(Time) ZF(TimeStatus) ZF(TimeZone) ZF(DstStart) ZF(DstEnd)
 ZF(DstShift) ZF(StandardTime) ZF(LocalTime) ZF(LastSetTime) ZF(ValidUntilTime) ZF(TimeEpoch)
@@ -262,6 +262,9 @@ const Z_AttributeConverter Z_PostProcess[] PROGMEM = {
 
   // Identify cluster
   { Zuint16,  Cx0003, 0x0000,  Z(IdentifyTime),         1,  Z_Nop },
+
+  // Groups cluster
+  { Zmap8,    Cx0004, 0x0000,  Z(GroupNameSupport),     1,  Z_Nop },
 
   // Scenes cluster
   { Zuint8,   Cx0005, 0x0000,  Z(SceneCount),           1,  Z_Nop },
