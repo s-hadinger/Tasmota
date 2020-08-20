@@ -29,6 +29,7 @@
 #include <IRrecv.h>
 #include <IRutils.h>
 #include <IRac.h>
+#include <base64.hpp>
 
 enum IrErrors { IE_RESPONSE_PROVIDED, IE_NO_ERROR, IE_INVALID_RAWDATA, IE_INVALID_JSON, IE_SYNTAX_IRSEND, IE_SYNTAX_IRHVAC,
                 IE_UNSUPPORTED_HVAC, IE_UNSUPPORTED_PROTOCOL };
@@ -211,24 +212,103 @@ void IrReceiveCheck(void)
       Response_P(PSTR("{\"" D_JSON_IRRECEIVED "\":%s"), sendIRJsonState(results).c_str());
 
       if (Settings.flag3.receive_raw) {  // SetOption58 - Add IR Raw data to JSON message
-        ResponseAppend_P(PSTR(",\"" D_JSON_IR_RAWDATA "\":["));
-        uint16_t i;
-        for (i = 1; i < results.rawlen; i++) {
-          if (i > 1) { ResponseAppend_P(PSTR(",")); }
-          uint32_t usecs;
-          for (usecs = results.rawbuf[i] * kRawTick; usecs > UINT16_MAX; usecs -= UINT16_MAX) {
-            ResponseAppend_P(PSTR("%d,0,"), UINT16_MAX);
+        if (0) {        // Legacy
+          ResponseAppend_P(PSTR(",\"" D_JSON_IR_RAWDATA "\":["));
+          uint16_t i;
+          for (i = 1; i < results.rawlen; i++) {
+            if (i > 1) { ResponseAppend_P(PSTR(",")); }
+            uint32_t usecs;
+            for (usecs = results.rawbuf[i] * kRawTick; usecs > UINT16_MAX; usecs -= UINT16_MAX) {
+              ResponseAppend_P(PSTR("%d,0,"), UINT16_MAX);
+            }
+            ResponseAppend_P(PSTR("%d"), usecs);
+            if (strlen(mqtt_data) > sizeof(mqtt_data) - 40) { break; }  // Quit if char string becomes too long
           }
-          ResponseAppend_P(PSTR("%d"), usecs);
-          if (strlen(mqtt_data) > sizeof(mqtt_data) - 40) { break; }  // Quit if char string becomes too long
+          uint16_t extended_length = results.rawlen - 1;
+          for (uint32_t j = 0; j < results.rawlen - 1; j++) {
+            uint32_t usecs = results.rawbuf[j] * kRawTick;
+            // Add two extra entries for multiple larger than UINT16_MAX it is.
+            extended_length += (usecs / (UINT16_MAX + 1)) * 2;
+          }
+          ResponseAppend_P(PSTR("],\"" D_JSON_IR_RAWDATA "Info\":[%d,%d,%d]"), extended_length, i -1, results.overflow);
+        } else {
+          // New more compact format
+          uint32_t i;
+          String raw_ir_str("");
+          raw_ir_str.reserve(results.rawlen * 3 + 50);      // take a minimum of 3 chars per pulse and margin
+
+          for (i = 1; i < results.rawlen; i++) {
+            raw_ir_str += (i & 0x01) ? F("+") : F("-");
+            uint32_t val = ((results.rawbuf[i] * kRawTick) + 5) / 10;   // take a 10ms increment value
+
+            char hex[8];
+            snprintf_P(hex, sizeof(hex), PSTR("%02X"), val);
+            raw_ir_str += hex;
+          }
+
+          // Unishox compress
+          // First compute compressed size
+          size_t len_compressed;
+          len_compressed = compressor.unishox_compress(raw_ir_str.c_str(), raw_ir_str.length(), nullptr /* dry-run */, 2 * raw_ir_str.length());
+
+          char *buf_shox = (char*) malloc(8 + len_compressed);
+          if (buf_shox) {
+            len_compressed = compressor.unishox_compress(raw_ir_str.c_str(), raw_ir_str.length(), buf_shox, 8 + len_compressed);
+          } else {
+            len_compressed = 0;
+          }
+
+          raw_ir_str = (const char*) nullptr;     // deallocates buffer
+
+          unsigned char *buf_b64 = nullptr;
+          if (buf_shox) {
+            buf_b64 = (unsigned char*) malloc(len_compressed * 8 / 6 + 8);
+            if (buf_b64) {
+              encode_base64((unsigned char*)buf_shox, len_compressed, buf_b64);
+            }
+            free(buf_shox);
+          }
+
+          ResponseAppend_P(PSTR(",\"" D_JSON_IR_HEXDATA "\":\"shox:%s"), buf_b64 ? (const char*) buf_b64 : "<error>");
+
+          free(buf_b64);
+
+          // if (strlen(mqtt_data) > sizeof(mqtt_data) - 40) { break; }  // Quit if char string becomes too long
+
+          uint16_t extended_length = results.rawlen - 1;
+          for (uint32_t j = 0; j < results.rawlen - 1; j++) {
+            uint32_t usecs = results.rawbuf[j] * kRawTick;
+            // Add two extra entries for multiple larger than UINT16_MAX it is.
+            extended_length += (usecs / (UINT16_MAX + 1)) * 2;
+          }
+          ResponseAppend_P(PSTR("\",\"" D_JSON_IR_RAWDATA "Info\":[%d,%d,%d]"), extended_length, i -1, results.overflow);
+          // New more compact format
+          // uint32_t i;
+          // String raw_ir_str(""):
+          // raw_ir_str.reserve(results.rawlen * 3 + 50);      // take a minimum of 3 chars per pulse and margin
+
+          // ResponseAppend_P(PSTR(",\"" D_JSON_IR_HEXDATA "\":\""));
+          // for (i = 1; i < results.rawlen; i++) {
+          //   const char* prefix = (i & 0x01) ? PSTR("+") : PSTR("-");        // is it a high or low pulse
+          //   const char* prefix_alt = (i & 0x01) ? PSTR("-") : PSTR("+");    // inverse
+
+          //   uint32_t val = ((results.rawbuf[i] * kRawTick) + 5) / 10;   // take a 10ms increment value
+          //   while (val > UINT16_MAX) {
+          //     ResponseAppend_P(PSTR("%sFFFF%s0"), prefix, prefix_alt);
+          //     val -= UINT16_MAX;
+          //   }
+
+          //   ResponseAppend_P(PSTR("%s%02X"), prefix, val);
+          //   if (strlen(mqtt_data) > sizeof(mqtt_data) - 40) { break; }  // Quit if char string becomes too long
+          // }
+          // uint16_t extended_length = results.rawlen - 1;
+          // for (uint32_t j = 0; j < results.rawlen - 1; j++) {
+          //   uint32_t usecs = results.rawbuf[j] * kRawTick;
+          //   // Add two extra entries for multiple larger than UINT16_MAX it is.
+          //   extended_length += (usecs / (UINT16_MAX + 1)) * 2;
+          // }
+          // ResponseAppend_P(PSTR("\",\"" D_JSON_IR_RAWDATA "Info\":[%d,%d,%d]"), extended_length, i -1, results.overflow);
         }
-        uint16_t extended_length = results.rawlen - 1;
-        for (uint32_t j = 0; j < results.rawlen - 1; j++) {
-          uint32_t usecs = results.rawbuf[j] * kRawTick;
-          // Add two extra entries for multiple larger than UINT16_MAX it is.
-          extended_length += (usecs / (UINT16_MAX + 1)) * 2;
-        }
-        ResponseAppend_P(PSTR("],\"" D_JSON_IR_RAWDATA "Info\":[%d,%d,%d]"), extended_length, i -1, results.overflow);
       }
 
       ResponseJsonEndEnd();

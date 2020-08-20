@@ -435,6 +435,7 @@
   #define D_JSON_IR_DATALSB "DataLSB"
   #define D_JSON_IR_HASH "Hash"
   #define D_JSON_IR_RAWDATA "RawData"
+  #define D_JSON_IR_HEXDATA "HexData"
   #define D_JSON_IR_REPEAT "Repeat"
 #define D_CMND_IRHVAC "IRHVAC"
   #define D_JSON_IRHVAC_VENDOR "Vendor"
