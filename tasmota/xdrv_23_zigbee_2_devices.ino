@@ -84,6 +84,11 @@ typedef struct Z_Device {
   uint16_t              x, y;           // last color [x,y] | 0xFFFF not set, default 0
   uint8_t               linkquality;    // lqi from last message, 0xFF means unknown
   uint8_t               batterypercent; // battery percentage (0..100), 0xFF means unknwon
+  // sensor data
+  int16_t               temperature;    // temperature in 1/10th of Celsius, 0x8000 if unknown
+  uint16_t              pressure;       // air pressure in hPa, 0xFFFF if unknown
+  uint8_t               humidity;       // humidity in percent, 0..100, 0xFF if unknown
+
 } Z_Device;
 
 /*********************************************************************************************\
@@ -195,6 +200,17 @@ public:
                         uint16_t *ct, uint16_t *hue,
                         uint16_t *x, uint16_t *y,
                         bool *reachable) const ;
+
+  // Sensor support
+  void updateTemperature(uint16_t shortaddr, int16_t temperature);
+  void updateHumidity(uint16_t shortaddr, uint8_t humidity);
+  void updatePressure(uint16_t shortaddr, uint16_t pressure);
+  void updateSensor(uint16_t shortaddr, int16_t *temperature, uint16_t *pressure, uint8_t *humidity);
+
+  bool getTemperature(uint16_t shortaddr, int16_t *temperature) const ;
+  bool getHumidity(uint16_t shortaddr, uint8_t *humidity) const ;
+  bool getPressure(uint16_t shortaddr, uint16_t *pressure) const ;
+  bool readSensor(uint16_t shortaddr, int16_t *temperature, uint16_t *pressure, uint8_t *humidity);
 
   // Timers
   void resetTimersForDevice(uint16_t shortaddr, uint16_t groupaddr, uint8_t category);
@@ -322,7 +338,11 @@ Z_Device & Z_Devices::createDeviceEntry(uint16_t shortaddr, uint64_t longaddr) {
                       0xFFFF,     // hue
                       0xFFFF, 0xFFFF,  // x, y
                       0xFF,       // lqi, 0xFF = unknown
-                      0xFF        // battery percentage x 2, 0xFF means unknown
+                      0xFF,       // battery percentage x 2, 0xFF means unknown
+                      // sensor data
+                      -0x8000,     // temperature
+                      0xFFFF,     // pressure
+                      0xFF,       // humidity
                     };
 
   device_alloc->json_buffer = new DynamicJsonBuffer(16);
@@ -845,6 +865,74 @@ bool Z_Devices::getHueState(uint16_t shortaddr,
   } else {
     return false;
   }
+}
+
+// Sensor support
+
+
+void Z_Devices::updateTemperature(uint16_t shortaddr, int16_t temperature) {
+  if (-0x8000 != temperature) { getShortAddr(shortaddr).temperature = temperature; }
+}
+void Z_Devices::updateHumidity(uint16_t shortaddr, uint8_t humidity) {
+  if (0xFF != humidity)       { getShortAddr(shortaddr).humidity = humidity; }
+}
+void Z_Devices::updatePressure(uint16_t shortaddr, uint16_t pressure) {
+  if (0xFFFF != pressure)     { getShortAddr(shortaddr).pressure = pressure; }
+}
+
+bool Z_Devices::getTemperature(uint16_t shortaddr, int16_t *temperature) const {
+  int32_t found = findShortAddr(shortaddr);
+  if (temperature && (found >=0 )) {
+    const Z_Device &device = *(_devices[found]);
+    if (-0x8000 != device.temperature) {
+      *temperature = device.temperature;
+      return true;
+    }
+  }
+  return false;
+}
+bool Z_Devices::getHumidity(uint16_t shortaddr, uint8_t *humidity) const {
+  int32_t found = findShortAddr(shortaddr);
+  if (humidity && (found >=0 )) {
+    const Z_Device &device = *(_devices[found]);
+    if (0xFF != device.humidity) {
+      *humidity = device.humidity;
+      return true;
+    }
+  }
+  return false;
+}
+bool Z_Devices::getPressure(uint16_t shortaddr, uint16_t *pressure) const {
+  int32_t found = findShortAddr(shortaddr);
+  if (pressure && (found >=0 )) {
+    const Z_Device &device = *(_devices[found]);
+    if (0xFFFF != device.pressure) {
+      *pressure = device.pressure;
+      return true;
+    }
+  }
+  return false;
+}
+
+bool Z_Devices::readSensor(uint16_t shortaddr, int16_t *temperature, uint16_t *pressure, uint8_t *humidity) {
+  bool info = false;      // is there any information returned?
+  int32_t found = findShortAddr(shortaddr);
+  if (found >= 0) {
+    const Z_Device &device = *(_devices[found]);
+    if (temperature && (-0x8000 != device.temperature)) {
+      *temperature = device.temperature;
+      info = true;
+    }
+    if (pressure && (0xFFFF != device.pressure)) {
+      *pressure = device.pressure;
+      info = true;
+    }
+    if (humidity && (0xFF != device.humidity)) {
+      *humidity = device.humidity;
+      info = true;
+    }
+  }
+  return info;
 }
 
 // Deferred actions

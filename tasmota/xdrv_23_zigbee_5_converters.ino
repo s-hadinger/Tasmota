@@ -624,6 +624,7 @@ public:
   void parseResponse(void);
   void parseClusterSpecificCommand(JsonObject& json, uint8_t offset = 0);
   void postProcessAttributes(uint16_t shortaddr, JsonObject& json);
+  void updateInternalAttributes(uint16_t shortaddr, JsonObject& json);
 
   inline void setGroupId(uint16_t groupid) {
     _groupaddr = groupid;
@@ -1449,6 +1450,26 @@ int32_t Z_ApplyConverter(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObje
   return 1;  // Fix GCC 10.1 warning
 }
 
+// Scan all the final attributes and update any internal representation like sensors
+void ZCLFrame::updateInternalAttributes(uint16_t shortaddr, JsonObject& json) {
+  for (auto kv : json) {
+    String key_string = kv.key;
+    const char * key = key_string.c_str();
+    JsonVariant& value = kv.value;
+
+    if (key_string.equalsIgnoreCase(F("Temperature"))) {
+      int16_t temperature = value.as<float>() * 10 + 0.5f;
+      zigbee_devices.updateTemperature(shortaddr, temperature);
+    } else if (key_string.equalsIgnoreCase(F("Humidity"))) {
+      uint8_t humidity = value.as<float>() + 0.5f;
+      zigbee_devices.updateHumidity(shortaddr, humidity);
+    } else if (key_string.equalsIgnoreCase(F("Pressure"))) {
+      uint16_t pressure = value.as<float>() + 0.5f;
+      zigbee_devices.updatePressure(shortaddr, pressure);
+    }
+  }
+}
+
 void ZCLFrame::postProcessAttributes(uint16_t shortaddr, JsonObject& json) {
   // source endpoint
   uint8_t src_ep = _srcendpoint;
@@ -1534,6 +1555,8 @@ void ZCLFrame::postProcessAttributes(uint16_t shortaddr, JsonObject& json) {
       }
     }
   }
+
+  updateInternalAttributes(shortaddr, json);
 }
 
 #endif // USE_ZIGBEE

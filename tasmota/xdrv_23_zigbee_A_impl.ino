@@ -1334,35 +1334,66 @@ void ZigbeeShow(bool json)
 //    WSContentSend_PD(PSTR("{s}Device 0x1234</th><td style='width:100px'>" D_BATT " 100%%</td><td style='width:70px'>" D_LQI " 254{e}"));
 //    WSContentSend_PD(PSTR("{s}Device 0x1234</th><td style='width:%dpx'>" D_BATT " 100%%</td><td style='width:%dpx'>" D_LQI " 254{e}"), px_batt, px_lqi);
 
-    char sdevice[33];
-    char sbatt[20];
-    char slqi[20];
 
     for (uint32_t i = 0; i < zigbee_num; i++) {
       uint16_t shortaddr = zigbee_devices.devicesAt(i).shortaddr;
-      char *name = (char*)zigbee_devices.getFriendlyName(shortaddr);
-      if (nullptr == name) {
-        snprintf_P(sdevice, sizeof(sdevice), PSTR(D_DEVICE " 0x%04X"), shortaddr);
-        name = sdevice;
+      {   // exxplicit scope to free up stack allocated strings
+        char *name = (char*)zigbee_devices.getFriendlyName(shortaddr);
+        if (nullptr == name) {
+          char sdevice[33];
+          snprintf_P(sdevice, sizeof(sdevice), PSTR(D_DEVICE " 0x%04X"), shortaddr);
+          name = sdevice;
+        }
+
+        char slqi[20];
+        snprintf_P(slqi, sizeof(slqi), PSTR("-"));
+        uint8_t lqi = zigbee_devices.getLQI(shortaddr);
+        if (0xFF != lqi) {
+          snprintf_P(slqi, sizeof(slqi), PSTR("%d"), lqi);
+        }
+
+        char sbatt[20];
+        snprintf_P(sbatt, sizeof(sbatt), PSTR("&nbsp;"));
+        uint8_t bp = zigbee_devices.getBatteryPercent(shortaddr);
+        if (0xFF != bp) {
+          snprintf_P(sbatt, sizeof(sbatt), PSTR(D_BATT " %d%%"), bp);
+        }
+
+        if (!i) {  // First row needs style info
+          WSContentSend_PD(PSTR("<tr><td><b>%s</b></td><td style='width:%dpx'>%s</td><td style='width:%dpx'>" D_LQI " %s{e}"),
+            name, px_batt, sbatt, px_lqi, slqi);
+        } else {   // Following rows don't need style info so reducing ajax package
+          WSContentSend_PD(PSTR("<tr><td><b>%s</b></td><td>%s</td><td>" D_LQI " %s{e}"), name, sbatt, slqi);
+        }
       }
 
-      snprintf_P(slqi, sizeof(slqi), PSTR("-"));
-      uint8_t lqi = zigbee_devices.getLQI(shortaddr);
-      if (0xFF != lqi) {
-        snprintf_P(slqi, sizeof(slqi), PSTR("%d"), lqi);
-      }
+      // Sensor
+      int16_t  temperature;
+      uint16_t pressure;
+      uint8_t  humidity;
+      bool temperature_ok = zigbee_devices.getTemperature(shortaddr, &temperature);
+      bool humidity_ok    = zigbee_devices.getHumidity(shortaddr, &humidity);
+      bool pressure_ok    = zigbee_devices.getPressure(shortaddr, &pressure);
 
-      snprintf_P(sbatt, sizeof(sbatt), PSTR("&nbsp;"));
-      uint8_t bp = zigbee_devices.getBatteryPercent(shortaddr);
-      if (0xFF != bp) {
-        snprintf_P(sbatt, sizeof(sbatt), PSTR(D_BATT " %d%%"), bp);
-      }
+      if (temperature_ok || humidity_ok || pressure_ok) {
+        char temp_s[96];
+        temp_s[0] = 0x00;
+        
+        if (temperature_ok) {
+          String temp_float = String(temperature / 10.0f, 1);
+          snprintf_P(temp_s, sizeof(temp_s), PSTR("%s &nbsp;&#x2600;&#xFE0F;%s°C"), temp_s, temp_float.c_str());
+          // snprintf_P(temp_s, sizeof(temp_s), PSTR("%s &nbsp;&#9728; %s°C"), temp_s, temp_float.c_str());
+        }
+        if (humidity_ok) {
+          snprintf_P(temp_s, sizeof(temp_s), PSTR("%s &nbsp;&#x1F4A7;%d%%"), temp_s, humidity);
+          // snprintf_P(temp_s, sizeof(temp_s), PSTR("%s &nbsp;&#9730; %d%%"), temp_s, humidity);
+        }
+        if (pressure_ok) {
+          snprintf_P(temp_s, sizeof(temp_s), PSTR("%s &nbsp;&#x26C5; %d hPa"), temp_s, pressure);
+          // snprintf_P(temp_s, sizeof(temp_s), PSTR("%s &nbsp;&#9729; %d hPa"), temp_s, pressure);
+        }
 
-      if (!i) {  // First row needs style info
-        WSContentSend_PD(PSTR("{s}%s</th><td style='width:%dpx'>%s</td><td style='width:%dpx'>" D_LQI " %s{e}"),
-          name, px_batt, sbatt, px_lqi, slqi);
-      } else {   // Following rows don't need style info so reducing ajax package
-        WSContentSend_PD(PSTR("{s}%s{m}%s</td><td>" D_LQI " %s{e}"), name, sbatt, slqi);
+        WSContentSend_PD(PSTR("<tr><td colspan=\"3\">| %s{e}"), temp_s);
       }
     }
 
