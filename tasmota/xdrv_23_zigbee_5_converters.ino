@@ -624,6 +624,7 @@ public:
   void parseResponse(void);
   void parseClusterSpecificCommand(JsonObject& json, uint8_t offset = 0);
   void postProcessAttributes(uint16_t shortaddr, JsonObject& json);
+  void updateInternalAttributes(uint16_t shortaddr, JsonObject& json);
 
   inline void setGroupId(uint16_t groupid) {
     _groupaddr = groupid;
@@ -1222,7 +1223,7 @@ int32_t Z_OccupancyCallback(uint16_t shortaddr, uint16_t groupaddr, uint16_t clu
 
 // Aqara Cube
 int32_t Z_AqaraCubeFunc(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObject& json, const char *name, JsonVariant& value, const String &new_name, uint16_t cluster, uint16_t attr) {
-  const char * modelId_c = zigbee_devices.getModelId(shortaddr);  // null if unknown
+  const char * modelId_c = zigbee_devices.findShortAddr(shortaddr).modelId;  // null if unknown
   String modelId((char*) modelId_c);
 
   if (modelId.startsWith(F("lumi.sensor_cube"))) {   // only for Aqara cube
@@ -1449,6 +1450,24 @@ int32_t Z_ApplyConverter(const class ZCLFrame *zcl, uint16_t shortaddr, JsonObje
   return 1;  // Fix GCC 10.1 warning
 }
 
+// Scan all the final attributes and update any internal representation like sensors
+void ZCLFrame::updateInternalAttributes(uint16_t shortaddr, JsonObject& json) {
+  Z_Device & device = zigbee_devices.getShortAddr(shortaddr);
+  for (auto kv : json) {
+    String key_string = kv.key;
+    const char * key = key_string.c_str();
+    JsonVariant& value = kv.value;
+
+    if (key_string.equalsIgnoreCase(F("Temperature"))) {
+      device.temperature = value.as<float>() * 10 + 0.5f;
+    } else if (key_string.equalsIgnoreCase(F("Humidity"))) {
+      device.humidity = value.as<float>() + 0.5f;
+    } else if (key_string.equalsIgnoreCase(F("Pressure"))) {
+      device.pressure = value.as<float>() + 0.5f;
+    }
+  }
+}
+
 void ZCLFrame::postProcessAttributes(uint16_t shortaddr, JsonObject& json) {
   // source endpoint
   uint8_t src_ep = _srcendpoint;
@@ -1519,11 +1538,6 @@ void ZCLFrame::postProcessAttributes(uint16_t shortaddr, JsonObject& json) {
             ((conv_attribute == attribute) || (conv_attribute == 0xFFFF)) ) {
           String new_name_str = (const __FlashStringHelper*) (Z_strings + pgm_read_word(&converter->name_offset));
           if (suffix > 1) { new_name_str += suffix; }   // append suffix number
-          // else if (Settings.flag4.zb_index_ep) {
-          //   if (zigbee_devices.countEndpoints(shortaddr) > 0) {
-          //     new_name_str += _srcendpoint;
-          //   }
-          // }
           // apply the transformation
           int32_t drop = Z_ApplyConverter(this, shortaddr, json, key, value, new_name_str, conv_cluster, conv_attribute, conv_multiplier, conv_cb);
           if (drop) {
@@ -1534,6 +1548,8 @@ void ZCLFrame::postProcessAttributes(uint16_t shortaddr, JsonObject& json) {
       }
     }
   }
+
+  updateInternalAttributes(shortaddr, json);
 }
 
 #endif // USE_ZIGBEE

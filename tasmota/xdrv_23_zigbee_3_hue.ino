@@ -78,9 +78,10 @@ void HueLightStatus2Zigbee(uint16_t shortaddr, String *response)
   const size_t buf_size = 300;
   char * buf = (char*) malloc(buf_size);
 
-  const char * friendlyName = zigbee_devices.getFriendlyName(shortaddr);
-  const char * modelId = zigbee_devices.getModelId(shortaddr);
-  const char * manufacturerId = zigbee_devices.getManufacturerId(shortaddr);
+  const Z_Device & device = zigbee_devices.findShortAddr(shortaddr);
+  const char * friendlyName = device.friendlyName;
+  const char * modelId = device.modelId;
+  const char * manufacturerId = device.manufacturerId;
   char shortaddrname[8];
   snprintf_P(shortaddrname, sizeof(shortaddrname), PSTR("0x%04X"), shortaddr);
 
