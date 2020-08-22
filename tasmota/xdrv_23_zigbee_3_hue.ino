@@ -138,7 +138,7 @@ void ZigbeeHueGroups(String * lights) {
 // Power On/Off
 void ZigbeeHuePower(uint16_t shortaddr, bool power) {
   zigbeeZCLSendStr(shortaddr, 0, 0, true, 0, 0x0006, power ? 1 : 0, "");
-  zigbee_devices.updateHueState(shortaddr, &power, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+  zigbee_devices.getShortAddr(shortaddr).setPower(power);
 }
 
 // Dimmer
@@ -185,7 +185,10 @@ void ZigbeeHueHS(uint16_t shortaddr, uint16_t hue, uint8_t sat) {
   snprintf_P(param, sizeof(param), PSTR("%02X%02X0000"), hue8, sat);
   uint8_t colormode = 0;      // "hs"
   zigbeeZCLSendStr(shortaddr, 0, 0, true, 0, 0x0300, 0x06, param);
-  zigbee_devices.updateHueState(shortaddr, nullptr, &colormode, nullptr, &sat, nullptr, &hue, nullptr, nullptr, nullptr);
+  Z_Device device = zigbee_devices.getShortAddr(shortaddr);
+  device.colormode = colormode;
+  device.sat = sat;
+  device.hue = hue;
 }
 
 void ZigbeeHandleHue(uint16_t shortaddr, uint32_t device_id, String &response) {

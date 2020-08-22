@@ -1495,8 +1495,7 @@ void ZCLFrame::postProcessAttributes(uint16_t shortaddr, JsonObject& json) {
       // see if we need to update the Hue bulb status
       if ((cluster == 0x0006) && ((attribute == 0x0000) || (attribute == 0x8000))) {
         bool power = value;
-        zigbee_devices.updateHueState(shortaddr, &power, nullptr, nullptr, nullptr,
-                                        nullptr, nullptr, nullptr, nullptr, nullptr);
+        device.setPower(power);
       } else if ((cluster == 0x0008) && (attribute == 0x0000)) {
         device.dimmer = val16;
       } else if ((cluster == 0x0300) && (attribute == 0x0000)) {
