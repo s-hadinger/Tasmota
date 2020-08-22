@@ -258,12 +258,6 @@ public:
   int8_t getHueBulbtype(uint16_t shortaddr) const ;
   void hideHueBulb(uint16_t shortaddr, bool hidden);
   bool isHueBulbHidden(uint16_t shortaddr) const ;
-  bool getHueState(uint16_t shortaddr,
-                        bool *power, uint8_t *colormode,
-                        uint8_t *dimmer, uint8_t *sat,
-                        uint16_t *ct, uint16_t *hue,
-                        uint16_t *x, uint16_t *y,
-                        bool *reachable) const ;
 
   // Timers
   void resetTimersForDevice(uint16_t shortaddr, uint16_t groupaddr, uint8_t category);
@@ -753,31 +747,6 @@ bool Z_Devices::isHueBulbHidden(uint16_t shortaddr) const {
     }
   }
   return true;      // Fallback - Device is considered as hidden
-}
-
-// return true if ok
-bool Z_Devices::getHueState(uint16_t shortaddr,
-                              bool *power, uint8_t *colormode,
-                              uint8_t *dimmer, uint8_t *sat,
-                              uint16_t *ct, uint16_t *hue,
-                              uint16_t *x, uint16_t *y,
-                              bool *reachable) const {
-  int32_t found = findShortAddrIdx(shortaddr);
-  if (found >= 0) {
-    const Z_Device &device = *(_devices[found]);
-    if (power)    { *power = device.getPower(); }
-    if (colormode){ *colormode = device.colormode; }
-    if (dimmer)   { *dimmer = device.dimmer; }
-    if (sat)      { *sat = device.sat; }
-    if (ct)       { *ct = device.ct; }
-    if (hue)      { *hue = device.hue; }
-    if (x)        { *x = device.x; }
-    if (y)        { *y = device.y; }
-    if (reachable){ *reachable = device.getReachable(); }
-    return true;
-  } else {
-    return false;
-  }
 }
 
 // Deferred actions

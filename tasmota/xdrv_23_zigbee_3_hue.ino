@@ -36,7 +36,17 @@ void HueLightStatus1Zigbee(uint16_t shortaddr, uint8_t local_light_subtype, Stri
   String light_status = "";
   uint32_t echo_gen = findEchoGeneration();   // 1 for 1st gen =+ Echo Dot 2nd gen, 2 for 2nd gen and above
 
-  zigbee_devices.getHueState(shortaddr, &power, &colormode, &bri, &sat, &ct, &hue, &x, &y, &reachable);
+  const Z_Device & device = zigbee_devices.findShortAddr(shortaddr);
+  // TODO TODO check also validity
+  bri = device.dimmer;
+  power = device.getPower();
+  colormode = device.colormode;
+  sat = device.sat;
+  ct = device.ct;
+  hue = device.hue;
+  x = device.x;
+  y = device.y;
+  reachable = device.getReachable();
 
   if (bri > 254)   bri = 254;    // Philips Hue bri is between 1 and 254
   if (bri < 1)     bri = 1;
