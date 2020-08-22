@@ -1491,25 +1491,26 @@ void ZCLFrame::postProcessAttributes(uint16_t shortaddr, JsonObject& json) {
       }
 
       Z_Device & device = zigbee_devices.getShortAddr(shortaddr);
+      uint16_t val16 = value;     // call converter from JSonVariant to int only once
       // see if we need to update the Hue bulb status
       if ((cluster == 0x0006) && ((attribute == 0x0000) || (attribute == 0x8000))) {
         bool power = value;
         zigbee_devices.updateHueState(shortaddr, &power, nullptr, nullptr, nullptr,
                                         nullptr, nullptr, nullptr, nullptr, nullptr);
       } else if ((cluster == 0x0008) && (attribute == 0x0000)) {
-        device.dimmer = value;
+        device.dimmer = val16;
       } else if ((cluster == 0x0300) && (attribute == 0x0000)) {
-        device.hue = changeUIntScale(value, 0, 254, 0, 360);     // change range from 0..254 to 0..360
+        device.hue = changeUIntScale(val16, 0, 254, 0, 360);     // change range from 0..254 to 0..360
       } else if ((cluster == 0x0300) && (attribute == 0x0001)) {
-        device.sat = value;
+        device.sat = val16;
       } else if ((cluster == 0x0300) && (attribute == 0x0003)) {
-        device.x = value;
+        device.x = val16;
       } else if ((cluster == 0x0300) && (attribute == 0x0004)) {
-        device.y = value;
+        device.y = val16;
       } else if ((cluster == 0x0300) && (attribute == 0x0007)) {
-        device.ct = value;
+        device.ct = val16;
       } else if ((cluster == 0x0300) && (attribute == 0x0008)) {
-        device.colormode = value;
+        device.colormode = val16;
       }
 
       // Iterate on filter
