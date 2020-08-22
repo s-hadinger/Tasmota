@@ -147,7 +147,7 @@ void ZigbeeHueDimmer(uint16_t shortaddr, uint8_t dimmer) {
   char param[8];
   snprintf_P(param, sizeof(param), PSTR("%02X0A00"), dimmer);
   zigbeeZCLSendStr(shortaddr, 0, 0, true, 0, 0x0008, 0x04, param);
-  zigbee_devices.updateHueState(shortaddr, nullptr, nullptr, &dimmer, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+  zigbee_devices.getShortAddr(shortaddr).dimmer = dimmer;
 }
 
 // CT
@@ -158,7 +158,9 @@ void ZigbeeHueCT(uint16_t shortaddr, uint16_t ct) {
   snprintf_P(param, sizeof(param), PSTR("%02X%02X0A00"), ct & 0xFF, ct >> 8);
   uint8_t colormode = 2;      // "ct"
   zigbeeZCLSendStr(shortaddr, 0, 0, true, 0, 0x0300, 0x0A, param);
-  zigbee_devices.updateHueState(shortaddr, nullptr, &colormode, nullptr, nullptr, &ct, nullptr, nullptr, nullptr, nullptr);
+  Z_Device & device = zigbee_devices.getShortAddr(shortaddr);
+  device.colormode = colormode;
+  device.ct = ct;
 }
 
 // XY
@@ -169,7 +171,10 @@ void ZigbeeHueXY(uint16_t shortaddr, uint16_t x, uint16_t y) {
   snprintf_P(param, sizeof(param), PSTR("%02X%02X%02X%02X0A00"), x & 0xFF, x >> 8, y & 0xFF, y >> 8);
   uint8_t colormode = 1;      // "xy"
   zigbeeZCLSendStr(shortaddr, 0, 0, true, 0, 0x0300, 0x07, param);
-  zigbee_devices.updateHueState(shortaddr, nullptr, &colormode, nullptr, nullptr, nullptr, nullptr, &x, &y, nullptr);
+  Z_Device & device = zigbee_devices.getShortAddr(shortaddr);
+  device.colormode = colormode;
+  device.x = x;
+  device.y = y;
 }
 
 // HueSat

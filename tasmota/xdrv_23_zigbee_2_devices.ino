@@ -104,7 +104,7 @@ public:
     seqNumber(0),
     // Hue support
     zb_profile(0xFF),  // no profile
-    power(0x80),       // power off + reachable
+    power(0x02),       // 0x80 = reachable, 0x01 = power on, 0x02 = power unknown
     colormode(0xFF),
     dimmer(0xFF),
     sat(0xFF),
@@ -126,6 +126,7 @@ public:
   inline bool validModelId(void)        const { return nullptr != modelId; }
   inline bool validFriendlyName(void)   const { return nullptr != friendlyName; }
 
+  inline bool validPower(void)          const { return 0x00 == (power & 0x02); }
   inline bool validColormode(void)      const { return 0xFF != colormode; }
   inline bool validDimmer(void)         const { return 0xFF != dimmer; }
   inline bool validSat(void)            const { return 0xFF != sat; }
@@ -140,6 +141,11 @@ public:
   inline bool validTemperature(void)    const { return -0x8000 != temperature; }
   inline bool validPressure(void)       const { return 0xFFFF != pressure; }
   inline bool validHumidity(void)       const { return 0xFF != humidity; }
+
+  inline void setReachable(bool reachable)    { bitWrite(power, 7, reachable); }
+  inline bool getReachable(void)        const { return bitRead(power, 7); }
+  inline void setPower(bool power_on)         { bitWrite(power, 0, power_on); bitWrite(power, 1, false); }
+  inline bool getPower(void)            const { return bitRead(power, 0); }
 };
 
 /*********************************************************************************************\
@@ -642,8 +648,7 @@ void Z_Devices::setFriendlyName(uint16_t shortaddr, const char * str) {
 
 
 void Z_Devices::setReachable(uint16_t shortaddr, bool reachable) {
-  Z_Device & device = getShortAddr(shortaddr);
-  bitWrite(device.power, 7, reachable);
+  getShortAddr(shortaddr).setReachable(reachable);
 }
 
 void Z_Devices::setLQI(uint16_t shortaddr, uint8_t lqi) {
@@ -689,7 +694,7 @@ void Z_Devices::updateZbProfile(uint16_t shortaddr) {
     {
       uint32_t channels = zb_profile & 0x07;
       // depending on the bulb type, the default parameters from unknown to credible defaults
-      if (0xFF == device.power) { device.power = 0; }
+      if (!device.validPower()) { device.setPower(false); }
       if (1 <= channels) {
         if (0xFF == device.dimmer) { device.dimmer = 0; }
       }
@@ -764,7 +769,7 @@ void Z_Devices::updateHueState(uint16_t shortaddr,
                                 const uint16_t *x, const uint16_t *y,
                                 const bool *reachable) {
   Z_Device &device = getShortAddr(shortaddr);
-  if (power)    { bitWrite(device.power, 0, *power); }
+  if (power)    { device.setPower(*power); }
   if (colormode){ device.colormode = *colormode; }
   if (dimmer)   { device.dimmer = *dimmer; }
   if (sat)      { device.sat = *sat; }
@@ -772,7 +777,7 @@ void Z_Devices::updateHueState(uint16_t shortaddr,
   if (hue)      { device.hue = *hue; }
   if (x)        { device.x = *x; }
   if (y)        { device.y = *y; }
-  if (reachable){ bitWrite(device.power, 7, *reachable); }
+  if (reachable){ device.setReachable(*reachable); }
 }
 
 // return true if ok
@@ -785,7 +790,7 @@ bool Z_Devices::getHueState(uint16_t shortaddr,
   int32_t found = findShortAddrIdx(shortaddr);
   if (found >= 0) {
     const Z_Device &device = *(_devices[found]);
-    if (power)    { *power = bitRead(device.power, 0); }
+    if (power)    { *power = device.getPower(); }
     if (colormode){ *colormode = device.colormode; }
     if (dimmer)   { *dimmer = device.dimmer; }
     if (sat)      { *sat = device.sat; }
@@ -793,7 +798,7 @@ bool Z_Devices::getHueState(uint16_t shortaddr,
     if (hue)      { *hue = device.hue; }
     if (x)        { *x = device.x; }
     if (y)        { *y = device.y; }
-    if (reachable){ *reachable = bitRead(device.power, 7); }
+    if (reachable){ *reachable = device.getReachable(); }
     return true;
   } else {
     return false;
@@ -1099,15 +1104,15 @@ String Z_Devices::dumpLightState(uint16_t shortaddr) const {
     // expose the last known status of the bulb, for Hue integration
     dev[F(D_JSON_ZIGBEE_LIGHT)] = getHueBulbtype(shortaddr);   // sign extend, 0xFF changed as -1
     // dump all known values
-    dev[F("Reachable")] = bitRead(device.power, 7);   // TODO TODO
-    if (0xFF   != device.power)     { dev[F("Power")]     = bitRead(device.power, 0); }
-    if (0xFF   != device.dimmer)    { dev[F("Dimmer")]    = device.dimmer; }
-    if (0xFF   != device.colormode) { dev[F("Colormode")] = device.colormode; }
-    if (0xFFFF != device.ct)        { dev[F("CT")]        = device.ct; }
-    if (0xFF   != device.sat)       { dev[F("Sat")]       = device.sat; }
-    if (0xFFFF != device.hue)       { dev[F("Hue")]       = device.hue; }
-    if (0xFFFF != device.x)         { dev[F("X")]         = device.x; }
-    if (0xFFFF != device.y)         { dev[F("Y")]         = device.y; }
+    dev[F("Reachable")] = device.getReachable();   // TODO TODO
+    if (device.validPower())        { dev[F("Power")]     = device.getPower(); }
+    if (device.validDimmer())       { dev[F("Dimmer")]    = device.dimmer; }
+    if (device.validColormode())    { dev[F("Colormode")] = device.colormode; }
+    if (device.validCT())           { dev[F("CT")]        = device.ct; }
+    if (device.validSat())          { dev[F("Sat")]       = device.sat; }
+    if (device.validHue())          { dev[F("Hue")]       = device.hue; }
+    if (device.validX())            { dev[F("X")]         = device.x; }
+    if (device.validY())            { dev[F("Y")]         = device.y; }
   }
 
   String payload = "";
