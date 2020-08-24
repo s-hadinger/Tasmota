@@ -682,21 +682,21 @@ void Z_Devices::updateZbProfile(uint16_t shortaddr) {
     {
       uint32_t channels = zb_profile & 0x07;
       // depending on the bulb type, the default parameters from unknown to credible defaults
-      if (!device.validPower()) { device.setPower(false); }
-      if (1 <= channels) {
-        if (0xFF == device.dimmer) { device.dimmer = 0; }
-      }
-      if (3 <= channels) {
-        if (0xFF == device.sat) { device.sat = 0; }
-        if (0xFFFF == device.hue) { device.hue = 0; }
-        if (0xFFFF == device.x) { device.x = 0; }
-        if (0xFFFF == device.y) { device.y = 0; }
-        if (0xFF == device.colormode) { device.colormode = 0; }   // HueSat mode
-      }
-      if ((2 == channels) || (5 == channels)) {
-        if (0xFFFF == device.ct) { device.ct = 200; }
-        if (0xFF == device.colormode) { device.colormode = 2; }   // CT mode
-      }
+      // if (!device.validPower()) { device.setPower(false); }
+      // if (1 <= channels) {
+      //   if (0xFF == device.dimmer) { device.dimmer = 0; }
+      // }
+      // if (3 <= channels) {
+      //   if (0xFF == device.sat) { device.sat = 0; }
+      //   if (0xFFFF == device.hue) { device.hue = 0; }
+      //   if (0xFFFF == device.x) { device.x = 0; }
+      //   if (0xFFFF == device.y) { device.y = 0; }
+      //   if (0xFF == device.colormode) { device.colormode = 0; }   // HueSat mode
+      // }
+      // if ((2 == channels) || (5 == channels)) {
+      //   if (0xFFFF == device.ct) { device.ct = 200; }
+      //   if (0xFF == device.colormode) { device.colormode = 2; }   // CT mode
+      // }
     }
     break;
   }

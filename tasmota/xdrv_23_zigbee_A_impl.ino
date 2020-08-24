@@ -1348,6 +1348,7 @@ void ZigbeeShow(bool json)
     const uint8_t px_lqi = (strlen(D_LQI) + 4) * 10;        // LQI 254   = 70px
 
     WSContentSend_P(PSTR("</table>{t}"));  // Terminate current two column table and open new table
+    WSContentSend_P(PSTR("<style>.bx{height:14px;width:14px;display:inline-block;border:1px solid currentColor;background-color:var(--cl,#fff)}</style>"));
 
     // sort elements by name, then by id
     uint8_t sorted_idx[zigbee_num];
@@ -1406,6 +1407,29 @@ void ZigbeeShow(bool json)
           WSContentSend_P(PSTR(" &nbsp;&#x26C5; %d hPa"), device.pressure);
         }
         WSContentSend_P(PSTR("{e}"));
+      }
+
+      // Light and switches
+      bool power_ok = device.validPower();
+      if (power_ok) {
+        WSContentSend_P(PSTR("<tr><td colspan=\"3\">| &#x23FB; %s"), device.getPower() ? PSTR(D_ON) : PSTR(D_OFF));
+        if (device.validDimmer()) {
+          WSContentSend_P(PSTR(" &#128261;%d%%"), changeUIntScale(device.dimmer,0,254,0,100));
+        }
+        if (device.validCT()) {
+          uint32_t ct_k = (((1000000 / device.ct) + 25) / 50) * 50;
+          WSContentSend_P(PSTR(" <span title=\"CT %d\">&#9725;%dK</span>"), device.ct, ct_k);
+        }
+        if (device.validHue() && device.validSat()) {
+          uint8_t r,g,b;
+          uint8_t sat = changeUIntScale(device.sat, 0, 254, 0, 255);    // scale to 0..255
+          LightStateClass::HsToRgb(device.hue, sat, &r, &g, &b);
+          WSContentSend_P(PSTR(" <i class=\"bx\" style=\"--cl:#%02X%02X%02X\"></i>#%02X%02X%02X"), r,g,b,r,g,b);
+        } else if (device.validX() && device.validY()) {
+          uint8_t r,g,b;
+          LightStateClass::XyToRgb(device.x / 65535.0f, device.y / 65535.0f, &r, &g, &b);
+          WSContentSend_P(PSTR(" <i class=\"bx\" style=\"--cl:#%02X%02X%02X\"></i> #%02X%02X%02X"), r,g,b,r,g,b);
+        }
       }
     }
 
