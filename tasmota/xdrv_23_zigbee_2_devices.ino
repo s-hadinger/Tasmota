@@ -89,8 +89,7 @@ public:
 
   // Constructor with all defaults
   Z_attribute():
-    // key{ .id.cluster = 0x0000, .id.attr_id = 0x0000 },
-    key{ .key = nullptr },
+    key{ .id = { 0x0000, 0x0000 } },
     val{ .uval32 = 0x0000 },
     type(Za_type::Za_none),
     key_name(false),
