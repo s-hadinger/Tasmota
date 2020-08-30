@@ -103,6 +103,17 @@ public:
     freeVal();
   }
 
+  // deallocate the entire chain
+  // return nullptr
+  static Z_attribute * freeChain(Z_attribute * head) {
+    while (head) {
+      Z_attribute * next = head->next;
+      delete head;
+      head = next;
+    }
+    return nullptr;
+  }
+
   // free any allocated memoruy for values
   void freeVal(void) {
     switch (type) {
@@ -299,6 +310,8 @@ public:
   // json buffer used for attribute reporting
   DynamicJsonBuffer    *json_buffer;
   JsonObject           *json;
+  // Experimental
+  Z_attribute          *attributes;
   // sequence number for Zigbee frames
   uint16_t              shortaddr;      // unique key if not null, or unspecified if null
   uint8_t               seqNumber;
@@ -341,6 +354,7 @@ public:
     endpoints{ 0, 0, 0, 0, 0, 0, 0, 0 },
     json_buffer(nullptr),
     json(nullptr),
+    attributes(nullptr),
     shortaddr(_shortaddr),
     seqNumber(0),
     // Hue support
@@ -1064,6 +1078,7 @@ void Z_Devices::jsonClear(uint16_t shortaddr) {
   Z_Device & device = getShortAddr(shortaddr);
   device.json = nullptr;
   device.json_buffer->clear();
+  device.attributes = Z_attribute::freeChain(device.attributes);
 }
 
 // Copy JSON from one object to another, this helps preserving the order of attributes
