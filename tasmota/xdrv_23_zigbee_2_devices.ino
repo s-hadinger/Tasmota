@@ -217,6 +217,63 @@ public:
     if (Za_type::Za_str == type) { return val.sval; }
     return "";
   }
+
+  String toString(bool prefix_comma = false) {
+    String res("");
+    if (prefix_comma) { res += ','; }
+    res += '"';
+    // compute the attribute name
+    if (key_name) {
+      if (key.key) { res += key.key; }
+      else         { res += F("null"); }   // shouldn't happen
+    } else {
+      char attr_name[12];
+      snprintf_P(attr_name, sizeof(attr_name), PSTR("%04X/%04X"), key.id.cluster, key.id.attr_id);
+      res += attr_name;
+    }
+    if (0xFF != key_suffix) {
+      res += key_suffix;
+    }
+    res += F("\":");
+    // value part
+    switch (type) {
+    case Za_type::Za_none:
+      res += "null";
+      break;
+    case Za_type::Za_bool:
+      res += val.uval32 ? F("true") : F("false");
+      break;
+    case Za_type::Za_uint:
+      res += val.uval32;
+      break;
+    case Za_type::Za_int:
+      res += val.ival32;
+      break;
+    case Za_type::Za_float:
+      res += val.fval;
+      break;
+    case Za_type::Za_raw:
+      res += F("\"0x");
+      if (val.bval) {
+        size_t blen = val.bval->len();
+        // print as HEX
+        char hex[2*blen+1];
+        ToHex_P(val.bval->getBuffer(), blen, hex, sizeof(hex));
+        res += hex;
+      }
+      res += '"';
+      break;
+    case Za_type::Za_str:
+      res += '"';
+      if (val.sval) {
+        res += EscapeJSONString(val.sval);    // escape JSON chars
+      }
+      res += '"';
+      break;
+    }
+
+    return res;
+  }
 };
 
 class Z_Device {
