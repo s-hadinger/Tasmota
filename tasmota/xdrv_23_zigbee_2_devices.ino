@@ -146,6 +146,24 @@ public:
     type = Za_type::Za_float;
   }
 
+  // set the string value
+  // PMEM argument is allowed
+  // string will be copied, so it can be changed later
+  // nullptr is allowed and considered as empty string
+  // Note: memory is allocated only if string is non-empty
+  void setStr(const char * _val) {
+    freeVal();     // free any previously allocated memory
+    // val.sval is always nullptr after freeVal()
+    if (_val) {
+      size_t len = strlen_P(_val);
+      if (len) {
+        val.sval = new char[len+1];
+        strcat_P(val.sval, _val);
+      }
+    }
+    type = Za_type::Za_str;
+  }
+
   inline bool isNum(void) const { return (type >= Za_type::Za_bool) && (type <= Za_type::Za_float); }
   // get num values
   float getFloat(void) const {
@@ -193,9 +211,11 @@ public:
     return nullptr;
   }
 
+  // always return a point to a string, if not defined then empty string.
+  // Never returns nullptr
   const char * getStr(void) const {
     if (Za_type::Za_str == type) { return val.sval; }
-    return nullptr;
+    return "";
   }
 };
 
