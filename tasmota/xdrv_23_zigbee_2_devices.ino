@@ -103,17 +103,6 @@ public:
     freeVal();
   }
 
-  // deallocate the entire chain
-  // return nullptr
-  static Z_attribute * freeChain(Z_attribute * head) {
-    while (head) {
-      Z_attribute * next = head->next;
-      delete head;
-      head = next;
-    }
-    return nullptr;
-  }
-
   // free any allocated memoruy for values
   void freeVal(void) {
     switch (type) {
@@ -286,18 +275,67 @@ public:
     return res;
   }
 
+};
+
+// Attribute list
+// Contains meta-information:
+// - source endpoint (is conflicting)
+// - LQI (if not conflicting)
+class Z_attribute_list {
+public:
+  Z_attribute * head;     // head of linked list
+  uint8_t       src_ep;   // source endpoint, 0xFF if unknown
+  uint8_t       lqi;      // linkquality, 0xFF if unknown
+
+  Z_attribute_list():
+    head(nullptr),
+    src_ep(0xFF),
+    lqi(0xFF)
+    {};
+  
+  // reset object to its initial state
+  // free all allocated memory
+  void reset(void) {
+    while (head) {
+      Z_attribute * next = head->next;
+      delete head;
+      head = next;
+    }
+    // head is now nullptr
+    src_ep = 0xFF;
+    lqi = 0xFF;
+  }
+
   // dump the entire structure as JSON, starting from head (as parameter)
-  static String toJSON(const Z_attribute *head) {
+  // does not start not end with a comma
+  String toString(void) const {
+    Z_attribute * curr = head;
     String res = "";
     bool prefix_comma = false;
-    while (head)  {
-      res += head->toString(prefix_comma);
+    while (curr)  {
+      res += curr->toString(prefix_comma);
       prefix_comma = true;
-      head = head->next;
+      curr = curr->next;
     }
+    // add source endpoint
+    if (0xFF != src_ep) {
+      if (prefix_comma) { res += ','; }
+      prefix_comma = true;
+      res += F(",\"" D_CMND_ZIGBEE_ENDPOINT "\":");
+      res += src_ep;
+    }
+    // add lqi
+    if (0xFF != lqi) {
+      if (prefix_comma) { res += ','; }
+      prefix_comma = true;
+      res += F(",\"" D_CMND_ZIGBEE_LINKQUALITY "\":");
+      res += src_ep;
+    }
+    // done
     return res;
   }
 };
+
 
 class Z_Device {
 public:
@@ -311,7 +349,7 @@ public:
   DynamicJsonBuffer    *json_buffer;
   JsonObject           *json;
   // Experimental
-  Z_attribute          *attributes;
+  Z_attribute_list     attributes;
   // sequence number for Zigbee frames
   uint16_t              shortaddr;      // unique key if not null, or unspecified if null
   uint8_t               seqNumber;
@@ -354,7 +392,7 @@ public:
     endpoints{ 0, 0, 0, 0, 0, 0, 0, 0 },
     json_buffer(nullptr),
     json(nullptr),
-    attributes(nullptr),
+    attributes(),
     shortaddr(_shortaddr),
     seqNumber(0),
     // Hue support
@@ -1078,7 +1116,7 @@ void Z_Devices::jsonClear(uint16_t shortaddr) {
   Z_Device & device = getShortAddr(shortaddr);
   device.json = nullptr;
   device.json_buffer->clear();
-  device.attributes = Z_attribute::freeChain(device.attributes);
+  device.attributes.reset();
 }
 
 // Copy JSON from one object to another, this helps preserving the order of attributes
