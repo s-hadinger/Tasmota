@@ -218,7 +218,7 @@ public:
     return "";
   }
 
-  String toString(bool prefix_comma = false) {
+  String toString(bool prefix_comma = false) const {
     String res("");
     if (prefix_comma) { res += ','; }
     res += '"';
@@ -272,6 +272,18 @@ public:
       break;
     }
 
+    return res;
+  }
+
+  // dump the entire structure as JSON, starting from head (as parameter)
+  static String toJSON(const Z_attribute *head) {
+    String res = "";
+    bool prefix_comma = false;
+    while (head)  {
+      res += head->toString(prefix_comma);
+      prefix_comma = true;
+      head = head->next;
+    }
     return res;
   }
 };
