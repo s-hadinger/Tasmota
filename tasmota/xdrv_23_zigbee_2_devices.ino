@@ -50,6 +50,104 @@ uint8_t  Z_GetLastEndpoint(void) { return gZbLastMessage.endpoint; }
 
 const size_t endpoints_max = 8;         // we limit to 8 endpoints
 
+
+enum class Za_type : uint8_t {
+  Za_none,     // empty, translates into null in JSON
+  // numericals
+  Za_bool,     // boolean, translates to true/false, uses uval32 to store
+  Za_uint,     // unsigned 32 int, uses uval32
+  Za_int,      // signed 32 int, uses ival32
+  Za_float,    // float 32, uses fval
+  // non-nummericals
+  Za_raw,      // bytes buffer, uses bval
+  Za_str       // string, uses sval
+};
+
+class Z_attribute {
+public:
+
+  union {
+    uint32_t uval32;
+    int32_t  ival32;
+    float    fval;
+    SBuffer* bval;
+    char*    sval;
+  } val;
+  Za_type       type;       // uint8_t in size, type of attribute, see above
+  Z_attribute*  next;   // next item in the linked list
+
+  // Constructor with all defaults
+  Z_attribute():
+    val{ .uval32 = 0x0000 },
+    type(Za_type::Za_none),
+    next(nullptr)
+    {};
+  
+  // Destructor, free memory that was allocated
+  ~Z_attribute() {
+    switch (type) {
+      case Za_type::Za_raw:
+        if (val.bval) { delete val.bval; }
+        break;
+      case Za_type::Za_str:
+        if (val.sval) { delete[] val.sval; }
+        break;
+    }
+  }
+
+  inline bool isNum(void) const { return (type >= Za_type::Za_bool) && (type <= Za_type::Za_float); }
+  // get num values
+  float getFloat(void) const {
+    switch (type) {
+      case Za_type::Za_bool:
+      case Za_type::Za_uint:    return (float) val.uval32;
+      case Za_type::Za_int:     return (float) val.ival32;
+      case Za_type::Za_float:   return val.fval;
+      default:                  return 0.0f;
+    }
+  }
+
+  int32_t getInt(void) const {
+    switch (type) {
+      case Za_type::Za_bool:
+      case Za_type::Za_uint:    return (int32_t) val.uval32;
+      case Za_type::Za_int:     return val.ival32;
+      case Za_type::Za_float:   return (int32_t) val.fval;
+      default:                  return 0;
+    }
+  }
+
+  uint32_t getUInt(void) const {
+    switch (type) {
+      case Za_type::Za_bool:
+      case Za_type::Za_uint:    return val.uval32;
+      case Za_type::Za_int:     return (uint32_t) val.ival32;
+      case Za_type::Za_float:   return (uint32_t) val.fval;
+      default:                  return 0;
+    }
+  }
+
+  bool getBool(void) const {
+    switch (type) {
+      case Za_type::Za_bool:
+      case Za_type::Za_uint:    return val.uval32 ? true : false;
+      case Za_type::Za_int:     return val.ival32 ? true : false;
+      case Za_type::Za_float:   return val.fval ? true : false;
+      default:                  return false;
+    }
+  }
+
+  const SBuffer * getRaw(void) const {
+    if (Za_type::Za_raw == type) { return val.bval; }
+    return nullptr;
+  }
+
+  const char * getStr(void) const {
+    if (Za_type::Za_str == type) { return val.sval; }
+    return nullptr;
+  }
+};
+
 class Z_Device {
 public:
 
