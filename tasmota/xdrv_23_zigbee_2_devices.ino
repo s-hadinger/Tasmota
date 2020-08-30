@@ -66,6 +66,15 @@ enum class Za_type : uint8_t {
 class Z_attribute {
 public:
 
+  // attribute key, either cluster+attribute_id or plain name
+  union {
+    struct {
+      uint16_t cluster;
+      uint16_t attr_id;
+    } id;
+    char * key;
+  } key;
+  // attribute value
   union {
     uint32_t uval32;
     int32_t  ival32;
@@ -74,25 +83,68 @@ public:
     char*    sval;
   } val;
   Za_type       type;       // uint8_t in size, type of attribute, see above
+  bool          key_name;   // is the key a string?
+  uint8_t       key_suffix; // append a suffix to key (if different from 0xFF)
   Z_attribute*  next;   // next item in the linked list
 
   // Constructor with all defaults
   Z_attribute():
+    // key{ .id.cluster = 0x0000, .id.attr_id = 0x0000 },
+    key{ .key = nullptr },
     val{ .uval32 = 0x0000 },
     type(Za_type::Za_none),
+    key_name(false),
+    key_suffix(0xFF),
     next(nullptr)
     {};
   
   // Destructor, free memory that was allocated
   ~Z_attribute() {
+    freeKey();
+    freeVal();
+  }
+
+  // free any allocated memoruy for values
+  void freeVal(void) {
     switch (type) {
       case Za_type::Za_raw:
-        if (val.bval) { delete val.bval; }
+        if (val.bval) { delete val.bval; val.bval = nullptr; }
         break;
       case Za_type::Za_str:
-        if (val.sval) { delete[] val.sval; }
+        if (val.sval) { delete[] val.sval; val.sval = nullptr; }
         break;
     }
+  }
+  // free any allocated memoruy for keys
+  void freeKey(void) {
+    if (key_name && key.key) { delete[] key.key; key.key = nullptr; }
+  }
+
+  // Setters
+  void setNone(void) {
+    freeVal();     // free any previously allocated memory
+    val.uval32 = 0;
+    type = Za_type::Za_none;
+  }
+  void setUInt(uint32_t _val) {
+    freeVal();     // free any previously allocated memory
+    val.uval32 = _val;
+    type = Za_type::Za_uint;
+  }
+  void setBool(bool _val) {
+    freeVal();     // free any previously allocated memory
+    val.uval32 = _val;
+    type = Za_type::Za_bool;
+  }
+  void setInt(int32_t _val) {
+    freeVal();     // free any previously allocated memory
+    val.ival32 = _val;
+    type = Za_type::Za_int;
+  }
+  void setFloat(float _val) {
+    freeVal();     // free any previously allocated memory
+    val.fval = _val;
+    type = Za_type::Za_float;
   }
 
   inline bool isNum(void) const { return (type >= Za_type::Za_bool) && (type <= Za_type::Za_float); }
