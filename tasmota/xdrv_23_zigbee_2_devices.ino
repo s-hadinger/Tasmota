@@ -30,6 +30,25 @@ const uint16_t kZigbeeSaveDelaySeconds = ZIGBEE_SAVE_DELAY_SECONDS;    // wait f
  * Structures for Rules variables related to the last received message
 \*********************************************************************************************/
 
+// simplified version of strcmp accepting both arguments to be in PMEM, and accepting nullptr arguments
+// inspired from https://code.woboq.org/userspace/glibc/string/strcmp.c.html
+int strcmp_PP(const char *p1, const char *p2) {
+  if (p1 == p2) { return 0; }         // equality
+  if (!p1)      { return -1; }        // first string is null
+  if (!p2)      { return 1; }         // second string is null
+  const unsigned char *s1 = (const unsigned char *) p1;
+  const unsigned char *s2 = (const unsigned char *) p2;
+  unsigned char c1, c2;
+  do {
+    c1 = (unsigned char) *s1++;
+    c2 = (unsigned char) *s2++;
+    if (c1 == '\0')
+      return c1 - c2;
+  }
+  while (c1 == c2);
+  return c1 - c2;
+}
+
 typedef struct Z_LastMessageVars {
   uint16_t    device;               // device short address
   uint16_t    groupaddr;            // group address
@@ -83,7 +102,8 @@ public:
     char*    sval;
   } val;
   Za_type       type;       // uint8_t in size, type of attribute, see above
-  bool          key_name;   // is the key a string?
+  bool          key_is_str;   // is the key a string?
+  bool          key_is_pmem;  // is the string in progmem, so we don't need to make a copy
   uint8_t       key_suffix; // append a suffix to key (if different from 0xFF)
   Z_attribute*  next;   // next item in the linked list
 
@@ -92,7 +112,8 @@ public:
     key{ .id = { 0x0000, 0x0000 } },
     val{ .uval32 = 0x0000 },
     type(Za_type::Za_none),
-    key_name(false),
+    key_is_str(false),
+    key_is_pmem(false),
     key_suffix(0xFF),
     next(nullptr)
     {};
@@ -116,7 +137,8 @@ public:
   }
   // free any allocated memoruy for keys
   void freeKey(void) {
-    if (key_name && key.key) { delete[] key.key; key.key = nullptr; }
+    if (key_is_str && key.key && !key_is_pmem) { delete[] key.key; }
+    key.key = nullptr;
   }
 
   // Setters
@@ -223,7 +245,7 @@ public:
     if (prefix_comma) { res += ','; }
     res += '"';
     // compute the attribute name
-    if (key_name) {
+    if (key_is_str) {
       if (key.key) { res += key.key; }
       else         { res += F("null"); }   // shouldn't happen
     } else {
@@ -321,7 +343,7 @@ public:
 
     attr->key.id.cluster = cluster;
     attr->key.id.attr_id = attr_id;
-    attr->key_name = false;
+    attr->key_is_str = false;
     // add to end
     addToLast(attr);
   }
@@ -332,7 +354,7 @@ public:
 
   //   attr->key.id.cluster = cluster;
   //   attr->key.id.attr_id = attr_id;
-  //   attr->key_name = true;
+  //   attr->key_is_str = true;
   //   // add to end
   //   addToLast(attr);
   // }
