@@ -233,6 +233,37 @@ public:
     return "";
   }
 
+  bool equalsKey(const Z_attribute & attr2) {
+    // check if keys are equal
+    if (key_is_str != attr2.key_is_str) { return false; }
+    if (key_is_str) {
+      if (strcmp_PP(key.key, attr2.key.key)) { return false; }
+    } else {
+      if ((key.id.cluster != attr2.key.id.cluster) ||
+          (key.id.attr_id != attr2.key.id.attr_id)) { return false; }
+    }
+    if (key_suffix != attr2.key_suffix) { return false; }
+    return true;
+  }
+
+  bool equalsVal(const Z_attribute & attr2) {
+    if (type != attr2.type) { return false; }
+    if ((type >= Za_type::Za_bool) && (type <= Za_type::Za_float)) {
+      // numerical value
+      if (val.uval32 != attr2.val.uval32) { return false; }
+    } else if (type == Za_type::Za_raw) {
+      // compare 2 Static buffers
+      // TODO TODO
+    } else if (type == Za_type::Za_str) {
+      if (strcmp_PP(val.sval, attr2.val.sval)) { return false; }
+    }
+    return true;
+  }
+
+  bool equals(const Z_attribute & attr2) {
+    return equalsKey(attr2) && equalsVal(attr2);
+  }
+
   String toString(bool prefix_comma = false) const {
     String res("");
     if (prefix_comma) { res += ','; }
