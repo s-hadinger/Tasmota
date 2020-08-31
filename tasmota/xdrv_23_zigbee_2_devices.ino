@@ -180,7 +180,7 @@ public:
       size_t len = strlen_P(_val);
       if (len) {
         val.sval = new char[len+1];
-        strcat_P(val.sval, _val);
+        strcpy_P(val.sval, _val);
       }
     }
     type = Za_type::Za_str;
@@ -348,16 +348,24 @@ public:
     addToLast(attr);
   }
 
-  // Add attribute to the list, given name TODO TODO
-  // Z_attribute * addAttribute(const char * name, bool pmem = false) {
-  //   Z_attribute * attr = new Z_attribute();
+  // Add attribute to the list, given name
+  Z_attribute * addAttribute(const char * name, bool pmem = false) {
+    Z_attribute * attr = new Z_attribute();
 
-  //   attr->key.id.cluster = cluster;
-  //   attr->key.id.attr_id = attr_id;
-  //   attr->key_is_str = true;
-  //   // add to end
-  //   addToLast(attr);
-  // }
+    attr->key_is_str = true;
+    attr->key_is_pmem = pmem;
+    if (pmem) {
+      attr->key.key = (char*) name;   // override type, we will not try to change it anyways
+    } else {
+      if (name) {
+        size_t name_len = strlen_P(name);
+        attr->key.key = new char[name_len+1];
+        strcpy_P(attr->key.key, name);
+      }
+    }
+    // add to end
+    addToLast(attr);
+  }
 
   // dump the entire structure as JSON, starting from head (as parameter)
   // does not start not end with a comma
