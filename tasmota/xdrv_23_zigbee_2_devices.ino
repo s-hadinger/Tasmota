@@ -306,6 +306,37 @@ public:
     lqi = 0xFF;
   }
 
+  // traverse the linked list chain and add the attribute to the end of the list
+  void addToLast(Z_attribute * attr) {
+    Z_attribute **curr_ptr = &head;
+    while (*curr_ptr) {
+      curr_ptr = &((*curr_ptr)->next);
+    }
+    *curr_ptr = attr;
+  }
+
+  // Add attribute to the list, given cluster and attribute id
+  Z_attribute * addAttribute(uint16_t cluster, uint16_t attr_id) {
+    Z_attribute * attr = new Z_attribute();
+
+    attr->key.id.cluster = cluster;
+    attr->key.id.attr_id = attr_id;
+    attr->key_name = false;
+    // add to end
+    addToLast(attr);
+  }
+
+  // Add attribute to the list, given name TODO TODO
+  // Z_attribute * addAttribute(const char * name, bool pmem = false) {
+  //   Z_attribute * attr = new Z_attribute();
+
+  //   attr->key.id.cluster = cluster;
+  //   attr->key.id.attr_id = attr_id;
+  //   attr->key_name = true;
+  //   // add to end
+  //   addToLast(attr);
+  // }
+
   // dump the entire structure as JSON, starting from head (as parameter)
   // does not start not end with a comma
   String toString(void) const {
