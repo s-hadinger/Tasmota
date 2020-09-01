@@ -1017,13 +1017,14 @@ void Z_IncomingMessage(ZCLFrame &zcl_received) {
   uint16_t clusterid = zcl_received.getClusterId();
   uint8_t  linkquality = zcl_received.getLinkQuality();
   uint8_t  srcendpoint = zcl_received.getSrcEndpoint();
+  linkquality = linkquality != 0xFF ? linkquality : 0xFE;   // avoid 0xFF (reserved for unknown)
 
   bool            defer_attributes = false;     // do we defer attributes reporting to coalesce
 
   // log the packet details
   zcl_received.log();
 
-  zigbee_devices.setLQI(srcaddr, linkquality != 0xFF ? linkquality : 0xFE);       // EFR32 has a different scale for LQI
+  zigbee_devices.setLQI(srcaddr, linkquality);       // EFR32 has a different scale for LQI
 
   char shortaddr[8];
   snprintf_P(shortaddr, sizeof(shortaddr), PSTR("0x%04X"), srcaddr);
@@ -1031,23 +1032,30 @@ void Z_IncomingMessage(ZCLFrame &zcl_received) {
   DynamicJsonBuffer jsonBuffer;
   JsonObject& json = jsonBuffer.createObject();
 
+  Z_attribute_list attr_list;
+  attr_list.lqi = linkquality;
+  attr_list.src_ep = srcendpoint;
+  if (groupid) {      // TODO we miss the group_id == 0 here
+    attr_list.group_id = groupid;
+  }
+
   if ( (!zcl_received.isClusterSpecificCommand()) && (ZCL_DEFAULT_RESPONSE == zcl_received.getCmdId())) {
       zcl_received.parseResponse();   // Zigbee general "Degault Response", publish ZbResponse message
   } else {
     // Build the ZbReceive json
     if ( (!zcl_received.isClusterSpecificCommand()) && (ZCL_REPORT_ATTRIBUTES == zcl_received.getCmdId())) {
-      zcl_received.parseReportAttributes(json);    // Zigbee report attributes from sensors
+      zcl_received.parseReportAttributes(attr_list);    // Zigbee report attributes from sensors
       if (clusterid) { defer_attributes = true; }  // don't defer system Cluster=0 messages
     } else if ( (!zcl_received.isClusterSpecificCommand()) && (ZCL_READ_ATTRIBUTES_RESPONSE == zcl_received.getCmdId())) {
-      zcl_received.parseReadAttributesResponse(json);
+      zcl_received.parseReadAttributesResponse(attr_list);
       if (clusterid) { defer_attributes = true; }  // don't defer system Cluster=0 messages
     } else if ( (!zcl_received.isClusterSpecificCommand()) && (ZCL_READ_ATTRIBUTES == zcl_received.getCmdId())) {
       zcl_received.parseReadAttributes(json);
       // never defer read_attributes, so the auto-responder can send response back on a per cluster basis
     } else if ( (!zcl_received.isClusterSpecificCommand()) && (ZCL_READ_REPORTING_CONFIGURATION_RESPONSE == zcl_received.getCmdId())) {
-      zcl_received.parseReadConfigAttributes(json);
+      zcl_received.parseReadConfigAttributes(attr_list);
     } else if ( (!zcl_received.isClusterSpecificCommand()) && (ZCL_CONFIGURE_REPORTING_RESPONSE == zcl_received.getCmdId())) {
-      zcl_received.parseConfigAttributes(json);
+      zcl_received.parseConfigAttributes(attr_list);
     } else if (zcl_received.isClusterSpecificCommand()) {
       zcl_received.parseClusterSpecificCommand(json);
     }
@@ -1056,8 +1064,10 @@ void Z_IncomingMessage(ZCLFrame &zcl_received) {
       String msg("");
       msg.reserve(100);
       json.printTo(msg);
-      AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_ZIGBEE D_JSON_ZIGBEEZCL_RAW_RECEIVED ": {\"0x%04X\":%s}"), srcaddr, msg.c_str());
+      AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_ZIGBEE D_JSON_ZIGBEEZCL_RAW_RECEIVED "_OLD: {\"0x%04X\":%s}"), srcaddr, msg.c_str());
     }
+
+    AddLog_P2(LOG_LEVEL_DEBUG, PSTR(D_LOG_ZIGBEE D_JSON_ZIGBEEZCL_RAW_RECEIVED ": {\"0x%04X\":{%s}}"), srcaddr, attr_list.toString().c_str());
 
     // discard the message if it was sent by us (broadcast or group loopback)
     if (srcaddr == localShortAddr) {
@@ -1065,7 +1075,9 @@ void Z_IncomingMessage(ZCLFrame &zcl_received) {
       return;     // abort the rest of message management
     }
 
-    zcl_received.postProcessAttributes(srcaddr, json);
+    zcl_received.generateSyntheticAttributes(attr_list);
+Serial.printf(">>> After Synthetic: %s\n", attr_list.toString().c_str());
+    zcl_received.postProcessAttributes(srcaddr, json, attr_list);
     // Add Endpoint
     json[F(D_CMND_ZIGBEE_ENDPOINT)] = srcendpoint;
     // Add Group if non-zero
@@ -1079,20 +1091,20 @@ void Z_IncomingMessage(ZCLFrame &zcl_received) {
     zigbee_devices.resetTimersForDevice(srcaddr, 0 /* groupaddr */, Z_CAT_REACHABILITY);    // remove any reachability timer already there
     zigbee_devices.setReachable(srcaddr, true);     // mark device as reachable
 
-    // Post-provess for Aqara Presence Senson
+    // Post-process for Aqara Presence Senson
     Z_AqaraOccupancy(srcaddr, clusterid, srcendpoint, json);
 
     if (defer_attributes) {
       // Prepare for publish
-      if (zigbee_devices.jsonIsConflict(srcaddr, json)) {
+      if (zigbee_devices.jsonIsConflict(srcaddr, json, attr_list)) {
         // there is conflicting values, force a publish of the previous message now and don't coalesce
         zigbee_devices.jsonPublishFlush(srcaddr);
       }
-      zigbee_devices.jsonAppend(srcaddr, json);
+      zigbee_devices.jsonAppend(srcaddr, json, attr_list);
       zigbee_devices.setTimer(srcaddr, 0 /* groupaddr */, USE_ZIGBEE_COALESCE_ATTR_TIMER, clusterid, srcendpoint, Z_CAT_READ_ATTR, 0, &Z_PublishAttributes);
     } else {
       // Publish immediately
-      zigbee_devices.jsonPublishNow(srcaddr, json);
+      zigbee_devices.jsonPublishNow(srcaddr, json, attr_list);
 
       // Add auto-responder here
       Z_AutoResponder(srcaddr, clusterid, srcendpoint, json[F("ReadNames")]);
