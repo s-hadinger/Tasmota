@@ -543,6 +543,10 @@ public:
     group_id(0xFFFF)
     {};
   
+  ~Z_attribute_list() {
+    reset();
+  }
+  
   // see https://stackoverflow.com/questions/8164567/how-to-make-my-custom-type-to-work-with-range-based-for-loops
   class iterator {
   public:
