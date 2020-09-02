@@ -29,25 +29,6 @@ const uint16_t kZigbeeSaveDelaySeconds = ZIGBEE_SAVE_DELAY_SECONDS;    // wait f
 /*********************************************************************************************\
  * Structures for Rules variables related to the last received message
 \*********************************************************************************************/
-
-typedef struct Z_LastMessageVars {
-  uint16_t    device;               // device short address
-  uint16_t    groupaddr;            // group address
-  uint16_t    cluster;              // cluster id
-  uint8_t     endpoint;             // source endpoint
-} Z_LastMessageVars;
-
-Z_LastMessageVars gZbLastMessage;
-
-uint16_t Z_GetLastDevice(void) { return gZbLastMessage.device; }
-uint16_t Z_GetLastGroup(void) { return gZbLastMessage.groupaddr; }
-uint16_t Z_GetLastCluster(void) { return gZbLastMessage.cluster; }
-uint8_t  Z_GetLastEndpoint(void) { return gZbLastMessage.endpoint; }
-
-/*********************************************************************************************\
- * Structures for device configuration
-\*********************************************************************************************/
-
 const size_t endpoints_max = 8;         // we limit to 8 endpoints
 
 class Z_Device {
@@ -58,9 +39,8 @@ public:
   char *                modelId;
   char *                friendlyName;
   uint8_t               endpoints[endpoints_max];   // static array to limit memory consumption, list of endpoints until 0x00 or end of array
-  // json buffer used for attribute reporting
-  DynamicJsonBuffer    *json_buffer;
-  JsonObject           *json;
+  // Used for attribute reporting
+  Z_attribute_list     attr_list;
   // sequence number for Zigbee frames
   uint16_t              shortaddr;      // unique key if not null, or unspecified if null
   uint8_t               seqNumber;
@@ -101,8 +81,7 @@ public:
     modelId(nullptr),
     friendlyName(nullptr),
     endpoints{ 0, 0, 0, 0, 0, 0, 0, 0 },
-    json_buffer(nullptr),
-    json(nullptr),
+    attr_list(),
     shortaddr(_shortaddr),
     seqNumber(0),
     // Hue support
@@ -281,12 +260,10 @@ public:
   void runTimer(void);
 
   // Append or clear attributes Json structure
-  void jsonClear(uint16_t shortaddr);
-  void jsonAppend(uint16_t shortaddr, const JsonObject &values);
-  const JsonObject *jsonGet(uint16_t shortaddr);
+  void jsonAppend(uint16_t shortaddr, Z_attribute_list &attr_list);
   void jsonPublishFlush(uint16_t shortaddr);    // publish the json message and clear buffer
-  bool jsonIsConflict(uint16_t shortaddr, const JsonObject &values);
-  void jsonPublishNow(uint16_t shortaddr, JsonObject &values);
+  bool jsonIsConflict(uint16_t shortaddr, Z_attribute_list &attr_list);
+  void jsonPublishNow(uint16_t shortaddr, Z_attribute_list &attr_list);
 
   // Iterator
   size_t devicesSize(void) const {
@@ -364,7 +341,6 @@ Z_Device & Z_Devices::createDeviceEntry(uint16_t shortaddr, uint64_t longaddr) {
   if ((BAD_SHORTADDR == shortaddr) && !longaddr) { return (Z_Device&) device_unk; }      // it is not legal to create this entry
   Z_Device * device_alloc = new Z_Device(shortaddr, longaddr);
 
-  device_alloc->json_buffer = new DynamicJsonBuffer(16);
   _devices.push_back(device_alloc);
   dirty();
   return *(_devices.back());
@@ -821,13 +797,6 @@ void Z_Devices::runTimer(void) {
   }
 }
 
-// Clear the JSON buffer for coalesced and deferred attributes
-void Z_Devices::jsonClear(uint16_t shortaddr) {
-  Z_Device & device = getShortAddr(shortaddr);
-  device.json = nullptr;
-  device.json_buffer->clear();
-}
-
 // Copy JSON from one object to another, this helps preserving the order of attributes
 void CopyJsonVariant(JsonObject &to, const String &key, const JsonVariant &val) {
   // first remove the potentially existing key in the target JSON, so new adds will be at the end of the list
@@ -874,120 +843,93 @@ void CopyJsonObject(JsonObject &to, const JsonObject &from) {
 // does the new payload conflicts with the existing payload, i.e. values would be overwritten
 // true - one attribute (except LinkQuality) woudl be lost, there is conflict
 // false - new attributes can be safely added
-bool Z_Devices::jsonIsConflict(uint16_t shortaddr, const JsonObject &values) {
+bool Z_Devices::jsonIsConflict(uint16_t shortaddr, Z_attribute_list &attr_list) {
   Z_Device & device = getShortAddr(shortaddr);
-  if (&values == nullptr) { return false; }
 
-  if (nullptr == device.json) {
+  if (attr_list.isEmpty()) {
     return false;                                           // if no previous value, no conflict
   }
 
   // compare groups
-  // Special case for group addresses. Group attribute is only present if the target
-  // address is a group address, so just comparing attributes will not work.
-  // Eg: if the first packet has no group attribute, and the second does, conflict would not be detected
-  // Here we explicitly compute the group address of both messages, and compare them. No group means group=0x0000
-  // (we use the property of an missing attribute returning 0)
-  // (note: we use .get() here which is case-sensitive. We know however that the attribute was set with the exact syntax D_CMND_ZIGBEE_GROUP, so we don't need a case-insensitive get())
-  uint16_t group1 = device.json->get<unsigned int>(D_CMND_ZIGBEE_GROUP);
-  uint16_t group2 = values.get<unsigned int>(D_CMND_ZIGBEE_GROUP);
-  if (group1 != group2) {
-    return true;      // if group addresses differ, then conflict
+  if (device.attr_list.isValidGroupId() && attr_list.isValidGroupId()) {
+    if (device.attr_list.group_id != attr_list.group_id) { return true; }     // groups are in conflict
   }
 
-  // parse all other parameters
-  for (auto kv : values) {
-    String key_string = kv.key;
+  // compare src_ep
+  if (device.attr_list.isValidSrcEp() && attr_list.isValidSrcEp()) {
+    if (device.attr_list.src_ep != attr_list.src_ep) { return true; }
+  }
+  
+  // LQI does not count as conflicting
 
-    if (0 == strcasecmp_P(kv.key, PSTR(D_CMND_ZIGBEE_GROUP))) {
-      // ignore group, it was handled already
-    } else if (0 == strcasecmp_P(kv.key, PSTR(D_CMND_ZIGBEE_ENDPOINT))) {
-      // attribute "Endpoint" or "Group"
-      if (device.json->containsKey(kv.key)) {
-        if (kv.value.as<unsigned int>() != device.json->get<unsigned int>(kv.key)) {
-          return true;
-        }
-      }
-    } else if (strcasecmp_P(kv.key, PSTR(D_CMND_ZIGBEE_LINKQUALITY))) {  // exception = ignore duplicates for LinkQuality
-      if (device.json->containsKey(kv.key)) {
-        return true;          // conflict!
-      }
+  // parse all other parameters
+  for (auto &attr : attr_list) {
+    if (nullptr != device.attr_list.findAttribute(attr)) {
+      return true;    // the value already exists - conflict!
     }
   }
   return false;
 }
 
-void Z_Devices::jsonAppend(uint16_t shortaddr, const JsonObject &values) {
+void Z_Devices::jsonAppend(uint16_t shortaddr, Z_attribute_list &attr_list) {
   Z_Device & device = getShortAddr(shortaddr);
-  if (&values == nullptr) { return; }
-
-  if (nullptr == device.json) {
-    device.json = &(device.json_buffer->createObject());
-  }
-  // Prepend Device, will be removed later if redundant
-  char sa[8];
-  snprintf_P(sa, sizeof(sa), PSTR("0x%04X"), shortaddr);
-  device.json->set(F(D_JSON_ZIGBEE_DEVICE), sa);
-  // Prepend Friendly Name if it has one
-  const char * fname = zigbee_devices.getFriendlyName(shortaddr);
-  if (fname) {
-    device.json->set(F(D_JSON_ZIGBEE_NAME), (char*) fname);   // (char*) forces ArduinoJson to make a copy of the cstring
-  }
-
-  // copy all values from 'values' to 'json'
-  CopyJsonObject(*device.json, values);
-}
-
-const JsonObject *Z_Devices::jsonGet(uint16_t shortaddr) {
-  return getShortAddr(shortaddr).json;
+  device.attr_list.mergeList(attr_list);
 }
 
 void Z_Devices::jsonPublishFlush(uint16_t shortaddr) {
   Z_Device & device = getShortAddr(shortaddr);
   if (!device.valid()) { return; }                 // safeguard
-  JsonObject & json = *device.json;
-  if (&json == nullptr) { return; }                // abort if nothing in buffer
+  Z_attribute_list &attr_list = device.attr_list;
 
-  const char * fname = zigbee_devices.getFriendlyName(shortaddr);
-  bool use_fname = (Settings.flag4.zigbee_use_names) && (fname);    // should we replace shortaddr with friendlyname?
+  if (!attr_list.isEmpty()) {
+    const char * fname = zigbee_devices.getFriendlyName(shortaddr);
+    bool use_fname = (Settings.flag4.zigbee_use_names) && (fname);    // should we replace shortaddr with friendlyname?
 
-  // save parameters is global variables to be used by Rules
-  gZbLastMessage.device = shortaddr;                // %zbdevice%
-  gZbLastMessage.groupaddr = json[F(D_CMND_ZIGBEE_GROUP)];      // %zbgroup%
-  gZbLastMessage.cluster = json[F(D_CMND_ZIGBEE_CLUSTER)];      // %zbcluster%
-  gZbLastMessage.endpoint = json[F(D_CMND_ZIGBEE_ENDPOINT)];    // %zbendpoint%
+    // save parameters is global variables to be used by Rules
+    gZbLastMessage.device = shortaddr;                // %zbdevice%
+    gZbLastMessage.groupaddr = attr_list.group_id;      // %zbgroup%
+    gZbLastMessage.endpoint = attr_list.src_ep;    // %zbendpoint%
 
-  // dump json in string
-  String msg = "";
-  json.printTo(msg);
-  zigbee_devices.jsonClear(shortaddr);
-
-  if (use_fname) {
-    if (Settings.flag4.remove_zbreceived) {
-      Response_P(PSTR("{\"%s\":%s}"), fname, msg.c_str());
-    } else {
-      Response_P(PSTR("{\"" D_JSON_ZIGBEE_RECEIVED "\":{\"%s\":%s}}"), fname, msg.c_str());
+    mqtt_data[0] = 0; // clear string
+    // Do we prefix with `ZbReceived`?
+    if (!Settings.flag4.remove_zbreceived) {
+      Response_P(PSTR("{\"" D_JSON_ZIGBEE_RECEIVED "\":"));
     }
-  } else {
-    if (Settings.flag4.remove_zbreceived) {
-      Response_P(PSTR("{\"0x%04X\":%s}"), shortaddr, msg.c_str());
+    // What key do we use, shortaddr or name?
+    if (use_fname) {
+      Response_P(PSTR("%s{\"%s\":{"), mqtt_data, fname);
     } else {
-      Response_P(PSTR("{\"" D_JSON_ZIGBEE_RECEIVED "\":{\"0x%04X\":%s}}"), shortaddr, msg.c_str());
+      Response_P(PSTR("%s{\"0x%04X\":{"), mqtt_data, shortaddr);
     }
+    // Add "Device":"0x...."
+    Response_P(PSTR("%s\"" D_JSON_ZIGBEE_DEVICE "\":\"0x%04X\","), mqtt_data, shortaddr);
+    // Add "Name":"xxx" if name is present
+    if (fname) {
+      Response_P(PSTR("%s\"" D_JSON_ZIGBEE_NAME "\":\"%s\","), mqtt_data, EscapeJSONString(fname).c_str());
+    }
+    // Add all other attributes
+    Response_P(PSTR("%s%s}}"), mqtt_data, attr_list.toString().c_str());
+    
+    if (!Settings.flag4.remove_zbreceived) {
+      Response_P(PSTR("%s}"), mqtt_data);
+    }
+    AddLog_P2(LOG_LEVEL_INFO, PSTR(">>> %s"), mqtt_data);   // TODO
+    attr_list.reset();    // clear the attributes
+
+    if (Settings.flag4.zigbee_distinct_topics) {
+      char subtopic[16];
+      snprintf_P(subtopic, sizeof(subtopic), PSTR("%04X/" D_RSLT_SENSOR), shortaddr);
+      MqttPublishPrefixTopic_P(TELE, subtopic, Settings.flag.mqtt_sensor_retain);
+    } else {
+      MqttPublishPrefixTopic_P(TELE, PSTR(D_RSLT_SENSOR), Settings.flag.mqtt_sensor_retain);
+    }
+    XdrvRulesProcess();     // apply rules
   }
-  if (Settings.flag4.zigbee_distinct_topics) {
-    char subtopic[16];
-    snprintf_P(subtopic, sizeof(subtopic), PSTR("%04X/" D_RSLT_SENSOR), shortaddr);
-    MqttPublishPrefixTopic_P(TELE, subtopic, Settings.flag.mqtt_sensor_retain);
-  } else {
-    MqttPublishPrefixTopic_P(TELE, PSTR(D_RSLT_SENSOR), Settings.flag.mqtt_sensor_retain);
-  }
-  XdrvRulesProcess();     // apply rules
 }
 
-void Z_Devices::jsonPublishNow(uint16_t shortaddr, JsonObject & values) {
+void Z_Devices::jsonPublishNow(uint16_t shortaddr, Z_attribute_list &attr_list) {
   jsonPublishFlush(shortaddr);    // flush any previous buffer
-  jsonAppend(shortaddr, values);
+  jsonAppend(shortaddr, attr_list);
   jsonPublishFlush(shortaddr);    // publish now
 }
 
