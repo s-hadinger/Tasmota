@@ -608,8 +608,8 @@ public:
   Z_attribute * findAttribute(const Z_attribute &attr);   // suffis always count here
 
   // count matching attributes, ignoring suffix
-  size_t coutAttribute(uint16_t cluster, uint16_t attr_id);
-  size_t coutAttribute(const char * name);
+  size_t countAttribute(uint16_t cluster, uint16_t attr_id) const ;
+  size_t countAttribute(const char * name) const ;
 
   // if suffix == 0, we don't care and find the first match
   Z_attribute & findOrCreateAttribute(uint16_t cluster, uint16_t attr_id, uint8_t suffix = 0);
@@ -725,11 +725,21 @@ Z_attribute * Z_attribute_list::findAttribute(const Z_attribute &attr) {
 Z_attribute * Z_attribute_list::findAttribute(uint16_t cluster, uint16_t attr_id, uint8_t suffix) {
   Z_attribute * cur = head;
   while (cur) {
-    if (cur->equalsKey(cluster, attr_id, suffix)) {  return cur; }
+    if (cur->equalsKey(cluster, attr_id, suffix)) { return cur; }
     cur = cur->next;
   }
   return nullptr;
 }
+size_t Z_attribute_list::countAttribute(uint16_t cluster, uint16_t attr_id) const {
+  size_t count = 0;
+  Z_attribute * cur = head;
+  while (cur) {
+    if (cur->equalsKey(cluster, attr_id, 0)) { count++; }
+    cur = cur->next;
+  }
+  return count;
+}
+
 // return the existing attribute or create a new one
 Z_attribute & Z_attribute_list::findOrCreateAttribute(uint16_t cluster, uint16_t attr_id, uint8_t suffix) {
   Z_attribute * found = findAttribute(cluster, attr_id);
@@ -743,6 +753,15 @@ Z_attribute * Z_attribute_list::findAttribute(const char * name, uint8_t suffix)
     cur = cur->next;
   }
   return nullptr;
+}
+size_t Z_attribute_list::countAttribute(const char * name) const {
+  size_t count = 0;
+  Z_attribute * cur = head;
+  while (cur) {
+    if (cur->equalsKey(name, 0)) { count++; }
+    cur = cur->next;
+  }
+  return count;
 }
 // return the existing attribute or create a new one
 Z_attribute & Z_attribute_list::findOrCreateAttribute(const char * name, uint8_t suffix) {
