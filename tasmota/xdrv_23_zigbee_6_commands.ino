@@ -398,7 +398,6 @@ void convertClusterSpecific(class Z_attribute_list &attr_list, uint16_t cluster,
     // if (direction & 0x80) then specific transform
     if (conv_direction & 0x80) {
       uint32_t cccc00mm = (cluster << 16) | cmd;    // format = cccc00mm, cccc = cluster, mm = command
-      // TODO need to create a specific command
       // IAS
       switch (cccc00mm) {
       case 0x05000000:        // "ZoneStatusChange"

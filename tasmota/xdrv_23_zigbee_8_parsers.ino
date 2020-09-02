@@ -1073,10 +1073,6 @@ void Z_IncomingMessage(class ZCLFrame &zcl_received) {
     zigbee_devices.resetTimersForDevice(srcaddr, 0 /* groupaddr */, Z_CAT_REACHABILITY);    // remove any reachability timer already there
     zigbee_devices.setReachable(srcaddr, true);     // mark device as reachable
 
-    // Post-process for Aqara Presence Senson
-    // TODO TODO adapt
-    //Z_AqaraOccupancy(srcaddr, clusterid, srcendpoint, json);
-
     if (defer_attributes) {
       // Prepare for publish
       if (zigbee_devices.jsonIsConflict(srcaddr, attr_list)) {

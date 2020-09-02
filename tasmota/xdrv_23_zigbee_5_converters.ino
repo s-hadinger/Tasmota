@@ -1107,7 +1107,7 @@ void ZCLFrame::parseReadAttributes(Z_attribute_list& attr_list) {
     }
     i += 2;
   }
-  attr_list.addAttribute(F("Read")).setStrRaw(attr_numbers.toString().c_str());      // TODO array
+  attr_list.addAttribute(F("Read")).setStrRaw(attr_numbers.toString().c_str());
   attr_list.addAttribute(F("ReadNames")).setStrRaw(attr_names.toString(true).c_str());
  
   // call auto-responder
@@ -1474,9 +1474,7 @@ void ZCLFrame::syntheticAqaraVibration(class Z_attribute_list &attr_list, class 
   }
 }
 
-// OLD CODE
 /// Publish a message for `"Occupancy":0` when the timer expired
-// TODO TODO
 int32_t Z_OccupancyCallback(uint16_t shortaddr, uint16_t groupaddr, uint16_t cluster, uint8_t endpoint, uint32_t value) {
   Z_attribute_list attr_list;
   attr_list.addAttribute(F(OCCUPANCY)).setUInt(0);
