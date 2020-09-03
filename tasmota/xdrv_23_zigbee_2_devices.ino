@@ -797,49 +797,6 @@ void Z_Devices::runTimer(void) {
   }
 }
 
-// Copy JSON from one object to another, this helps preserving the order of attributes
-void CopyJsonVariant(JsonObject &to, const String &key, const JsonVariant &val) {
-  // first remove the potentially existing key in the target JSON, so new adds will be at the end of the list
-  to.remove(key);    // force remove to have metadata like LinkQuality at the end
-
-  if (val.is<char*>()) {
-    const char * sval = val.as<char*>();    // using char* forces a copy, and also captures 'null' values
-    to.set(key, (char*) sval);
-  } else if (val.is<JsonArray>()) {
-    JsonArray &nested_arr = to.createNestedArray(key);
-    CopyJsonArray(nested_arr, val.as<JsonArray>());   // deep copy
-  } else if (val.is<JsonObject>()) {
-    JsonObject &nested_obj = to.createNestedObject(key);
-    CopyJsonObject(nested_obj, val.as<JsonObject>()); // deep copy
-  } else {
-    to.set(key, val);                     // general case for non array, object or string
-  }
-}
-
-// Shallow copy of array, we skip any sub-array or sub-object. It may be added in the future
-void CopyJsonArray(JsonArray &to, const JsonArray &arr) {
-  for (auto v : arr) {
-    if (v.is<char*>()) {
-      String sval = v.as<String>();       // force a copy of the String value
-      to.add(sval);
-    } else if (v.is<JsonArray>()) {
-    } else if (v.is<JsonObject>()) {
-    } else {
-      to.add(v);
-    }
-  }
-}
-
-// Deep copy of object
-void CopyJsonObject(JsonObject &to, const JsonObject &from) {
-  for (auto kv : from) {
-    String key_string = kv.key;
-    JsonVariant &val = kv.value;
-
-    CopyJsonVariant(to, key_string, val);
-  }
-}
-
 // does the new payload conflicts with the existing payload, i.e. values would be overwritten
 // true - one attribute (except LinkQuality) woudl be lost, there is conflict
 // false - new attributes can be safely added
