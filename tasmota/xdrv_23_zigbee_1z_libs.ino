@@ -443,6 +443,7 @@ public:
 
   // copy value from one attribute to another, without changing its type
   void copyVal(const Z_attribute & rhs) {
+    freeVal();
     // copy value
     val.uval32 = 0x00000000;
     type = rhs.type;
@@ -780,7 +781,7 @@ Z_attribute & Z_attribute_list::findOrCreateAttribute(const Z_attribute &attr) {
 // replace the entire content with new attribute or create
 Z_attribute & Z_attribute_list::replaceOrCreate(const Z_attribute &attr) {
   Z_attribute &new_attr = findOrCreateAttribute(attr);
-  new_attr.deepCopy(attr);
+  new_attr.copyVal(attr);
   return new_attr;
 }
 
@@ -798,6 +799,7 @@ bool Z_attribute_list::mergeList(const Z_attribute_list &attr_list) {
   for (auto &attr : (Z_attribute_list &)attr_list) {    // remove the const here although we will not change it
     replaceOrCreate(attr);
   }
+  return true;
 }
 
 #endif // USE_ZIGBEE
