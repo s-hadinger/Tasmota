@@ -37,7 +37,7 @@ public:
 
   friend class LList<T>;
 
-public:
+protected:
   LList_elt<T> * _next;
   T _val;
 };

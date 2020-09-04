@@ -44,6 +44,12 @@ int strcmp_PP(const char *p1, const char *p2) {
   return c1 - c2;
 }
 
+/*********************************************************************************************\
+ * 
+ * Variables for Rules from last Zigbee message received
+ * 
+\*********************************************************************************************/
+
 typedef struct Z_LastMessageVars {
   uint16_t    device;               // device short address
   uint16_t    groupaddr;            // group address
