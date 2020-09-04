@@ -38,7 +38,7 @@ public:
   char *                friendlyName;
   uint8_t               endpoints[endpoints_max];   // static array to limit memory consumption, list of endpoints until 0x00 or end of array
   // Used for attribute reporting
-  Z_attribute_list     attr_list;
+  Z_attribute_list      attr_list;
   // sequence number for Zigbee frames
   uint16_t              shortaddr;      // unique key if not null, or unspecified if null
   uint8_t               seqNumber;
@@ -263,9 +263,9 @@ public:
   void runTimer(void);
 
   // Append or clear attributes Json structure
-  void jsonAppend(uint16_t shortaddr, Z_attribute_list &attr_list);
+  void jsonAppend(uint16_t shortaddr, const Z_attribute_list &attr_list);
   void jsonPublishFlush(uint16_t shortaddr);    // publish the json message and clear buffer
-  bool jsonIsConflict(uint16_t shortaddr, Z_attribute_list &attr_list);
+  bool jsonIsConflict(uint16_t shortaddr, const Z_attribute_list &attr_list) const;
   void jsonPublishNow(uint16_t shortaddr, Z_attribute_list &attr_list);
 
   // Iterator
@@ -775,9 +775,10 @@ void Z_Devices::runTimer(void) {
 // does the new payload conflicts with the existing payload, i.e. values would be overwritten
 // true - one attribute (except LinkQuality) woudl be lost, there is conflict
 // false - new attributes can be safely added
-bool Z_Devices::jsonIsConflict(uint16_t shortaddr, Z_attribute_list &attr_list) {
-  Z_Device & device = getShortAddr(shortaddr);
+bool Z_Devices::jsonIsConflict(uint16_t shortaddr, const Z_attribute_list &attr_list) const {
+  const Z_Device & device = findShortAddr(shortaddr);
 
+  if (!foundDevice(device)) { return false; }
   if (attr_list.isEmpty()) {
     return false;                                           // if no previous value, no conflict
   }
@@ -795,7 +796,7 @@ bool Z_Devices::jsonIsConflict(uint16_t shortaddr, Z_attribute_list &attr_list) 
   // LQI does not count as conflicting
 
   // parse all other parameters
-  for (auto &attr : attr_list) {
+  for (const auto & attr : attr_list) {
     if (nullptr != device.attr_list.findAttribute(attr)) {
       return true;    // the value already exists - conflict!
     }
@@ -803,7 +804,7 @@ bool Z_Devices::jsonIsConflict(uint16_t shortaddr, Z_attribute_list &attr_list) 
   return false;
 }
 
-void Z_Devices::jsonAppend(uint16_t shortaddr, Z_attribute_list &attr_list) {
+void Z_Devices::jsonAppend(uint16_t shortaddr, const Z_attribute_list &attr_list) {
   Z_Device & device = getShortAddr(shortaddr);
   device.attr_list.mergeList(attr_list);
 }
@@ -845,7 +846,7 @@ void Z_Devices::jsonPublishFlush(uint16_t shortaddr) {
     if (!Settings.flag4.remove_zbreceived) {
       Response_P(PSTR("%s}"), mqtt_data);
     }
-    AddLog_P2(LOG_LEVEL_INFO, PSTR(">>> %s"), mqtt_data);   // TODO
+    // AddLog_P2(LOG_LEVEL_INFO, PSTR(">>> %s"), mqtt_data);   // TODO
     attr_list.reset();    // clear the attributes
 
     if (Settings.flag4.zigbee_distinct_topics) {

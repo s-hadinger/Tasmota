@@ -66,7 +66,7 @@ public:
   const T * at(size_t index) const ;
   // non-const variants
   // not very academic cast but reduces code size
-  inline T * at(size_t index) { return (T*) (const T*) at(index); }
+  inline T * at(size_t index) { return (T*) ((const LList<T>*)this)->at(index); }
 
   // adding elements
   T & addHead(void);
@@ -102,7 +102,7 @@ public:
   const_iterator begin() const { return const_iterator(this->_head); }      // start with 'head'
   const_iterator end() const { return const_iterator(nullptr); }      // end with null pointer
 
-private:
+protected:
   LList_elt<T> * _head;
 };
 

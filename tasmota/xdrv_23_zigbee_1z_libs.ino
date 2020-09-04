@@ -106,9 +106,6 @@ public:
   bool          key_is_pmem;  // is the string in progmem, so we don't need to make a copy
   bool          val_str_raw;  // if val is String, it is raw JSON and should not be escaped
   uint8_t       key_suffix; // append a suffix to key (default is 1, explicitly output if >1)
-  Z_attribute*  next;   // next item in the linked list
-
-  friend class Z_attribute_list;
 
   // Constructor with all defaults
   Z_attribute():
@@ -118,20 +115,17 @@ public:
     key_is_str(false),
     key_is_pmem(false),
     val_str_raw(false),
-    key_suffix(1),
-    next(nullptr)
+    key_suffix(1)
     {};
   
   Z_attribute(const Z_attribute & rhs) {
     deepCopy(rhs);
-    next = nullptr;
   }
 
   Z_attribute & operator = (const Z_attribute & rhs) {
     freeKey();
     freeVal();
     deepCopy(rhs);
-    next = nullptr;
   }
 
   // Destructor, free memory that was allocated
@@ -191,10 +185,6 @@ public:
     key_is_str = false;
     key.id.cluster = cluster;
     key.id.attr_id = attr_id;
-  }
-
-  inline bool isValNum(void) const {
-    return (type <= Za_type::Za_float);
   }
 
   // Setters
@@ -310,7 +300,7 @@ public:
     return "";
   }
 
-  bool equalsKey(const Z_attribute & attr2, bool ignore_key_suffix = false) {
+  bool equalsKey(const Z_attribute & attr2, bool ignore_key_suffix = false) const {
     // check if keys are equal
     if (key_is_str != attr2.key_is_str) { return false; }
     if (key_is_str) {
@@ -325,7 +315,7 @@ public:
     return true;
   }
 
-  bool equalsKey(uint16_t cluster, uint16_t attr_id, uint8_t suffix = 0) {
+  bool equalsKey(uint16_t cluster, uint16_t attr_id, uint8_t suffix = 0) const {
     if (!key_is_str) {
       if ((key.id.cluster == cluster) && (key.id.attr_id == attr_id)) {
         if (suffix) {
@@ -338,7 +328,7 @@ public:
     return false;
   }
 
-  bool equalsKey(const char * name, uint8_t suffix = 0) {
+  bool equalsKey(const char * name, uint8_t suffix = 0) const {
     if (key_is_str) {
       if (0 == strcmp_PP(key.key, name)) {
         if (suffix) {
@@ -351,7 +341,7 @@ public:
     return false;
   }
 
-  bool equalsVal(const Z_attribute & attr2) {
+  bool equalsVal(const Z_attribute & attr2) const {
     if (type != attr2.type) { return false; }
     if ((type >= Za_type::Za_bool) && (type <= Za_type::Za_float)) {
       // numerical value
@@ -366,7 +356,7 @@ public:
     return true;
   }
 
-  bool equals(const Z_attribute & attr2) {
+  bool equals(const Z_attribute & attr2) const {
     return equalsKey(attr2) && equalsVal(attr2);
   }
 
@@ -453,7 +443,7 @@ public:
     // copy value
     val.uval32 = 0x00000000;
     type = rhs.type;
-    if (rhs.isValNum()) {
+    if (rhs.isNum()) {
       val.uval32 = rhs.val.uval32;
     } else if (rhs.type == Za_type::Za_raw) {
       if (rhs.val.bval) {
@@ -538,52 +528,25 @@ private :
 // Contains meta-information:
 // - source endpoint (is conflicting)
 // - LQI (if not conflicting)
-class Z_attribute_list {
+class Z_attribute_list : public LList<Z_attribute> {
 public:
-  Z_attribute * head;     // head of linked list
   uint8_t       src_ep;   // source endpoint, 0xFF if unknown
   uint8_t       lqi;      // linkquality, 0xFF if unknown
   uint16_t      group_id; // group address OxFFFF if inknown
 
   Z_attribute_list():
-    head(nullptr),
+    LList<Z_attribute>(), // call superclass constructor
     src_ep(0xFF),
     lqi(0xFF),
     group_id(0xFFFF)
     {};
-  
-  ~Z_attribute_list() {
-    reset();
-  }
-  
-  // see https://stackoverflow.com/questions/8164567/how-to-make-my-custom-type-to-work-with-range-based-for-loops
-  class iterator {
-  public:
-    iterator(Z_attribute *cur): cur(cur), next(nullptr) { if (cur) { next = cur->next; } }
-    iterator operator++() { cur = next; if (cur) { next = cur->next;} return *this; }
-    bool operator!=(const iterator & other) const { return cur != other.cur; }
-    Z_attribute & operator*() const { return *cur; }
-  private:
-    Z_attribute *cur;
-    Z_attribute *next;    // we need to keep next pointer in case the current attribute gets deleted
-  };
-  iterator begin() { return iterator(this->head); }      // start with 'head'
-  iterator end() { return iterator(nullptr); }      // end with null pointer
 
-  // is the list empty of any attribute?
-  inline bool isEmpty(void) {
-    return (nullptr == head);
-  }
+  // we don't define any destructor, the superclass destructor is automatically called
 
   // reset object to its initial state
   // free all allocated memory
   void reset(void) {
-    while (head) {
-      Z_attribute * next = head->next;
-      delete head;
-      head = next;
-    }
-    // head is now nullptr
+    LList<Z_attribute>::reset();
     src_ep = 0xFF;
     lqi = 0xFF;
     group_id = 0xFFFF;
@@ -604,7 +567,7 @@ public:
   }
 
   // Remove from list by reference, if null or not found, then do nothing
-  void removeAttribute(const Z_attribute * attr);
+  inline void removeAttribute(const Z_attribute * attr) { remove(attr); }
 
   // dump the entire structure as JSON, starting from head (as parameter)
   // does not start not end with a comma
@@ -612,9 +575,19 @@ public:
   String toString(bool enclose_brackets = false) const;
 
   // find if attribute with same key already exists, return null if not found
-  Z_attribute * findAttribute(uint16_t cluster, uint16_t attr_id, uint8_t suffix = 0);
-  Z_attribute * findAttribute(const char * name, uint8_t suffix = 0);
-  Z_attribute * findAttribute(const Z_attribute &attr);   // suffis always count here
+  const Z_attribute * findAttribute(uint16_t cluster, uint16_t attr_id, uint8_t suffix = 0) const;
+  const Z_attribute * findAttribute(const char * name, uint8_t suffix = 0) const;
+  const Z_attribute * findAttribute(const Z_attribute &attr) const;   // suffis always count here
+  // non-const variants
+  inline Z_attribute * findAttribute(uint16_t cluster, uint16_t attr_id, uint8_t suffix = 0) {
+    return (Z_attribute*) ((const Z_attribute_list*)this)->findAttribute(cluster, attr_id, suffix);
+  }
+  inline Z_attribute * findAttribute(const char * name, uint8_t suffix = 0) {
+    return (Z_attribute*) (((const Z_attribute_list*)this)->findAttribute(name, suffix));
+  }
+  inline Z_attribute * findAttribute(const Z_attribute &attr) {
+    return (Z_attribute*) ((const Z_attribute_list*)this)->findAttribute(attr);
+  }
 
   // count matching attributes, ignoring suffix
   size_t countAttribute(uint16_t cluster, uint16_t attr_id) const ;
@@ -630,62 +603,37 @@ public:
 
   // merge with secondary list, return true if ok, false if conflict
   bool mergeList(const Z_attribute_list &list2);
-
-protected:
-  // traverse the linked list chain and add the attribute to the end of the list
-  void addToLast(Z_attribute * attr);
 };
 
+// add a cluster/attr_id attribute at the end of the list
 Z_attribute & Z_attribute_list::addAttribute(uint16_t cluster, uint16_t attr_id) {
-  Z_attribute * attr = new Z_attribute();
-
-  attr->key.id.cluster = cluster;
-  attr->key.id.attr_id = attr_id;
-  attr->key_is_str = false;
-  // add to end
-  addToLast(attr);
-  return *attr;
+  Z_attribute & attr = addToLast();
+  attr.key.id.cluster = cluster;
+  attr.key.id.attr_id = attr_id;
+  attr.key_is_str = false;
+  return attr;
 }
 
+// add a cluster/attr_id attribute at the end of the list
 Z_attribute & Z_attribute_list::addAttribute(const char * name, bool pmem) {
-  Z_attribute * attr = new Z_attribute();
-
-  attr->setKeyName(name, pmem);
-  // add to end
-  addToLast(attr);
-  return *attr;
+  Z_attribute & attr = addToLast();
+  attr.setKeyName(name, pmem);
+  return attr;
 }
+
 Z_attribute & Z_attribute_list::addAttribute(const char * name, const char * name2) {
-  Z_attribute * attr = new Z_attribute();
-
-  attr->setKeyName(name, name2);
-  // add to end
-  addToLast(attr);
-  return *attr;
-}
-
-void Z_attribute_list::removeAttribute(const Z_attribute * attr) {
-  // find element in chain and find pointer before
-  Z_attribute **curr_ptr = &head;
-  while (*curr_ptr) {
-    if (*curr_ptr == attr) {
-      *curr_ptr = attr->next;
-      delete attr;
-      break;
-    }
-    curr_ptr = &((*curr_ptr)->next);
-  }
+  Z_attribute & attr = addToLast();
+  attr.setKeyName(name, name2);
+  return attr;
 }
 
 String Z_attribute_list::toString(bool enclose_brackets) const {
-  Z_attribute * curr = head;
   String res = "";
   if (enclose_brackets) { res += '{'; }
   bool prefix_comma = false;
-  while (curr)  {
-    res += curr->toString(prefix_comma);
+  for (const auto & attr : *this) {
+    res += attr.toString(prefix_comma);
     prefix_comma = true;
-    curr = curr->next;
   }
   // add source endpoint
   if (0xFF != src_ep) {
@@ -713,16 +661,8 @@ String Z_attribute_list::toString(bool enclose_brackets) const {
   return res;
 }
 
-void Z_attribute_list::addToLast(Z_attribute * attr) {
-  Z_attribute **curr_ptr = &head;
-  while (*curr_ptr) {
-    curr_ptr = &((*curr_ptr)->next);
-  }
-  *curr_ptr = attr;
-}
-
 // suffis always count here
-Z_attribute * Z_attribute_list::findAttribute(const Z_attribute &attr) {
+const Z_attribute * Z_attribute_list::findAttribute(const Z_attribute &attr) const {
   uint8_t  suffix = attr.key_suffix;
   if (attr.key_is_str) {
     return findAttribute(attr.key.key, suffix);
@@ -731,20 +671,16 @@ Z_attribute * Z_attribute_list::findAttribute(const Z_attribute &attr) {
   }
 }
 
-Z_attribute * Z_attribute_list::findAttribute(uint16_t cluster, uint16_t attr_id, uint8_t suffix) {
-  Z_attribute * cur = head;
-  while (cur) {
-    if (cur->equalsKey(cluster, attr_id, suffix)) { return cur; }
-    cur = cur->next;
+const Z_attribute * Z_attribute_list::findAttribute(uint16_t cluster, uint16_t attr_id, uint8_t suffix) const {
+  for (const auto & attr : *this) {
+    if (attr.equalsKey(cluster, attr_id, suffix)) { return &attr; }
   }
   return nullptr;
 }
 size_t Z_attribute_list::countAttribute(uint16_t cluster, uint16_t attr_id) const {
   size_t count = 0;
-  Z_attribute * cur = head;
-  while (cur) {
-    if (cur->equalsKey(cluster, attr_id, 0)) { count++; }
-    cur = cur->next;
+  for (const auto & attr : *this) {
+    if (attr.equalsKey(cluster, attr_id, 0)) { count++; }
   }
   return count;
 }
@@ -755,20 +691,16 @@ Z_attribute & Z_attribute_list::findOrCreateAttribute(uint16_t cluster, uint16_t
   return found ? *found : addAttribute(cluster, attr_id);
 }
 
-Z_attribute * Z_attribute_list::findAttribute(const char * name, uint8_t suffix) {
-  Z_attribute * cur = head;
-  while (cur) {
-    if (cur->equalsKey(name, suffix)) { return cur; }
-    cur = cur->next;
+const Z_attribute * Z_attribute_list::findAttribute(const char * name, uint8_t suffix) const {
+  for (const auto & attr : *this) {
+    if (attr.equalsKey(name, suffix)) { return &attr; }
   }
   return nullptr;
 }
 size_t Z_attribute_list::countAttribute(const char * name) const {
   size_t count = 0;
-  Z_attribute * cur = head;
-  while (cur) {
-    if (cur->equalsKey(name, 0)) { count++; }
-    cur = cur->next;
+  for (const auto & attr : *this) {
+    if (attr.equalsKey(name, 0)) { count++; }
   }
   return count;
 }
@@ -804,7 +736,7 @@ bool Z_attribute_list::mergeList(const Z_attribute_list &attr_list) {
   if (0xFF != attr_list.lqi) {
     lqi = attr_list.lqi;
   }
-  for (auto &attr : (Z_attribute_list &)attr_list) {    // remove the const here although we will not change it
+  for (auto & attr : attr_list) {
     replaceOrCreate(attr);
   }
   return true;
