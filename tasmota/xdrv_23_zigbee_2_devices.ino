@@ -19,8 +19,6 @@
 
 #ifdef USE_ZIGBEE
 
-#include <vector>
-
 #ifndef ZIGBEE_SAVE_DELAY_SECONDS
 #define ZIGBEE_SAVE_DELAY_SECONDS 2               // wait for 2s before saving Zigbee info
 #endif
@@ -295,7 +293,6 @@ public:
   uint16_t parseDeviceParam(const char * param, bool short_must_be_known = false) const;
 
 private:
-//  std::vector<Z_Device*>    _devices = {};
   LList<Z_Device>           _devices;     // list of devices
   LList<Z_Deferred>         _deferred;    // list of deferred calls
   uint32_t                  _saveTimer = 0;
@@ -304,9 +301,6 @@ private:
   // Following device is used represent the unknown device, with all defaults
   // Any find() function will not return Null, instead it will return this instance
   const Z_Device device_unk = Z_Device(BAD_SHORTADDR);
-
-  template < typename T>
-  static bool findInVector(const std::vector<T>  & vecOfElements, const T  & element);
 
   //int32_t findShortAddrIdx(uint16_t shortaddr) const;
   // Create a new entry in the devices list - must be called if it is sure it does not already exist
@@ -330,19 +324,6 @@ uint16_t localShortAddr = 0;
 /*********************************************************************************************\
  * Implementation
 \*********************************************************************************************/
-
-// https://thispointer.com/c-how-to-find-an-element-in-vector-and-get-its-index/
-template < typename T>
-bool Z_Devices::findInVector(const std::vector<T>  & vecOfElements, const T  & element) {
-	// Find given element in vector
-	auto it = std::find(vecOfElements.begin(), vecOfElements.end(), element);
-
-	if (it != vecOfElements.end()) {
-		return true;
-	} else {
-		return false;
-	}
-}
 
 //
 // Create a new Z_Device entry in _devices. Only to be called if you are sure that no
