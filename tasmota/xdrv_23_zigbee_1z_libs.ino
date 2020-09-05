@@ -556,14 +556,15 @@ public:
   inline bool isValidLQI(void) const { return 0xFF != lqi; }
   inline bool isValidGroupId(void) const { return 0xFFFF != group_id; }
 
+  // the following addAttribute() compute the suffix and increments it
   // Add attribute to the list, given cluster and attribute id
-  Z_attribute & addAttribute(uint16_t cluster, uint16_t attr_id);
+  Z_attribute & addAttribute(uint16_t cluster, uint16_t attr_id, uint8_t suffix = 0);
 
   // Add attribute to the list, given name
-  Z_attribute & addAttribute(const char * name, bool pmem = false);
-  Z_attribute & addAttribute(const char * name, const char * name2);
-  inline Z_attribute & addAttribute(const __FlashStringHelper * name) {
-    return addAttribute((const char*) name, true);
+  Z_attribute & addAttribute(const char * name, bool pmem = false, uint8_t suffix = 0);
+  Z_attribute & addAttribute(const char * name, const char * name2, uint8_t suffix = 0);
+  inline Z_attribute & addAttribute(const __FlashStringHelper * name, uint8_t suffix = 0) {
+    return addAttribute((const char*) name, true, suffix);
   }
 
   // Remove from list by reference, if null or not found, then do nothing
@@ -606,24 +607,30 @@ public:
 };
 
 // add a cluster/attr_id attribute at the end of the list
-Z_attribute & Z_attribute_list::addAttribute(uint16_t cluster, uint16_t attr_id) {
+Z_attribute & Z_attribute_list::addAttribute(uint16_t cluster, uint16_t attr_id, uint8_t suffix) {
   Z_attribute & attr = addToLast();
   attr.key.id.cluster = cluster;
   attr.key.id.attr_id = attr_id;
   attr.key_is_str = false;
+  if (!suffix) { attr.key_suffix = countAttribute(attr.key.id.cluster, attr.key.id.attr_id); }
+  else { attr.key_suffix = suffix; }
   return attr;
 }
 
 // add a cluster/attr_id attribute at the end of the list
-Z_attribute & Z_attribute_list::addAttribute(const char * name, bool pmem) {
+Z_attribute & Z_attribute_list::addAttribute(const char * name, bool pmem, uint8_t suffix) {
   Z_attribute & attr = addToLast();
   attr.setKeyName(name, pmem);
+  if (!suffix) { attr.key_suffix = countAttribute(attr.key.key); }
+  else { attr.key_suffix = suffix; }
   return attr;
 }
 
-Z_attribute & Z_attribute_list::addAttribute(const char * name, const char * name2) {
+Z_attribute & Z_attribute_list::addAttribute(const char * name, const char * name2, uint8_t suffix) {
   Z_attribute & attr = addToLast();
   attr.setKeyName(name, name2);
+  if (!suffix) { attr.key_suffix = countAttribute(attr.key.key); }
+  else { attr.key_suffix = suffix; }
   return attr;
 }
 
@@ -687,8 +694,8 @@ size_t Z_attribute_list::countAttribute(uint16_t cluster, uint16_t attr_id) cons
 
 // return the existing attribute or create a new one
 Z_attribute & Z_attribute_list::findOrCreateAttribute(uint16_t cluster, uint16_t attr_id, uint8_t suffix) {
-  Z_attribute * found = findAttribute(cluster, attr_id);
-  return found ? *found : addAttribute(cluster, attr_id);
+  Z_attribute * found = findAttribute(cluster, attr_id, suffix);
+  return found ? *found : addAttribute(cluster, attr_id, suffix);
 }
 
 const Z_attribute * Z_attribute_list::findAttribute(const char * name, uint8_t suffix) const {
@@ -706,8 +713,8 @@ size_t Z_attribute_list::countAttribute(const char * name) const {
 }
 // return the existing attribute or create a new one
 Z_attribute & Z_attribute_list::findOrCreateAttribute(const char * name, uint8_t suffix) {
-  Z_attribute * found = findAttribute(name);
-  return found ? *found : addAttribute(name);
+  Z_attribute * found = findAttribute(name, suffix);
+  return found ? *found : addAttribute(name, suffix);
 }
 
 // same but passing a Z_attribute as key
