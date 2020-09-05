@@ -1028,7 +1028,7 @@ void ZCLFrame::parseReportAttributes(Z_attribute_list& attr_list) {
     SBuffer buf(2);
     buf.add8(_cmd_id);
     buf.add8(0x00);   // Status = OK
-    
+
     ZigbeeZCLSend_Raw(ZigbeeZCLSendMessage({
       _srcaddr,
       0x0000,
@@ -1038,7 +1038,7 @@ void ZCLFrame::parseReportAttributes(Z_attribute_list& attr_list) {
       _manuf_code,
       false /* not cluster specific */,
       false /* noresponse */,
-      _transact_seq,  /* sequence id */
+      _seqnumber,  /* sequence id */
       _transact_seq,  /* zcl transaction id */
       buf.getBuffer(), buf.len()
     }));
