@@ -797,8 +797,11 @@ bool Z_Devices::jsonIsConflict(uint16_t shortaddr, const Z_attribute_list &attr_
 
   // parse all other parameters
   for (const auto & attr : attr_list) {
-    if (nullptr != device.attr_list.findAttribute(attr)) {
-      return true;    // the value already exists - conflict!
+    const Z_attribute * curr_attr = device.attr_list.findAttribute(attr);
+    if (nullptr != curr_attr) {
+      if (!curr_attr->equalsVal(attr)) {
+        return true;    // the value already exists and is different - conflict!
+      }
     }
   }
   return false;
