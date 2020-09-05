@@ -176,7 +176,21 @@ void zigbeeZCLSendStr(uint16_t shortaddr, uint16_t groupaddr, uint8_t endpoint, 
   }
 
   // everything is good, we can send the command
-  ZigbeeZCLSend_Raw(shortaddr, groupaddr, cluster, endpoint, cmd, clusterSpecific, manuf, buf.getBuffer(), buf.len(), true, zigbee_devices.getNextSeqNumber(shortaddr));
+
+  uint8_t seq = zigbee_devices.getNextSeqNumber(shortaddr);
+  ZigbeeZCLSend_Raw(ZigbeeZCLSendMessage({
+    shortaddr,
+    groupaddr,
+    cluster /*cluster*/,
+    endpoint,
+    cmd,
+    manuf,  /* manuf */
+    clusterSpecific /* not cluster specific */,
+    true /* response */,
+    seq,  /* sequence id */
+    seq,  /* zcl transaction id */
+    buf.getBuffer(), buf.len()
+  }));
   // now set the timer, if any, to read back the state later
   if (clusterSpecific) {
 #ifndef USE_ZIGBEE_NO_READ_ATTRIBUTES   // read back attribute value unless it is disabled
@@ -376,7 +390,20 @@ void ZbSendReportWrite(const JsonObject &val_pubwrite, uint16_t device, uint16_t
   }
 
   // all good, send the packet
-  ZigbeeZCLSend_Raw(device, groupaddr, cluster, endpoint, operation, false /* not cluster specific */, manuf, buf.getBuffer(), buf.len(), false /* noresponse */, zigbee_devices.getNextSeqNumber(device));
+  uint8_t seq = zigbee_devices.getNextSeqNumber(device);
+  ZigbeeZCLSend_Raw(ZigbeeZCLSendMessage({
+    device,
+    groupaddr,
+    cluster /*cluster*/,
+    endpoint,
+    operation,
+    manuf,  /* manuf */
+    false /* not cluster specific */,
+    false /* no response */,
+    seq,  /* sequence id */
+    seq,  /* zcl transaction id */
+    buf.getBuffer(), buf.len()
+  }));
   ResponseCmndDone();
 }
 
@@ -602,7 +629,20 @@ void ZbSendRead(const JsonVariant &val_attr, uint16_t device, uint16_t groupaddr
   }
 
   if (attrs_len > 0) {
-    ZigbeeZCLSend_Raw(device, groupaddr, cluster, endpoint, operation, false, manuf, attrs, attrs_len, true /* we do want a response */, zigbee_devices.getNextSeqNumber(device));
+    uint8_t seq = zigbee_devices.getNextSeqNumber(device);
+    ZigbeeZCLSend_Raw(ZigbeeZCLSendMessage({
+      device,
+      groupaddr,
+      cluster /*cluster*/,
+      endpoint,
+      operation,
+      manuf,  /* manuf */
+      false /* not cluster specific */,
+      true /* response */,
+      seq,  /* sequence id */
+      seq,  /* zcl transaction id */
+      attrs, attrs_len
+    }));
     ResponseCmndDone();
   } else {
     ResponseCmndChar_P(PSTR("Missing parameters"));
