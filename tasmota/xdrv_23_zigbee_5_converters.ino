@@ -1032,7 +1032,7 @@ void ZCLFrame::parseReportAttributes(Z_attribute_list& attr_list) {
     ZigbeeZCLSend_Raw(ZigbeeZCLSendMessage({
       _srcaddr,
       0x0000,
-      0x0000 /*cluster*/,
+      _cluster_id,
       _srcendpoint,
       ZCL_DEFAULT_RESPONSE,
       _manuf_code,
