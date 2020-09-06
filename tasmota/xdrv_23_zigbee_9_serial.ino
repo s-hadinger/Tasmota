@@ -768,7 +768,7 @@ void CmndZbEZSPSend(void)
 void ZigbeeZCLSend_Raw(const ZigbeeZCLSendMessage &zcl) {
 
 #ifdef USE_ZIGBEE_ZNP
-  SBuffer buf(32+len);
+  SBuffer buf(32+zcl.len);
   buf.add8(Z_SREQ | Z_AF);          // 24
   buf.add8(AF_DATA_REQUEST_EXT);    // 02
   if (BAD_SHORTADDR == zcl.shortaddr) {        // if no shortaddr we assume group address
@@ -789,12 +789,12 @@ void ZigbeeZCLSend_Raw(const ZigbeeZCLSendMessage &zcl) {
 
   buf.add16(3 + zcl.len + (zcl.manuf ? 2 : 0));
   buf.add8((zcl.needResponse ? 0x00 : 0x10) | (zcl.clusterSpecific ? 0x01 : 0x00) | (zcl.manuf ? 0x04 : 0x00));                 // Frame Control Field
-  if (manuf) {
+  if (zcl.manuf) {
     buf.add16(zcl.manuf);               // add Manuf Id if not null
   }
   buf.add8(zcl.transacId);              // Transaction Sequence Number
   buf.add8(zcl.cmdId);
-  if (len > 0) {
+  if (zcl.len > 0) {
     buf.addBuffer(zcl.msg, zcl.len);        // add the payload
   }
 
