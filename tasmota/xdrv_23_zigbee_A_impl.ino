@@ -139,7 +139,6 @@ void CmndZbReset(void) {
 // High-level function
 // Send a command specified as an HEX string for the workload.
 // The target endpoint is computed if zero, i.e. sent to the first known endpoint of the device.
-// If cluster-specific, a timer may be set calling `zigbeeSetCommandTimer()`, for ex to coalesce attributes or Aqara presence sensor
 //
 // Inputs:
 // - shortaddr: 16-bits short address, or 0x0000 if group address
@@ -194,7 +193,7 @@ void zigbeeZCLSendStr(uint16_t shortaddr, uint16_t groupaddr, uint8_t endpoint, 
   // now set the timer, if any, to read back the state later
   if (clusterSpecific) {
 #ifndef USE_ZIGBEE_NO_READ_ATTRIBUTES   // read back attribute value unless it is disabled
-    zigbeeSetCommandTimer(shortaddr, groupaddr, cluster, endpoint);
+    sendHueUpdate(shortaddr, groupaddr, cluster, endpoint);
 #endif
   }
 }

@@ -1091,6 +1091,48 @@ void ZCLFrame::generateCallBacks(Z_attribute_list& attr_list) {
   }
 }
 
+
+// A command has been sent to a device this device, or to a group
+// Set timers to read back values.
+// If it's a device address, also set a timer for reachability test
+void sendHueUpdate(uint16_t shortaddr, uint16_t groupaddr, uint16_t cluster, uint8_t endpoint = 0) {
+  int32_t z_cat = -1;
+  uint32_t wait_ms = 0;
+
+  switch (cluster) {
+    case 0x0006:
+      z_cat = Z_CAT_READ_0006;
+      wait_ms = 200;    // wait 0.2 s
+      break;
+    case 0x0008:
+      z_cat = Z_CAT_READ_0008;
+      wait_ms = 1050;   // wait 1.0 s
+      break;
+    case 0x0102:
+      z_cat = Z_CAT_READ_0102;
+      wait_ms = 10000;   // wait 10.0 s
+      break;
+    case 0x0300:
+      z_cat = Z_CAT_READ_0300;
+      wait_ms = 1050;   // wait 1.0 s
+      break;
+    default:
+      break;
+  }
+  if (z_cat >= 0) {
+    if ((BAD_SHORTADDR != shortaddr) && (0 == endpoint)) {
+      endpoint = zigbee_devices.findFirstEndpoint(shortaddr);
+    }
+    if ((BAD_SHORTADDR == shortaddr) || (endpoint)) {   // send if group address or endpoint is known
+      zigbee_devices.setTimer(shortaddr, groupaddr, wait_ms, cluster, endpoint, z_cat, 0 /* value */, &Z_ReadAttrCallback);
+      if (BAD_SHORTADDR != shortaddr) {      // reachability test is not possible for group addresses, since we don't know the list of devices in the group
+        zigbee_devices.setTimer(shortaddr, groupaddr, wait_ms + Z_CAT_REACHABILITY_TIMEOUT, cluster, endpoint, Z_CAT_REACHABILITY, 0 /* value */, &Z_Unreachable);
+      }
+
+    }
+  }
+}
+
 // ZCL_READ_ATTRIBUTES
 void ZCLFrame::parseReadAttributes(Z_attribute_list& attr_list) {
   uint32_t i = 0;
@@ -1261,7 +1303,11 @@ void ZCLFrame::parseResponse(void) {
 void ZCLFrame::parseClusterSpecificCommand(Z_attribute_list& attr_list) {
   convertClusterSpecific(attr_list, _cluster_id, _cmd_id, _frame_control.b.direction, _srcaddr, _srcendpoint, _payload);
 #ifndef USE_ZIGBEE_NO_READ_ATTRIBUTES   // read attributes unless disabled
-  sendHueUpdate(_srcaddr, _groupaddr, _cluster_id, _cmd_id, _frame_control.b.direction);
+  if (!_frame_control.b.direction) {    // only handle server->client (i.e. device->coordinator)
+    if (_wasbroadcast) {                // only update for broadcast messages since we don't see unicast from device to device and we wouldn't know the target
+      sendHueUpdate(BAD_SHORTADDR, _groupaddr, _cluster_id);
+    }
+  }
 #endif
 }
 
