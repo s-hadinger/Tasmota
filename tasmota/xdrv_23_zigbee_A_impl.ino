@@ -186,7 +186,6 @@ void zigbeeZCLSendStr(uint16_t shortaddr, uint16_t groupaddr, uint8_t endpoint, 
     manuf,  /* manuf */
     clusterSpecific /* not cluster specific */,
     true /* response */,
-    seq,  /* sequence id */
     seq,  /* zcl transaction id */
     buf.getBuffer(), buf.len()
   }));
@@ -399,7 +398,6 @@ void ZbSendReportWrite(const JsonObject &val_pubwrite, uint16_t device, uint16_t
     manuf,  /* manuf */
     false /* not cluster specific */,
     false /* no response */,
-    seq,  /* sequence id */
     seq,  /* zcl transaction id */
     buf.getBuffer(), buf.len()
   }));
@@ -638,7 +636,6 @@ void ZbSendRead(const JsonVariant &val_attr, uint16_t device, uint16_t groupaddr
       manuf,  /* manuf */
       false /* not cluster specific */,
       true /* response */,
-      seq,  /* sequence id */
       seq,  /* zcl transaction id */
       attrs, attrs_len
     }));

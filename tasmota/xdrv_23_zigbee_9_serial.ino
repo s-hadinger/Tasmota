@@ -783,7 +783,7 @@ void ZigbeeZCLSend_Raw(const ZigbeeZCLSendMessage &zcl) {
   buf.add16(0x0000);                // dest Pan ID, 0x0000 = intra-pan
   buf.add8(0x01);                   // source endpoint
   buf.add16(zcl.clusterId);
-  buf.add8(zcl.sequenceId);              // transacId
+  buf.add8(zcl.transacId);              // transacId
   buf.add8(0x30);                   // 30 options
   buf.add8(0x1E);                   // 1E radius
 
@@ -816,7 +816,7 @@ void ZigbeeZCLSend_Raw(const ZigbeeZCLSendMessage &zcl) {
     buf.add8(zcl.endpoint);                 // dstEp
     buf.add16(EMBER_APS_OPTION_ENABLE_ROUTE_DISCOVERY | EMBER_APS_OPTION_RETRY);      // APS frame
     buf.add16(zcl.groupaddr);               // groupId
-    buf.add8(zcl.sequenceId);
+    buf.add8(zcl.transacId);
     // end of ApsFrame
     buf.add8(0x01);                     // tag TODO
 

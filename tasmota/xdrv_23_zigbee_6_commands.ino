@@ -184,7 +184,6 @@ int32_t Z_ReadAttrCallback(uint16_t shortaddr, uint16_t groupaddr, uint16_t clus
       0,  /* manuf */
       false /* not cluster specific */,
       true /* response */,
-      seq,  /* sequence id */
       seq,  /* zcl transaction id */
       attrs, attrs_len
     }));

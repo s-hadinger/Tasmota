@@ -31,7 +31,6 @@ public:
   uint16_t manuf;
   bool clusterSpecific;
   bool needResponse;
-  uint8_t sequenceId;   // zigbee sequence number
   uint8_t transacId;    // ZCL transaction number
   const uint8_t *msg;
   size_t len;

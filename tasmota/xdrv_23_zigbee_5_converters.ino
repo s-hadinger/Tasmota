@@ -1038,7 +1038,6 @@ void ZCLFrame::parseReportAttributes(Z_attribute_list& attr_list) {
       _manuf_code,
       false /* not cluster specific */,
       false /* noresponse */,
-      _seqnumber,  /* sequence id */
       _transact_seq,  /* zcl transaction id */
       buf.getBuffer(), buf.len()
     }));

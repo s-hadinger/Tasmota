@@ -978,7 +978,6 @@ void Z_SendAFInfoRequest(uint16_t shortaddr) {
     0x0000,  /* manuf */
     false /* not cluster specific */,
     true /* response */,
-    transacid,  /* sequence id */
     transacid,  /* zcl transaction id */
     InfoReq, sizeof(InfoReq)
   }));
