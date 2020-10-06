@@ -127,7 +127,7 @@ class SBuffer hibernateDevice(const struct Z_Device &device) {
   buf.add8(0x00);     // end of string marker
 
   // Zigbee Profile
-  buf.add8(device.zb_profile);
+  buf.add8(device.getLightChannels());
 
   // update overall length
   buf.set8(0, buf.len());
@@ -225,7 +225,7 @@ void hydrateDevices(const SBuffer &buf) {
 
     // Hue bulbtype - if present
     if (d < dev_record_len) {
-      zigbee_devices.setZbProfile(shortaddr, buf_d.get8(d));
+      zigbee_devices.setLightProfile(shortaddr, buf_d.get8(d));
       d++;
     }
 

@@ -1702,31 +1702,35 @@ void ZCLFrame::postProcessAttributes(uint16_t shortaddr, Z_attribute_list& attr_
 
       uint16_t uval16 = attr.getUInt();     // call converter to uint only once
       int16_t  ival16 = attr.getInt();     // call converter to int only once
+      Z_Data_Set & data = device.data;
       // update any internal structure
       switch (ccccaaaa) {
         case 0x00000004: zigbee_devices.setManufId(shortaddr, attr.getStr());         break;
         case 0x00000005: zigbee_devices.setModelId(shortaddr, attr.getStr());         break;
         case 0x00010021: zigbee_devices.setBatteryPercent(shortaddr, uval16);         break;
         case 0x00060000:
-        case 0x00068000: device.setPower(attr.getBool());                             break;
-        case 0x00080000: device.dimmer = uval16;                                      break;
-        case 0x02010000: device.temperature = fval * 10 + 0.5f;                       break;
-        case 0x02010008: device.th_setpoint = uval16;                                 break;
-        case 0x02010012: device.temperature_target = fval * 10 + 0.5f;                break;
-        case 0x02010007: device.th_setpoint = uval16;                                 break;
-        case 0x02010011: device.temperature_target = fval * 10 + 0.5f;                break;
-        case 0x03000000: device.hue = changeUIntScale(uval16, 0, 254, 0, 360);        break;
-        case 0x03000001: device.sat = uval16;                                         break;
-        case 0x03000003: device.x = uval16;                                           break;
-        case 0x03000004: device.y = uval16;                                           break;
-        case 0x03000007: device.ct = uval16;                                          break;
-        case 0x03000008: device.colormode = uval16;                                   break;
-        case 0x04020000: device.temperature = fval * 10 + 0.5f;                       break;
-        case 0x0403FF00: device.pressure = fval + 0.5f;                               break;  // give priority to sea level
-        case 0x04030000: device.pressure = fval + 0.5f;                               break;
-        case 0x04050000: device.humidity = fval + 0.5f;                               break;
-        case 0x0B040505: device.mains_voltage = uval16;                               break;
-        case 0x0B04050B: device.mains_power = ival16;                                 break;
+        case 0x00068000: device.setPower(attr.getBool(), src_ep);                     break;
+        // light
+        case 0x00080000: data.get<Z_Data_Light>(src_ep).setDimmer(uval16);                            break;
+        case 0x03000000: data.get<Z_Data_Light>(src_ep).setHue(changeUIntScale(uval16, 0, 254, 0, 360));break;
+        case 0x03000001: data.get<Z_Data_Light>(src_ep).setSat(uval16);                       break;
+        case 0x03000003: data.get<Z_Data_Light>(src_ep).setX(uval16);                         break;
+        case 0x03000004: data.get<Z_Data_Light>(src_ep).setY(uval16);                         break;
+        case 0x03000007: data.get<Z_Data_Light>(src_ep).setCT(uval16);                        break;
+        case 0x03000008: data.get<Z_Data_Light>(src_ep).setColorMode(uval16);                 break;
+        // Thermo
+        case 0x02010000:
+        case 0x04020000: data.get<Z_Data_Thermo>(src_ep).setTemperature(fval * 10 + 0.5f);break;
+        case 0x02010007:
+        case 0x02010008: data.get<Z_Data_Thermo>(src_ep).setThSetpoint(uval16);         break;
+        case 0x02010011:
+        case 0x02010012: data.get<Z_Data_Thermo>(src_ep).setTempTarget(fval * 10 + 0.5f);break;
+        case 0x0403FF00:
+        case 0x04030000: data.get<Z_Data_Thermo>(src_ep).setPressure(fval + 0.5f);      break;
+        case 0x04050000: data.get<Z_Data_Thermo>(src_ep).setHumidity(fval + 0.5f);      break;
+        // Plug
+        case 0x0B040505: data.get<Z_Data_Plug>(src_ep).setMainsVoltage(uval16);         break;
+        case 0x0B04050B: data.get<Z_Data_Plug>(src_ep).setMainsPower(ival16);           break;
       }
 
       // Replace cluster/attribute with name
