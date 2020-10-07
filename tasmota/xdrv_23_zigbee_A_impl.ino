@@ -56,6 +56,10 @@ void (* const ZigbeeCommand[])(void) PROGMEM = {
 // Initialize internal structures
 void ZigbeeInit(void)
 {
+// #pragma GCC diagnostic push
+// #pragma GCC diagnostic ignored "-Winvalid-offsetof"
+// Serial.printf(">>> offset %d %d %d\n", Z_offset(Z_Data_Light, dimmer), Z_offset(Z_Data_Light, x), Z_offset(Z_Data_Thermo, temperature));
+// #pragma GCC diagnostic pop
   // Check if settings in Flash are set
   if (PinUsed(GPIO_ZIGBEE_RX) && PinUsed(GPIO_ZIGBEE_TX)) {
     if (0 == Settings.zb_channel) {
@@ -1622,19 +1626,19 @@ void ZigbeeShow(bool json)
         WSContentSend_P(PSTR("<tr class='htr'><td colspan=\"4\">&#9478;"));
         if (thermo.validTemperature()) {
           char buf[12];
-          dtostrf(thermo.getTemperature() / 10.0f, 3, 1, buf);
+          dtostrf(thermo.getTemperature() / 100.0f, 3, 1, buf);
           WSContentSend_PD(PSTR(" &#x2600;&#xFE0F; %s°C"), buf);
         }
         if (thermo.validTempTarget()) {
           char buf[12];
-          dtostrf(thermo.getTempTarget() / 10.0f, 3, 1, buf);
+          dtostrf(thermo.getTempTarget() / 100.0f, 3, 1, buf);
           WSContentSend_PD(PSTR(" &#127919; %s°C"), buf);
         }
         if (thermo.validThSetpoint()) {
           WSContentSend_PD(PSTR(" &#9881;&#65039; %d%%"), thermo.getThSetpoint());
         }
         if (thermo.validHumidity()) {
-          WSContentSend_P(PSTR(" &#x1F4A7; %d%%"), thermo.getHumidity());
+          WSContentSend_P(PSTR(" &#x1F4A7; %d%%"), (uint16_t)(thermo.getHumidity() / 100.0f + 0.5f));
         }
         if (thermo.validPressure()) {
           WSContentSend_P(PSTR(" &#x26C5; %d hPa"), thermo.getPressure());

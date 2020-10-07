@@ -25,14 +25,14 @@
 const uint16_t kZigbeeSaveDelaySeconds = ZIGBEE_SAVE_DELAY_SECONDS;    // wait for x seconds
 
 enum class Z_Data_Type : uint8_t {
-  Z_Light = 0,              // Lights 1-5 channels
-  Z_Plug = 1,               // Plug power consumption
-  Z_PIR = 2,
-  Z_Alarm = 3,
-  Z_Thermo = 4,             // Thermostat and sensor for home environment (temp, himudity, pressure)
-  Z_OnOff = 5,              // OnOff, Buttons and Relays (always complements Lights and Plugs)
-  Z_Ext = 0xE,              // extended for other values
-  Z_Unknown = 0xF,
+  Z_Unknown = 0x00,
+  Z_Light = 1,              // Lights 1-5 channels
+  Z_Plug = 2,               // Plug power consumption
+  Z_PIR = 3,
+  Z_Alarm = 4,
+  Z_Thermo = 5,             // Thermostat and sensor for home environment (temp, himudity, pressure)
+  Z_OnOff = 6,              // OnOff, Buttons and Relays (always complements Lights and Plugs)
+  Z_Ext = 0xF,              // extended for other values
   Z_Device = 0xFF           // special value when parsing Device level attributes
 };
 
@@ -129,8 +129,8 @@ public:
     colormode(0xFF),
     dimmer(0xFF),
     sat(0xFF),
+    hue(0xFF),
     ct(0xFFFF),
-    hue(0xFFFF),
     x(0xFFFF),
     y(0xFFFF)
     {}
@@ -138,24 +138,24 @@ public:
   inline bool validColormode(void)      const { return 0xFF != colormode; }
   inline bool validDimmer(void)         const { return 0xFF != dimmer; }
   inline bool validSat(void)            const { return 0xFF != sat; }
-  inline bool validCT(void)             const { return 0xFFFF != ct; }
   inline bool validHue(void)            const { return 0xFFFF != hue; }
+  inline bool validCT(void)             const { return 0xFFFF != ct; }
   inline bool validX(void)              const { return 0xFFFF != x; }
   inline bool validY(void)              const { return 0xFFFF != y; }
 
   inline uint8_t  getColorMode(void)    const { return colormode; }
   inline uint8_t  getDimmer(void)       const { return dimmer; }
   inline uint8_t  getSat(void)          const { return sat; }
+  inline uint16_t getHue(void)          const { return changeUIntScale(hue, 0, 254, 0, 360); }
   inline uint16_t getCT(void)           const { return ct; }
-  inline uint16_t getHue(void)          const { return hue; }
   inline uint16_t getX(void)            const { return x; }
   inline uint16_t getY(void)            const { return y; }
 
   inline void setColorMode(uint8_t _colormode)  { colormode = _colormode; }
   inline void setDimmer(uint8_t _dimmer)        { dimmer = _dimmer; }
   inline void setSat(uint8_t _sat)              { sat = _sat; }
+  inline void setHue(uint16_t _hue)             { hue = changeUIntScale(_hue, 0, 360, 0, 254);; }
   inline void setCT(uint16_t _ct)               { ct = _ct; }
-  inline void setHue(uint16_t _hue)             { hue = _hue; }
   inline void setX(uint16_t _x)                 { x = _x; }
   inline void setY(uint16_t _y)                 { y = _y; }
 
@@ -166,8 +166,8 @@ public:
   uint8_t               colormode;      // 0x00: Hue/Sat, 0x01: XY, 0x02: CT | 0xFF not set, default 0x01
   uint8_t               dimmer;         // last Dimmer value: 0-254 | 0xFF not set, default 0x00
   uint8_t               sat;            // last Sat: 0..254 | 0xFF not set, default 0x00
+  uint8_t               hue;            // last Hue: 0..359 | 0xFFFF not set, default 0
   uint16_t              ct;             // last CT: 153-500 | 0xFFFF not set, default 200
-  uint16_t              hue;            // last Hue: 0..359 | 0xFFFF not set, default 0
   uint16_t              x, y;           // last color [x,y] | 0xFFFF not set, default 0
 };
 
@@ -180,26 +180,26 @@ public:
     Z_Data(Z_Data_Type::Z_Thermo, endpoint),
     temperature(-0x8000),
     pressure(0xFFFF),
-    humidity(0xFF),
+    humidity(0xFFFF),
     th_setpoint(0xFF),
     temperature_target(-0x8000)
     {}
 
   inline bool validTemperature(void)    const { return -0x8000 != temperature; }
   inline bool validPressure(void)       const { return 0xFFFF != pressure; }
-  inline bool validHumidity(void)       const { return 0xFF != humidity; }
+  inline bool validHumidity(void)       const { return 0xFFFF != humidity; }
   inline bool validThSetpoint(void)     const { return 0xFF != th_setpoint; }
   inline bool validTempTarget(void)     const { return -0x8000 != temperature_target; }
 
   inline int16_t  getTemperature(void)  const { return temperature; }
   inline uint16_t getPressure(void)     const { return pressure; }
-  inline uint8_t  getHumidity(void)     const { return humidity; }
+  inline uint16_t getHumidity(void)     const { return humidity; }
   inline uint8_t  getThSetpoint(void)   const { return th_setpoint; }
   inline int16_t  getTempTarget(void)   const { return temperature_target; }
 
   inline void setTemperature(int16_t _temperature)      { temperature = _temperature; }
   inline void setPressure(uint16_t _pressure)           { pressure = _pressure; }
-  inline void setHumidity(uint8_t _humidity)            { humidity = _humidity; }
+  inline void setHumidity(uint16_t _humidity)           { humidity = _humidity; }
   inline void setThSetpoint(uint8_t _th_setpoint)       { th_setpoint = _th_setpoint; }
   inline void setTempTarget(int16_t _temperature_target){ temperature_target = _temperature_target; }
 
@@ -210,7 +210,7 @@ public:
   // sensor data
   int16_t               temperature;    // temperature in 1/10th of Celsius, 0x8000 if unknown
   uint16_t              pressure;       // air pressure in hPa, 0xFFFF if unknown
-  uint8_t               humidity;       // humidity in percent, 0..100, 0xFF if unknown
+  uint16_t              humidity;       // humidity in percent, 0..100, 0xFF if unknown
   // thermostat
   uint8_t               th_setpoint;    // percentage of heat/cool in percent
   int16_t               temperature_target; // settings for the temparature
@@ -251,7 +251,8 @@ public:
 class Z_Data_Set : public LList<Z_Data> {
 public:
   // List<Z_Data>() : List<Z_Data>() {}
-  const Z_Data & getData(Z_Data_Type type, uint8_t ep = 0) const;
+  Z_Data & getByType(Z_Data_Type type, uint8_t ep = 0);     // creates if non-existent
+  const Z_Data & find(Z_Data_Type type, uint8_t ep = 0) const;
 
   // getX() always returns a valid object, and creates the object if there is none
   // find() does not create an object if it does not exist, and returns *(X*)nullptr
@@ -267,16 +268,32 @@ public:
   M & addIfNull(M & cur, uint8_t ep = 0);
 };
 
+Z_Data & Z_Data_Set::getByType(Z_Data_Type type, uint8_t ep) {
+  switch (type) {
+    case Z_Data_Type::Z_Light:
+      return get<Z_Data_Light>(ep);
+    case Z_Data_Type::Z_Plug:
+      return get<Z_Data_Plug>(ep);
+    case Z_Data_Type::Z_Alarm:
+      return get<Z_Data_Alarm>(ep);
+    case Z_Data_Type::Z_Thermo:
+      return get<Z_Data_Thermo>(ep);
+    case Z_Data_Type::Z_OnOff:
+      return get<Z_Data_OnOff>(ep);
+    default:
+      return *(Z_Data*)nullptr;
+  }
+}
 
 template <class M>
 M & Z_Data_Set::get(uint8_t ep) {
-  M & m = (M&) getData(M::type, ep);
+  M & m = (M&) find(M::type, ep);
   return addIfNull<M>(m, ep);
 }
 
 template <class M>
 const M & Z_Data_Set::find(uint8_t ep) const {
- return (M&) getData(M::type, ep);
+ return (M&) find(M::type, ep);
 }
 
 // Input: reference to object
@@ -294,7 +311,7 @@ M & Z_Data_Set::addIfNull(M & cur, uint8_t ep) {
   }
 }
 
-const Z_Data & Z_Data_Set::getData(Z_Data_Type type, uint8_t ep) const {
+const Z_Data & Z_Data_Set::find(Z_Data_Type type, uint8_t ep) const {
   for (auto & elt : *this) {
     if (elt._type == type) {
       // type matches, check if ep matches.
@@ -374,16 +391,6 @@ public:
 
   // New version of device data handling
   Z_Data_Set           data;            // Linkedlist of device data per endpoint
-    // high 4 bits is device type:
-    //   0x0. = bulb
-    //   0x1. = switch
-    //   0x2. = motion sensor
-    //   0x3. = other alarms
-    //   0xE. = reserved for extension
-    //   0xF. = unknown
-    // For Bulb (0x0.)
-    //   0x0N = number of channel for the bulb: 0-5
-    //   0x08 = the device is hidden from Alexa
   // other status
   uint8_t               lqi;            // lqi from last message, 0xFF means unknown
   uint8_t               batterypercent; // battery percentage (0..100), 0xFF means unknwon
