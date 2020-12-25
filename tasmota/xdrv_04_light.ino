@@ -2262,6 +2262,19 @@ void calcGammaMultiChannels(uint16_t cur_col_10[5]) {
   }
 }
 
+//
+// Compute the Gamma correction for CW/WW
+// Can be used for 2-channels (channels 0,1) or 5 channels (channels 3,4)
+//
+// It is implicitly called by calcGammaBulb5Channels()
+//
+// In:
+// - 2 channels CW/WW in 10 bits format (0..1023)
+// Out:
+// - 2 channels CW/WW in 10 bits format, with Gamma corretion (if enabled), replaced in place
+// - white_bri10: global brightness of white channel, split over CW/WW (basically the sum of CW+WW, but it's easier to compute on this basis)
+// - white_free_cw: signals that CW/WW are free mode, and not linked via CT. This is used when channels are manually set on a channel per channel basis. CT is ignored
+//
 void calcGammaBulbCW(uint16_t cw10[2], uint16_t *white_bri10_out, bool *white_free_cw) {
   uint16_t white_bri10;
   white_bri10 = cw10[0] + cw10[1];            // cumulated brightness
@@ -2284,6 +2297,18 @@ void calcGammaBulbCW(uint16_t cw10[2], uint16_t *white_bri10_out, bool *white_fr
   *white_bri10_out = white_bri10;
 }
 
+//
+// Calculate the gamma correction for all 5 channels RGBCW
+// Computation is valid for 1,3,4,5 channels
+// 2-channels bulbs must be handled separately
+//
+// In:
+// - 5 channels RGBCW in 10 bits format (0..1023)
+// Out:
+// - 5 channels RGBCW in 10 bits format, with Gamma corretion (if enabled), replaced in place
+// - white_bri10: global brightness of white channel, split over CW/WW (basically the sum of CW+WW, but it's easier to compute on this basis)
+// - white_free_cw: signals that CW/WW are free mode, and not linked via CT. This is used when channels are manually set on a channel per channel basis. CT is ignored
+//
 void calcGammaBulb5Channels(uint16_t col10[LST_MAX], uint16_t *white_bri10_out, bool *white_free_cw) {
   for (uint32_t i = 0; i < 3; i++) {
     if (Settings.light_correction) {
