@@ -1997,7 +1997,6 @@ void LightAnimate(void)
 
       uint16_t cur_col_10[LST_MAX];   // 10 bits resolution
       Light.update = false;
-      bool rgbwwtable_applied = false;      // did we already applied RGBWWTable (ex: in white_blend_mode or virtual_ct)
 
       // first set 8 and 10 bits channels
       for (uint32_t i = 0; i < LST_MAX; i++) {
@@ -2009,15 +2008,15 @@ void LightAnimate(void)
       if (Light.pwm_multi_channels) {
         calcGammaMultiChannels(cur_col_10);
       } else {
-        rgbwwtable_applied = calcGammaBulbs(cur_col_10);     // true means that one PWM channel is used for CT
+AddLog_P(LOG_LEVEL_INFO, PSTR(">>> calcGammaBulbs In  %03X,%03X,%03X,%03X,%03X"), cur_col_10[0], cur_col_10[1], cur_col_10[2], cur_col_10[3], cur_col_10[4]);
+        calcGammaBulbs(cur_col_10);     // true means that one PWM channel is used for CT
+AddLog_P(LOG_LEVEL_INFO, PSTR(">>> calcGammaBulbs Out %03X,%03X,%03X,%03X,%03X"), cur_col_10[0], cur_col_10[1], cur_col_10[2], cur_col_10[3], cur_col_10[4]);
       }
 
       // Apply RGBWWTable only if not Settings.flag4.white_blend_mode
-      if (!rgbwwtable_applied) {
-        for (uint32_t i = 0; i<Light.subtype; i++) {
-          uint32_t adjust = change8to10(Settings.rgbwwTable[i]);
-          cur_col_10[i] = changeUIntScale(cur_col_10[i], 0, 1023, 0, adjust);
-        }
+      for (uint32_t i = 0; i<Light.subtype; i++) {
+        uint32_t adjust = change8to10(Settings.rgbwwTable[i]);
+        cur_col_10[i] = changeUIntScale(cur_col_10[i], 0, 1023, 0, adjust);
       }
 
       // final adjusments for PMW ranges, post-gamma correction
@@ -2294,49 +2293,24 @@ void calcGammaBulb5Channels(uint16_t col10[LST_MAX], uint16_t *white_bri10_out, 
   calcGammaBulbCW(&col10[3], white_bri10_out, white_free_cw);
 }
 
-// Returns: true if rgbwwtable_applied
-bool calcGammaBulbs(uint16_t cur_col_10[5]) {
+void calcGammaBulbs(uint16_t cur_col_10[5]) {
   bool rgbwwtable_applied = false;
   bool pwm_ct = false;
   bool white_free_cw = false;         // true if White channels are uncorrelated. Happens when CW+WW>255, i.e. manually setting white channels to exceed to total power of a single channel (may harm the power supply)
   // Various values needed for accurate White calculation
   uint16_t ct_10 = light_state.getCT10bits();;   // CT value streteched to 0..1023 (from within CT range, so not necessarily from 153 to 500). 0=Cold, 1023=Warm
   uint16_t white_bri10 = 0;           // White total brightness normalized to 0..1023
-  uint32_t cw1 = Light.subtype - 1;       // address for the ColorTone PWM
+  // uint32_t cw1 = Light.subtype - 1;       // address for the ColorTone PWM
   uint32_t cw0 = Light.subtype - 2;       // address for the White Brightness PWM
 
-  // Apply gamma correction for 8 and 10 bits resolutions, if needed
-  if (Settings.light_correction) {
-    // apply gamma correction to RGB channels
-    if (LST_RGB <= Light.subtype) {
-      for (uint32_t i = 0; i < 3; i++) {
-        cur_col_10[i] = ledGamma10_10(cur_col_10[i]);
-      }
-    }
-    // If RGBW or Single channel, also adjust White channel
-    // if ((LST_SINGLE == Light.subtype) || (LST_RGBW == Light.subtype)) {
-    //   cur_col_10[Light.subtype - 1] = ledGamma10_10(cur_col_10[Light.subtype - 1]);
-    // }
-    // If Single channel, also adjust White channel
-    if (LST_SINGLE == Light.subtype) {
-      cur_col_10[0] = ledGamma10_10(cur_col_10[Light.subtype - 1]);
-    }
-    // White, CW and WW were not modified yet
+  // calc basic gamma correction for all types
+  if ((LST_SINGLE == Light.subtype) || (LST_RGB <= Light.subtype)) {
+    calcGammaBulb5Channels(cur_col_10, &white_bri10, &white_free_cw);
+  } else if (LST_COLDWARM == Light.subtype) {
+    calcGammaBulbCW(cur_col_10, &white_bri10, &white_free_cw);
   }
 
-  // First apply combined correction to the overall white power
-  // If the bulb has one or more white channels
-  if ((LST_COLDWARM == Light.subtype) || (LST_RGBW <= Light.subtype)) {
-    // channels for white are always the last two channels
-    white_bri10 = cur_col_10[cw0] + cur_col_10[cw1];    // cumulated brightness
-    if (white_bri10 > 1031) { white_free_cw = true; }   // take a margin of 8 above 1023 to account for rounding errors
-    white_bri10 = (white_bri10 > 1023) ? 1023 : white_bri10;    // max 1023
-    if (Settings.light_correction) {
-      white_bri10 = ledGamma10_10(white_bri10);    // 10 bits gamma correction
-    }
-  }
-
-  // Now we know ct_10 and white_bri10 (gamma corrected if needed), and W, CW, WW were untouched
+  // Now we know ct_10 and white_bri10 (gamma corrected if needed)
 
 #ifdef ESP8266
   if ((LST_COLDWARM == Light.subtype) || (LST_RGBCW == Light.subtype)) {
@@ -2345,8 +2319,8 @@ bool calcGammaBulbs(uint16_t cur_col_10[5]) {
       // Xiaomi Philips bulbs follow a different scheme:
       // channel 0=intensity, channel1=temperature
       cur_col_10[cw0] = white_bri10;
-      cur_col_10[cw1] = ct_10;
-      return false;     // avoid any interference
+      cur_col_10[cw0+1] = ct_10;
+      return;     // avoid any interference
     }
   }
 #endif  // ESP8266
@@ -2404,23 +2378,14 @@ bool calcGammaBulbs(uint16_t cur_col_10[5]) {
   // cur_col_10[cw0] and cur_col_10[cw1] were unmodified up to now
   if (LST_RGBW == Light.subtype) {
     cur_col_10[3] = white_bri10;       // simple case, we set the White level to the required brightness
-  }
-  if ((LST_COLDWARM == Light.subtype) || (LST_RGBCW == Light.subtype)) {
+  } else if ((LST_COLDWARM == Light.subtype) || (LST_RGBCW == Light.subtype)) {
     // if sum of both channels is > 255, then channels are probably uncorrelated
     if (!white_free_cw) {      
       // then we split the total energy among the cold and warm leds
-      cur_col_10[cw1] = changeUIntScale(ct_10, 0, 1023, 0, white_bri10);
-      cur_col_10[cw0] = white_bri10 - cur_col_10[cw1];
-    } else {
-      // we basically ignore any white calculation, and finally apply Gamma to CW/WW if needed
-      if (Settings.light_correction) {
-        cur_col_10[cw0] = ledGamma10_10(cur_col_10[cw0]);
-        cur_col_10[cw1] = ledGamma10_10(cur_col_10[cw1]);
-      }
+      cur_col_10[cw0+1] = changeUIntScale(ct_10, 0, 1023, 0, white_bri10);
+      cur_col_10[cw0] = white_bri10 - cur_col_10[cw0+1];
     }
   }
-
-  return rgbwwtable_applied;
 }
 
 #ifdef USE_DEVICE_GROUPS
