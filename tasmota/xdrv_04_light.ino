@@ -2275,14 +2275,13 @@ void calcGammaMultiChannels(uint16_t cur_col_10[5]) {
 // - white_bri10: global brightness of white channel, split over CW/WW (basically the sum of CW+WW, but it's easier to compute on this basis)
 // - white_free_cw: signals that CW/WW are free mode, and not linked via CT. This is used when channels are manually set on a channel per channel basis. CT is ignored
 //
-void calcGammaBulbCW(uint16_t cw10[2], uint16_t *white_bri10_out, bool *white_free_cw) {
-  uint16_t white_bri10;
-  white_bri10 = cw10[0] + cw10[1];            // cumulated brightness
-  *white_free_cw = (white_bri10 > 1031);      // take a margin of 8 above 1023 to account for rounding errors
+void calcGammaBulbCW(uint16_t cw10[2], uint16_t *white_bri10_out, bool *white_free_cw_out) {
+  uint16_t white_bri10 = cw10[0] + cw10[1];            // cumulated brightness
+  bool white_free_cw = (white_bri10 > 1031);      // take a margin of 8 above 1023 to account for rounding errors
   white_bri10 = (white_bri10 > 1023) ? 1023 : white_bri10;    // max 1023
 
   if (Settings.light_correction) {
-    if (*white_free_cw) {
+    if (white_free_cw) {
       cw10[0] = ledGamma10_10(cw10[0]);
       cw10[1] = ledGamma10_10(cw10[1]);
     } else {
@@ -2294,7 +2293,8 @@ void calcGammaBulbCW(uint16_t cw10[2], uint16_t *white_bri10_out, bool *white_fr
       white_bri10 = white_bri10_gamma;
     }
   }
-  *white_bri10_out = white_bri10;
+  if (white_bri10_out != nullptr) { *white_bri10_out = white_bri10; }
+  if (white_free_cw_out != nullptr) { *white_free_cw_out = white_free_cw; }
 }
 
 //
@@ -2318,13 +2318,22 @@ void calcGammaBulb5Channels(uint16_t col10[LST_MAX], uint16_t *white_bri10_out, 
   calcGammaBulbCW(&col10[3], white_bri10_out, white_free_cw);
 }
 
+// sale but converts from 8 bits to 10 bits first
+void calcGammaBulb5Channels_8(uint8_t in8[LST_MAX], uint16_t col10[LST_MAX]) {
+  for (uint32_t i = 0; i < LST_MAX; i++) {
+    col10[i] = change8to10(in8[i]);
+  }
+  calcGammaBulb5Channels(col10, nullptr, nullptr);
+}
+
 void calcGammaBulbs(uint16_t cur_col_10[5]) {
   bool rgbwwtable_applied = false;
   bool pwm_ct = false;
   bool white_free_cw = false;         // true if White channels are uncorrelated. Happens when CW+WW>255, i.e. manually setting white channels to exceed to total power of a single channel (may harm the power supply)
   // Various values needed for accurate White calculation
   // CT value streteched to 0..1023 (from within CT range, so not necessarily from 153 to 500). 0=Cold, 1023=Warm
-  uint16_t ct_10 = changeUIntScale(light_state.getCT(), Light.vct_ct[0], Light.vct_ct[2], 0, 1023);
+  uint16_t ct = light_state.getCT();
+  uint16_t ct_10 = changeUIntScale(ct, Light.vct_ct[0], Light.vct_ct[2], 0, 1023);
 
   uint16_t white_bri10 = 0;           // White total brightness normalized to 0..1023
   // uint32_t cw1 = Light.subtype - 1;       // address for the ColorTone PWM
@@ -2368,42 +2377,38 @@ void calcGammaBulbs(uint16_t cur_col_10[5]) {
   }
   
   // compute virtual CT, which is suppsed to be compatible with white_blend_mode
-  if (LST_RGBW <= Light.subtype) {        // any light with a white channel
-  // if ((Light.virtual_ct) && (LST_RGBCW == Light.subtype)) {
-  // if ((Light.virtual_ct) && (0 == cur_col_10[0]+cur_col_10[1]+cur_col_10[2])) {
+  if (Light.virtual_ct && (!white_free_cw) && (LST_RGBW <= Light.subtype)) {        // any light with a white channel
     vct_pivot_t   *pivot = &Light.vct_color[0];
     uint16_t from_ct = Light.vct_ct[0];
     uint16_t to_ct = Light.vct_ct[1];
-    if (ct_10 > Light.vct_ct[1]) {
+    if (ct > Light.vct_ct[1]) {
       from_ct = to_ct;
       to_ct = Light.vct_ct[2];
       pivot = &Light.vct_color[1];
     }   // select segment 0..1 or 1..2
+    vct_pivot_t   *pivot1 = pivot + 1;
 
-    uint16_t from_pivot[LST_MAX];
+    uint16_t from10[LST_MAX];
+    uint16_t to10[LST_MAX];
+    calcGammaBulb5Channels_8(*pivot, from10);
+    calcGammaBulb5Channels_8(*(pivot+1), to10);
 
-    // TODO
+AddLog_P(LOG_LEVEL_INFO, PSTR("+++ from_ct %d, to_ct %d [%03X,%03X,%03X,%03X,%03X] - [%03X,%03X,%03X,%03X,%03X]"),
+          from_ct, to_ct, pivot[0], pivot[1], pivot[2], pivot[3], pivot[4],
+          pivot1[0], pivot1[1], pivot1[2], pivot1[3], pivot1[4]);
 
-    // // virtual_ct is on and we don't have any RGB set
-    // uint16_t sw_white = Settings.flag4.virtual_ct_cw ? cur_col_10[4] : cur_col_10[3];   // white power for virtual RGB
-    // uint16_t hw_white = Settings.flag4.virtual_ct_cw ? cur_col_10[3] : cur_col_10[4];   // white for hardware LED
-    // uint32_t adjust_sw = change8to10(Settings.flag4.virtual_ct_cw ? Settings.rgbwwTable[4] : Settings.rgbwwTable[3]);
-    // uint32_t adjust_hw = change8to10(Settings.flag4.virtual_ct_cw ? Settings.rgbwwTable[3] : Settings.rgbwwTable[4]);
-    // // set the target channels. Note: Gamma correction was arleady applied
-    // cur_col_10[3] = changeUIntScale(hw_white, 0, 1023, 0, adjust_hw);
-    // cur_col_10[4] = 0;          // we don't actually have a 5the channel
-    // sw_white = changeUIntScale(sw_white, 0, 1023, 0, adjust_sw);          // pre-adjust virtual channel
-    // for (uint32_t i=0; i<3; i++) {
-    //   uint32_t adjust = change8to10(Settings.rgbwwTable[i]);
-    //   cur_col_10[i] = changeUIntScale(sw_white, 0, 1023, 0, adjust);
-    // }
-    // rgbwwtable_applied = true;
-  }
+    // set both CW/WW to zero since their previous value don't count anymore
+    cur_col_10[3] = 0;
+    cur_col_10[4] = 0;
 
-  // now compute the actual levels for CW/WW
-  // We know ct_10 and white_bri_10 (which may be Gamma corrected)
-  // cur_col_10[cw0] and cur_col_10[cw1] were unmodified up to now
-  if (LST_RGBW == Light.subtype) {
+    // Add the interpolated point to each component
+    for (uint32_t i = 0; i < LST_MAX; i++) {
+      cur_col_10[i] += changeUIntScale(ct, from_ct, to_ct, from10[i], to10[i]);
+    }
+  } else if (LST_RGBW == Light.subtype) {
+    // compute the actual levels for CW/WW
+    // We know ct_10 and white_bri_10 (which may be Gamma corrected)
+    // cur_col_10[cw0] and cur_col_10[cw1] were unmodified up to now
     cur_col_10[3] = white_bri10;       // simple case, we set the White level to the required brightness
   } else if ((LST_COLDWARM == Light.subtype) || (LST_RGBCW == Light.subtype)) {
     // if sum of both channels is > 255, then channels are probably uncorrelated
