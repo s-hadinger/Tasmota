@@ -182,13 +182,9 @@ const uint16_t CT_MAX = 500;          // 2000K
 const uint16_t CT_MIN_ALEXA = 200;    // also 5000K
 const uint16_t CT_MAX_ALEXA = 380;    // also 2600K
 // Virtual CT default values
-const uint8_t  CT_PIVOTS[3][LST_MAX] =      // array of 3 colors each with 5 values
-    { {0, 0, 0, 255,   0},                  // Cold = 100% CW
-      {0, 0, 0, 128, 127},                  // Mid 
-      {0, 0, 0,   0, 255}                   // Warm = 100% WW
-    };
-
 typedef uint8_t  vct_pivot_t[LST_MAX];
+const vct_pivot_t CT_PIVOTS_RGB PROGMEM = { 255, 255, 255,   0,   0 };
+const vct_pivot_t CT_PIVOTS_WWW PROGMEM = {   0,   0,   0, 255,   0 };
 
 // New version of Gamma correction compute
 // Instead of a table, we do a multi-linear approximation, which is close enough
@@ -548,11 +544,6 @@ class LightStateClass {
 
     inline uint16_t getCT() const {
       return _ct; // 153..500, or CT_MIN..CT_MAX
-    }
-
-    // get the CT value within the range into a 10 bits 0..1023 value
-    uint16_t getCT10bits() const {
-      return changeUIntScale(_ct, Light.vct_ct[0], Light.vct_ct[2], 0, 1023);
     }
 
     // inline void setCTRange(uint16_t ct_min_range, uint16_t ct_max_range) {
@@ -945,33 +936,6 @@ public:
     return prev;
   }
 
-  //
-  // Ensure that invariants for Virtual CT are good:
-  // - CT_MIN <= ct[0] <= ct[1] <= ct[2] <= CT_MAX
-  void checkVirtualCT(void) {
-    if (Light.vct_ct[0] < CT_MIN)       { Light.vct_ct[0] = CT_MIN; }
-    if (Light.vct_ct[1] < Light.vct_ct[0])    { Light.vct_ct[1] = Light.vct_ct[0]; }
-    if (Light.vct_ct[2] < Light.vct_ct[1])    { Light.vct_ct[2] = Light.vct_ct[1]; }
-    if (Light.vct_ct[2] > CT_MAX)       { Light.vct_ct[2] = CT_MAX; }
-  }
-
-  void setCTRange(uint16_t ct_min, uint16_t ct_max) {
-    Light.vct_ct[0] = ct_min;
-    Light.vct_ct[1] = (ct_min + ct_max) / 2;
-    Light.vct_ct[2] = ct_max;
-    // copy the default pivots that give a standard curve
-    memcpy_P(Light.vct_ct, CT_PIVOTS, sizeof(CT_PIVOTS));
-    checkVirtualCT();
-  }
-
-  void setAlexaCTRange(bool alexa_ct_range) {    // depending on SetOption82, full or limited CT range
-    if (alexa_ct_range) {
-      setCTRange(CT_MIN_ALEXA, CT_MAX_ALEXA);
-    } else {
-      setCTRange(CT_MIN, CT_MAX);
-    }
-  }
-
   inline bool isCTRGBLinked() {
     return _ct_rgb_linked;
   }
@@ -1222,6 +1186,43 @@ uint8_t change10to8(uint16_t v) {
 }
 
 /*********************************************************************************************\
+ * CT (White Color Temperature)
+\*********************************************************************************************/
+//
+// Ensure that invariants for Virtual CT are good:
+// - CT_MIN <= ct[0] <= ct[1] <= ct[2] <= CT_MAX
+void checkVirtualCT(void) {
+  if (Light.vct_ct[0] < CT_MIN)       { Light.vct_ct[0] = CT_MIN; }
+  if (Light.vct_ct[2] > CT_MAX)       { Light.vct_ct[2] = CT_MAX; }
+  if (Light.vct_ct[1] < Light.vct_ct[0])    { Light.vct_ct[1] = Light.vct_ct[0]; }
+  if (Light.vct_ct[2] < Light.vct_ct[1])    { Light.vct_ct[2] = Light.vct_ct[1]; }
+}
+
+void setCTRange(uint16_t ct_min, uint16_t ct_max) {
+  Light.vct_ct[0] = ct_min;
+  Light.vct_ct[1] = ct_max;
+  Light.vct_ct[2] = ct_max;     // slot 2 is unused
+  // copy the default pivots that give a standard curve
+  if (Settings.flag4.virtual_ct_cw) {       // Hardware White is Cold White
+    memcpy_P(Light.vct_color[0], CT_PIVOTS_WWW, sizeof(Light.vct_color[0]));      // Cold white
+    memcpy_P(Light.vct_color[1], CT_PIVOTS_RGB, sizeof(Light.vct_color[1]));      // Warm white
+  } else {       // Hardware White is Warm White
+    memcpy_P(Light.vct_color[0], CT_PIVOTS_RGB, sizeof(Light.vct_color[0]));      // Cold white
+    memcpy_P(Light.vct_color[1], CT_PIVOTS_WWW, sizeof(Light.vct_color[1]));      // Warm white
+  }
+  memcpy_P(Light.vct_color[2], Light.vct_color[1], sizeof(Light.vct_color[1]));      // Copy slot 1 into slot 2 (slot 2 in unused)
+  checkVirtualCT();
+}
+
+void setAlexaCTRange(void) {    // depending on SetOption82, full or limited CT range
+  if (Settings.flag4.alexa_ct_range) {
+    setCTRange(CT_MIN_ALEXA, CT_MAX_ALEXA);
+  } else {
+    setCTRange(CT_MIN, CT_MAX);
+  }
+}
+
+/*********************************************************************************************\
  * Gamma correction
 \*********************************************************************************************/
 // Calculate the gamma corrected value for LEDS
@@ -1398,7 +1399,7 @@ void LightInit(void)
 
   light_controller.setSubType(Light.subtype);
   light_controller.loadSettings();
-  light_controller.setAlexaCTRange(Settings.flag4.alexa_ct_range);
+  setAlexaCTRange();
   light_controller.calcLevels();    // calculate the initial values (#8058)
 
   if (LST_SINGLE == Light.subtype) {
@@ -1890,7 +1891,6 @@ void LightAnimate(void)
   bool power_off = false;
 
   // make sure we update CT range in case SetOption82 was changed
-  // light_controller.setAlexaCTRange(Settings.flag4.alexa_ct_range);
   Light.strip_timer_counter++;
 
   // set sleep parameter: either settings,
@@ -2323,7 +2323,9 @@ void calcGammaBulbs(uint16_t cur_col_10[5]) {
   bool pwm_ct = false;
   bool white_free_cw = false;         // true if White channels are uncorrelated. Happens when CW+WW>255, i.e. manually setting white channels to exceed to total power of a single channel (may harm the power supply)
   // Various values needed for accurate White calculation
-  uint16_t ct_10 = light_state.getCT10bits();;   // CT value streteched to 0..1023 (from within CT range, so not necessarily from 153 to 500). 0=Cold, 1023=Warm
+  // CT value streteched to 0..1023 (from within CT range, so not necessarily from 153 to 500). 0=Cold, 1023=Warm
+  uint16_t ct_10 = changeUIntScale(light_state.getCT(), Light.vct_ct[0], Light.vct_ct[2], 0, 1023);
+
   uint16_t white_bri10 = 0;           // White total brightness normalized to 0..1023
   // uint32_t cw1 = Light.subtype - 1;       // address for the ColorTone PWM
   uint32_t cw0 = Light.subtype - 2;       // address for the White Brightness PWM
