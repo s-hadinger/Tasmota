@@ -2008,9 +2008,9 @@ void LightAnimate(void)
       if (Light.pwm_multi_channels) {
         calcGammaMultiChannels(cur_col_10);
       } else {
-AddLog_P(LOG_LEVEL_INFO, PSTR(">>> calcGammaBulbs In  %03X,%03X,%03X,%03X,%03X"), cur_col_10[0], cur_col_10[1], cur_col_10[2], cur_col_10[3], cur_col_10[4]);
+// AddLog_P(LOG_LEVEL_INFO, PSTR(">>> calcGammaBulbs In  %03X,%03X,%03X,%03X,%03X"), cur_col_10[0], cur_col_10[1], cur_col_10[2], cur_col_10[3], cur_col_10[4]);
         calcGammaBulbs(cur_col_10);     // true means that one PWM channel is used for CT
-AddLog_P(LOG_LEVEL_INFO, PSTR(">>> calcGammaBulbs Out %03X,%03X,%03X,%03X,%03X"), cur_col_10[0], cur_col_10[1], cur_col_10[2], cur_col_10[3], cur_col_10[4]);
+// AddLog_P(LOG_LEVEL_INFO, PSTR(">>> calcGammaBulbs Out %03X,%03X,%03X,%03X,%03X"), cur_col_10[0], cur_col_10[1], cur_col_10[2], cur_col_10[3], cur_col_10[4]);
       }
 
       // Apply RGBWWTable only if not Settings.flag4.white_blend_mode
@@ -2365,13 +2365,12 @@ void calcGammaBulbs(uint16_t cur_col_10[5]) {
   // Valid only for LST_RGBW, LST_RGBCW, SetOption105 1, and white is zero (see doc)
   if ((LST_RGBW <= Light.subtype) && (Settings.flag4.white_blend_mode) && (0 == cur_col_10[3]+cur_col_10[4])) {
     uint32_t min_rgb_10 = min3(cur_col_10[0], cur_col_10[1], cur_col_10[2]);
-    for (uint32_t i=0; i<3; i++) {
-      // substract white and adjust according to rgbwwTable
-      cur_col_10[i] -= min_rgb_10;
-    }
+    cur_col_10[0] -= min_rgb_10;
+    cur_col_10[1] -= min_rgb_10;
+    cur_col_10[2] -= min_rgb_10;
 
     // Add to white level
-    uint32_t adjust_w_10 = changeUIntScale(Settings.rgbwwTable[4], 0, 255, 0, 1023);    // take the correction factor, bought back to 10 bits
+    uint32_t adjust_w_10 = change8to10(Settings.rgbwwTable[3]);   // take the correction factor, bought back to 10 bits
     white_bri10 += changeUIntScale(min_rgb_10, 0, 1023, 0, adjust_w_10);  // set white power down corrected with rgbwwTable[3]
     white_bri10 = (white_bri10 > 1023) ? 1023 : white_bri10;    // max 1023
   }
@@ -2393,9 +2392,9 @@ void calcGammaBulbs(uint16_t cur_col_10[5]) {
     calcGammaBulb5Channels_8(*pivot, from10);
     calcGammaBulb5Channels_8(*(pivot+1), to10);
 
-AddLog_P(LOG_LEVEL_INFO, PSTR("+++ from_ct %d, to_ct %d [%03X,%03X,%03X,%03X,%03X] - [%03X,%03X,%03X,%03X,%03X]"),
-          from_ct, to_ct, (*pivot)[0], (*pivot)[1], (*pivot)[2], (*pivot)[3], (*pivot)[4],
-          (*pivot1)[0], (*pivot1)[1], (*pivot1)[2], (*pivot1)[3], (*pivot1)[4]);
+// AddLog_P(LOG_LEVEL_INFO, PSTR("+++ from_ct %d, to_ct %d [%03X,%03X,%03X,%03X,%03X] - [%03X,%03X,%03X,%03X,%03X]"),
+//           from_ct, to_ct, (*pivot)[0], (*pivot)[1], (*pivot)[2], (*pivot)[3], (*pivot)[4],
+//           (*pivot1)[0], (*pivot1)[1], (*pivot1)[2], (*pivot1)[3], (*pivot1)[4]);
 
     // set both CW/WW to zero since their previous value don't count anymore
     cur_col_10[3] = 0;
