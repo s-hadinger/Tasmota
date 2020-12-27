@@ -3181,64 +3181,21 @@ void CmndCTRange(void)
 #ifdef USE_LIGHT_VIRTUAL_CT
 void CmndVirtualCT(void)
 {
-  // uint8_t * palette_entry;
-  // char * p;
+  if (XdrvMailbox.data[0] == ('{')) {
+    // parse JSON
+  }
 
-  // // Palette Color[ ...]
-  // if (XdrvMailbox.data_len) {
-  //   Light.wheel = 0;
-  //   Light.palette_count = 0;
-  //   if (Light.palette) {
-  //     free(Light.palette);
-  //     Light.palette = nullptr;
-  //   }
-  //   if (XdrvMailbox.data_len > 1 || XdrvMailbox.data[0] != '0') {
-  //     uint8_t palette_count = 0;
-  //     char * color = XdrvMailbox.data;
-  //     if (!(Light.palette = (uint8_t *)malloc(255 * Light.subtype))) return;
-  //     palette_entry = Light.palette;
-  //     for (;;) {
-  //       p = strchr(color, ' ');
-  //       if (p) *p = 0;
-  //       color = Trim(color);
-  //       if (*color && LightColorEntry(color, strlen(color))) {
-  //         memcpy(palette_entry, Light.entry_color, Light.subtype);
-  //         palette_entry += Light.subtype;
-  //         palette_count++;
-  //       }
-  //       if (!p) break;
-  //       color = p + 1;
-  //     }
-  //     if (!(Light.palette = (uint8_t *)realloc(Light.palette, palette_count * Light.subtype))) return;
-  //     Light.palette_count = palette_count;
-  //   }
-  // }
-
-  // char palette_str[5 * Light.subtype * Light.palette_count + 3];
-  // p = palette_str;
-  // *p++ = '[';
-  // if (Light.palette_count) {
-  //   palette_entry = Light.palette;
-  //   for (int entry = 0; entry < Light.palette_count; entry++) {
-  //     if (Settings.flag.decimal_text) {  // SetOption17 - Switch between decimal or hexadecimal output
-  //       *p++ = '"';
-  //       for (uint32_t i = 0; i < Light.subtype; i++) {
-  //         p += sprintf_P(p, PSTR("%d,"), *palette_entry++);
-  //       }
-  //       *(p - 1) = '"';
-  //     }
-  //     else {
-  //       for (uint32_t i = 0; i < Light.subtype; i++) {
-  //         p += sprintf_P(p, PSTR("%02X"), *palette_entry++);
-  //       }
-  //     }
-  //     *p++ = ',';
-  //   }
-  //   p--;
-  // }
-  // *p++ = ']';
-  // *p = 0;
-  // ResponseCmndChar(palette_str);
+  Response_P(PSTR("{\"%s\":{"), XdrvMailbox.command);
+  uint32_t pivot_len = 3;
+  vct_pivot_t * pivot = &Light.vct_color[0];
+  if (Light.vct_ct[1] >= Light.vct_ct[2]) { pivot_len = 2; }    // only 2 points are valid
+  for (uint32_t i = 0; i < pivot_len; i++) {
+    ResponseAppend_P(PSTR("{\"%d\":\"%02X%02X%02X%02X%02X\"}%c"), Light.vct_ct[i],
+          (*pivot)[0], (*pivot)[1], (*pivot)[2], (*pivot)[3], (*pivot)[4],
+          i < pivot_len - 1 ? ',' : '}');
+    pivot++;
+  }
+  ResponseJsonEnd();
 }
 #endif // USE_LIGHT_VIRTUAL_CT
 
