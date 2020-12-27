@@ -1191,17 +1191,21 @@ uint8_t change10to8(uint16_t v) {
 //
 // Ensure that invariants for Virtual CT are good:
 // - CT_MIN <= ct[0] <= ct[1] <= ct[2] <= CT_MAX
+
+#ifdef USE_LIGHT_VIRTUAL_CT
 void checkVirtualCT(void) {
   if (Light.vct_ct[0] < CT_MIN)       { Light.vct_ct[0] = CT_MIN; }
   if (Light.vct_ct[2] > CT_MAX)       { Light.vct_ct[2] = CT_MAX; }
   if (Light.vct_ct[1] < Light.vct_ct[0])    { Light.vct_ct[1] = Light.vct_ct[0]; }
   if (Light.vct_ct[2] < Light.vct_ct[1])    { Light.vct_ct[2] = Light.vct_ct[1]; }
 }
+#endif // USE_LIGHT_VIRTUAL_CT
 
 void setCTRange(uint16_t ct_min, uint16_t ct_max) {
   Light.vct_ct[0] = ct_min;
   Light.vct_ct[1] = ct_max;
   Light.vct_ct[2] = ct_max;     // slot 2 is unused
+#ifdef USE_LIGHT_VIRTUAL_CT
   // copy the default pivots that give a standard curve
   if (Settings.flag4.virtual_ct_cw) {       // Hardware White is Cold White
     memcpy_P(Light.vct_color[0], CT_PIVOTS_WWW, sizeof(Light.vct_color[0]));      // Cold white
@@ -1212,6 +1216,7 @@ void setCTRange(uint16_t ct_min, uint16_t ct_max) {
   }
   memcpy_P(Light.vct_color[2], Light.vct_color[1], sizeof(Light.vct_color[1]));      // Copy slot 1 into slot 2 (slot 2 in unused)
   checkVirtualCT();
+#endif // USE_LIGHT_VIRTUAL_CT
 }
 
 void setAlexaCTRange(void) {    // depending on SetOption82, full or limited CT range
@@ -2375,6 +2380,7 @@ void calcGammaBulbs(uint16_t cur_col_10[5]) {
     white_bri10 = (white_bri10 > 1023) ? 1023 : white_bri10;    // max 1023
   }
   
+#ifdef USE_LIGHT_VIRTUAL_CT
   // compute virtual CT, which is suppsed to be compatible with white_blend_mode
   if (Light.virtual_ct && (!white_free_cw) && (LST_RGBW <= Light.subtype)) {        // any light with a white channel
     vct_pivot_t   *pivot = &Light.vct_color[0];
@@ -2403,6 +2409,7 @@ void calcGammaBulbs(uint16_t cur_col_10[5]) {
       cur_col_10[i] += changeUIntScale(ct, *from_ct, *(from_ct+1), from10[i], to10[i]);
     }
   } else
+#endif // USE_LIGHT_VIRTUAL_CT
   // compute the actual levels for CW/WW
   // We know ct_10 and white_bri_10 (which may be Gamma corrected)
   // cur_col_10[cw0] and cur_col_10[cw1] were unmodified up to now
