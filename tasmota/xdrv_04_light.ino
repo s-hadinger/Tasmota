@@ -131,7 +131,11 @@ const uint8_t LIGHT_COLOR_SIZE = 25;   // Char array scolor size
 const char kLightCommands[] PROGMEM = "|"  // No prefix
   D_CMND_COLOR "|" D_CMND_COLORTEMPERATURE "|" D_CMND_DIMMER "|" D_CMND_DIMMER_RANGE "|" D_CMND_DIMMER_STEP "|" D_CMND_LEDTABLE "|" D_CMND_FADE "|"
   D_CMND_RGBWWTABLE "|" D_CMND_SCHEME "|" D_CMND_SPEED "|" D_CMND_WAKEUP "|" D_CMND_WAKEUPDURATION "|"
-  D_CMND_WHITE "|" D_CMND_CHANNEL "|" D_CMND_HSBCOLOR "|" D_CMND_VIRTUALCT
+  D_CMND_WHITE "|" D_CMND_CHANNEL "|" D_CMND_HSBCOLOR
+  "|" D_CMND_VIRTUALCT 
+#ifdef USE_LIGHT_VIRTUAL_CT
+  "|" D_CMND_CTRANGE
+#endif // USE_LIGHT_VIRTUAL_CT
 #ifdef USE_LIGHT_PALETTE
   "|" D_CMND_PALETTE
 #endif  // USE_LIGHT_PALETTE
@@ -143,7 +147,11 @@ const char kLightCommands[] PROGMEM = "|"  // No prefix
 void (* const LightCommand[])(void) PROGMEM = {
   &CmndColor, &CmndColorTemperature, &CmndDimmer, &CmndDimmerRange, &CmndDimmerStep, &CmndLedTable, &CmndFade,
   &CmndRgbwwTable, &CmndScheme, &CmndSpeed, &CmndWakeup, &CmndWakeupDuration,
-  &CmndWhite, &CmndChannel, &CmndHsbColor, &CmndVirtualCT,
+  &CmndWhite, &CmndChannel, &CmndHsbColor,
+  &CmndVirtualCT,
+#ifdef USE_LIGHT_VIRTUAL_CT
+  &CmndCTRange,
+#endif // USE_LIGHT_VIRTUAL_CT
 #ifdef USE_LIGHT_PALETTE
   &CmndPalette,
 #endif  // USE_LIGHT_PALETTE
@@ -3146,7 +3154,31 @@ void CmndWakeupDuration(void)
   ResponseCmndNumber(Settings.light_wakeup);
 }
 
+void CmndCTRange(void)
+{
+  // Format is "CTRange ctmin,ctmax"
+  // Ex:
+  // CTRange 153,500
+  // CTRange
+  // CTRange 200,350
+  char *p;
+  strtok_r(XdrvMailbox.data, ",", &p);
+  if (p != nullptr) {
+    int32_t ct_min = strtol(XdrvMailbox.data, nullptr, 0);
+    int32_t ct_max = strtol(p, nullptr, 0);
+    if ( (ct_min >= CT_MIN) && (ct_min <= CT_MAX) &&
+         (ct_max >= CT_MIN) && (ct_max <= CT_MAX) &&
+         (ct_min <= ct_max)
+        ) {
+      setCTRange(ct_min, ct_max);
+    } else {
+      return;     // error
+    }
+  }
+  Response_P(PSTR("{\"%s\":\"%d,%d\"}"), XdrvMailbox.command, Light.vct_ct[0], Light.vct_ct[2]);
+}
 
+#ifdef USE_LIGHT_VIRTUAL_CT
 void CmndVirtualCT(void)
 {
   // uint8_t * palette_entry;
@@ -3208,6 +3240,7 @@ void CmndVirtualCT(void)
   // *p = 0;
   // ResponseCmndChar(palette_str);
 }
+#endif // USE_LIGHT_VIRTUAL_CT
 
 #ifdef USE_LIGHT_PALETTE
 void CmndPalette(void)
