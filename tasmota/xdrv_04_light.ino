@@ -2378,20 +2378,18 @@ void calcGammaBulbs(uint16_t cur_col_10[5]) {
   // compute virtual CT, which is suppsed to be compatible with white_blend_mode
   if (Light.virtual_ct && (!white_free_cw) && (LST_RGBW <= Light.subtype)) {        // any light with a white channel
     vct_pivot_t   *pivot = &Light.vct_color[0];
-    uint16_t from_ct = Light.vct_ct[0];
-    uint16_t to_ct = Light.vct_ct[1];
-    if (ct > Light.vct_ct[1]) {
-      from_ct = to_ct;
-      to_ct = Light.vct_ct[2];
-      pivot = &Light.vct_color[1];
-    }   // select segment 0..1 or 1..2
-    vct_pivot_t   *pivot1 = pivot + 1;
+    uint16_t      *from_ct = &Light.vct_ct[0];
 
+    if (ct > Light.vct_ct[1]) {     // if above mid-point, take range [1]..[2] instead of [0]..[1]
+      pivot++;
+      from_ct++;
+    }
     uint16_t from10[LST_MAX];
     uint16_t to10[LST_MAX];
     calcGammaBulb5Channels_8(*pivot, from10);
     calcGammaBulb5Channels_8(*(pivot+1), to10);
 
+// vct_pivot_t   *pivot1 = pivot + 1;
 // AddLog_P(LOG_LEVEL_INFO, PSTR("+++ from_ct %d, to_ct %d [%03X,%03X,%03X,%03X,%03X] - [%03X,%03X,%03X,%03X,%03X]"),
 //           from_ct, to_ct, (*pivot)[0], (*pivot)[1], (*pivot)[2], (*pivot)[3], (*pivot)[4],
 //           (*pivot1)[0], (*pivot1)[1], (*pivot1)[2], (*pivot1)[3], (*pivot1)[4]);
@@ -2402,12 +2400,13 @@ void calcGammaBulbs(uint16_t cur_col_10[5]) {
 
     // Add the interpolated point to each component
     for (uint32_t i = 0; i < LST_MAX; i++) {
-      cur_col_10[i] += changeUIntScale(ct, from_ct, to_ct, from10[i], to10[i]);
+      cur_col_10[i] += changeUIntScale(ct, *from_ct, *(from_ct+1), from10[i], to10[i]);
     }
-  } else if (LST_RGBW == Light.subtype) {
-    // compute the actual levels for CW/WW
-    // We know ct_10 and white_bri_10 (which may be Gamma corrected)
-    // cur_col_10[cw0] and cur_col_10[cw1] were unmodified up to now
+  } else
+  // compute the actual levels for CW/WW
+  // We know ct_10 and white_bri_10 (which may be Gamma corrected)
+  // cur_col_10[cw0] and cur_col_10[cw1] were unmodified up to now
+  if (LST_RGBW == Light.subtype) {
     cur_col_10[3] = white_bri10;       // simple case, we set the White level to the required brightness
   } else if ((LST_COLDWARM == Light.subtype) || (LST_RGBCW == Light.subtype)) {
     // if sum of both channels is > 255, then channels are probably uncorrelated
