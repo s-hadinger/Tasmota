@@ -2394,8 +2394,8 @@ void calcGammaBulbs(uint16_t cur_col_10[5]) {
     calcGammaBulb5Channels_8(*(pivot+1), to10);
 
 AddLog_P(LOG_LEVEL_INFO, PSTR("+++ from_ct %d, to_ct %d [%03X,%03X,%03X,%03X,%03X] - [%03X,%03X,%03X,%03X,%03X]"),
-          from_ct, to_ct, pivot[0], pivot[1], pivot[2], pivot[3], pivot[4],
-          pivot1[0], pivot1[1], pivot1[2], pivot1[3], pivot1[4]);
+          from_ct, to_ct, (*pivot)[0], (*pivot)[1], (*pivot)[2], (*pivot)[3], (*pivot)[4],
+          (*pivot1)[0], (*pivot1)[1], (*pivot1)[2], (*pivot1)[3], (*pivot1)[4]);
 
     // set both CW/WW to zero since their previous value don't count anymore
     cur_col_10[3] = 0;
