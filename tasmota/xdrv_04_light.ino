@@ -191,6 +191,7 @@ const uint16_t CT_MIN_ALEXA = 200;    // also 5000K
 const uint16_t CT_MAX_ALEXA = 380;    // also 2600K
 // Virtual CT default values
 typedef uint8_t  vct_pivot_t[LST_MAX];
+const size_t CT_PIVOTS = 3;
 const vct_pivot_t CT_PIVOTS_RGB PROGMEM = { 255, 255, 255,   0,   0 };
 const vct_pivot_t CT_PIVOTS_WWW PROGMEM = {   0,   0,   0, 255,   0 };
 
@@ -322,8 +323,10 @@ struct LIGHT {
   uint16_t pwm_max = 1023;               // maxumum value for PWM, from DimmerRange, 0..1023
 
   // Virtual CT
-  uint16_t vct_ct[3];               // CT value for each segment
-  vct_pivot_t vct_color[3];   // array of 3 colors each with 5 values
+  uint16_t vct_ct[CT_PIVOTS];            // CT value for each segment
+#ifdef USE_LIGHT_VIRTUAL_CT
+  vct_pivot_t vct_color[CT_PIVOTS];      // array of 3 colors each with 5 values
+#endif
 } Light;
 
 power_t LightPower(void)
@@ -615,7 +618,7 @@ class LightStateClass {
         setColorMode(LCM_RGB);  // try deactivating CT mode, setColorMode() will check which is legal
       } else {
         ct = (ct < CT_MIN ? CT_MIN : (ct > CT_MAX ? CT_MAX : ct));
-        _ww = changeUIntScale(ct, Light.vct_ct[0], Light.vct_ct[2], 0, 255);
+        _ww = changeUIntScale(ct, Light.vct_ct[0], Light.vct_ct[CT_PIVOTS-1], 0, 255);
         _wc = 255 - _ww;
         _ct = ct;
         addCTMode();
@@ -1203,16 +1206,18 @@ uint8_t change10to8(uint16_t v) {
 #ifdef USE_LIGHT_VIRTUAL_CT
 void checkVirtualCT(void) {
   if (Light.vct_ct[0] < CT_MIN)       { Light.vct_ct[0] = CT_MIN; }
-  if (Light.vct_ct[2] > CT_MAX)       { Light.vct_ct[2] = CT_MAX; }
-  if (Light.vct_ct[1] < Light.vct_ct[0])    { Light.vct_ct[1] = Light.vct_ct[0]; }
-  if (Light.vct_ct[2] < Light.vct_ct[1])    { Light.vct_ct[2] = Light.vct_ct[1]; }
+  if (Light.vct_ct[CT_PIVOTS-1] > CT_MAX)       { Light.vct_ct[CT_PIVOTS-1] = CT_MAX; }
+  for (uint32_t i = 0; i < CT_PIVOTS-1; i++) {
+    if (Light.vct_ct[i+1] < Light.vct_ct[i])    { Light.vct_ct[i+1] = Light.vct_ct[i]; }
+  }
 }
 #endif // USE_LIGHT_VIRTUAL_CT
 
 void setCTRange(uint16_t ct_min, uint16_t ct_max) {
   Light.vct_ct[0] = ct_min;
-  Light.vct_ct[1] = ct_max;
-  Light.vct_ct[2] = ct_max;     // slot 2 is unused
+  for (uint32_t i = 1; i < CT_PIVOTS; i++) {
+    Light.vct_ct[i] = ct_max;     // all slots above [1] are not used
+  }
 #ifdef USE_LIGHT_VIRTUAL_CT
   // copy the default pivots that give a standard curve
   if (Settings.flag4.virtual_ct_cw) {       // Hardware White is Cold White
@@ -1222,7 +1227,9 @@ void setCTRange(uint16_t ct_min, uint16_t ct_max) {
     memcpy_P(Light.vct_color[0], CT_PIVOTS_RGB, sizeof(Light.vct_color[0]));      // Cold white
     memcpy_P(Light.vct_color[1], CT_PIVOTS_WWW, sizeof(Light.vct_color[1]));      // Warm white
   }
-  memcpy_P(Light.vct_color[2], Light.vct_color[1], sizeof(Light.vct_color[1]));      // Copy slot 1 into slot 2 (slot 2 in unused)
+  for (uint32_t i = 1; i < CT_PIVOTS-1; i++) {
+    memcpy_P(Light.vct_color[i+1], Light.vct_color[i], sizeof(Light.vct_color[0]));      // Copy slot 1 into slot 2 (slot 2 in unused)
+  }
   checkVirtualCT();
 #endif // USE_LIGHT_VIRTUAL_CT
 }
@@ -2021,9 +2028,9 @@ void LightAnimate(void)
       if (Light.pwm_multi_channels) {
         calcGammaMultiChannels(cur_col_10);
       } else {
-// AddLog_P(LOG_LEVEL_INFO, PSTR(">>> calcGammaBulbs In  %03X,%03X,%03X,%03X,%03X"), cur_col_10[0], cur_col_10[1], cur_col_10[2], cur_col_10[3], cur_col_10[4]);
+        // AddLog_P(LOG_LEVEL_INFO, PSTR(">>> calcGammaBulbs In  %03X,%03X,%03X,%03X,%03X"), cur_col_10[0], cur_col_10[1], cur_col_10[2], cur_col_10[3], cur_col_10[4]);
         calcGammaBulbs(cur_col_10);     // true means that one PWM channel is used for CT
-// AddLog_P(LOG_LEVEL_INFO, PSTR(">>> calcGammaBulbs Out %03X,%03X,%03X,%03X,%03X"), cur_col_10[0], cur_col_10[1], cur_col_10[2], cur_col_10[3], cur_col_10[4]);
+        // AddLog_P(LOG_LEVEL_INFO, PSTR(">>> calcGammaBulbs Out %03X,%03X,%03X,%03X,%03X"), cur_col_10[0], cur_col_10[1], cur_col_10[2], cur_col_10[3], cur_col_10[4]);
       }
 
       // Apply RGBWWTable only if not Settings.flag4.white_blend_mode
@@ -2346,7 +2353,7 @@ void calcGammaBulbs(uint16_t cur_col_10[5]) {
   // Various values needed for accurate White calculation
   // CT value streteched to 0..1023 (from within CT range, so not necessarily from 153 to 500). 0=Cold, 1023=Warm
   uint16_t ct = light_state.getCT();
-  uint16_t ct_10 = changeUIntScale(ct, Light.vct_ct[0], Light.vct_ct[2], 0, 1023);
+  uint16_t ct_10 = changeUIntScale(ct, Light.vct_ct[0], Light.vct_ct[CT_PIVOTS-1], 0, 1023);
 
   uint16_t white_bri10 = 0;           // White total brightness normalized to 0..1023
   // uint32_t cw1 = Light.subtype - 1;       // address for the ColorTone PWM
@@ -2394,19 +2401,21 @@ void calcGammaBulbs(uint16_t cur_col_10[5]) {
     vct_pivot_t   *pivot = &Light.vct_color[0];
     uint16_t      *from_ct = &Light.vct_ct[0];
 
-    if (ct > Light.vct_ct[1]) {     // if above mid-point, take range [1]..[2] instead of [0]..[1]
-      pivot++;
-      from_ct++;
+    for (uint32_t i = 1; i < CT_PIVOTS-1; i++) {
+      if (ct > Light.vct_ct[i]) {     // if above mid-point, take range [1]..[2] instead of [0]..[1]
+        pivot++;
+        from_ct++;
+      }
     }
     uint16_t from10[LST_MAX];
     uint16_t to10[LST_MAX];
     calcGammaBulb5Channels_8(*pivot, from10);
     calcGammaBulb5Channels_8(*(pivot+1), to10);
 
-// vct_pivot_t   *pivot1 = pivot + 1;
-// AddLog_P(LOG_LEVEL_INFO, PSTR("+++ from_ct %d, to_ct %d [%03X,%03X,%03X,%03X,%03X] - [%03X,%03X,%03X,%03X,%03X]"),
-//           from_ct, to_ct, (*pivot)[0], (*pivot)[1], (*pivot)[2], (*pivot)[3], (*pivot)[4],
-//           (*pivot1)[0], (*pivot1)[1], (*pivot1)[2], (*pivot1)[3], (*pivot1)[4]);
+    // vct_pivot_t   *pivot1 = pivot + 1;
+    // AddLog_P(LOG_LEVEL_INFO, PSTR("+++ from_ct %d, to_ct %d [%03X,%03X,%03X,%03X,%03X] - [%03X,%03X,%03X,%03X,%03X]"),
+    //           *from_ct, *(from_ct+1), (*pivot)[0], (*pivot)[1], (*pivot)[2], (*pivot)[3], (*pivot)[4],
+    //           (*pivot1)[0], (*pivot1)[1], (*pivot1)[2], (*pivot1)[3], (*pivot1)[4]);
 
     // set both CW/WW to zero since their previous value don't count anymore
     cur_col_10[3] = 0;
@@ -3175,7 +3184,7 @@ void CmndCTRange(void)
       return;     // error
     }
   }
-  Response_P(PSTR("{\"%s\":\"%d,%d\"}"), XdrvMailbox.command, Light.vct_ct[0], Light.vct_ct[2]);
+  Response_P(PSTR("{\"%s\":\"%d,%d\"}"), XdrvMailbox.command, Light.vct_ct[0], Light.vct_ct[CT_PIVOTS-1]);
 }
 
 #ifdef USE_LIGHT_VIRTUAL_CT
@@ -3183,16 +3192,44 @@ void CmndVirtualCT(void)
 {
   if (XdrvMailbox.data[0] == ('{')) {
     // parse JSON
+    JsonParser parser(XdrvMailbox.data);
+    JsonParserObject root = parser.getRootObject();
+    if (!root) { return; }
+
+    uint32_t idx = 0;
+    for (auto key : root) {
+      if (idx >= CT_PIVOTS) { ResponseCmndChar_P(PSTR("Too many points")); return; }
+
+      int32_t ct_val = strtol(key.getStr(), nullptr, 0);
+      if ((ct_val < CT_MIN) || (ct_val > CT_MAX)) { ResponseCmndChar_P(PSTR("CT out of range")); return; }
+      char * color = (char*) key.getValue().getStr();
+      // call color parser
+      Light.vct_ct[idx] = ct_val;
+      if (LightColorEntry(color, strlen(color))) {
+        memcpy(&Light.vct_color[idx], Light.entry_color, sizeof(Light.vct_color[idx]));
+      }
+      idx++;
+    }
+    for (uint32_t i = idx-1; i < CT_PIVOTS-1; i++) {
+      Light.vct_ct[i+1] = Light.vct_ct[i];
+      memcpy(&Light.vct_color[i+1], &Light.vct_color[i], sizeof(Light.vct_color[0]));
+    }
   }
+  checkVirtualCT();
 
   Response_P(PSTR("{\"%s\":{"), XdrvMailbox.command);
-  uint32_t pivot_len = 3;
+  uint32_t pivot_len = CT_PIVOTS;
   vct_pivot_t * pivot = &Light.vct_color[0];
   if (Light.vct_ct[1] >= Light.vct_ct[2]) { pivot_len = 2; }    // only 2 points are valid
-  for (uint32_t i = 0; i < pivot_len; i++) {
-    ResponseAppend_P(PSTR("{\"%d\":\"%02X%02X%02X%02X%02X\"}%c"), Light.vct_ct[i],
+
+  bool end = false;
+  for (uint32_t i = 0; (i < CT_PIVOTS) && !end; i++) {
+    if ((i >= CT_PIVOTS-1) || (Light.vct_ct[i] >= Light.vct_ct[i+1])) {
+      end = true;
+    }
+    ResponseAppend_P(PSTR("\"%d\":\"%02X%02X%02X%02X%02X\"%c"), Light.vct_ct[i],
           (*pivot)[0], (*pivot)[1], (*pivot)[2], (*pivot)[3], (*pivot)[4],
-          i < pivot_len - 1 ? ',' : '}');
+          end ? '}' : ',');
     pivot++;
   }
   ResponseJsonEnd();
