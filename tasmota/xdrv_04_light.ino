@@ -191,9 +191,10 @@ const uint16_t CT_MIN_ALEXA = 200;    // also 5000K
 const uint16_t CT_MAX_ALEXA = 380;    // also 2600K
 // Virtual CT default values
 typedef uint8_t  vct_pivot_t[LST_MAX];
-const size_t CT_PIVOTS = 3;
+const size_t CT_PIVOTS = LIGHT_VIRTUAL_CT_POINTS;
 const vct_pivot_t CT_PIVOTS_RGB PROGMEM = { 255, 255, 255,   0,   0 };
-const vct_pivot_t CT_PIVOTS_WWW PROGMEM = {   0,   0,   0, 255,   0 };
+const vct_pivot_t CT_PIVOTS_CWW PROGMEM = {   0,   0,   0, 255,   0 };
+const vct_pivot_t CT_PIVOTS_WWW PROGMEM = {   0,   0,   0,   0, 255 };
 
 // New version of Gamma correction compute
 // Instead of a table, we do a multi-linear approximation, which is close enough
@@ -555,17 +556,7 @@ class LightStateClass {
 
     inline uint16_t getCT() const {
       return _ct; // 153..500, or CT_MIN..CT_MAX
-    }
-
-    // inline void setCTRange(uint16_t ct_min_range, uint16_t ct_max_range) {
-    //   _ct_min_range = ct_min_range;
-    //   _ct_max_range = ct_max_range;
-    // }
-
-    // inline void getCTRange(uint16_t *ct_min_range, uint16_t *ct_max_range) const {
-    //   if (ct_min_range) { *ct_min_range = _ct_min_range; }
-    //   if (ct_max_range) { *ct_max_range = _ct_max_range; }
-    // }
+   }
 
     // get current color in XY format
     void getXY(float *x, float *y) {
@@ -1213,25 +1204,36 @@ void checkVirtualCT(void) {
 }
 #endif // USE_LIGHT_VIRTUAL_CT
 
-void setCTRange(uint16_t ct_min, uint16_t ct_max) {
-  Light.vct_ct[0] = ct_min;
-  for (uint32_t i = 1; i < CT_PIVOTS; i++) {
-    Light.vct_ct[i] = ct_max;     // all slots above [1] are not used
-  }
 #ifdef USE_LIGHT_VIRTUAL_CT
-  // copy the default pivots that give a standard curve
-  if (Settings.flag4.virtual_ct_cw) {       // Hardware White is Cold White
-    memcpy_P(Light.vct_color[0], CT_PIVOTS_WWW, sizeof(Light.vct_color[0]));      // Cold white
-    memcpy_P(Light.vct_color[1], CT_PIVOTS_RGB, sizeof(Light.vct_color[1]));      // Warm white
-  } else {       // Hardware White is Warm White
-    memcpy_P(Light.vct_color[0], CT_PIVOTS_RGB, sizeof(Light.vct_color[0]));      // Cold white
+// Init default values for virtual CT, depending on the number of channels
+void initCTRange(uint32_t channels) {
+  if (channels == 4) {
+    if (Settings.flag4.virtual_ct_cw) {       // Hardware White is Cold White
+      memcpy_P(Light.vct_color[0], CT_PIVOTS_CWW, sizeof(Light.vct_color[0]));      // Cold white
+      memcpy_P(Light.vct_color[1], CT_PIVOTS_RGB, sizeof(Light.vct_color[1]));      // Warm white
+    } else {       // Hardware White is Warm White
+      memcpy_P(Light.vct_color[0], CT_PIVOTS_RGB, sizeof(Light.vct_color[0]));      // Cold white
+      memcpy_P(Light.vct_color[1], CT_PIVOTS_CWW, sizeof(Light.vct_color[1]));      // Warm white
+    }
+  } else if (channels == 5) {
+    memcpy_P(Light.vct_color[0], CT_PIVOTS_CWW, sizeof(Light.vct_color[0]));      // Cold white
     memcpy_P(Light.vct_color[1], CT_PIVOTS_WWW, sizeof(Light.vct_color[1]));      // Warm white
+  } else {
+    memcpy_P(Light.vct_color[0], CT_PIVOTS_RGB, sizeof(Light.vct_color[0]));      // Cold white
+    memcpy_P(Light.vct_color[1], CT_PIVOTS_RGB, sizeof(Light.vct_color[1]));      // Warm white
   }
   for (uint32_t i = 1; i < CT_PIVOTS-1; i++) {
     memcpy_P(Light.vct_color[i+1], Light.vct_color[i], sizeof(Light.vct_color[0]));      // Copy slot 1 into slot 2 (slot 2 in unused)
   }
   checkVirtualCT();
+}
 #endif // USE_LIGHT_VIRTUAL_CT
+
+void setCTRange(uint16_t ct_min, uint16_t ct_max) {
+  Light.vct_ct[0] = ct_min;
+  for (uint32_t i = 1; i < CT_PIVOTS; i++) {
+    Light.vct_ct[i] = ct_max;     // all slots above [1] are not used
+  }
 }
 
 void setAlexaCTRange(void) {    // depending on SetOption82, full or limited CT range
@@ -1351,9 +1353,14 @@ bool LightModuleInit(void)
   } else if ((Settings.param[P_RGB_REMAP] & 128) && (LST_RGBW <= pwm_channels)) {  // SetOption37
     // if RGBW or RGBCW, and SetOption37 >= 128, we manage RGB and W separately, hence adding a device
     TasmotaGlobal.devices_present++;
-  } else if ((Settings.flag4.virtual_ct) && (LST_RGB <= pwm_channels)) {
-    Light.virtual_ct = true;    // enabled
-    TasmotaGlobal.light_type = 5;               // pretend it is a 5 channels bulb
+  } else {
+#ifdef USE_LIGHT_VIRTUAL_CT
+    initCTRange(pwm_channels);
+    if ((Settings.flag4.virtual_ct) && (LST_RGB <= pwm_channels)) {
+      Light.virtual_ct = true;    // enabled
+      TasmotaGlobal.light_type += 5 - pwm_channels;               // pretend it is a 5 channels bulb
+    }
+#endif // USE_LIGHT_VIRTUAL_CT
   }
 
   return (TasmotaGlobal.light_type > LT_BASIC);
@@ -2029,9 +2036,9 @@ void LightAnimate(void)
       if (Light.pwm_multi_channels) {
         calcGammaMultiChannels(cur_col_10);
       } else {
-        AddLog_P(LOG_LEVEL_INFO, PSTR(">>> calcGammaBulbs In  %03X,%03X,%03X,%03X,%03X"), cur_col_10[0], cur_col_10[1], cur_col_10[2], cur_col_10[3], cur_col_10[4]);
+        // AddLog_P(LOG_LEVEL_INFO, PSTR(">>> calcGammaBulbs In  %03X,%03X,%03X,%03X,%03X"), cur_col_10[0], cur_col_10[1], cur_col_10[2], cur_col_10[3], cur_col_10[4]);
         rgbwwtable_applied_white = calcGammaBulbs(cur_col_10);     // true means that one PWM channel is used for CT
-        AddLog_P(LOG_LEVEL_INFO, PSTR(">>> calcGammaBulbs Out %03X,%03X,%03X,%03X,%03X"), cur_col_10[0], cur_col_10[1], cur_col_10[2], cur_col_10[3], cur_col_10[4]);
+        // AddLog_P(LOG_LEVEL_INFO, PSTR(">>> calcGammaBulbs Out %03X,%03X,%03X,%03X,%03X"), cur_col_10[0], cur_col_10[1], cur_col_10[2], cur_col_10[3], cur_col_10[4]);
       }
 
       // Apply RGBWWTable only if not Settings.flag4.white_blend_mode
