@@ -3193,6 +3193,10 @@ void CmndCTRange(void)
 #ifdef USE_LIGHT_VIRTUAL_CT
 void CmndVirtualCT(void)
 {
+  if (!Settings.flag4.virtual_ct) {
+    ResponseCmndChar_P(PSTR("You need to enable `SetOption106 1`"));
+    return;
+  }
   if (XdrvMailbox.data[0] == ('{')) {
     // parse JSON
     JsonParser parser(XdrvMailbox.data);
