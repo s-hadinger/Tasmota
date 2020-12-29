@@ -1351,9 +1351,9 @@ bool LightModuleInit(void)
   } else if ((Settings.param[P_RGB_REMAP] & 128) && (LST_RGBW <= pwm_channels)) {  // SetOption37
     // if RGBW or RGBCW, and SetOption37 >= 128, we manage RGB and W separately, hence adding a device
     TasmotaGlobal.devices_present++;
-  } else if ((Settings.flag4.virtual_ct) && (LST_RGBW == pwm_channels)) {
+  } else if ((Settings.flag4.virtual_ct) && (LST_RGB <= pwm_channels)) {
     Light.virtual_ct = true;    // enabled
-    TasmotaGlobal.light_type++;               // create an additional virtual 5th channel
+    TasmotaGlobal.light_type = 5;               // pretend it is a 5 channels bulb
   }
 
   return (TasmotaGlobal.light_type > LT_BASIC);
@@ -2025,16 +2025,17 @@ void LightAnimate(void)
         cur_col_10[i] = change8to10(Light.new_color[i]);
       }
 
+      bool rgbwwtable_applied_white = false;      // did we already applied RGBWWTable to white channels (ex: in white_blend_mode or virtual_ct)
       if (Light.pwm_multi_channels) {
         calcGammaMultiChannels(cur_col_10);
       } else {
-        // AddLog_P(LOG_LEVEL_INFO, PSTR(">>> calcGammaBulbs In  %03X,%03X,%03X,%03X,%03X"), cur_col_10[0], cur_col_10[1], cur_col_10[2], cur_col_10[3], cur_col_10[4]);
-        calcGammaBulbs(cur_col_10);     // true means that one PWM channel is used for CT
-        // AddLog_P(LOG_LEVEL_INFO, PSTR(">>> calcGammaBulbs Out %03X,%03X,%03X,%03X,%03X"), cur_col_10[0], cur_col_10[1], cur_col_10[2], cur_col_10[3], cur_col_10[4]);
+        AddLog_P(LOG_LEVEL_INFO, PSTR(">>> calcGammaBulbs In  %03X,%03X,%03X,%03X,%03X"), cur_col_10[0], cur_col_10[1], cur_col_10[2], cur_col_10[3], cur_col_10[4]);
+        rgbwwtable_applied_white = calcGammaBulbs(cur_col_10);     // true means that one PWM channel is used for CT
+        AddLog_P(LOG_LEVEL_INFO, PSTR(">>> calcGammaBulbs Out %03X,%03X,%03X,%03X,%03X"), cur_col_10[0], cur_col_10[1], cur_col_10[2], cur_col_10[3], cur_col_10[4]);
       }
 
       // Apply RGBWWTable only if not Settings.flag4.white_blend_mode
-      for (uint32_t i = 0; i<Light.subtype; i++) {
+      for (uint32_t i = 0; i < (rgbwwtable_applied_white ? 3 : Light.subtype); i++) {
         uint32_t adjust = change8to10(Settings.rgbwwTable[i]);
         cur_col_10[i] = changeUIntScale(cur_col_10[i], 0, 1023, 0, adjust);
       }
@@ -2346,8 +2347,8 @@ void calcGammaBulb5Channels_8(uint8_t in8[LST_MAX], uint16_t col10[LST_MAX]) {
   calcGammaBulb5Channels(col10, nullptr, nullptr);
 }
 
-void calcGammaBulbs(uint16_t cur_col_10[5]) {
-  bool rgbwwtable_applied = false;
+bool calcGammaBulbs(uint16_t cur_col_10[5]) {
+  bool rgbwwtable_applied_white = false;
   bool pwm_ct = false;
   bool white_free_cw = false;         // true if White channels are uncorrelated. Happens when CW+WW>255, i.e. manually setting white channels to exceed to total power of a single channel (may harm the power supply)
   // Various values needed for accurate White calculation
@@ -2376,7 +2377,7 @@ void calcGammaBulbs(uint16_t cur_col_10[5]) {
       // channel 0=intensity, channel1=temperature
       cur_col_10[cw0] = white_bri10;
       cur_col_10[cw0+1] = ct_10;
-      return;     // avoid any interference
+      return false;     // avoid any interference
     }
   }
 #endif  // ESP8266
@@ -2393,6 +2394,7 @@ void calcGammaBulbs(uint16_t cur_col_10[5]) {
     uint32_t adjust_w_10 = change8to10(Settings.rgbwwTable[3]);   // take the correction factor, bought back to 10 bits
     white_bri10 += changeUIntScale(min_rgb_10, 0, 1023, 0, adjust_w_10);  // set white power down corrected with rgbwwTable[3]
     white_bri10 = (white_bri10 > 1023) ? 1023 : white_bri10;    // max 1023
+    rgbwwtable_applied_white = true;
   }
   
 #ifdef USE_LIGHT_VIRTUAL_CT
@@ -2440,6 +2442,7 @@ void calcGammaBulbs(uint16_t cur_col_10[5]) {
       cur_col_10[cw0] = white_bri10 - cur_col_10[cw0+1];
     }
   }
+  return rgbwwtable_applied_white;
 }
 
 #ifdef USE_DEVICE_GROUPS
