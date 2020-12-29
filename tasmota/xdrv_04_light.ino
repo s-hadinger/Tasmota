@@ -2421,10 +2421,13 @@ bool calcGammaBulbs(uint16_t cur_col_10[5]) {
     calcGammaBulb5Channels_8(*pivot, from10);
     calcGammaBulb5Channels_8(*(pivot+1), to10);
 
-    // vct_pivot_t   *pivot1 = pivot + 1;
+    vct_pivot_t   *pivot1 = pivot + 1;
     // AddLog_P(LOG_LEVEL_INFO, PSTR("+++ from_ct %d, to_ct %d [%03X,%03X,%03X,%03X,%03X] - [%03X,%03X,%03X,%03X,%03X]"),
     //           *from_ct, *(from_ct+1), (*pivot)[0], (*pivot)[1], (*pivot)[2], (*pivot)[3], (*pivot)[4],
     //           (*pivot1)[0], (*pivot1)[1], (*pivot1)[2], (*pivot1)[3], (*pivot1)[4]);
+    // AddLog_P(LOG_LEVEL_INFO, PSTR("+++ from10 [%03X,%03X,%03X,%03X,%03X] - to 10 [%03X,%03X,%03X,%03X,%03X]"),
+    //           from10[0],from10[0],from10[0],from10[0],from10[4],
+    //           to10[0],to10[0],to10[0],to10[0],to10[4]);
 
     // set both CW/WW to zero since their previous value don't count anymore
     cur_col_10[3] = 0;
@@ -2432,7 +2435,8 @@ bool calcGammaBulbs(uint16_t cur_col_10[5]) {
 
     // Add the interpolated point to each component
     for (uint32_t i = 0; i < LST_MAX; i++) {
-      cur_col_10[i] += changeUIntScale(ct, *from_ct, *(from_ct+1), from10[i], to10[i]);
+      cur_col_10[i] += changeUIntScale(changeUIntScale(ct, *from_ct, *(from_ct+1), from10[i], to10[i]), 0, 1023, 0, white_bri10);
+      if (cur_col_10[i] > 1023) { cur_col_10[i] = 1023; }
     }
   } else
 #endif // USE_LIGHT_VIRTUAL_CT
