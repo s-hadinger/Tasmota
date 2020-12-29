@@ -132,9 +132,9 @@ const char kLightCommands[] PROGMEM = "|"  // No prefix
   D_CMND_COLOR "|" D_CMND_COLORTEMPERATURE "|" D_CMND_DIMMER "|" D_CMND_DIMMER_RANGE "|" D_CMND_DIMMER_STEP "|" D_CMND_LEDTABLE "|" D_CMND_FADE "|"
   D_CMND_RGBWWTABLE "|" D_CMND_SCHEME "|" D_CMND_SPEED "|" D_CMND_WAKEUP "|" D_CMND_WAKEUPDURATION "|"
   D_CMND_WHITE "|" D_CMND_CHANNEL "|" D_CMND_HSBCOLOR
-  "|" D_CMND_VIRTUALCT 
-#ifdef USE_LIGHT_VIRTUAL_CT
   "|" D_CMND_CTRANGE
+#ifdef USE_LIGHT_VIRTUAL_CT
+  "|" D_CMND_VIRTUALCT 
 #endif // USE_LIGHT_VIRTUAL_CT
 #ifdef USE_LIGHT_PALETTE
   "|" D_CMND_PALETTE
@@ -148,9 +148,9 @@ void (* const LightCommand[])(void) PROGMEM = {
   &CmndColor, &CmndColorTemperature, &CmndDimmer, &CmndDimmerRange, &CmndDimmerStep, &CmndLedTable, &CmndFade,
   &CmndRgbwwTable, &CmndScheme, &CmndSpeed, &CmndWakeup, &CmndWakeupDuration,
   &CmndWhite, &CmndChannel, &CmndHsbColor,
-  &CmndVirtualCT,
-#ifdef USE_LIGHT_VIRTUAL_CT
   &CmndCTRange,
+#ifdef USE_LIGHT_VIRTUAL_CT
+  &CmndVirtualCT,
 #endif // USE_LIGHT_VIRTUAL_CT
 #ifdef USE_LIGHT_PALETTE
   &CmndPalette,
