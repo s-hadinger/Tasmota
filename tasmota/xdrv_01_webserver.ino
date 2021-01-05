@@ -117,6 +117,15 @@ const char HTTP_SEND_STYLE_U[] PROGMEM =
   //=HTTP_HEAD_ERROR_TOO_LONG
   "ERROR: WSContentSendStyle_P size %d > mqtt_data size %d. Start of data [%s...]"
   "\0"
+  //=HTTP_HEAD_STYLE3
+  "</style>"
+  "</head>"
+  "<body>"
+  "<div style='text-align:left;display:inline-block;color:#%06x;min-width:340px;'>"  // COLOR_TEXT
+  "<div style='text-align:center;color:#%06x;'><noscript>%s<br></noscript>" // COLOR_TITLE
+  "<h3>%s %s</h3>"
+  "<h2>%s</h2>"
+  "\0"
   ;
 ///////////////////////////////////////////////////////
 enum {
@@ -125,10 +134,11 @@ enum {
   HTTP_HEAD_STYLE1=327,
   HTTP_HEAD_STYLE2=919,
   HTTP_HEAD_ERROR_TOO_LONG=1398,
+  HTTP_HEAD_STYLE3=1477,
 };
 
-// Compressed from 1477 to 859, -41.8%
-const char HTTP_SEND_STYLE[] PROGMEM = "\x00\x5D\x33\xBF\xA0\xF8\xF8\x72\x7D\x9E\x08\xC0\xBE\x0E\xB7\x39\x0B\x3B\xA7\x78"
+// Compressed from 1674 to 981, -41.4%
+const char HTTP_SEND_STYLE[] PROGMEM = "\x00\x69\x33\xBF\xA0\xF8\xF8\x72\x7D\x9E\x08\xC0\xBE\x0E\xB7\x39\x0B\x3B\xA7\x78"
                              "\xF6\xE9\x83\xBA\x1F\x1F\x87\xC3\x8C\xEF\x1E\xD2\x63\x8E\xE9\xF7\x47\xD9\xDE\x3A"
                              "\x6F\x73\xF9\x0A\x2A\x2B\x21\xA4\x11\xF0\xFB\x3E\xBC\x8F\xB3\xB6\x1F\x1D\xB3\xED"
                              "\x1F\x5E\x3E\xCF\x01\xF1\xD6\x75\x9E\x3C\xE8\xAB\x46\xBC\x17\x47\x74\x59\xD4\x72"
@@ -171,7 +181,13 @@ const char HTTP_SEND_STYLE[] PROGMEM = "\x00\x5D\x33\xBF\xA0\xF8\xF8\x72\x7D\x9E
                              "\xC2\xF9\x32\xF9\x7C\xB0\xBE\x79\xA2\x1F\x2F\x10\x79\xD4\xFA\x8B\xCF\x84\x2F\x51"
                              "\x90\x4C\xFD\x90\xC5\xED\x36\xB4\x7D\x08\x8F\xC4\x34\xD5\x54\x7E\xC4\xBA\xB0\x43"
                              "\xA0\x74\x45\xEA\xBF\xD2\xC3\x08\x4B\xAB\x47\xBC\x7D\x78\xE8\x74\x3A\x1E\xFC\xE1"
-                             "\x7C";
+                             "\x7C\xF4\x3B\x01\x07\xA3\xB6\x7A\x1D\x82\x9D\x88\x7E\x1E\x83\xB0\x43\x23\xF0\xF4"
+                             "\x13\x4C\xD7\xA8\xC8\x26\x7C\x3E\xC1\x2F\x83\x21\x37\xC3\x02\xB3\x23\xCF\x78\x2D"
+                             "\xE6\x75\x8E\x0B\x03\x34\x04\x8E\x66\x86\xEF\x1D\x60\x83\xCB\xD1\xCB\xC6\x43\x0D"
+                             "\x87\x83\xEC\x14\xF2\xB0\x42\xE8\x27\x02\x3E\x30\x7D\x9F\x87\xA7\x60\x21\x74\x9D"
+                             "\x4F\xAF\x1E\x83\xBE\x7E\x1E\x87\x60\x22\x4D\x3D\x05\x1C\xB3\xF0\xFA\x2F\x23\xEB"
+                             "\xC7\xA1\xD8\x28\xE5\x9F\x87\xA1\x0A\x39\x47\xE1\xF4\x5E\x3D\x0E\xC1\x47\x28\xFC"
+                             "\x29\xC2\xF9";
 ///////////////////////////////////////////////////////
 
 
@@ -233,12 +249,175 @@ const char HTTP_SEND_STYLE_ZIGBEE[] PROGMEM = "\x00\x17\x3A\x0E\xA3\xDA\x3B\x0D\
   #include "./html_uncompressed/HTTP_SCRIPT_ROOT_PART2.h"
 #endif
 
+#ifdef USE_ENHANCED_GUI_WIFI_SCAN
+///////////////////////////////////////////////////////
+const char HTTP_WIFI_CONF_ENHANCED_U[] PROGMEM =
+  //=HTTP_HEAD_STYLE_SSI
+  // Signal Strength Indicator
+  ".si{display:inline-flex;align-items:flex-end;height:15px;padding:0}"
+  ".si i{width:3px;margin-right:1px;border-radius:3px;background-color:#%06x}"
+  ".si .b0{height:25%%}.si .b1{height:50%%}.si .b2{height:75%%}.si .b3{height:100%%}.o30{opacity:.3}"
+  "\0"
+  //=HTTP_PRINT_SSID
+  "<div><a href='#p' onclick='c(this)'>%s</a><br>"
+  "\0"
+  //=HTTP_PRINT_ITEM
+  "<div title='%d dBm (%d%%)'>%s<span class='q'>(%d) <div class='si'>"
+  "\0"
+  //=HTTP_PRINT_SSI
+  "<i class='b%d%s'></i>"
+  "\0"
+  //=HTTP_PRINT_END
+  "</span></div></div>"
+  "\0"
+  ;
+///////////////////////////////////////////////////////
+enum {
+  HTTP_HEAD_STYLE_SSI=0,
+  HTTP_PRINT_SSID=239,
+  HTTP_PRINT_ITEM=286,
+  HTTP_PRINT_SSI=353,
+  HTTP_PRINT_END=375,
+};
 
-const char HTTP_SCRIPT_WIFI[] PROGMEM =
+// Compressed from 395 to 310, -21.5%
+const char HTTP_WIFI_CONF_ENHANCED[] PROGMEM = "\x00\x19\x3A\x7B\x4F\x68\x9B\xE1\x81\x59\x91\xE7\xBC\x16\xF3\x3A\xCC\x04\xCD\x87"
+                             "\x8B\x0B\x47\xB8\xEB\xDA\x63\x7C\x79\x98\x09\x9B\x0E\xB7\xC2\x1E\x05\x3D\x1E\x15"
+                             "\x47\x99\xC9\xA4\x30\xD8\x78\x19\x62\x09\xBC\x3C\x79\x9C\x67\xB8\xE8\x5E\xD5\xA7"
+                             "\xB4\x7F\x44\xA1\x47\x99\xCB\x21\x86\xC3\xC0\xDB\xF8\xF6\xF1\xD7\xF0\x41\xC2\x06"
+                             "\x1B\x0F\x03\xB3\xE2\x3F\x9D\x7F\xB1\x34\x5F\x8F\x33\x96\x43\x0D\x87\x81\xD6\x19"
+                             "\xA0\xF7\xF0\x5F\x08\x75\x87\x81\x67\xCF\x33\xC8\xFA\x38\xF8\x8D\x87\xB8\xE9\xED"
+                             "\x47\x41\xC7\x19\xED\x20\x42\xD1\x0E\x56\x9F\x47\xD1\x02\x15\x03\x90\x81\x0E\x81"
+                             "\xCD\x64\x08\x94\x0E\x51\x02\x1D\x03\x9E\x20\x45\xC1\x0E\x59\x02\x1D\x03\x91\xB3"
+                             "\xE8\xFA\x3D\xC7\x42\xC3\x96\xCF\x69\x60\xCB\x0F\x68\xC8\xF3\x3A\x1C\xB3\xDC\x53"
+                             "\x85\xF3\xD0\x4D\x33\x3F\x0F\x4B\x42\xBE\xCC\x1F\x0F\xB3\xC8\x61\xF6\xB3\x83\x0B"
+                             "\x43\x34\x3E\x1F\x61\x9D\xDA\x15\xBE\x3B\xC7\xD9\xF8\x7D\x78\xF4\x3B\x2C\xFC\x3D"
+                             "\x07\x7C\xFC\x9C\x2F\x9E\x82\x69\x9A\xAD\xA0\x99\xF0\xFB\x3E\x84\x42\x10\xE1\xA8"
+                             "\xEE\x9F\x42\x1F\x47\xD0\x20\xE0\x5E\x19\x7C\x83\x0A\xFD\xE3\xE1\xF6\x6A\x3E\xCF"
+                             "\xC3\xBA\x7D\x08\x77\x91\xE8\x26\x99\x82\x1D\x0F\x69\xF6\x7E\x4E\x17\xCF\x4D\x04"
+                             "\x39\x63\x8F\xA1\x0F\xAF\x1F\x67\xE1\xE8\x76\x69\xF9\x38\x5F\x3D\x0E\xCF\x0C\xBE"
+                             "\x3F\x0F\x43\xB0\x4D\x33\x04\x18\x47\xE4\xE1\x7C";
+///////////////////////////////////////////////////////
+#endif
+///////////////////////////////////////////////////////
+const char HTTP_WIFI_CONF_U[] PROGMEM =
+  //=HTTP_SCRIPT_WIFI
   "function c(l){"
     "eb('s1').value=l.innerText||l.textContent;"
     "eb('p1').focus();"
-  "}";
+  "}"
+  "\0"
+  //=HTTP_SCRIPT_ON_CLICK
+  "<div><a href='#p' onclick='c(this)'>%s</a>&nbsp;(%d)&nbsp<span class='q'>%d%% (%d dBm)</span></div>"
+  "\0"
+  //=HTTP_SCRIPT_BR
+  "<br>"
+  "\0"
+  //=HTTP_SCRIPT_SCAN
+  "<div><a href='/wi?scan='>%s</a></div><br>"
+  "\0"
+  //=HTTP_FORM_WIFI
+  "<fieldset><legend><b>&nbsp;%s&nbsp;</b></legend>"
+  "<form method='get' action='wi'>"
+  "<p><b>%s</b> (%s)<br><input id='s1' placeholder=\"%s\" value=\"%s\"></p>"  // Need \" instead of ' to be able to use ' in text (#8489)
+  "<p><label><b>%s</b><input type='checkbox' onclick='sp(\"p1\")'></label><br><input id='p1' type='password' placeholder=\"" D_AP1_PASSWORD "\" value=\"" D_ASTERISK_PWD "\"></p>"
+  "<p><b>%s</b> (%s)<br><input id='s2' placeholder=\"%s\" value=\"%s\"></p>"
+  "<p><label><b>%s</b><input type='checkbox' onclick='sp(\"p2\")'></label><br><input id='p2' type='password' placeholder=\"" D_AP2_PASSWORD "\" value=\"" D_ASTERISK_PWD "\"></p>"
+  "<p><b>%s</b> (%s)<br><input id='h' placeholder=\"%s\" value=\"%s\"></p>"
+  "<p><b>%s</b><input id='c' placeholder=\"%s\" value=\"%s\"></p>"
+  "\0"
+  ;
+///////////////////////////////////////////////////////
+enum {
+  HTTP_SCRIPT_WIFI=0,
+  HTTP_SCRIPT_ON_CLICK=75,
+  HTTP_SCRIPT_BR=175,
+  HTTP_SCRIPT_SCAN=180,
+  HTTP_FORM_WIFI=222,
+};
+
+// Compressed from 827 to 405, -51.0%
+const char HTTP_WIFI_CONF[] PROGMEM = "\x00\x34\x30\x2F\x83\xAD\xCE\x41\x9D\xD0\x8E\xF1\xED\x63\x8E\xE9\xF7\xE3\x90\xFB"
+                             "\x3B\xC7\x42\x33\xB0\x85\xB3\xE0\x47\x4D\xEE\x7F\x2A\x2B\x66\xCA\x3F\xC7\xF8\x23"
+                             "\xA5\x33\x65\x10\x79\xD4\xFA\x8F\x0C\x71\xDD\x3E\xC6\x1C\x87\xD9\xDE\x3A\x11\x8C"
+                             "\x0C\x5F\x8E\xE9\xDE\x3C\x1E\xE9\xC2\xF9\xE8\x26\x99\x9F\x87\xA5\xA1\x5F\x66\x0F"
+                             "\x87\xD9\xE4\x30\xFB\x59\xC1\x85\xA1\x9A\x1F\x0F\xB0\xCE\xED\x0A\xDF\x1D\xE3\xEC"
+                             "\xFC\x3E\xBC\x7A\x1D\x96\x7E\x1F\xAE\x1D\xE1\x87\x83\xBA\x7D\x08\x77\x8F\xD7\x0E"
+                             "\xF0\xC3\xD3\xC3\x2F\x90\x61\x5F\xBC\x7C\x3E\xCD\x47\xD9\xF8\x7D\x08\x7D\x1F\x48"
+                             "\xEE\x9F\x42\x21\x08\x70\xD3\xBC\x7A\x1D\x9E\x19\x7C\x7E\x1E\x87\x60\x9A\x66\x7E"
+                             "\x4E\x17\xCF\x41\xDF\x3F\x01\x2B\x45\x3B\x07\xF4\xED\x78\x3B\xE3\xE0\x21\xE7\x40"
+                             "\x83\x83\x82\x0E\x0C\x63\x58\x42\x79\xD1\xF8\x7A\x04\xC7\x9F\x08\x7E\x1E\x83\x81"
+                             "\x0B\x5A\x3E\xBC\x08\x31\x0F\x43\xB0\x71\xF8\x7A\x1D\x80\x87\x68\xC6\x7C\x6A\x1A"
+                             "\xE8\x56\x08\x7C\x3E\xC7\x9D\x1F\x6A\xC3\xAD\xCE\x3E\x1F\x63\xFA\x7D\x9F\x87\xA0"
+                             "\xC3\xF0\xF4\x1C\x7E\x1F\x5E\x3D\x0E\xC1\xC7\xE2\x3B\xA7\xD7\x8E\xF1\xE8\x3B\xE7"
+                             "\xE1\xE9\xBC\x30\x5D\x2D\x10\xF8\x7D\xF8\xE4\x3E\xCE\xE1\x0C\x0A\xC3\x62\xB0\x21"
+                             "\x1F\xCF\x87\xB0\xFA\xF1\xEC\x40\x83\xC5\x39\xEC\x3E\xBC\x7B\x0F\xC3\xD0\xEC\x18"
+                             "\x7E\x1E\x83\x0F\xC3\xD0\x2B\x1C\xC2\x04\x5C\x9C\x10\xB1\xEA\x32\x18\xCF\x87\xD8"
+                             "\x62\x98\x66\x83\xB0\xD8\x08\xDC\x4D\x78\x61\xDD\x3D\x83\x0E\x43\xD8\x77\x8F\xB3"
+                             "\xF0\xF4\x3B\x08\x10\xF1\x70\x48\xD5\x06\x1C\x87\xD9\x02\x16\x34\x32\xFD\xE1\xFC"
+                             "\xF8\x80\x95\xB2\x02\x26\xC4\x08\xBB\x2A\x01\x2C\x70\x48\x72\x88\x19\xAF\x04\x87"
+                             "\x28\x81\x5F\x82\x43\x94\x40\xCA\x78\x24\x14\x0C\x07\x82\x30\x4A\xE0\x73\x44\x3E"
+                             "\x1F\x61\x82\xEE\x2D\x38\x5F";
+///////////////////////////////////////////////////////
+// const char HTTP_SCRIPT_WIFI[] PROGMEM =
+//   "function c(l){"
+//     "eb('s1').value=l.innerText||l.textContent;"
+//     "eb('p1').focus();"
+//   "}";
+
+
+///////////////////////////////////////////////////////
+const char HTTP_UPGRADE_U[] PROGMEM =
+  //=HTTP_FORM_UPG
+  "<div id='f1' style='display:block;'>"
+  "<fieldset><legend><b>&nbsp;%s&nbsp;</b></legend>"
+  "<form method='get' action='u1'>"
+  "<br><b>%s</b><br><input id='o' placeholder=\"OTA_URL\" value=\"%s\"><br>"
+  "<br><button type='submit'>%s</button></form>"
+  "</fieldset><br><br>"
+  "<fieldset><legend><b>&nbsp;%s&nbsp;</b></legend>"
+  "\0"
+  //=HTTP_FORM_RST_UPG
+  "<form method='post' action='u2' enctype='multipart/form-data'>"
+  "<br><input type='file' name='u2'><br>"
+  "<br><button type='submit' onclick='eb(\"f1\").style.display=\"none\";eb(\"f2\").style.display=\"block\";this.form.submit();'>%s %s</button></form>"
+  "</fieldset>"
+  "</div>"
+  "<div id='f2' style='display:none;text-align:center;'><b>%s ...</b></div>"
+  "\0"
+  //=HTTP_FORM_RST
+  "<div id='f1' style='display:block;'>"
+  "<fieldset><legend><b>&nbsp;%s&nbsp;</b></legend>"
+  "\0"
+  ;
+///////////////////////////////////////////////////////
+enum {
+  HTTP_FORM_UPG=0,
+  HTTP_FORM_RST_UPG=295,
+  HTTP_FORM_RST=622,
+};
+
+// Compressed from 707 to 374, -47.1%
+const char HTTP_UPGRADE[] PROGMEM = "\x00\x2D\x3D\x04\xD3\x35\xA2\x1F\x0F\xB3\x07\x21\xF6\x77\x0B\xD4\x64\x13\x3E\x1F"
+                             "\x62\x6F\x86\x05\x66\x47\x98\xE0\xB0\x33\x43\xC1\xF6\x7E\x1E\x86\x35\x84\x27\x9D"
+                             "\x1F\x87\xA0\x4C\x79\xF0\x87\xE1\xE8\x38\xFC\x3F\x5C\x3B\xC3\x0F\x07\xD7\x81\x06"
+                             "\x21\xE8\x76\x0E\x3F\x0F\x43\xB0\x10\xED\x18\xCF\x8D\x43\x5D\x0A\xC1\x0F\x87\xD8"
+                             "\xF3\xA3\xED\x58\x75\xB9\xC7\xC3\xEC\x59\xC8\x7D\x9F\x87\xA1\x0E\xF9\xF8\x7A\x0E"
+                             "\x3F\x0F\xAF\x1E\x87\x60\xE0\x41\x93\xBC\x30\x5D\x2D\x10\xF8\x7D\xE1\xF6\x86\x05"
+                             "\x61\xB1\x58\x10\x8F\xE7\xC3\xD8\x58\x54\x56\x7E\xC8\x59\x7C\x82\x3D\x88\xCE\xC2"
+                             "\x16\xCF\x87\xB0\xFA\xF1\xEC\x04\x2C\x73\xE7\xE1\xE8\x38\x5D\x56\x72\xA3\x21\x8C"
+                             "\xF8\x7D\xF8\x58\xE1\xBB\x47\xD8\x20\xE6\x62\xEA\xB3\x8F\xC3\xD0\xEC\x31\x9F\x1A"
+                             "\x7E\x1E\x87\x60\x22\xF0\x38\x08\x78\xB8\x30\xAE\x0B\xA7\x0B\xE0\x93\xC1\x78\xCC"
+                             "\xF0\x23\xF0\x60\x72\x8F\xB3\xB8\x4F\x83\x04\x1D\x8C\x68\xB0\xAB\x46\x5F\xE8\xEC"
+                             "\x31\x9F\x1A\x75\x89\x75\x60\x85\xC2\x70\x20\xF0\x82\x08\x38\x11\x8D\x09\x9F\x6B"
+                             "\xAC\x6B\x3E\x1F\x62\xCE\x51\x02\x1F\x0D\xE0\xA5\xC1\x7A\xCE\x0C\x2D\x0C\xD0\xF8"
+                             "\x7D\xB1\xC7\x74\xF6\x18\x39\x0F\x61\xDE\x3A\x17\xA8\xC8\x26\x74\x04\x2E\x41\x0F"
+                             "\x87\xB3\xB3\x99\xEC\x3C\x31\xC7\x74\xF6\x18\x39\x44\x09\xB6\x87\x05\x81\x9A\x1E"
+                             "\xC3\xC5\x0A\xDF\x1D\x0C\x67\xC6\x9D\x01\x07\x34\x3B\xA7\x78\xF0\x7D\x9F\x87\xD7"
+                             "\x90\x2C\xF1\x1A\x76\x09\xA6\x67\xE0\x22\xF3\x02\x72\x88\x13\x39\x81\xEC\xE6\x78"
+                             "\xA6\x6C\xA3\xAE\xC2\xD1\xEE\x3C\xC3\x7D\x4F\xE7\x83\xEC\x10\x79\x3F\x47\x43\xA1"
+                             "\xD0\x10\x78\xA6\x13\x4C\xCF\xC9\xC2\xF8\x32\xFE\x72\xA7\x0B\xE6";
+///////////////////////////////////////////////////////
 
 const char HTTP_SCRIPT_RELOAD_TIME[] PROGMEM =
   "setTimeout(function(){location.href='.';},%d);";
@@ -259,32 +438,54 @@ const char HTTP_MODULE_TEMPLATE_REPLACE_NO_INDEX[] PROGMEM =
 
 #ifdef USE_UNISHOX_COMPRESSION
   #include "./html_compressed/HTTP_SCRIPT_MODULE_TEMPLATE.h"
-  #include "./html_compressed/HTTP_SCRIPT_TEMPLATE.h"
+  // #include "./html_compressed/HTTP_SCRIPT_TEMPLATE.h"
 #else
   #include "./html_uncompressed/HTTP_SCRIPT_MODULE_TEMPLATE.h"
-  #include "./html_uncompressed/HTTP_SCRIPT_TEMPLATE.h"
+  // #include "./html_uncompressed/HTTP_SCRIPT_TEMPLATE.h"
 #endif
 
 
-const char HTTP_SCRIPT_TEMPLATE2[] PROGMEM =
-    "j=0;"
-    "for(i=0;i<" STR(MAX_USER_PINS) ";i++){"  // Supports 13 GPIOs
-      "if(6==i){j=9;}"
-      "if(8==i){j=12;}"
-      "sk(g[i],j);"                       // Set GPIO
-      "j++;"
-    "}";
-const char HTTP_SCRIPT_TEMPLATE3[] PROGMEM =
-    "\";"
-    "sk(g[13]," STR(ADC0_PIN) ");";       // Set ADC0
 
-const char HTTP_SCRIPT_TEMPLATE4[] PROGMEM =
+///////////////////////////////////////////////////////
+const char HTTP_TEMPLATE_U[] PROGMEM =
+  //=HTTP_SCRIPT_TEMPLATE
+  "function ld(u,f){"
+    "var x=new XMLHttpRequest();"
+    "x.onreadystatechange=function(){"
+      "if(this.readyState==4&&this.status==200){"
+        "f(this);"
+      "}"
+    "};"
+    "x.open('GET',u,true);"
+    "x.send();"
+  "}"
+  "var c;"                                // Need a global for BASE
+  "function x1(b){"
+    "var i,j,g,k,o;"
+    "o=b.responseText.split(/}1/);"       // Field separator
+    "k=o.shift();"                        // Template name
+    "if(eb('s1').value==''){"
+      "eb('s1').value=k;"                 // Set NAME if not yet set
+    "}"
+    "g=o.shift().split(',');"             // GPIO - Array separator
+    "os=\""                              // }2'0'>None (0)}3}2'17'>Button1 (17)}3...
+  "\0"
+  //=HTTP_SCRIPT_TEMPLATE2
+  "j=0;"
+  "for(i=0;i<%d;i++){"  // Supports 13 GPIOs
+    "if(6==i){j=9;}"
+    "if(8==i){j=12;}"
+    "sk(g[i],j);"                       // Set GPIO
+    "j++;"
+  "}"
+  "\0"
+  //=HTTP_SCRIPT_TEMPLATE4
     "g=o.shift();"                        // FLAG
-    "for(i=0;i<" STR(GPIO_FLAG_USED) ";i++){"
+    "for(i=0;i<%d;i++){"
       "p=(g>>i)&1;"
       "eb('c'+i).checked=p;"              // Set FLAG checkboxes
     "}"
-    "if(" STR(USER_MODULE) "==c){"
+    "if(%d==c){"
       "g=o.shift();"
       "eb('g99').value=g;"                // Set BASE for initial select
     "}"
@@ -295,13 +496,128 @@ const char HTTP_SCRIPT_TEMPLATE4[] PROGMEM =
     "ld(a,x1);"                           // ?t related to WebGetArg("t", stemp, sizeof(stemp));
   "}"
   "function sl(){"
-    "os=\"";                              // }2'0'>Sonoff Basic (1)}3...
-const char HTTP_SCRIPT_TEMPLATE5[] PROGMEM =
+    "os=\""                              // }2'0'>Sonoff Basic (1)}3...
+  "\0"
+  //=HTTP_SCRIPT_TEMPLATE5
     "\";"
-    "sk(" STR(WEMOS_MODULE) ",99);"       // 17 = WEMOS
-    "st(" STR(USER_MODULE) ");"
+    "sk(%d,99);"       // 17 = WEMOS
+    "st(%d);"
   "}"
-  "wl(sl);";
+  "wl(sl);"
+  "\0"
+  //=HTTP_FORM_TEMPLATE
+  "<fieldset><legend><b>&nbsp;" D_TEMPLATE_PARAMETERS "&nbsp;</b></legend>"
+  "<form method='get' action='tp'>"
+  "\0"
+  //=HTTP_FORM_TEMPLATE6
+  "<tr><td><b>%s</b></td><td style='width:200px'><input id='s1' placeholder='%s'></td></tr>"
+  "<tr><td><b>%s</b></td><td><select id='g99' onchange='st(this.value)'></select></td></tr>"
+  "</table>"
+  "<hr/>"
+  "\0"
+  //=HTTP_FORM_TEMPLATE7
+  "<tr><td><b><font color='#%06x'>%s%d</font></b></td><td%s><select id='g%d' onchange='ot(%d,this.value)'></select></td>"
+  "\0"
+  //=HTTP_FORM_TEMPLATE8
+  "<td style='width:50px'><select id='h%d'></select></td></tr>"
+  "\0"
+  //=HTTP_FORM_TEMPLATE_FLAG
+  "<p></p>"  // Keep close so do not use <br>
+  "<fieldset><legend><b>&nbsp;%s&nbsp;</b></legend><p>"
+  "</p></fieldset>"
+  "\0"
+  ;
+///////////////////////////////////////////////////////
+enum {
+  HTTP_SCRIPT_TEMPLATE=0,
+  HTTP_SCRIPT_TEMPLATE2=304,
+  HTTP_SCRIPT_TEMPLATE4=372,
+  HTTP_SCRIPT_TEMPLATE5=540,
+  HTTP_FORM_TEMPLATE=568,
+  HTTP_FORM_TEMPLATE6=646,
+  HTTP_FORM_TEMPLATE7=836,
+  HTTP_FORM_TEMPLATE8=954,
+  HTTP_FORM_TEMPLATE_FLAG=1014,
+};
+
+// Compressed from 1088 to 745, -31.5%
+const char HTTP_TEMPLATE[] PROGMEM = "\x00\x44\x30\x2F\x83\xAD\xCE\x41\x08\x77\x45\x9D\x46\x0E\xF1\xED\x33\xBF\xA3\x61"
+                             "\xF3\x98\xFA\x23\x61\x0D\x20\x88\x55\x50\xC2\xFB\x35\x0B\x7E\xA3\xBA\x77\x8F\x06"
+                             "\xC3\xA6\x77\xDD\x88\x65\xEA\xBA\x61\x8A\xBE\x1E\x67\xC0\x43\xC7\x4E\xE9\xDE\x3D"
+                             "\xBA\x60\xEE\xD0\xAD\xF1\xD3\xEE\xC4\x32\x2F\x55\xD3\x3E\x1F\x0E\x61\xFA\x3F\x45"
+                             "\x42\xB7\xC7\x4F\x55\xD0\xBF\x1F\x0F\x87\x29\xB3\xBC\x7B\x48\x10\x70\x43\xBC\x78"
+                             "\x3D\xC7\xB8\xF0\x6C\x3A\x60\xC7\xC7\x74\xFB\x21\xE2\x65\x47\xD9\xD4\x2C\xEA\xAF"
+                             "\x8B\x67\x78\xF0\x6C\x3A\x79\xF0\x87\x74\xEF\x1E\x0F\x71\x9D\xFD\x06\x78\x04\x4E"
+                             "\x2A\x01\x4D\x87\x21\xDD\x21\xC0\x83\xBF\xE9\xD4\x6B\x3A\x87\x8E\xA3\x43\xAB\x0F"
+                             "\x18\x7C\x1C\x74\xFB\xF0\xCC\xEF\x32\xA6\x6C\xA3\xA7\x86\x05\xB4\x77\x4E\xC3\xDC"
+                             "\x72\x1D\x87\x78\xF0\x46\x87\xCC\x3A\x78\x56\x98\xA3\xBA\x77\x8F\x1A\x60\xEE\xB1"
+                             "\xC7\x74\xFB\xF1\xC8\x7D\x9D\xE3\xA1\x19\xD8\x42\xD9\xF0\xF8\x7D\x9F\x67\x78\xF6"
+                             "\x82\x55\x03\x43\xC1\xEE\x1E\x04\x5C\x44\x10\xB2\x93\xEC\xEA\x3E\xCE\xF1\xE3\x3C"
+                             "\x7C\x3D\x93\x85\xF3\x59\xF0\xE3\x3C\x11\x8C\xF9\xDD\xD3\xE1\xC6\x78\x2D\x3D\x0F"
+                             "\xA1\x0F\x1A\x76\xCE\xD9\xDE\x3D\xBA\x60\xEE\x9C\xE3\xE1\xF0\xB4\xEF\x1E\xD3\x59"
+                             "\xF0\xE2\x3C\x1E\xE2\xD3\x07\x74\xE7\xC8\x10\xA5\x1C\x94\x78\x3D\xC5\xE3\x43\xBA"
+                             "\x3C\x7B\xDA\x7B\xE7\x51\xAC\xEF\x1E\x0D\x67\x6C\xED\x9E\x0F\x74\xE1\x7C\x11\xB3"
+                             "\xC0\x4E\xCA\x06\x1F\x0E\xE8\xF1\xF8\x7E\x69\xDE\x3F\x47\x21\xE0\x98\xE3\xBA\x7D"
+                             "\x86\x7D\x9D\xBD\x3B\xC7\x40\xC5\x30\xCD\x18\x87\xC1\x87\x83\xDD\xA6\x0E\xE9\xF4"
+                             "\x21\xF0\xF8\x19\xDE\x3D\xA0\x8F\x92\x31\xC7\x74\xFB\x1E\x38\x91\x02\x27\x04\x63"
+                             "\xC7\x83\xDC\x7B\x81\x13\x89\x3F\x51\xDD\xA3\xBC\x7B\x43\x3E\x51\xE0\xCE\xFE\xAC"
+                             "\xF8\x7D\xD0\xC3\xB5\x47\xC3\xEC\xED\xD1\xE0\x21\x0E\xED\x9D\x46\xC3\x90\xEF\x1E"
+                             "\x08\x11\xB0\x90\x8E\xE9\xDE\x3D\xB9\xE3\xE1\xEC\x9C\x2F\x9E\xC3\xC7\x8D\x0E\xE9"
+                             "\xF4\x21\xD4\x71\x23\xBC\x78\x2F\x51\xDD\x3E\x84\x3B\xC7\x83\xDC\x3E\x11\xDD\xF0"
+                             "\x47\x78\xF1\x38\x5F\x3D\x0C\x6B\x08\x4F\x3A\x3F\x0F\x40\x98\xF3\xE1\x0F\xC3\xD0"
+                             "\x71\xF8\x7E\xB8\x77\x86\x1E\x01\x06\x11\xE8\x76\x0E\x3F\x0F\x43\xB0\x10\xEC\x18"
+                             "\xCF\x8D\x43\x5D\x0A\xC1\x0F\x87\xD8\xF3\xA3\xED\x58\x75\xB9\xC7\xC3\xEE\x86\x1F"
+                             "\x67\xE4\xE1\x7C\xF4\xAF\x9F\x87\xA5\x08\x7E\x1E\x83\x8F\xC3\xEB\xC0\x83\x8B\x50"
+                             "\x87\xE1\xE9\x42\x2F\x51\x90\x4C\xF8\x7D\x8F\xE8\x94\x28\xF3\x39\x4D\x90\xC3\x61"
+                             "\xF6\x7E\x1E\x9B\xC3\x05\xD2\xD1\x0F\x87\xDF\x8E\x43\xEC\xEE\x10\xC0\xAC\x36\x2B"
+                             "\x02\x11\xFC\xF8\x7D\x9F\x5E\x3E\xC1\x0B\x19\x3B\x2B\xE7\xE0\x2A\x2B\x66\x87\xE1"
+                             "\xE9\xE6\x13\x0C\x10\x72\x11\xE3\x89\x1F\x67\x70\xB3\x81\x0B\xA0\x5A\x7D\xFA\x81"
+                             "\x07\xA0\x46\x67\x61\x0B\x67\x78\xFB\x3F\x0F\x43\xB0\x10\x70\x80\x47\xCD\x0E\xCA"
+                             "\xB1\xC1\x33\xF0\xF4\x15\xF3\xB0\x12\x38\x1A\x3D\x0C\x67\x52\x0F\x02\xCF\x9F\x0F"
+                             "\xB3\xC8\xFA\x38\xF8\x8D\x87\xD9\xF8\x7D\x78\xFA\x10\xF4\x3B\x0C\x67\x51\xF8\x08"
+                             "\xFA\xF9\xF5\xE0\x49\xD8\x4F\xA1\x01\x1F\x61\xCA\x3B\xA7\xD0\x87\x50\x2B\x6C\x93"
+                             "\x85\xF0\x4C\xE1\xE8\xE6\x90\x20\xF0\xF2\x08\xD9\x80\xA3\xE8\x40\x50\xE0\x6E\x70"
+                             "\xBE\x7A\x0C\x3F\x0F\x43\xB0\x61\xF8\x0A\xDC\x90\x9F\x5E\x04\xFE\x48\xC1\x0B\x13"
+                             "\x3B\x01\x13\x14\x9C\x2F\x9B";
+///////////////////////////////////////////////////////
+
+
+// const char HTTP_SCRIPT_TEMPLATE2[] PROGMEM =
+//     "j=0;"
+//     "for(i=0;i<" STR(MAX_USER_PINS) ";i++){"  // Supports 13 GPIOs
+//       "if(6==i){j=9;}"
+//       "if(8==i){j=12;}"
+//       "sk(g[i],j);"                       // Set GPIO
+//       "j++;"
+//     "}";
+const char HTTP_SCRIPT_TEMPLATE3[] PROGMEM =
+    "\";"
+    "sk(g[13]," STR(ADC0_PIN) ");";       // Set ADC0
+
+// const char HTTP_SCRIPT_TEMPLATE4[] PROGMEM =
+//     "g=o.shift();"                        // FLAG
+//     "for(i=0;i<" STR(GPIO_FLAG_USED) ";i++){"
+//       "p=(g>>i)&1;"
+//       "eb('c'+i).checked=p;"              // Set FLAG checkboxes
+//     "}"
+//     "if(" STR(USER_MODULE) "==c){"
+//       "g=o.shift();"
+//       "eb('g99').value=g;"                // Set BASE for initial select
+//     "}"
+//   "}"
+//   "function st(t){"
+//     "c=t;"                                // Needed for initial BASE select
+//     "var a='tp?t='+t;"
+//     "ld(a,x1);"                           // ?t related to WebGetArg("t", stemp, sizeof(stemp));
+//   "}"
+//   "function sl(){"
+//     "os=\"";                              // }2'0'>Sonoff Basic (1)}3...
+// const char HTTP_SCRIPT_TEMPLATE5[] PROGMEM =
+//     "\";"
+//     "sk(" STR(WEMOS_MODULE) ",99);"       // 17 = WEMOS
+//     "st(" STR(USER_MODULE) ");"
+//   "}"
+//   "wl(sl);";
 
 const char HTTP_SCRIPT_INFO_BEGIN[] PROGMEM =
   "function i(){"
@@ -336,24 +652,31 @@ const char HTTP_SCRIPT_INFO_END[] PROGMEM =
   #endif
 #endif // USE_ZIGBEE
 
-const char HTTP_HEAD_STYLE_SSI[] PROGMEM =
-  // Signal Strength Indicator
-  ".si{display:inline-flex;align-items:flex-end;height:15px;padding:0}"
-  ".si i{width:3px;margin-right:1px;border-radius:3px;background-color:#%06x}"
-  ".si .b0{height:25%%}.si .b1{height:50%%}.si .b2{height:75%%}.si .b3{height:100%%}.o30{opacity:.3}";
+// const char HTTP_HEAD_STYLE_SSI[] PROGMEM =
+//   // Signal Strength Indicator
+//   ".si{display:inline-flex;align-items:flex-end;height:15px;padding:0}"
+//   ".si i{width:3px;margin-right:1px;border-radius:3px;background-color:#%06x}"
+//   ".si .b0{height:25%%}.si .b1{height:50%%}.si .b2{height:75%%}.si .b3{height:100%%}.o30{opacity:.3}";
 
-const char HTTP_HEAD_STYLE3[] PROGMEM =
+const char HTTP_HEAD_STYLE3_MINIMAL[] PROGMEM =
   "</style>"
 
   "</head>"
   "<body>"
   "<div style='text-align:left;display:inline-block;color:#%06x;min-width:340px;'>"  // COLOR_TEXT
-#ifdef FIRMWARE_MINIMAL
   "<div style='text-align:center;color:#%06x;'><h3>" D_MINIMAL_FIRMWARE_PLEASE_UPGRADE "</h3></div>"  // COLOR_TEXT_WARNING
-#endif
-  "<div style='text-align:center;color:#%06x;'><noscript>" D_NOSCRIPT "<br></noscript>" // COLOR_TITLE
-  "<h3>%s " D_MODULE "</h3>"
+  "<div style='text-align:center;color:#%06x;'><noscript>%s<br></noscript>" // COLOR_TITLE
+  "<h3>%s %s</h3>"
   "<h2>%s</h2>";
+
+// const char HTTP_HEAD_STYLE3[] PROGMEM =
+//   "</style>"
+//   "</head>"
+//   "<body>"
+//   "<div style='text-align:left;display:inline-block;color:#%06x;min-width:340px;'>"  // COLOR_TEXT
+//   "<div style='text-align:center;color:#%06x;'><noscript>%s<br></noscript>" // COLOR_TITLE
+//   "<h3>%s %s</h3>"
+//   "<h2>%s</h2>";
 
 const char HTTP_MSG_SLIDER_GRADIENT[] PROGMEM =
   "<div id='%s' class='r' style='background-image:linear-gradient(to right,%s,%s);'>"
@@ -375,14 +698,14 @@ const char HTTP_FORM_LOGIN[] PROGMEM =
   "<button>" D_OK "</button>"
   "</form></fieldset>";
 
-const char HTTP_FORM_TEMPLATE[] PROGMEM =
-  "<fieldset><legend><b>&nbsp;" D_TEMPLATE_PARAMETERS "&nbsp;</b></legend>"
-  "<form method='get' action='tp'>";
-const char HTTP_FORM_TEMPLATE_FLAG[] PROGMEM =
-  "<p></p>"  // Keep close so do not use <br>
-  "<fieldset><legend><b>&nbsp;" D_TEMPLATE_FLAGS "&nbsp;</b></legend><p>"
-//  "<label><input id='c0' name='c0' type='checkbox'><b>" D_OPTION_TEXT "</b></label><br>"
-  "</p></fieldset>";
+// const char HTTP_FORM_TEMPLATE[] PROGMEM =
+//   "<fieldset><legend><b>&nbsp;" D_TEMPLATE_PARAMETERS "&nbsp;</b></legend>"
+//   "<form method='get' action='tp'>";
+// const char HTTP_FORM_TEMPLATE_FLAG[] PROGMEM =
+//   "<p></p>"  // Keep close so do not use <br>
+//   "<fieldset><legend><b>&nbsp;" D_TEMPLATE_FLAGS "&nbsp;</b></legend><p>"
+// //  "<label><input id='c0' name='c0' type='checkbox'><b>" D_OPTION_TEXT "</b></label><br>"
+//   "</p></fieldset>";
 
 const char HTTP_FORM_MODULE[] PROGMEM =
   "<fieldset><legend><b>&nbsp;" D_MODULE_PARAMETERS "&nbsp;</b></legend>"
@@ -390,15 +713,15 @@ const char HTTP_FORM_MODULE[] PROGMEM =
   "<p></p><b>" D_MODULE_TYPE "</b> (%s)<br><select id='g99'></select><br>"
   "<br><table>";
 
-const char HTTP_FORM_WIFI[] PROGMEM =
-  "<fieldset><legend><b>&nbsp;" D_WIFI_PARAMETERS "&nbsp;</b></legend>"
-  "<form method='get' action='wi'>"
-  "<p><b>" D_AP1_SSID "</b> (" STA_SSID1 ")<br><input id='s1' placeholder=\"" STA_SSID1 "\" value=\"%s\"></p>"  // Need \" instead of ' to be able to use ' in text (#8489)
-  "<p><label><b>" D_AP1_PASSWORD "</b><input type='checkbox' onclick='sp(\"p1\")'></label><br><input id='p1' type='password' placeholder=\"" D_AP1_PASSWORD "\" value=\"" D_ASTERISK_PWD "\"></p>"
-  "<p><b>" D_AP2_SSID "</b> (" STA_SSID2 ")<br><input id='s2' placeholder=\"" STA_SSID2 "\" value=\"%s\"></p>"
-  "<p><label><b>" D_AP2_PASSWORD "</b><input type='checkbox' onclick='sp(\"p2\")'></label><br><input id='p2' type='password' placeholder=\"" D_AP2_PASSWORD "\" value=\"" D_ASTERISK_PWD "\"></p>"
-  "<p><b>" D_HOSTNAME "</b> (%s)<br><input id='h' placeholder=\"%s\" value=\"%s\"></p>"
-  "<p><b>" D_CORS_DOMAIN "</b><input id='c' placeholder=\"" CORS_DOMAIN "\" value=\"%s\"></p>";
+// const char HTTP_FORM_WIFI[] PROGMEM =
+//   "<fieldset><legend><b>&nbsp;" D_WIFI_PARAMETERS "&nbsp;</b></legend>"
+//   "<form method='get' action='wi'>"
+//   "<p><b>" D_AP1_SSID "</b> (" STA_SSID1 ")<br><input id='s1' placeholder=\"" STA_SSID1 "\" value=\"%s\"></p>"  // Need \" instead of ' to be able to use ' in text (#8489)
+//   "<p><label><b>" D_AP1_PASSWORD "</b><input type='checkbox' onclick='sp(\"p1\")'></label><br><input id='p1' type='password' placeholder=\"" D_AP1_PASSWORD "\" value=\"" D_ASTERISK_PWD "\"></p>"
+//   "<p><b>" D_AP2_SSID "</b> (" STA_SSID2 ")<br><input id='s2' placeholder=\"" STA_SSID2 "\" value=\"%s\"></p>"
+//   "<p><label><b>" D_AP2_PASSWORD "</b><input type='checkbox' onclick='sp(\"p2\")'></label><br><input id='p2' type='password' placeholder=\"" D_AP2_PASSWORD "\" value=\"" D_ASTERISK_PWD "\"></p>"
+//   "<p><b>" D_HOSTNAME "</b> (%s)<br><input id='h' placeholder=\"%s\" value=\"%s\"></p>"
+//   "<p><b>" D_CORS_DOMAIN "</b><input id='c' placeholder=\"" CORS_DOMAIN "\" value=\"%s\"></p>";
 
 const char HTTP_FORM_LOG1[] PROGMEM =
   "<fieldset><legend><b>&nbsp;" D_LOGGING_PARAMETERS "&nbsp;</b>"
@@ -429,24 +752,24 @@ const char HTTP_FORM_END[] PROGMEM =
   "<button name='save' type='submit' class='button bgrn'>" D_SAVE "</button>"
   "</form></fieldset>";
 
-const char HTTP_FORM_RST[] PROGMEM =
-  "<div id='f1' style='display:block;'>"
-  "<fieldset><legend><b>&nbsp;" D_RESTORE_CONFIGURATION "&nbsp;</b></legend>";
-const char HTTP_FORM_UPG[] PROGMEM =
-  "<div id='f1' style='display:block;'>"
-  "<fieldset><legend><b>&nbsp;" D_UPGRADE_BY_WEBSERVER "&nbsp;</b></legend>"
-  "<form method='get' action='u1'>"
-  "<br><b>" D_OTA_URL "</b><br><input id='o' placeholder=\"OTA_URL\" value=\"%s\"><br>"
-  "<br><button type='submit'>" D_START_UPGRADE "</button></form>"
-  "</fieldset><br><br>"
-  "<fieldset><legend><b>&nbsp;" D_UPGRADE_BY_FILE_UPLOAD "&nbsp;</b></legend>";
-const char HTTP_FORM_RST_UPG[] PROGMEM =
-  "<form method='post' action='u2' enctype='multipart/form-data'>"
-  "<br><input type='file' name='u2'><br>"
-  "<br><button type='submit' onclick='eb(\"f1\").style.display=\"none\";eb(\"f2\").style.display=\"block\";this.form.submit();'>" D_START " %s</button></form>"
-  "</fieldset>"
-  "</div>"
-  "<div id='f2' style='display:none;text-align:center;'><b>" D_UPLOAD_STARTED " ...</b></div>";
+// const char HTTP_FORM_RST[] PROGMEM =
+//   "<div id='f1' style='display:block;'>"
+//   "<fieldset><legend><b>&nbsp;" D_RESTORE_CONFIGURATION "&nbsp;</b></legend>";
+// const char HTTP_FORM_UPG[] PROGMEM =
+//   "<div id='f1' style='display:block;'>"
+//   "<fieldset><legend><b>&nbsp;" D_UPGRADE_BY_WEBSERVER "&nbsp;</b></legend>"
+//   "<form method='get' action='u1'>"
+//   "<br><b>" D_OTA_URL "</b><br><input id='o' placeholder=\"OTA_URL\" value=\"%s\"><br>"
+//   "<br><button type='submit'>" D_START_UPGRADE "</button></form>"
+//   "</fieldset><br><br>"
+//   "<fieldset><legend><b>&nbsp;" D_UPGRADE_BY_FILE_UPLOAD "&nbsp;</b></legend>";
+// const char HTTP_FORM_RST_UPG[] PROGMEM =
+//   "<form method='post' action='u2' enctype='multipart/form-data'>"
+//   "<br><input type='file' name='u2'><br>"
+//   "<br><button type='submit' onclick='eb(\"f1\").style.display=\"none\";eb(\"f2\").style.display=\"block\";this.form.submit();'>" D_START " %s</button></form>"
+//   "</fieldset>"
+//   "</div>"
+//   "<div id='f2' style='display:none;text-align:center;'><b>" D_UPLOAD_STARTED " ...</b></div>";
 
 const char HTTP_FORM_CMND[] PROGMEM =
   "<br><textarea readonly id='t1' cols='340' wrap='off'></textarea><br><br>"
@@ -875,17 +1198,20 @@ void WSContentSendStyle_P(const char* formatP, ...)
 
     _WSContentSendBuffer();
   }
-  WSContentSend_P(HTTP_HEAD_STYLE3, WebColor(COL_TEXT),
+  WSContentSend_P(
 #ifdef FIRMWARE_MINIMAL
+    HTTP_HEAD_STYLE3_MINIMAL, WebColor(COL_TEXT),
     WebColor(COL_TEXT_WARNING),
+#else
+    msg[HTTP_HEAD_STYLE3], WebColor(COL_TEXT),
 #endif
-    WebColor(COL_TITLE),
+    WebColor(COL_TITLE), PSTR(D_NOSCRIPT),
 #ifdef LANGUAGE_MODULE_NAME
-    "", ModuleName().c_str()
+    PSTR(D_MODULE), ModuleName().c_str(),
 #else // LANGUAGE_MODULE_NAME
-    ModuleName().c_str(), SettingsText(SET_DEVICENAME)
+    ModuleName().c_str(), PSTR(D_MODULE),
 #endif // LANGUAGE_MODULE_NAME
-  );
+    SettingsText(SET_DEVICENAME));
 
   if (Settings.flag3.gui_hostname_ip) {                // SetOption53 - Show hostanme and IP address in GUI main menu
     bool lip = (static_cast<uint32_t>(WiFi.localIP()) != 0);
@@ -1549,14 +1875,15 @@ void HandleTemplateConfiguration(void)
 
   AddLog_P(LOG_LEVEL_DEBUG, PSTR(D_LOG_HTTP D_CONFIGURE_TEMPLATE));
 
+  UnishoxStrings msg(HTTP_TEMPLATE);
   WSContentStart_P(PSTR(D_CONFIGURE_TEMPLATE));
   WSContentSend_P(HTTP_SCRIPT_MODULE_TEMPLATE);
 
-  WSContentSend_P(HTTP_SCRIPT_TEMPLATE);
+  WSContentSend_P(msg[HTTP_SCRIPT_TEMPLATE]);
 
   WSContentSendNiceLists(1);
 
-  WSContentSend_P(HTTP_SCRIPT_TEMPLATE2);
+  WSContentSend_P(msg[HTTP_SCRIPT_TEMPLATE2], MAX_USER_PINS);
 
 #ifdef ESP8266
 #ifdef USE_ADC
@@ -1565,33 +1892,31 @@ void HandleTemplateConfiguration(void)
 #endif  // USE_ADC
 #endif  // ESP8266
 
-  WSContentSend_P(HTTP_SCRIPT_TEMPLATE4);
+  WSContentSend_P(msg[HTTP_SCRIPT_TEMPLATE4], GPIO_FLAG_USED, USER_MODULE);
   for (uint32_t i = 0; i < sizeof(kModuleNiceList); i++) {  // "}2'%d'>%s (%d)}3" - "}2'0'>Sonoff Basic (1)}3"
     uint32_t midx = pgm_read_byte(kModuleNiceList + i);
     WSContentSend_P(HTTP_MODULE_TEMPLATE_REPLACE_INDEX, midx, AnyModuleName(midx).c_str(), midx +1);
   }
-  WSContentSend_P(HTTP_SCRIPT_TEMPLATE5);
+  WSContentSend_P(msg[HTTP_SCRIPT_TEMPLATE5], WEMOS_MODULE, USER_MODULE);
 
   WSContentSendStyle();
-  WSContentSend_P(HTTP_FORM_TEMPLATE);
+  WSContentSend_P(msg[HTTP_FORM_TEMPLATE], PSTR(D_TEMPLATE_PARAMETERS));
   WSContentSend_P(HTTP_TABLE100);
-  WSContentSend_P(PSTR("<tr><td><b>" D_TEMPLATE_NAME "</b></td><td style='width:200px'><input id='s1' placeholder='" D_TEMPLATE_NAME "'></td></tr>"
-                       "<tr><td><b>" D_BASE_TYPE "</b></td><td><select id='g99' onchange='st(this.value)'></select></td></tr>"
-                       "</table>"
-                       "<hr/>"));
+  WSContentSend_P(msg[HTTP_FORM_TEMPLATE6], PSTR(D_TEMPLATE_NAME), PSTR(D_TEMPLATE_NAME), PSTR(D_BASE_TYPE));
   WSContentSend_P(HTTP_TABLE100);
   for (uint32_t i = 0; i < MAX_GPIO_PIN; i++) {
     if (!FlashPin(i)) {
-      WSContentSend_P(PSTR("<tr><td><b><font color='#%06x'>" D_GPIO "%d</font></b></td><td%s><select id='g%d' onchange='ot(%d,this.value)'></select></td>"),
-        ((9==i)||(10==i)) ? WebColor(COL_TEXT_WARNING) : WebColor(COL_TEXT), i, (0==i) ? " style='width:150px'" : "", i, i);
-      WSContentSend_P(PSTR("<td style='width:50px'><select id='h%d'></select></td></tr>"), i);
+      WSContentSend_P(msg[HTTP_FORM_TEMPLATE7],
+        ((9==i)||(10==i)) ? WebColor(COL_TEXT_WARNING) : WebColor(COL_TEXT), PSTR(D_GPIO),
+        i, (0==i) ? " style='width:150px'" : "", i, i);
+      WSContentSend_P(msg[HTTP_FORM_TEMPLATE8], i);
     }
   }
   WSContentSend_P(PSTR("</table>"));
 
   gpio_flag flag = ModuleFlag();
   if (flag.data) {
-    WSContentSend_P(HTTP_FORM_TEMPLATE_FLAG);
+    WSContentSend_P(msg[HTTP_FORM_TEMPLATE_FLAG], PSTR(D_TEMPLATE_FLAGS));
   }
 
   WSContentSend_P(HTTP_FORM_END);
@@ -1775,10 +2100,12 @@ void HandleWifiConfiguration(void)
     return;
   }
 
+  UnishoxStrings msg(HTTP_WIFI_CONF);
   WSContentStart_P(PSTR(D_CONFIGURE_WIFI), !WifiIsInManagerMode());
-  WSContentSend_P(HTTP_SCRIPT_WIFI);
+  WSContentSend_P(msg[HTTP_SCRIPT_WIFI]);
 #ifdef USE_ENHANCED_GUI_WIFI_SCAN
-  WSContentSendStyle_P(HTTP_HEAD_STYLE_SSI, WebColor(COL_TEXT));
+  UnishoxStrings msg_e(HTTP_WIFI_CONF_ENHANCED);
+  WSContentSendStyle_P(msg_e[HTTP_HEAD_STYLE_SSI], WebColor(COL_TEXT));
 #else
   WSContentSendStyle();
 #endif  // USE_ENHANCED_GUI_WIFI_SCAN
@@ -1822,7 +2149,7 @@ void HandleWifiConfiguration(void)
               ssid.c_str(), WiFi.BSSIDstr(indices[i]).c_str(), WiFi.channel(indices[i]), rssi);
 
             // Print SSID
-            WSContentSend_P(PSTR("<div><a href='#p' onclick='c(this)'>%s</a><br>"), HtmlEscape(ssid).c_str());
+            WSContentSend_P(msg_e[HTTP_PRINT_SSID], HtmlEscape(ssid).c_str());
 
             String nextSSID = "";
             // Handle all APs with the same SSID
@@ -1834,16 +2161,16 @@ void HandleWifiConfiguration(void)
                 uint32_t num_bars = changeUIntScale(rssi_as_quality, 0, 100, 0, 4);
 
                 // Print item
-                WSContentSend_P(PSTR("<div title='%d dBm (%d%%)'>%s<span class='q'>(%d) <div class='si'>"),
+                WSContentSend_P(msg_e[HTTP_PRINT_ITEM],
                   rssi, rssi_as_quality,
                   WiFi.BSSIDstr(indices[j]).c_str(),
                   WiFi.channel(indices[j])
                 );
                 // Print signal strength indicator
                 for (uint32_t k = 0; k < 4; ++k) {
-                  WSContentSend_P(PSTR("<i class='b%d%s'></i>"), k, (num_bars < k) ? PSTR(" o30") : PSTR(""));
+                  WSContentSend_P(msg_e[HTTP_PRINT_SSI], k, (num_bars < k) ? PSTR(" o30") : PSTR(""));
                 }
-                WSContentSend_P(PSTR("</span></div></div>"));
+                WSContentSend_P(msg_e[HTTP_PRINT_END]);
 
                 indices[j] = n;
               }
@@ -1884,7 +2211,7 @@ void HandleWifiConfiguration(void)
             quality, rssi
           );
 */
-          WSContentSend_P(PSTR("<div><a href='#p' onclick='c(this)'>%s</a>&nbsp;(%d)&nbsp<span class='q'>%d%% (%d dBm)</span></div>"),
+          WSContentSend_P(msg[HTTP_SCRIPT_ON_CLICK],
             HtmlEscape(WiFi.SSID(indices[i])).c_str(),
             WiFi.channel(indices[i]),
             quality, rssi
@@ -1894,14 +2221,19 @@ void HandleWifiConfiguration(void)
         }
 #endif  // USE_ENHANCED_GUI_WIFI_SCAN
 
-        WSContentSend_P(PSTR("<br>"));
+        WSContentSend_P(msg[HTTP_SCRIPT_BR]);
       }
     } else {
-      WSContentSend_P(PSTR("<div><a href='/wi?scan='>" D_SCAN_FOR_WIFI_NETWORKS "</a></div><br>"));
+      WSContentSend_P(msg[HTTP_SCRIPT_SCAN], D_SCAN_FOR_WIFI_NETWORKS);
     }
 
     // As WIFI_HOSTNAME may contain %s-%04d it cannot be part of HTTP_FORM_WIFI where it will exception
-    WSContentSend_P(HTTP_FORM_WIFI, SettingsText(SET_STASSID1), SettingsText(SET_STASSID2), WIFI_HOSTNAME, WIFI_HOSTNAME, SettingsText(SET_HOSTNAME), SettingsText(SET_CORS));
+    WSContentSend_P(msg[HTTP_FORM_WIFI],
+      PSTR(D_WIFI_PARAMETERS),
+      PSTR(D_AP1_SSID), PSTR(STA_SSID1), PSTR(STA_SSID1), SettingsText(SET_STASSID1), PSTR(D_AP1_PASSWORD),
+      PSTR(D_AP2_SSID), PSTR(STA_SSID2), PSTR(STA_SSID2), SettingsText(SET_STASSID2), PSTR(D_AP2_PASSWORD),
+      PSTR(D_HOSTNAME), WIFI_HOSTNAME, WIFI_HOSTNAME, SettingsText(SET_HOSTNAME),
+      PSTR(D_CORS_DOMAIN), PSTR(CORS_DOMAIN), SettingsText(SET_CORS));
     WSContentSend_P(HTTP_FORM_END);
   }
 
@@ -2176,10 +2508,11 @@ void HandleRestoreConfiguration(void)
 
   AddLog_P(LOG_LEVEL_DEBUG, PSTR(D_LOG_HTTP D_RESTORE_CONFIGURATION));
 
+  UnishoxStrings msg(HTTP_UPGRADE);
   WSContentStart_P(PSTR(D_RESTORE_CONFIGURATION));
   WSContentSendStyle();
-  WSContentSend_P(HTTP_FORM_RST);
-  WSContentSend_P(HTTP_FORM_RST_UPG, D_RESTORE);
+  WSContentSend_P(msg[HTTP_FORM_RST], PSTR(D_RESTORE_CONFIGURATION));
+  WSContentSend_P(msg[HTTP_FORM_RST_UPG], PSTR(D_START), PSTR(D_UPGRADE), PSTR(D_UPLOAD_STARTED));
   if (WifiIsInManagerMode()) {
     WSContentSpaceButton(BUTTON_MAIN);
   } else {
@@ -2393,10 +2726,12 @@ void HandleUpgradeFirmware(void)
 
   AddLog_P(LOG_LEVEL_DEBUG, PSTR(D_LOG_HTTP D_FIRMWARE_UPGRADE));
 
+  UnishoxStrings msg(HTTP_UPGRADE);
   WSContentStart_P(PSTR(D_FIRMWARE_UPGRADE));
   WSContentSendStyle();
-  WSContentSend_P(HTTP_FORM_UPG, SettingsText(SET_OTAURL));
-  WSContentSend_P(HTTP_FORM_RST_UPG, D_UPGRADE);
+  WSContentSend_P(msg[HTTP_FORM_UPG], PSTR(D_UPGRADE_BY_WEBSERVER), PSTR(D_OTA_URL), SettingsText(SET_OTAURL),
+                  PSTR(D_START_UPGRADE), PSTR(D_UPGRADE_BY_FILE_UPLOAD));
+  WSContentSend_P(msg[HTTP_FORM_RST_UPG], PSTR(D_START), PSTR(D_UPGRADE), PSTR(D_UPLOAD_STARTED));
   WSContentSpaceButton(BUTTON_MAIN);
   WSContentStop();
 
