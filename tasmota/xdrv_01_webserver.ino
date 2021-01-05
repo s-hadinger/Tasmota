@@ -89,16 +89,46 @@ const char HTTP_SEND_STYLE_U[] PROGMEM =
   "wl(jd);"                               // Add name='' to any id='' in input,button,textarea,select
   "</script>"
   "\0"
-
+  //=HTTP_HEAD_STYLE1
+  "<style>"
+  "div,fieldset,input,select{padding:5px;font-size:1em;}"
+  "fieldset{background:#%06x;}"  // COLOR_FORM, Also update HTTP_TIMER_STYLE
+  "p{margin:0.5em 0;}"
+  "input{width:100%%;box-sizing:border-box;-webkit-box-sizing:border-box;-moz-box-sizing:border-box;background:#%06x;color:#%06x;}"  // COLOR_INPUT, COLOR_INPUT_TEXT
+  "input[type=checkbox],input[type=radio]{width:1em;margin-right:6px;vertical-align:-1px;}"
+  "input[type=range]{width:99%%;}"
+  "select{width:100%%;background:#%06x;color:#%06x;}"  // COLOR_INPUT, COLOR_INPUT_TEXT
+  "textarea{resize:vertical;width:98%%;height:318px;padding:5px;overflow:auto;background:#%06x;color:#%06x;}"  // COLOR_CONSOLE, COLOR_CONSOLE_TEXT
+  "body{text-align:center;font-family:verdana,sans-serif;background:#%06x;}"  // COLOR_BACKGROUND
+  "td{padding:0px;}"
+  "\0"
+  //=HTTP_HEAD_STYLE2
+  "button{border:0;border-radius:0.3rem;background:#%06x;color:#%06x;line-height:2.4rem;font-size:1.2rem;width:100%%;-webkit-transition-duration:0.4s;transition-duration:0.4s;cursor:pointer;}"  // COLOR_BUTTON, COLOR_BUTTON_TEXT
+  "button:hover{background:#%06x;}"  // COLOR_BUTTON_HOVER
+  ".bred{background:#%06x;}"  // COLOR_BUTTON_RESET
+  ".bred:hover{background:#%06x;}"  // COLOR_BUTTON_RESET_HOVER
+  ".bgrn{background:#%06x;}"  // COLOR_BUTTON_SAVE
+  ".bgrn:hover{background:#%06x;}"  // COLOR_BUTTON_SAVE_HOVER
+  "a{color:#%06x;text-decoration:none;}"  // COLOR_BUTTON
+  ".p{float:left;text-align:left;}"
+  ".q{float:right;text-align:right;}"
+  ".r{border-radius:0.3em;padding:2px;margin:6px 2px;}"
+  "\0"
+  //=HTTP_HEAD_ERROR_TOO_LONG
+  "ERROR: WSContentSendStyle_P size %d > mqtt_data size %d. Start of data [%s...]"
+  "\0"
   ;
 ///////////////////////////////////////////////////////
 enum {
   HTTP_SCRIPT_COUNTER=0,
   HTTP_HEAD_LAST_SCRIPT=100,
+  HTTP_HEAD_STYLE1=327,
+  HTTP_HEAD_STYLE2=919,
+  HTTP_HEAD_ERROR_TOO_LONG=1398,
 };
 
-// Compressed from 327 to 265, -19.0%
-const char HTTP_SEND_STYLE[] PROGMEM = "\x00\x15\x33\xBF\xA0\xF8\xF8\x72\x7D\x9E\x08\xC0\xBE\x0E\xB7\x39\x0B\x3B\xA7\x78"
+// Compressed from 1477 to 859, -41.8%
+const char HTTP_SEND_STYLE[] PROGMEM = "\x00\x5D\x33\xBF\xA0\xF8\xF8\x72\x7D\x9E\x08\xC0\xBE\x0E\xB7\x39\x0B\x3B\xA7\x78"
                              "\xF6\xE9\x83\xBA\x1F\x1F\x87\xC3\x8C\xEF\x1E\xD2\x63\x8E\xE9\xF7\x47\xD9\xDE\x3A"
                              "\x6F\x73\xF9\x0A\x2A\x2B\x21\xA4\x11\xF0\xFB\x3E\xBC\x8F\xB3\xB6\x1F\x1D\xB3\xED"
                              "\x1F\x5E\x3E\xCF\x01\xF1\xD6\x75\x9E\x3C\xE8\xAB\x46\xBC\x17\x47\x74\x59\xD4\x72"
@@ -111,7 +141,68 @@ const char HTTP_SEND_STYLE[] PROGMEM = "\x00\x15\x33\xBF\xA0\xF8\xF8\x72\x7D\x9E
                              "\xE8\x2A\x2B\xFC\x57\x55\xFD\x1C\x2E\x99\xDD\x3E\xF4\x43\xEC\xEF\x1F\xA3\xF4\x77"
                              "\x4F\xE0\x27\x57\xEB\x1A\xCF\xB3\xBC\x77\x8E\xF1\xDA\x04\x1C\x87\x44\x3E\xCF\x7C"
                              "\xF3\x04\x7C\xB0\xF0\x7B\xA8\xED\x9D\xB0\x41\xE0\xD4\xD6\x21\xDE\x3C\x1E\x87\x67"
-                             "\x83\xFE\x8C\xA3\xF2\x70\xBE";
+                             "\x83\xFE\x8C\xA3\xF2\x70\xBE\x7A\x7A\x8C\x82\x67\xE0\x9A\x66\x75\x18\xD6\x10\x9E"
+                             "\x74\x75\x02\x0F\x04\x2A\x01\x83\xC0\x81\xED\x19\x62\x09\xBC\x3C\x79\x9C\xD2\x18"
+                             "\x6C\x3C\x18\xCE\xA3\xAF\xDA\x6D\x67\x99\xC8\x4C\x69\xE0\xF7\x02\x1E\x1A\x7B\x47"
+                             "\x58\x66\x83\xDF\xC1\x7C\x21\xE6\x79\x1F\x47\x1F\x11\xB0\xF0\x7B\x86\x1E\xD1\xB7"
+                             "\xF1\xED\xE3\xCC\xE3\x3A\x69\x31\xA8\xE3\x3C\x1E\xE2\xDE\x18\x2E\x8F\x68\xFE\x89"
+                             "\x42\x8F\x33\x91\xB3\xE8\xFA\x3C\x10\xEC\x36\x1D\x7E\xD3\x6E\xF0\xF1\xE6\x3B\x3E"
+                             "\x23\xF9\xD6\x3B\x0D\x87\x83\xAC\x7D\x8E\x34\xDA\x3A\xC1\x4A\xD0\xDC\x36\x82\x95"
+                             "\x70\x4C\xD8\x43\xC0\xB3\xE0\x87\xB6\xEF\x0C\x17\x47\xBD\x46\x43\x19\xF0\x31\x4C"
+                             "\x33\x41\xD8\x6C\x3D\xF0\x41\xE1\x14\x10\x68\xFE\xC4\xDC\x3D\xF0\x43\xDF\x18\xD3"
+                             "\xC0\x20\xF0\x38\x75\xFF\x47\x85\x51\xE6\x73\x88\x61\xB0\xF0\x66\xFF\x5A\x1D\x84"
+                             "\x75\xD8\x5A\x3D\xC7\x99\xD6\x72\x10\xC0\x49\xCC\xFF\x7C\x3C\xC1\x0F\x1E\x38\x91"
+                             "\xF4\x7D\x1E\x0F\x71\x02\x17\x13\xE0\x91\xC2\x88\x2C\x70\x04\x08\x7C\xC6\x9E\xDF"
+                             "\xBF\x69\xB5\x9E\x60\x87\xA8\x1E\x01\x0B\x32\x39\xF3\xE8\xFA\x3C\x10\xA7\xA3\xC2"
+                             "\xA8\xF3\x39\x73\xE4\x30\xD8\x78\x04\x7E\x3E\xB0\xCD\xFC\xC0\x58\x3E\x79\xD8\xBA"
+                             "\xC0\x5A\xD1\x47\x60\x86\x47\xB6\x99\xB2\x81\x0B\x82\xA0\xDF\x53\xF8\x20\xF2\x7A"
+                             "\x62\xC6\xE8\x46\x47\x99\x9B\xF8\x97\xD6\x75\x7A\xFB\xC7\x5F\x9F\xF4\xC0\x26\xE6"
+                             "\x07\xBA\x84\x04\x4E\x5F\x4E\x32\x18\x6C\x3C\x1E\xE9\xC2\xF8\x20\xF4\x15\x8F\x68"
+                             "\x20\xF1\xE8\x79\x9C\x67\x82\x04\x2E\x3F\x7F\x62\x68\xBF\x1E\x67\x19\xD2\xCB\xEC"
+                             "\x68\x2C\xEF\x01\x6F\x33\xAC\x10\xB8\x41\x39\x47\x4C\x2F\xB1\xA0\x8F\xCE\xA1\xD0"
+                             "\xE5\x17\xD8\xD0\x42\xE1\xAC\x10\x78\xAE\x04\x3E\x63\x6B\xF7\xDE\xDA\xDC\xE3\xAC"
+                             "\x41\x7F\xBA\xDC\xE3\xCC\xE3\x3A\x61\x78\xF0\x0A\x95\x43\x17\xFF\x67\xCF\x31\x99"
+                             "\xBD\x4F\xE7\x83\xDC\x08\x3C\x0C\x1E\x62\xB0\xCD\xFC\x13\xBA\x06\x07\x41\xDF\x62"
+                             "\x02\x9D\x40\x56\xC4\x87\xBF\xC0\xA7\x50\x15\x31\x2B\x3D\xA0\x8F\xC3\x7D\x33\x65"
+                             "\x1D\x62\x30\xF0\x10\xB8\x1A\xEC\xE6\x78\x3D\xC7\x41\x87\xB4\xC0\x59\x74\x79\x84"
+                             "\xCC\x50\x20\xE0\x2A\x01\x83\xC9\x48\x4C\xC5\x1E\x0F\x71\xD0\xD4\x08\x56\xFF\xA3"
+                             "\xC2\x81\x22\xE0\x20\xCD\x3D\xC7\x4F\x82\x17\x20\x60\x8D\xC7\xD3\x1A\x08\x9C\xD7"
+                             "\x9C\xA2\x18\x6C\x04\x2E\x83\x09\xE6\x73\x88\x61\xB1\x1C\xA2\x18\x6C\x3C\x1E\xE9"
+                             "\xC2\xF9\x32\xF9\x7C\xB0\xBE\x79\xA2\x1F\x2F\x10\x79\xD4\xFA\x8B\xCF\x84\x2F\x51"
+                             "\x90\x4C\xFD\x90\xC5\xED\x36\xB4\x7D\x08\x8F\xC4\x34\xD5\x54\x7E\xC4\xBA\xB0\x43"
+                             "\xA0\x74\x45\xEA\xBF\xD2\xC3\x08\x4B\xAB\x47\xBC\x7D\x78\xE8\x74\x3A\x1E\xFC\xE1"
+                             "\x7C";
+///////////////////////////////////////////////////////
+
+
+///////////////////////////////////////////////////////
+const char HTTP_SEND_STYLE_ZIGBEE_U[] PROGMEM =
+  //=HTTP_HEAD_STYLE_ZIGBEE
+  ".bt{box-sizing:border-box;position:relative;display:inline-block;width:20px;height:12px;border:2px solid;border-radius:3px;margin-left:-3px}"
+  ".bt::after,.bt::before{content:\"\";display:block;box-sizing:border-box;position:absolute;height:6px;background:currentColor;top:1px}"
+  ".bt::before{right:-4px;border-radius:3px;width:4px}"
+  ".bt::after{width:var(--bl,14px);left:1px}"
+  "\0"
+  ;
+///////////////////////////////////////////////////////
+enum {
+  HTTP_HEAD_STYLE_ZIGBEE=0,
+};
+
+// Compressed from 364 to 242, -33.5%
+const char HTTP_SEND_STYLE_ZIGBEE[] PROGMEM = "\x00\x17\x3A\x0E\xA3\xDA\x3B\x0D\x87\x5F\xB4\xDB\xBC\x3C\x79\x8E\xCF\x88\xFE\x75"
+                             "\x8E\xC3\x61\xE0\x66\x7B\x6B\x73\x8F\x3F\xB0\xAE\xB4\xCD\x9E\x04\xDF\x0C\x0A\xCC"
+                             "\x8F\x3D\xE0\xB7\x99\xD6\x38\x2C\x0C\xD0\xF0\x3F\xA2\x50\xA3\xCC\xE5\x32\x18\x6C"
+                             "\x3C\x0A\x7A\x3C\x2A\x2B\x8F\x33\x92\x88\x61\xB0\xF0\x08\x39\x29\xE6\x72\x88\x61"
+                             "\xB1\x7B\x02\xD1\x01\x0A\x69\xD7\xFB\x13\x45\xF8\xF3\x39\x64\x30\xD8\x78\x1B\x7F"
+                             "\x1E\xDE\x3A\xC2\x66\x28\xF3\x3A\xCE\x59\x0C\x36\x1E\xE3\xA0\xEA\x3C\xCF\x3B\x31"
+                             "\x4F\xE7\x51\xD0\x75\x1E\x67\x98\xE6\x63\x3E\xCF\x68\x79\xD4\xFA\x8F\x33\xD8\x7B"
+                             "\x01\x13\x5E\x04\x1D\x5C\x16\xB8\x14\xB1\xDE\xC0\x85\xD3\x04\x3D\xD0\xE7\x10\xC3"
+                             "\x61\xE0\x75\x86\x68\x3D\xFC\x17\xC2\x1E\x61\x8B\xFF\xDF\x51\x07\x81\x67\xCF\x15"
+                             "\x83\x0F\x33\x90\x81\x0F\x5F\x04\x2D\x53\xFA\x3C\x2A\x2B\x8F\x33\xAC\xE6\x10\x22"
+                             "\x70\x54\x08\xFC\x0C\x82\x0F\x0A\x67\x30\x81\x23\x81\x23\xDA\x08\x34\x4C\xEF\xE7"
+                             "\x74\xEB\x3A\xC7\x04\x75\x1C\x98\x43\x0D\x87\x78\xF0\x13\x31\x47\x99\xC8\x43\x0D"
+                             "\x87\xBA\x70\xBE";
 ///////////////////////////////////////////////////////
 
 // const char HTTP_SCRIPT_COUNTER[] PROGMEM =
@@ -225,12 +316,12 @@ const char HTTP_SCRIPT_INFO_END[] PROGMEM =
 
 #ifdef USE_UNISHOX_COMPRESSION
   // #include "./html_compressed/HTTP_HEAD_LAST_SCRIPT.h"
-  #include "./html_compressed/HTTP_HEAD_STYLE1.h"
-  #include "./html_compressed/HTTP_HEAD_STYLE2.h"
+  // #include "./html_compressed/HTTP_HEAD_STYLE1.h"
+  // #include "./html_compressed/HTTP_HEAD_STYLE2.h"
 #else
   // #include "./html_uncompressed/HTTP_HEAD_LAST_SCRIPT.h"
-  #include "./html_uncompressed/HTTP_HEAD_STYLE1.h"
-  #include "./html_uncompressed/HTTP_HEAD_STYLE2.h"
+  // #include "./html_uncompressed/HTTP_HEAD_STYLE1.h"
+  // #include "./html_uncompressed/HTTP_HEAD_STYLE2.h"
 #endif
 
 
@@ -261,11 +352,7 @@ const char HTTP_HEAD_STYLE3[] PROGMEM =
   "<div style='text-align:center;color:#%06x;'><h3>" D_MINIMAL_FIRMWARE_PLEASE_UPGRADE "</h3></div>"  // COLOR_TEXT_WARNING
 #endif
   "<div style='text-align:center;color:#%06x;'><noscript>" D_NOSCRIPT "<br></noscript>" // COLOR_TITLE
-#ifdef LANGUAGE_MODULE_NAME
-  "<h3>" D_MODULE " %s</h3>"
-#else
   "<h3>%s " D_MODULE "</h3>"
-#endif
   "<h2>%s</h2>";
 
 const char HTTP_MSG_SLIDER_GRADIENT[] PROGMEM =
@@ -761,13 +848,16 @@ void WSContentSendStyle_P(const char* formatP, ...)
   }
   WSContentSend_P(msg[HTTP_HEAD_LAST_SCRIPT]);
 
-  WSContentSend_P(HTTP_HEAD_STYLE1, WebColor(COL_FORM), WebColor(COL_INPUT), WebColor(COL_INPUT_TEXT), WebColor(COL_INPUT),
+  WSContentSend_P(msg[HTTP_HEAD_STYLE1], WebColor(COL_FORM), WebColor(COL_INPUT), WebColor(COL_INPUT_TEXT), WebColor(COL_INPUT),
                   WebColor(COL_INPUT_TEXT), WebColor(COL_CONSOLE), WebColor(COL_CONSOLE_TEXT), WebColor(COL_BACKGROUND));
-  WSContentSend_P(HTTP_HEAD_STYLE2, WebColor(COL_BUTTON), WebColor(COL_BUTTON_TEXT), WebColor(COL_BUTTON_HOVER),
+  WSContentSend_P(msg[HTTP_HEAD_STYLE2], WebColor(COL_BUTTON), WebColor(COL_BUTTON_TEXT), WebColor(COL_BUTTON_HOVER),
                   WebColor(COL_BUTTON_RESET), WebColor(COL_BUTTON_RESET_HOVER), WebColor(COL_BUTTON_SAVE), WebColor(COL_BUTTON_SAVE_HOVER),
                   WebColor(COL_BUTTON));
 #ifdef USE_ZIGBEE
-  WSContentSend_P(HTTP_HEAD_STYLE_ZIGBEE);
+  {
+    UnishoxStrings msg_z(HTTP_SEND_STYLE_ZIGBEE);
+    WSContentSend_P(msg_z[HTTP_HEAD_STYLE_ZIGBEE]);
+  }
 #endif // USE_ZIGBEE
   if (formatP != nullptr) {
     // This uses char strings. Be aware of sending %% if % is needed
@@ -779,7 +869,7 @@ void WSContentSendStyle_P(const char* formatP, ...)
 #ifdef DEBUG_TASMOTA_CORE
   if (len > (sizeof(TasmotaGlobal.mqtt_data) -1)) {
     TasmotaGlobal.mqtt_data[33] = '\0';
-    DEBUG_CORE_LOG(PSTR("ERROR: WSContentSendStyle_P size %d > mqtt_data size %d. Start of data [%s...]"), len, sizeof(TasmotaGlobal.mqtt_data), TasmotaGlobal.mqtt_data);
+    DEBUG_CORE_LOG(msg[HTTP_HEAD_ERROR_TOO_LONG], len, sizeof(TasmotaGlobal.mqtt_data), TasmotaGlobal.mqtt_data);
   }
 #endif
 
@@ -790,7 +880,13 @@ void WSContentSendStyle_P(const char* formatP, ...)
     WebColor(COL_TEXT_WARNING),
 #endif
     WebColor(COL_TITLE),
-    ModuleName().c_str(), SettingsText(SET_DEVICENAME));
+#ifdef LANGUAGE_MODULE_NAME
+    "", ModuleName().c_str()
+#else // LANGUAGE_MODULE_NAME
+    ModuleName().c_str(), SettingsText(SET_DEVICENAME)
+#endif // LANGUAGE_MODULE_NAME
+  );
+
   if (Settings.flag3.gui_hostname_ip) {                // SetOption53 - Show hostanme and IP address in GUI main menu
     bool lip = (static_cast<uint32_t>(WiFi.localIP()) != 0);
     bool sip = (static_cast<uint32_t>(WiFi.softAPIP()) != 0);
