@@ -27,6 +27,8 @@
 
 #define XDRV_01                               1
 
+#include "UnishoxStrings.h"
+
 #ifndef WIFI_SOFT_AP_CHANNEL
 #define WIFI_SOFT_AP_CHANNEL                  1          // Soft Access Point Channel number between 1 and 11 as used by WifiManager web GUI
 #endif
@@ -61,18 +63,67 @@ enum UploadTypes { UPL_TASMOTA, UPL_SETTINGS, UPL_EFM8BB1, UPL_TASMOTACLIENT, UP
   #endif
 #endif
 
-
-
-const char HTTP_SCRIPT_COUNTER[] PROGMEM =
+///////////////////////////////////////////////////////
+const char HTTP_SEND_STYLE_U[] PROGMEM =
+  //=HTTP_SCRIPT_COUNTER
   "var cn=180;"                           // seconds
   "function u(){"
     "if(cn>=0){"
-      "eb('t').innerHTML='" D_RESTART_IN " '+cn+' " D_SECONDS "';"
+      "eb('t').innerHTML='%s '+cn+' %s';"
       "cn--;"
       "setTimeout(u,1000);"
     "}"
   "}"
-  "wl(u);";
+  "wl(u);"
+  "\0"
+  //=HTTP_HEAD_LAST_SCRIPT
+  "function jd(){"                        // Add label name='' based on provided id=''
+    "var t=0,i=document.querySelectorAll('input,button,textarea,select');"
+    "while(i.length>=t){"
+      "if(i[t]){"
+        "i[t]['name']=(i[t].hasAttribute('id')&&(!i[t].hasAttribute('name')))?i[t]['id']:i[t]['name'];"
+      "}"
+      "t++;"
+    "}"
+  "}"
+  "wl(jd);"                               // Add name='' to any id='' in input,button,textarea,select
+  "</script>"
+  "\0"
+
+  ;
+///////////////////////////////////////////////////////
+enum {
+  HTTP_SCRIPT_COUNTER=0,
+  HTTP_HEAD_LAST_SCRIPT=100,
+};
+
+// Compressed from 327 to 265, -19.0%
+const char HTTP_SEND_STYLE[] PROGMEM = "\x00\x15\x33\xBF\xA0\xF8\xF8\x72\x7D\x9E\x08\xC0\xBE\x0E\xB7\x39\x0B\x3B\xA7\x78"
+                             "\xF6\xE9\x83\xBA\x1F\x1F\x87\xC3\x8C\xEF\x1E\xD2\x63\x8E\xE9\xF7\x47\xD9\xDE\x3A"
+                             "\x6F\x73\xF9\x0A\x2A\x2B\x21\xA4\x11\xF0\xFB\x3E\xBC\x8F\xB3\xB6\x1F\x1D\xB3\xED"
+                             "\x1F\x5E\x3E\xCF\x01\xF1\xD6\x75\x9E\x3C\xE8\xAB\x46\xBC\x17\x47\x74\x59\xD4\x72"
+                             "\x36\xCE\xF1\xE0\xF7\x1E\xE2\x1F\x08\xEE\x8B\x3B\xC7\x89\xC2\xF8\x22\x66\xA6\xB1"
+                             "\x0E\xE9\xDE\x3D\xA6\x77\xF5\x47\xC3\x8C\xEA\x2D\x3E\x09\x81\x8B\x1A\xFA\x8E\x86"
+                             "\xA1\x6F\xE6\x45\xE6\x13\x0E\xB3\xE5\x61\x04\x77\x4F\xBD\xE1\x82\xE8\xEA\x1C\x2E"
+                             "\xAB\x38\xEA\xA6\x6C\xAB\xFB\xB3\xAB\xCC\x26\x1D\x1F\x67\x78\xF0\x3E\x2B\x42\x67"
+                             "\x77\x4E\x81\x3E\x1E\xA1\x47\xE1\xF2\x8E\xF1\xED\xD3\x07\x77\x4F\x7A\x8F\x7C\xEF"
+                             "\x1E\xDD\x3D\xEA\x3D\xF3\xDE\x3E\xFA\xC6\xB3\xEC\xF7\xCF\x87\x77\x4F\x7A\x8F\x7C"
+                             "\xE8\x2A\x2B\xFC\x57\x55\xFD\x1C\x2E\x99\xDD\x3E\xF4\x43\xEC\xEF\x1F\xA3\xF4\x77"
+                             "\x4F\xE0\x27\x57\xEB\x1A\xCF\xB3\xBC\x77\x8E\xF1\xDA\x04\x1C\x87\x44\x3E\xCF\x7C"
+                             "\xF3\x04\x7C\xB0\xF0\x7B\xA8\xED\x9D\xB0\x41\xE0\xD4\xD6\x21\xDE\x3C\x1E\x87\x67"
+                             "\x83\xFE\x8C\xA3\xF2\x70\xBE";
+///////////////////////////////////////////////////////
+
+// const char HTTP_SCRIPT_COUNTER[] PROGMEM =
+//   "var cn=180;"                           // seconds
+//   "function u(){"
+//     "if(cn>=0){"
+//       "eb('t').innerHTML='" D_RESTART_IN " '+cn+' " D_SECONDS "';"
+//       "cn--;"
+//       "setTimeout(u,1000);"
+//     "}"
+//   "}"
+//   "wl(u);";
 
 
 #ifdef USE_UNISHOX_COMPRESSION
@@ -173,11 +224,11 @@ const char HTTP_SCRIPT_INFO_END[] PROGMEM =
 
 
 #ifdef USE_UNISHOX_COMPRESSION
-  #include "./html_compressed/HTTP_HEAD_LAST_SCRIPT.h"
+  // #include "./html_compressed/HTTP_HEAD_LAST_SCRIPT.h"
   #include "./html_compressed/HTTP_HEAD_STYLE1.h"
   #include "./html_compressed/HTTP_HEAD_STYLE2.h"
 #else
-  #include "./html_uncompressed/HTTP_HEAD_LAST_SCRIPT.h"
+  // #include "./html_uncompressed/HTTP_HEAD_LAST_SCRIPT.h"
   #include "./html_uncompressed/HTTP_HEAD_STYLE1.h"
   #include "./html_uncompressed/HTTP_HEAD_STYLE2.h"
 #endif
@@ -702,12 +753,13 @@ void WSContentStart_P(const char* title)
 
 void WSContentSendStyle_P(const char* formatP, ...)
 {
+  UnishoxStrings msg(HTTP_SEND_STYLE);
   if (WifiIsInManagerMode()) {
     if (WifiConfigCounter()) {
-      WSContentSend_P(HTTP_SCRIPT_COUNTER);
+      WSContentSend_P(msg[HTTP_SCRIPT_COUNTER], PSTR(D_RESTART_IN), PSTR(D_SECONDS));
     }
   }
-  WSContentSend_P(HTTP_HEAD_LAST_SCRIPT);
+  WSContentSend_P(msg[HTTP_HEAD_LAST_SCRIPT]);
 
   WSContentSend_P(HTTP_HEAD_STYLE1, WebColor(COL_FORM), WebColor(COL_INPUT), WebColor(COL_INPUT_TEXT), WebColor(COL_INPUT),
                   WebColor(COL_INPUT_TEXT), WebColor(COL_CONSOLE), WebColor(COL_CONSOLE_TEXT), WebColor(COL_BACKGROUND));
