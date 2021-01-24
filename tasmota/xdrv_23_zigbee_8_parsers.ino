@@ -193,7 +193,7 @@ int32_t EZ_MessageSent(int32_t res, const class SBuffer &buf) {
   uint16_t group_addr = buf.get16(13);
 
   if ((EMBER_OUTGOING_MULTICAST == message_type) && (0xFFFD == dst_addr)) {
-    AddLog_P(LOG_LEVEL_DEBUG, PSTR(D_LOG_ZIGBEE "Sniffing group 0x%04X"), group_addr);
+    AddLog(LOG_LEVEL_DEBUG, PSTR(D_LOG_ZIGBEE "Sniffing group 0x%04X"), group_addr);
   }
   return -1;    // ignore
 }
@@ -227,7 +227,7 @@ void Z_Send_State_or_Map(uint16_t shortaddr, uint8_t index, uint16_t zdo_cmd) {
 // This callback is registered to send ZbMap(s) to each device one at a time
 void Z_Map(uint16_t shortaddr, uint16_t groupaddr, uint16_t cluster, uint8_t endpoint, uint32_t value) {
   if (BAD_SHORTADDR != shortaddr) {
-    AddLog_P(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "sending `ZbMap 0x%04X`"), shortaddr);
+    AddLog(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "sending `ZbMap 0x%04X`"), shortaddr);
 #ifdef USE_ZIGBEE_ZNP
     Z_Send_State_or_Map(shortaddr, value, ZDO_MGMT_LQI_REQ);
 #endif // USE_ZIGBEE_ZNP
@@ -235,7 +235,7 @@ void Z_Map(uint16_t shortaddr, uint16_t groupaddr, uint16_t cluster, uint8_t end
     Z_Send_State_or_Map(shortaddr, value, ZDO_Mgmt_Lqi_req);
 #endif // USE_ZIGBEE_EZSP
   } else {
-    AddLog_P(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "ZbMap done"));
+    AddLog(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "ZbMap done"));
     zigbee.mapping_in_progress = false;
     zigbee.mapping_ready = true;
   }
@@ -1377,7 +1377,7 @@ void Z_WriteCIEAddress(uint16_t shortaddr, uint16_t groupaddr, uint16_t cluster,
   buf.add8(ZEUI64);
   buf.add64(localIEEEAddr);
 
-  AddLog_P(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "Writing CIE address"));
+  AddLog(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "Writing CIE address"));
   ZigbeeZCLSend_Raw(ZigbeeZCLSendMessage({
     shortaddr,
     0x0000, /* group */
@@ -1401,7 +1401,7 @@ void Z_SendCIEZoneEnrollResponse(uint16_t shortaddr, uint16_t groupaddr, uint16_
   uint8_t transacid = zigbee_devices.getNextSeqNumber(shortaddr);
   uint8_t EnrollRSP[2] = { 0x00 /* Sucess */, Z_B0(value) /* ZoneID */ };
 
-  AddLog_P(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "Sending Enroll Zone %d"), Z_B0(value));
+  AddLog(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "Sending Enroll Zone %d"), Z_B0(value));
   ZigbeeZCLSend_Raw(ZigbeeZCLSendMessage({
     shortaddr,
     0x0000, /* group */
@@ -1423,7 +1423,7 @@ void Z_SendCIEZoneEnrollResponse(uint16_t shortaddr, uint16_t groupaddr, uint16_
 void Z_AutoBind(uint16_t shortaddr, uint16_t groupaddr, uint16_t cluster, uint8_t endpoint, uint32_t value) {
   uint64_t srcLongAddr = zigbee_devices.getDeviceLongAddr(shortaddr);
 
-  AddLogZ_P(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "auto-bind `ZbBind {\"Device\":\"0x%04X\",\"Endpoint\":%d,\"Cluster\":\"0x%04X\"}`"),
+  AddLog_P(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "auto-bind `ZbBind {\"Device\":\"0x%04X\",\"Endpoint\":%d,\"Cluster\":\"0x%04X\"}`"),
                                   shortaddr, endpoint, cluster);
 #ifdef USE_ZIGBEE_ZNP
   SBuffer buf(34);
@@ -1533,7 +1533,7 @@ void Z_AutoConfigReportingForCluster(uint16_t shortaddr, uint16_t groupaddr, uin
           // encode value
           int32_t res = encodeSingleAttribute(buf, report_change, "", attr_type);
           if (res < 0) {
-            AddLog_P(LOG_LEVEL_ERROR, PSTR(D_LOG_ZIGBEE "internal error, unsupported attribute type"));
+            AddLog(LOG_LEVEL_ERROR, PSTR(D_LOG_ZIGBEE "internal error, unsupported attribute type"));
           } else {
             Z_attribute attr;
             attr.setKeyName(PSTR("ReportableChange"), true);    // true because in PMEM
@@ -1548,7 +1548,7 @@ void Z_AutoConfigReportingForCluster(uint16_t shortaddr, uint16_t groupaddr, uin
   ResponseAppend_P(PSTR("}}"));
 
   if (buf.len() > 0) {
-    AddLogZ_P(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "auto-bind `%s`"), TasmotaGlobal.mqtt_data);
+    AddLog_P(LOG_LEVEL_INFO, PSTR(D_LOG_ZIGBEE "auto-bind `%s`"), TasmotaGlobal.mqtt_data);
     ZigbeeZCLSend_Raw(ZigbeeZCLSendMessage({
       shortaddr,
       0x0000, /* group */
@@ -1654,11 +1654,11 @@ void Z_IncomingMessage(class ZCLFrame &zcl_received) {
       zcl_received.parseClusterSpecificCommand(attr_list);
     }
 
-    AddLogZ_P(LOG_LEVEL_DEBUG, PSTR(D_LOG_ZIGBEE D_JSON_ZIGBEEZCL_RAW_RECEIVED ": {\"0x%04X\":{%s}}"), srcaddr, attr_list.toString().c_str());
+    AddLog_P(LOG_LEVEL_DEBUG, PSTR(D_LOG_ZIGBEE D_JSON_ZIGBEEZCL_RAW_RECEIVED ": {\"0x%04X\":{%s}}"), srcaddr, attr_list.toString().c_str());
 
     // discard the message if it was sent by us (broadcast or group loopback)
     if (srcaddr == localShortAddr) {
-      AddLog_P(LOG_LEVEL_DEBUG, PSTR(D_LOG_ZIGBEE  "loopback message, ignoring"));
+      AddLog(LOG_LEVEL_DEBUG, PSTR(D_LOG_ZIGBEE  "loopback message, ignoring"));
       return;     // abort the rest of message management
     }
 
@@ -2139,7 +2139,7 @@ void ZCLFrame::autoResponder(const uint16_t *attr_list_ids, size_t attr_len) {
     // we have a non-empty output
 
     // log first
-    AddLogZ_P(LOG_LEVEL_INFO, PSTR("ZIG: Auto-responder: ZbSend {\"Device\":\"0x%04X\""
+    AddLog_P(LOG_LEVEL_INFO, PSTR("ZIG: Auto-responder: ZbSend {\"Device\":\"0x%04X\""
                                           ",\"Cluster\":\"0x%04X\""
                                           ",\"Endpoint\":%d"
                                           ",\"Response\":%s}"
