@@ -48,6 +48,32 @@ void checkBeTop(void) {
 }
 
 /*********************************************************************************************\
+ * Memory handler
+ * Use PSRAM if available
+\*********************************************************************************************/
+extern "C" {
+  void *berry_malloc(uint32_t size);
+  void *berry_realloc(void *ptr, size_t size);
+#ifdef USE_BERRY_PSRAM
+  void *berry_malloc(uint32_t size) {
+    return special_malloc(size);
+  }
+  void *berry_realloc(void *ptr, size_t size) {
+    return special_realloc(ptr, size);
+  }
+#else
+  void *berry_malloc(uint32_t size) {
+    return malloc(size);
+  }
+  void *berry_realloc(void *ptr, size_t size) {
+    return realloc(ptr, size);
+  }
+#endif // USE_BERRY_PSRAM
+
+}
+
+
+/*********************************************************************************************\
  * Handlers for Berry calls and async
  * 
 \*********************************************************************************************/
