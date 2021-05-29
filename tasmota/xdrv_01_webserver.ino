@@ -515,6 +515,7 @@ const WebServerDispatch_t WebServerDispatch[] PROGMEM = {
 };
 
 void WebServer_on(const char * prefix, void (*func)(void), uint8_t method = HTTP_ANY) {
+  if (Webserver == nullptr) { return; }
 #ifdef ESP8266
   Webserver->on((const __FlashStringHelper *) prefix, (HTTPMethod) method, func);
 #endif  // ESP8266
@@ -1272,6 +1273,9 @@ bool HandleRootStatusRefresh(void)
 
   #ifdef USE_SCRIPT_WEB_DISPLAY
     Script_Check_HTML_Setvars();
+  #endif
+  #ifdef USE_BERRY
+    callBerryEventDispatcher(PSTR("web_root"), nullptr, 0, nullptr);
   #endif
 
   char tmp[8];                       // WebGetArg numbers only
