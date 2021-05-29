@@ -90,7 +90,6 @@ void be_load_driverlib(bvm *vm) {
         { "web_add_button", NULL },
         { "web_add_main_button", NULL },
         { "save_before_restart", NULL },
-        { "web_root", NULL },
         { "web_sensor", NULL },
         { "json_append", NULL },
         { "button_pressed", NULL },
@@ -119,7 +118,6 @@ class be_class_tasmota_driver (scope: global, name: Driver) {
     web_add_button, var
     web_add_main_button, var
     save_before_restart, var
-    web_root, var
     web_sensor, var
     json_append, var
     button_pressed, var

@@ -277,7 +277,6 @@ extern const bcstring be_const_str_SYMBOL_DUMMY;
 extern const bcstring be_const_str_bus;
 extern const bcstring be_const_str_save_before_restart;
 extern const bcstring be_const_str_resize;
-extern const bcstring be_const_str_web_root;
 extern const bcstring be_const_str_LOW;
 extern const bcstring be_const_str_SBR_TX;
 extern const bcstring be_const_str_WEBCAM_XCLK;

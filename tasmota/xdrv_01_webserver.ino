@@ -1274,9 +1274,6 @@ bool HandleRootStatusRefresh(void)
   #ifdef USE_SCRIPT_WEB_DISPLAY
     Script_Check_HTML_Setvars();
   #endif
-  #ifdef USE_BERRY
-    callBerryEventDispatcher(PSTR("web_root"), nullptr, 0, nullptr);
-  #endif
 
   char tmp[8];                       // WebGetArg numbers only
   char svalue[32];                   // Command and number parameter

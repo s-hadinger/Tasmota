@@ -276,8 +276,7 @@ be_define_const_str(wire, "wire", 4082753944u, 0, 4, NULL);
 be_define_const_str(SYMBOL_DUMMY, "SYMBOL_DUMMY", 3621732138u, 0, 12, &be_const_str_bus);
 be_define_const_str(bus, "bus", 1607822841u, 0, 3, &be_const_str_save_before_restart);
 be_define_const_str(save_before_restart, "save_before_restart", 1253239338u, 0, 19, NULL);
-be_define_const_str(resize, "resize", 3514612129u, 0, 6, &be_const_str_web_root);
-be_define_const_str(web_root, "web_root", 959105118u, 0, 8, NULL);
+be_define_const_str(resize, "resize", 3514612129u, 0, 6, NULL);
 be_define_const_str(LOW, "LOW", 3526092385u, 0, 3, &be_const_str_SBR_TX);
 be_define_const_str(SBR_TX, "SBR_TX", 3419096015u, 0, 6, &be_const_str_WEBCAM_XCLK);
 be_define_const_str(WEBCAM_XCLK, "WEBCAM_XCLK", 536207425u, 0, 11, NULL);
@@ -869,6 +868,6 @@ static const bstring* const m_string_table[] = {
 
 static const struct bconststrtab m_const_string_table = {
     .size = 281,
-    .count = 563,
+    .count = 562,
     .table = m_string_table
 };
