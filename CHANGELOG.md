@@ -5,7 +5,13 @@ All notable changes to this project will be documented in this file.
 
 ## [9.5.0.1]
 ### Changed
+- ESP32 core library from v1.0.6 to v1.0.7
 - Force ESP32 defines USE_UFILESYS, GUI_TRASH_FILE and #define GUI_EDIT_FILE
+- Speed up initial GUI console refresh
+
+### Fixed
+- ESP32 Webcam add boundary marker before sending mjpeg image (#12376)
+- DDS238-2 wrong reactive power value (#12283)
 
 ## [Released]
 
