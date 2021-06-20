@@ -128,6 +128,21 @@ extern "C" {
     be_return(vm);
   }
 
+  // Berry: `webserver.redirect(string) -> nil`
+  //
+  int32_t w_webserver_redirect(struct bvm *vm);
+  int32_t w_webserver_redirect(struct bvm *vm) {
+    int32_t argc = be_top(vm); // Get the number of arguments
+    if (argc >= 1 && be_isstring(vm, 1)) {
+      const char * uri = be_tostring(vm, 1);
+      Webserver->sendHeader("Location", uri, true);
+      Webserver->send(302, "text/plain", "");
+      // Webserver->sendHeader(F("Location"), String(F("http://")) + Webserver->client().localIP().toString(), true);
+      be_return_nil(vm);
+    }
+    be_raise(vm, kTypeError, nullptr);
+  }
+
   // Berry: `webserver.content_start() -> nil`
   //
   int32_t w_webserver_content_start(struct bvm *vm);
@@ -141,7 +156,7 @@ extern "C" {
     be_raise(vm, kTypeError, nullptr);
   }
 
-  // Berry: `webserver.content_send() -> nil`
+  // Berry: `webserver.content_send(string) -> nil`
   //
   int32_t w_webserver_content_send(struct bvm *vm);
   int32_t w_webserver_content_send(struct bvm *vm) {

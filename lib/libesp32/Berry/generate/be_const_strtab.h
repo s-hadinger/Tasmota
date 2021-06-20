@@ -27,6 +27,7 @@ extern const bcstring be_const_str_TASMOTACLIENT_TXD;
 extern const bcstring be_const_str_asin;
 extern const bcstring be_const_str_classname;
 extern const bcstring be_const_str_SYMBOL_FILE;
+extern const bcstring be_const_str_redirect;
 extern const bcstring be_const_str_reverse_gamma10;
 extern const bcstring be_const_str_ADC_PH;
 extern const bcstring be_const_str_TM1637DIO;

@@ -26,7 +26,8 @@ be_define_const_str(tolower, "tolower", 1042520049u, 0, 7, NULL);
 be_define_const_str(TASMOTACLIENT_TXD, "TASMOTACLIENT_TXD", 1386193940u, 0, 17, &be_const_str_asin);
 be_define_const_str(asin, "asin", 4272848550u, 0, 4, &be_const_str_classname);
 be_define_const_str(classname, "classname", 1998589948u, 0, 9, NULL);
-be_define_const_str(SYMBOL_FILE, "SYMBOL_FILE", 237085260u, 0, 11, NULL);
+be_define_const_str(SYMBOL_FILE, "SYMBOL_FILE", 237085260u, 0, 11, &be_const_str_redirect);
+be_define_const_str(redirect, "redirect", 389758641u, 0, 8, NULL);
 be_define_const_str(reverse_gamma10, "reverse_gamma10", 739112262u, 0, 15, NULL);
 be_define_const_str(ADC_PH, "ADC_PH", 3820290594u, 0, 6, &be_const_str_TM1637DIO);
 be_define_const_str(TM1637DIO, "TM1637DIO", 1574659381u, 0, 9, &be_const_str_cosh);
@@ -886,6 +887,6 @@ static const bstring* const m_string_table[] = {
 
 static const struct bconststrtab m_const_string_table = {
     .size = 287,
-    .count = 574,
+    .count = 575,
     .table = m_string_table
 };

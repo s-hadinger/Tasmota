@@ -14,6 +14,7 @@ extern int w_webserver_on(bvm *vm);
 extern int w_webserver_state(bvm *vm);
 
 extern int w_webserver_check_privileged_access(bvm *vm);
+extern int w_webserver_redirect(bvm *vm);
 extern int w_webserver_content_start(bvm *vm);
 extern int w_webserver_content_send(bvm *vm);
 extern int w_webserver_content_send_style(bvm *vm);
@@ -33,6 +34,7 @@ be_native_module_attr_table(webserver) {
     be_native_module_function("state", w_webserver_state),
 
     be_native_module_function("check_privileged_access", w_webserver_check_privileged_access),
+    be_native_module_function("redirect", w_webserver_redirect),
     be_native_module_function("content_start", w_webserver_content_start),
     be_native_module_function("content_send", w_webserver_content_send),
     be_native_module_function("content_send_style", w_webserver_content_send_style),
@@ -57,6 +59,7 @@ module webserver (scope: global) {
     state, func(w_webserver_state)
 
     check_privileged_access, func(w_webserver_check_privileged_access)
+    redirect, func(w_webserver_redirect)
     content_start, func(w_webserver_content_start)
     content_send, func(w_webserver_content_send)
     content_send_style, func(w_webserver_content_send_style)

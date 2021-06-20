@@ -36,6 +36,9 @@ class Partition_manager : Driver
       webserver.content_send("<p><b>Used: unknwon")
       webserver.content_send("<p><b>Free: unknwon")
     end
+    if !active
+      webserver.content_send("<p><form id=setactive style='display: block;' action='/part_mgr' method='post' onsubmit='return confirm('Confirm Restart');'><button name='setactive' class='button bred'>Switch Active Partition</button></form></p>")
+    end
     
     webserver.content_send("<p></p></fieldset><p></p>")
   end
@@ -52,7 +55,9 @@ class Partition_manager : Driver
     if free_mem != nil
       webserver.content_send(string.format("<p><b>Unallocated: </b>%i KB</p>", free_mem / 1024))
     end
-    
+
+    #- display Resize button -#
+    webserver.content_send("<p><form id=fssize style='display: block;' action='/part_mgr' method='post' onsubmit='return confirm('Confirm Restart');'><button name='resize' class='button bred'>Resize</button></form></p>")
     webserver.content_send("<p></p></fieldset><p></p>")
   end
 
@@ -89,10 +94,17 @@ class Partition_manager : Driver
     webserver.content_stop()                        #- end of web page -#
   end
 
+  #- this is the controller, called using POST and changing parameters -#
+  def page_part_ctl()
+    print("POST received")
+    webserver.redirect("/?rst=")  # force a restart
+  end
+
   #- this is called at Tasmota start-up, as soon as Wifi/Eth is up and web server running -#
   def web_add_handler()
     #- we need to register a closure, not just a function, that captures the current instance -#
-    webserver.on("/part_mgr", / -> self.page_part_mgr())
+    webserver.on("/part_mgr", / -> self.page_part_mgr(), webserver.HTTP_GET)
+    webserver.on("/part_mgr", / -> self.page_part_ctl(), webserver.HTTP_POST)
   end
 
 end
