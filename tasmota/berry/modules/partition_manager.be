@@ -37,7 +37,7 @@ class Partition_manager : Driver
       webserver.content_send("<p><b>Free: unknwon")
     end
     if !active
-      webserver.content_send("<p><form id=setactive style='display: block;' action='/part_mgr' method='post' onsubmit='return confirm('Confirm Restart');'><button name='setactive' class='button bred'>Switch Active Partition</button></form></p>")
+      webserver.content_send("<p><form id=setactive style='display: block;' action='/part_mgr' method='post' onsubmit='return confirm('Confirm Restart');'><button name='setactive' class='button bred'>Make This Partition Active</button></form></p>")
     end
     
     webserver.content_send("<p></p></fieldset><p></p>")
@@ -86,6 +86,7 @@ class Partition_manager : Driver
     webserver.content_start("Partition Manager")           #- title of the web page -#
     webserver.content_send_style()                  #- send standard Tasmota styles -#
 
+    webserver.content_send("<p style='width:340px;'><b style='color:#ff5661'>Warning:</b> This can brick your device. Don't use unless you know what you are doing.</p>")
     webserver.content_send("<fieldset><legend><b>&nbsp;Partition Manager</b></legend><p></p>")
     self.page_show_partitions()
     webserver.content_send("<p></p></fieldset><p></p>")
