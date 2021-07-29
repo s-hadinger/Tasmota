@@ -101,7 +101,7 @@ BERRY_LOCAL const bntvmodule* const be_module_table[] = {
 extern void be_load_tasmota_ntvlib(bvm *vm);
 extern void be_load_wirelib(bvm *vm);
 extern void be_load_Driver_class(bvm *vm);
-extern void be_load_driver_i2c_lib(bvm *vm);
+extern void be_class_I2C_Driver(bvm *vm);
 extern void be_load_md5_lib(bvm *vm);
 
 #ifdef USE_I2S_AUDIO_BERRY
@@ -135,7 +135,7 @@ BERRY_API void be_load_custom_libs(bvm *vm)
     be_load_md5_lib(vm);
 #ifdef USE_I2C
     be_load_wirelib(vm);
-    be_load_driver_i2c_lib(vm);
+    be_class_I2C_Driver(vm);
 #endif // USE_I2C
 #ifdef USE_I2S_AUDIO_BERRY
     be_load_driver_audio_lib(vm);

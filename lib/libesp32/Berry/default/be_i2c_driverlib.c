@@ -9,83 +9,55 @@
  *******************************************************************/
 #include "be_constobj.h"
 
-extern bclass* be_class_Driver;     // Parent class
-
 /********************************************************************
-** Solidified function: init
+** Solidified function: read32
 ********************************************************************/
-be_local_closure(init,   /* name */
+be_local_closure(read32,   /* name */
   be_nested_proto(
-    10,                          /* nstack */
-    4,                          /* argc */
+    7,                          /* nstack */
+    2,                          /* argc */
     0,                          /* has upvals */
     NULL,                       /* no upvals */
     0,                          /* has sup protos */
     NULL,                       /* no sub protos */
     1,                          /* has constants */
-    ( &(const bvalue[10]) {     /* constants */
-      be_nested_string("get_tasmota", 334356779, 11),
-      be_nested_string("i2c_enabled", 218388101, 11),
-      be_nested_string("addr", 1087856498, 4),
-      be_nested_string("wire", -212213352, 4),
-      be_nested_string("wire_scan", -1623691416, 9),
-      be_nested_string("function", -1630125495, 8),
-      be_nested_string("name", -1925595674, 4),
-      be_nested_string("I2C:", 813483371, 4),
-      be_nested_string("detected on bus", 1432002650, 15),
-      be_nested_string("bus", 1607822841, 3),
+    ( &(const bvalue[ 7]) {     /* constants */
+      be_nested_string("wire", -212213352, 4),    /* R256 - K0 */
+      be_nested_string("read_bytes", -718234123, 10),    /* R257 - K1 */
+      be_nested_string("addr", 1087856498, 4),    /* R258 - K2 */
+      be_const_int(0),    /* R259 - K3 */
+      be_const_int(1),    /* R260 - K4 */
+      be_const_int(2),    /* R261 - K5 */
+      be_const_int(3),    /* R262 - K6 */
     }),
-    (be_nested_const_str("init", 380752755, 4)),
+    (be_nested_const_str("read32", 1741276240, 6)),
     (be_nested_const_str("input", -103256197, 5)),
-    ( &(const binstruction[44]) {  /* code */
-      0x8C100100,  //  0000  GETMET	R4	R0	R256
-      0x7C100200,  //  0001  CALL	R4	1
-      0x4C140000,  //  0002  LDNIL	5
-      0x20140605,  //  0003  NE	R5	R3	R5
-      0x78160004,  //  0004  JMPF	R5	#000A
-      0x8C140901,  //  0005  GETMET	R5	R4	R257
-      0x5C1C0600,  //  0006  MOVE	R7	R3
-      0x7C140400,  //  0007  CALL	R5	2
-      0x74160000,  //  0008  JMPT	R5	#000A
-      0x80000A00,  //  0009  RET	0	R5
-      0x90020402,  //  000A  SETMBR	R0	R258	R2
-      0x8C140904,  //  000B  GETMET	R5	R4	R260
-      0x881C0102,  //  000C  GETMBR	R7	R0	R258
-      0x7C140400,  //  000D  CALL	R5	2
-      0x90020605,  //  000E  SETMBR	R0	R259	R5
-      0x88140103,  //  000F  GETMBR	R5	R0	R259
-      0x78160019,  //  0010  JMPF	R5	#002B
-      0x60140015,  //  0011  GETGBL	R5	G21
-      0x5C180200,  //  0012  MOVE	R6	R1
-      0x7C140200,  //  0013  CALL	R5	1
-      0x1C140B05,  //  0014  EQ	R5	R5	R261
-      0x78160004,  //  0015  JMPF	R5	#001B
-      0x5C140200,  //  0016  MOVE	R5	R1
-      0x5C180000,  //  0017  MOVE	R6	R0
-      0x7C140200,  //  0018  CALL	R5	1
-      0x90020C05,  //  0019  SETMBR	R0	R262	R5
-      0x70020000,  //  001A  JMP		#001C
-      0x90020C01,  //  001B  SETMBR	R0	R262	R1
-      0x88140106,  //  001C  GETMBR	R5	R0	R262
-      0x4C180000,  //  001D  LDNIL	6
-      0x1C140A06,  //  001E  EQ	R5	R5	R6
-      0x78160001,  //  001F  JMPF	R5	#0022
-      0x4C140000,  //  0020  LDNIL	5
-      0x90020605,  //  0021  SETMBR	R0	R259	R5
-      0x88140103,  //  0022  GETMBR	R5	R0	R259
-      0x78160006,  //  0023  JMPF	R5	#002B
-      0x6014000F,  //  0024  GETGBL	R5	G15
-      0x58180007,  //  0025  LDCONST	R6	K7
-      0x881C0106,  //  0026  GETMBR	R7	R0	R262
-      0x58200008,  //  0027  LDCONST	R8	K8
-      0x88240103,  //  0028  GETMBR	R9	R0	R259
-      0x88241309,  //  0029  GETMBR	R9	R9	R265
-      0x7C140800,  //  002A  CALL	R5	4
-      0x80000000,  //  002B  RET	0	R0
+    ( &(const binstruction[20]) {  /* code */
+      0x88080100,  //  0000  GETMBR	R2	R0	R256
+      0x8C080501,  //  0001  GETMET	R2	R2	R257
+      0x88100102,  //  0002  GETMBR	R4	R0	R258
+      0x5C140200,  //  0003  MOVE	R5	R1
+      0x541A0003,  //  0004  LDINT	R6	4
+      0x7C080800,  //  0005  CALL	R2	4
+      0x940C0503,  //  0006  GETIDX	R3	R2	R259
+      0x54120017,  //  0007  LDINT	R4	24
+      0x380C0604,  //  0008  SHL	R3	R3	R4
+      0x94100504,  //  0009  GETIDX	R4	R2	R260
+      0x5416000F,  //  000A  LDINT	R5	16
+      0x38100805,  //  000B  SHL	R4	R4	R5
+      0x000C0604,  //  000C  ADD	R3	R3	R4
+      0x94100505,  //  000D  GETIDX	R4	R2	R261
+      0x54160007,  //  000E  LDINT	R5	8
+      0x38100805,  //  000F  SHL	R4	R4	R5
+      0x000C0604,  //  0010  ADD	R3	R3	R4
+      0x94100506,  //  0011  GETIDX	R4	R2	R262
+      0x000C0604,  //  0012  ADD	R3	R3	R4
+      0x80040600,  //  0013  RET	1	R3
     })
   )
 );
 /*******************************************************************/
+
 
 /********************************************************************
 ** Solidified function: write8
@@ -100,10 +72,10 @@ be_local_closure(write8,   /* name */
     NULL,                       /* no sub protos */
     1,                          /* has constants */
     ( &(const bvalue[ 4]) {     /* constants */
-      be_nested_string("wire", -212213352, 4),
-      be_nested_string("write", -1104765092, 5),
-      be_nested_string("addr", 1087856498, 4),
-      be_const_int(1),
+      be_nested_string("wire", -212213352, 4),    /* R256 - K0 */
+      be_nested_string("write", -1104765092, 5),    /* R257 - K1 */
+      be_nested_string("addr", 1087856498, 4),    /* R258 - K2 */
+      be_const_int(1),    /* R259 - K3 */
     }),
     (be_nested_const_str("write8", -1160975764, 6)),
     (be_nested_const_str("input", -103256197, 5)),
@@ -121,6 +93,48 @@ be_local_closure(write8,   /* name */
 );
 /*******************************************************************/
 
+
+/********************************************************************
+** Solidified function: read12
+********************************************************************/
+be_local_closure(read12,   /* name */
+  be_nested_proto(
+    7,                          /* nstack */
+    2,                          /* argc */
+    0,                          /* has upvals */
+    NULL,                       /* no upvals */
+    0,                          /* has sup protos */
+    NULL,                       /* no sub protos */
+    1,                          /* has constants */
+    ( &(const bvalue[ 6]) {     /* constants */
+      be_nested_string("wire", -212213352, 4),    /* R256 - K0 */
+      be_nested_string("read_bytes", -718234123, 10),    /* R257 - K1 */
+      be_nested_string("addr", 1087856498, 4),    /* R258 - K2 */
+      be_const_int(2),    /* R259 - K3 */
+      be_const_int(0),    /* R260 - K4 */
+      be_const_int(1),    /* R261 - K5 */
+    }),
+    (be_nested_const_str("read12", -3890326, 6)),
+    (be_nested_const_str("input", -103256197, 5)),
+    ( &(const binstruction[12]) {  /* code */
+      0x88080100,  //  0000  GETMBR	R2	R0	R256
+      0x8C080501,  //  0001  GETMET	R2	R2	R257
+      0x88100102,  //  0002  GETMBR	R4	R0	R258
+      0x5C140200,  //  0003  MOVE	R5	R1
+      0x58180003,  //  0004  LDCONST	R6	K3
+      0x7C080800,  //  0005  CALL	R2	4
+      0x940C0504,  //  0006  GETIDX	R3	R2	R260
+      0x54120003,  //  0007  LDINT	R4	4
+      0x380C0604,  //  0008  SHL	R3	R3	R4
+      0x94100505,  //  0009  GETIDX	R4	R2	R261
+      0x000C0604,  //  000A  ADD	R3	R3	R4
+      0x80040600,  //  000B  RET	1	R3
+    })
+  )
+);
+/*******************************************************************/
+
+
 /********************************************************************
 ** Solidified function: write_bit
 ********************************************************************/
@@ -134,10 +148,10 @@ be_local_closure(write_bit,   /* name */
     NULL,                       /* no sub protos */
     1,                          /* has constants */
     ( &(const bvalue[ 4]) {     /* constants */
-      be_const_int(0),
-      be_const_int(1),
-      be_nested_string("write8", -1160975764, 6),
-      be_nested_string("read8", -1492179129, 5),
+      be_const_int(0),    /* R256 - K0 */
+      be_const_int(1),    /* R257 - K1 */
+      be_nested_string("write8", -1160975764, 6),    /* R258 - K2 */
+      be_nested_string("read8", -1492179129, 5),    /* R259 - K3 */
     }),
     (be_nested_const_str("write_bit", -1633976860, 9)),
     (be_nested_const_str("input", -103256197, 5)),
@@ -173,118 +187,6 @@ be_local_closure(write_bit,   /* name */
 );
 /*******************************************************************/
 
-/********************************************************************
-** Solidified function: read8
-********************************************************************/
-be_local_closure(read8,   /* name */
-  be_nested_proto(
-    7,                          /* nstack */
-    2,                          /* argc */
-    0,                          /* has upvals */
-    NULL,                       /* no upvals */
-    0,                          /* has sup protos */
-    NULL,                       /* no sub protos */
-    1,                          /* has constants */
-    ( &(const bvalue[ 4]) {     /* constants */
-      be_nested_string("wire", -212213352, 4),
-      be_nested_string("read", -824204347, 4),
-      be_nested_string("addr", 1087856498, 4),
-      be_const_int(1),
-    }),
-    (be_nested_const_str("read8", -1492179129, 5)),
-    (be_nested_const_str("input", -103256197, 5)),
-    ( &(const binstruction[ 7]) {  /* code */
-      0x88080100,  //  0000  GETMBR	R2	R0	R256
-      0x8C080501,  //  0001  GETMET	R2	R2	R257
-      0x88100102,  //  0002  GETMBR	R4	R0	R258
-      0x5C140200,  //  0003  MOVE	R5	R1
-      0x58180003,  //  0004  LDCONST	R6	K3
-      0x7C080800,  //  0005  CALL	R2	4
-      0x80040400,  //  0006  RET	1	R2
-    })
-  )
-);
-/*******************************************************************/
-
-/********************************************************************
-** Solidified function: read12
-********************************************************************/
-be_local_closure(read12,   /* name */
-  be_nested_proto(
-    7,                          /* nstack */
-    2,                          /* argc */
-    0,                          /* has upvals */
-    NULL,                       /* no upvals */
-    0,                          /* has sup protos */
-    NULL,                       /* no sub protos */
-    1,                          /* has constants */
-    ( &(const bvalue[ 6]) {     /* constants */
-      be_nested_string("wire", -212213352, 4),
-      be_nested_string("read_bytes", -718234123, 10),
-      be_nested_string("addr", 1087856498, 4),
-      be_const_int(2),
-      be_const_int(0),
-      be_const_int(1),
-    }),
-    (be_nested_const_str("read12", -3890326, 6)),
-    (be_nested_const_str("input", -103256197, 5)),
-    ( &(const binstruction[12]) {  /* code */
-      0x88080100,  //  0000  GETMBR	R2	R0	R256
-      0x8C080501,  //  0001  GETMET	R2	R2	R257
-      0x88100102,  //  0002  GETMBR	R4	R0	R258
-      0x5C140200,  //  0003  MOVE	R5	R1
-      0x58180003,  //  0004  LDCONST	R6	K3
-      0x7C080800,  //  0005  CALL	R2	4
-      0x940C0504,  //  0006  GETIDX	R3	R2	R260
-      0x54120003,  //  0007  LDINT	R4	4
-      0x380C0604,  //  0008  SHL	R3	R3	R4
-      0x94100505,  //  0009  GETIDX	R4	R2	R261
-      0x000C0604,  //  000A  ADD	R3	R3	R4
-      0x80040600,  //  000B  RET	1	R3
-    })
-  )
-);
-/*******************************************************************/
-
-/********************************************************************
-** Solidified function: read13
-********************************************************************/
-be_local_closure(read13,   /* name */
-  be_nested_proto(
-    7,                          /* nstack */
-    2,                          /* argc */
-    0,                          /* has upvals */
-    NULL,                       /* no upvals */
-    0,                          /* has sup protos */
-    NULL,                       /* no sub protos */
-    1,                          /* has constants */
-    ( &(const bvalue[ 6]) {     /* constants */
-      be_nested_string("wire", -212213352, 4),
-      be_nested_string("read_bytes", -718234123, 10),
-      be_nested_string("addr", 1087856498, 4),
-      be_const_int(2),
-      be_const_int(0),
-      be_const_int(1),
-    }),
-    (be_nested_const_str("read13", 12887293, 6)),
-    (be_nested_const_str("input", -103256197, 5)),
-    ( &(const binstruction[12]) {  /* code */
-      0x88080100,  //  0000  GETMBR	R2	R0	R256
-      0x8C080501,  //  0001  GETMET	R2	R2	R257
-      0x88100102,  //  0002  GETMBR	R4	R0	R258
-      0x5C140200,  //  0003  MOVE	R5	R1
-      0x58180003,  //  0004  LDCONST	R6	K3
-      0x7C080800,  //  0005  CALL	R2	4
-      0x940C0504,  //  0006  GETIDX	R3	R2	R260
-      0x54120004,  //  0007  LDINT	R4	5
-      0x380C0604,  //  0008  SHL	R3	R3	R4
-      0x94100505,  //  0009  GETIDX	R4	R2	R261
-      0x000C0604,  //  000A  ADD	R3	R3	R4
-      0x80040600,  //  000B  RET	1	R3
-    })
-  )
-);
-/*******************************************************************/
 
 /********************************************************************
 ** Solidified function: read24
@@ -299,13 +201,13 @@ be_local_closure(read24,   /* name */
     NULL,                       /* no sub protos */
     1,                          /* has constants */
     ( &(const bvalue[ 7]) {     /* constants */
-      be_nested_string("wire", -212213352, 4),
-      be_nested_string("read_bytes", -718234123, 10),
-      be_nested_string("addr", 1087856498, 4),
-      be_const_int(3),
-      be_const_int(0),
-      be_const_int(1),
-      be_const_int(2),
+      be_nested_string("wire", -212213352, 4),    /* R256 - K0 */
+      be_nested_string("read_bytes", -718234123, 10),    /* R257 - K1 */
+      be_nested_string("addr", 1087856498, 4),    /* R258 - K2 */
+      be_const_int(3),    /* R259 - K3 */
+      be_const_int(0),    /* R260 - K4 */
+      be_const_int(1),    /* R261 - K5 */
+      be_const_int(2),    /* R262 - K6 */
     }),
     (be_nested_const_str("read24", 1808533811, 6)),
     (be_nested_const_str("input", -103256197, 5)),
@@ -331,10 +233,11 @@ be_local_closure(read24,   /* name */
 );
 /*******************************************************************/
 
+
 /********************************************************************
-** Solidified function: read32
+** Solidified function: read8
 ********************************************************************/
-be_local_closure(read32,   /* name */
+be_local_closure(read8,   /* name */
   be_nested_proto(
     7,                          /* nstack */
     2,                          /* argc */
@@ -343,93 +246,173 @@ be_local_closure(read32,   /* name */
     0,                          /* has sup protos */
     NULL,                       /* no sub protos */
     1,                          /* has constants */
-    ( &(const bvalue[ 7]) {     /* constants */
-      be_nested_string("wire", -212213352, 4),
-      be_nested_string("read_bytes", -718234123, 10),
-      be_nested_string("addr", 1087856498, 4),
-      be_const_int(0),
-      be_const_int(1),
-      be_const_int(2),
-      be_const_int(3),
+    ( &(const bvalue[ 4]) {     /* constants */
+      be_nested_string("wire", -212213352, 4),    /* R256 - K0 */
+      be_nested_string("read", -824204347, 4),    /* R257 - K1 */
+      be_nested_string("addr", 1087856498, 4),    /* R258 - K2 */
+      be_const_int(1),    /* R259 - K3 */
     }),
-    (be_nested_const_str("read32", 1741276240, 6)),
+    (be_nested_const_str("read8", -1492179129, 5)),
     (be_nested_const_str("input", -103256197, 5)),
-    ( &(const binstruction[20]) {  /* code */
+    ( &(const binstruction[ 7]) {  /* code */
       0x88080100,  //  0000  GETMBR	R2	R0	R256
       0x8C080501,  //  0001  GETMET	R2	R2	R257
       0x88100102,  //  0002  GETMBR	R4	R0	R258
       0x5C140200,  //  0003  MOVE	R5	R1
-      0x541A0003,  //  0004  LDINT	R6	4
+      0x58180003,  //  0004  LDCONST	R6	K3
       0x7C080800,  //  0005  CALL	R2	4
-      0x940C0503,  //  0006  GETIDX	R3	R2	R259
-      0x54120017,  //  0007  LDINT	R4	24
-      0x380C0604,  //  0008  SHL	R3	R3	R4
-      0x94100504,  //  0009  GETIDX	R4	R2	R260
-      0x5416000F,  //  000A  LDINT	R5	16
-      0x38100805,  //  000B  SHL	R4	R4	R5
-      0x000C0604,  //  000C  ADD	R3	R3	R4
-      0x94100505,  //  000D  GETIDX	R4	R2	R261
-      0x54160007,  //  000E  LDINT	R5	8
-      0x38100805,  //  000F  SHL	R4	R4	R5
-      0x000C0604,  //  0010  ADD	R3	R3	R4
-      0x94100506,  //  0011  GETIDX	R4	R2	R262
-      0x000C0604,  //  0012  ADD	R3	R3	R4
-      0x80040600,  //  0013  RET	1	R3
+      0x80040400,  //  0006  RET	1	R2
     })
   )
 );
 /*******************************************************************/
 
 
-#if BE_USE_PRECOMPILED_OBJECT
-#include "../generate/be_fixed_be_class_tasmota_i2c_driver.h"
-#endif
+/********************************************************************
+** Solidified function: init
+********************************************************************/
+be_local_closure(init,   /* name */
+  be_nested_proto(
+    9,                          /* nstack */
+    4,                          /* argc */
+    0,                          /* has upvals */
+    NULL,                       /* no upvals */
+    0,                          /* has sup protos */
+    NULL,                       /* no sub protos */
+    1,                          /* has constants */
+    ( &(const bvalue[10]) {     /* constants */
+      be_nested_string("tasmota", 424643812, 7),    /* R256 - K0 */
+      be_nested_string("i2c_enabled", 218388101, 11),    /* R257 - K1 */
+      be_nested_string("addr", 1087856498, 4),    /* R258 - K2 */
+      be_nested_string("wire", -212213352, 4),    /* R259 - K3 */
+      be_nested_string("wire_scan", -1623691416, 9),    /* R260 - K4 */
+      be_nested_string("function", -1630125495, 8),    /* R261 - K5 */
+      be_nested_string("name", -1925595674, 4),    /* R262 - K6 */
+      be_nested_string("I2C:", 813483371, 4),    /* R263 - K7 */
+      be_nested_string("detected on bus", 1432002650, 15),    /* R264 - K8 */
+      be_nested_string("bus", 1607822841, 3),    /* R265 - K9 */
+    }),
+    (be_nested_const_str("init", 380752755, 4)),
+    (be_nested_const_str("input", -103256197, 5)),
+    ( &(const binstruction[44]) {  /* code */
+      0x4C100000,  //  0000  LDNIL	4
+      0x20100604,  //  0001  NE	R4	R3	R4
+      0x78120005,  //  0002  JMPF	R4	#0009
+      0xB8120000,  //  0003  GETNGBL	R4	R256
+      0x8C100901,  //  0004  GETMET	R4	R4	R257
+      0x5C180600,  //  0005  MOVE	R6	R3
+      0x7C100400,  //  0006  CALL	R4	2
+      0x74120000,  //  0007  JMPT	R4	#0009
+      0x80000800,  //  0008  RET	0	R4
+      0x90020402,  //  0009  SETMBR	R0	R258	R2
+      0xB8120000,  //  000A  GETNGBL	R4	R256
+      0x8C100904,  //  000B  GETMET	R4	R4	R260
+      0x88180102,  //  000C  GETMBR	R6	R0	R258
+      0x7C100400,  //  000D  CALL	R4	2
+      0x90020604,  //  000E  SETMBR	R0	R259	R4
+      0x88100103,  //  000F  GETMBR	R4	R0	R259
+      0x78120019,  //  0010  JMPF	R4	#002B
+      0x60100015,  //  0011  GETGBL	R4	G21
+      0x5C140200,  //  0012  MOVE	R5	R1
+      0x7C100200,  //  0013  CALL	R4	1
+      0x1C100905,  //  0014  EQ	R4	R4	R261
+      0x78120004,  //  0015  JMPF	R4	#001B
+      0x5C100200,  //  0016  MOVE	R4	R1
+      0x5C140000,  //  0017  MOVE	R5	R0
+      0x7C100200,  //  0018  CALL	R4	1
+      0x90020C04,  //  0019  SETMBR	R0	R262	R4
+      0x70020000,  //  001A  JMP		#001C
+      0x90020C01,  //  001B  SETMBR	R0	R262	R1
+      0x88100106,  //  001C  GETMBR	R4	R0	R262
+      0x4C140000,  //  001D  LDNIL	5
+      0x1C100805,  //  001E  EQ	R4	R4	R5
+      0x78120001,  //  001F  JMPF	R4	#0022
+      0x4C100000,  //  0020  LDNIL	4
+      0x90020604,  //  0021  SETMBR	R0	R259	R4
+      0x88100103,  //  0022  GETMBR	R4	R0	R259
+      0x78120006,  //  0023  JMPF	R4	#002B
+      0x6010000F,  //  0024  GETGBL	R4	G15
+      0x58140007,  //  0025  LDCONST	R5	K7
+      0x88180106,  //  0026  GETMBR	R6	R0	R262
+      0x581C0008,  //  0027  LDCONST	R7	K8
+      0x88200103,  //  0028  GETMBR	R8	R0	R259
+      0x88201109,  //  0029  GETMBR	R8	R8	R265
+      0x7C100800,  //  002A  CALL	R4	4
+      0x80000000,  //  002B  RET	0	R0
+    })
+  )
+);
+/*******************************************************************/
 
-void be_load_driver_i2c_lib(bvm *vm) {
-#if !BE_USE_PRECOMPILED_OBJECT
-    static const bnfuncinfo members[] = {
-        { "wire", NULL },
-        { "addr", NULL },
-        { "name", NULL },
 
-        { NULL, (bntvfunc) BE_CLOSURE }, /* mark section for berry closures */
-        { "init", (bntvfunc) &init_closure },
-        { "write8", (bntvfunc) &write8_closure },
-        { "write_bit", (bntvfunc) &write_bit_closure },
-        { "read8", (bntvfunc) &read8_closure },
-        { "read12", (bntvfunc) &read12_closure },
-        { "read13", (bntvfunc) &read13_closure },
-        { "read24", (bntvfunc) &read24_closure },
-        { "read32", (bntvfunc) &read32_closure },
-        
-        { NULL, NULL }
-    };
+/********************************************************************
+** Solidified function: read13
+********************************************************************/
+be_local_closure(read13,   /* name */
+  be_nested_proto(
+    7,                          /* nstack */
+    2,                          /* argc */
+    0,                          /* has upvals */
+    NULL,                       /* no upvals */
+    0,                          /* has sup protos */
+    NULL,                       /* no sub protos */
+    1,                          /* has constants */
+    ( &(const bvalue[ 6]) {     /* constants */
+      be_nested_string("wire", -212213352, 4),    /* R256 - K0 */
+      be_nested_string("read_bytes", -718234123, 10),    /* R257 - K1 */
+      be_nested_string("addr", 1087856498, 4),    /* R258 - K2 */
+      be_const_int(2),    /* R259 - K3 */
+      be_const_int(0),    /* R260 - K4 */
+      be_const_int(1),    /* R261 - K5 */
+    }),
+    (be_nested_const_str("read13", 12887293, 6)),
+    (be_nested_const_str("input", -103256197, 5)),
+    ( &(const binstruction[12]) {  /* code */
+      0x88080100,  //  0000  GETMBR	R2	R0	R256
+      0x8C080501,  //  0001  GETMET	R2	R2	R257
+      0x88100102,  //  0002  GETMBR	R4	R0	R258
+      0x5C140200,  //  0003  MOVE	R5	R1
+      0x58180003,  //  0004  LDCONST	R6	K3
+      0x7C080800,  //  0005  CALL	R2	4
+      0x940C0504,  //  0006  GETIDX	R3	R2	R260
+      0x54120004,  //  0007  LDINT	R4	5
+      0x380C0604,  //  0008  SHL	R3	R3	R4
+      0x94100505,  //  0009  GETIDX	R4	R2	R261
+      0x000C0604,  //  000A  ADD	R3	R3	R4
+      0x80040600,  //  000B  RET	1	R3
+    })
+  )
+);
+/*******************************************************************/
 
-    be_regclass(vm, "I2C_Driver", members);
-    be_getglobal(vm, "I2C_Driver");
-    be_getglobal(vm, "Driver");
-    be_setsuper(vm, -2);
-    be_pop(vm, 2);
-#else
-    be_pushntvclass(vm, &be_class_tasmota_i2c_driver);
+
+/********************************************************************
+** Solidified class: I2C_Driver
+********************************************************************/
+extern const bclass be_class_Driver;
+be_local_class(I2C_Driver,
+    3,
+    &be_class_Driver,
+    be_nested_map(11,
+    ( (struct bmapnode*) &(const bmapnode[]) {
+        { be_nested_key("read32", 1741276240, 6, -1), be_const_closure(read32_closure) },
+        { be_nested_key("write8", -1160975764, 6, 10), be_const_closure(write8_closure) },
+        { be_nested_key("name", -1925595674, 4, -1), be_const_index(2) },
+        { be_nested_key("addr", 1087856498, 4, 8), be_const_index(1) },
+        { be_nested_key("read12", -3890326, 6, -1), be_const_closure(read12_closure) },
+        { be_nested_key("wire", -212213352, 4, 6), be_const_index(0) },
+        { be_nested_key("write_bit", -1633976860, 9, -1), be_const_closure(write_bit_closure) },
+        { be_nested_key("read24", 1808533811, 6, -1), be_const_closure(read24_closure) },
+        { be_nested_key("read8", -1492179129, 5, -1), be_const_closure(read8_closure) },
+        { be_nested_key("init", 380752755, 4, -1), be_const_closure(init_closure) },
+        { be_nested_key("read13", 12887293, 6, -1), be_const_closure(read13_closure) },
+    })),
+    (be_nested_const_str("I2C_Driver", 1714501658, 10))
+);
+/*******************************************************************/
+
+void be_load_I2C_Driver_class(bvm *vm) {
+    be_pushntvclass(vm, &be_class_I2C_Driver);
     be_setglobal(vm, "I2C_Driver");
     be_pop(vm, 1);
-#endif
 }
-/* @const_object_info_begin
-
-class be_class_tasmota_i2c_driver (scope: global, name: I2C_Driver, super: be_class_Driver) {
-    wire, var
-    addr, var
-    name, var
-
-    init, closure(init_closure)
-    write8, closure(write8_closure)
-    write_bit, closure(write_bit_closure)
-    read8, closure(read8_closure)
-    read12, closure(read12_closure)
-    read13, closure(read13_closure)
-    read24, closure(read24_closure)
-    read32, closure(read32_closure)
-}
-@const_object_info_end */

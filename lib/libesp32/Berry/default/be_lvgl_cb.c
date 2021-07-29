@@ -70,10 +70,6 @@ void be_load_lvgl_cb_lib(bvm *vm) {
         { "init", lv0_init },
         { "tostring", lvx_tostring },
         { "()", lv_cb_call },
-
-        // { NULL, (bntvfunc) BE_CLOSURE }, /* mark section for berry closures */
-        // { "get_tasmota", (bntvfunc) &get_tasmota_closure },
-        // { "add_cmd", (bntvfunc) &add_cmd_closure },
         
         { NULL, NULL }
     };

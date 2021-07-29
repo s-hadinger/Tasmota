@@ -79,7 +79,6 @@ const char berry_prog[] =
   // // Monkey patch `Driver` class - To be continued
   // "class Driver2 : Driver "
   //   "def add_cmd(c, f) "
-  //     "var tasmota = self.get_tasmota() "
   //     "tasmota.add_cmd(c, / cmd, idx, payload, payload_json -> f(self, cmd, idx, payload, payload_json)) "
   //   "end "
   // "end "
