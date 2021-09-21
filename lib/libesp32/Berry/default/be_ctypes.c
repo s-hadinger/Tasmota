@@ -1,11 +1,9 @@
 /********************************************************************
- * Tasmota LVGL ctypes mapping
+ * Tasmota ctypes mapping
  *******************************************************************/
 #include "be_constobj.h"
+#include <string.h>
 
-#ifdef USE_LVGL
-
-#include "lvgl.h"
 extern __attribute__((noreturn)) void be_raisef(bvm *vm, const char *except, const char *msg, ...);
 
 // binary search within an array of sorted strings
@@ -194,14 +192,14 @@ int be_ctypes_member(bvm *vm) {
         } else {
             // general int support
             int size = member->type;       // eventually 1/2/4, positive if little endian, negative if big endian
-            int sign = false;            // signed int
+            int sign = bfalse;            // signed int
             if (size >= ctypes_i8) {
                 size -= ctypes_i8 - 1;
-                sign = true;
+                sign = btrue;
             }
             if (size <= ctypes_be_i8) {
                 size += ctypes_be_i8 - 1;
-                sign = true;
+                sign = btrue;
             }
             // get
             be_getmember(vm, 1, sign ? "geti" : "get");   // self.get or self.geti
@@ -293,14 +291,14 @@ int be_ctypes_setmember(bvm *vm) {
         } else {
             // general int support
             int size = member->type;       // eventually 1/2/4, positive if little endian, negative if big endian
-            int sign = false;            // signed int
+            int sign = bfalse;            // signed int
             if (size >= ctypes_i8) {
                 size -= ctypes_i8 - 1;
-                sign = true;
+                sign = btrue;
             }
             if (size <= ctypes_be_i8) {
                 size += ctypes_be_i8 - 1;
-                sign = true;
+                sign = btrue;
             }
             // set
             be_getmember(vm, 1, sign ? "seti" : "set");   // self.get or self.geti
@@ -320,16 +318,16 @@ int be_ctypes_setmember(bvm *vm) {
 
 BE_EXPORT_VARIABLE extern const bclass be_class_bytes;
 
-#include "../generate/be_fixed_be_class_lv_ctypes.h"
+#include "../generate/be_fixed_be_class_ctypes.h"
 
-void be_load_lvgl_ctypes_lib(bvm *vm) {
-    be_pushntvclass(vm, &be_class_lv_ctypes);
+void be_load_ctypes_lib(bvm *vm) {
+    be_pushntvclass(vm, &be_class_ctypes);
     be_setglobal(vm, "ctypes_bytes");
     be_pop(vm, 1);
 }
 
 /* @const_object_info_begin
-class be_class_lv_ctypes (scope: global, name: ctypes_bytes, super: be_class_bytes) {
+class be_class_ctypes (scope: global, name: ctypes_bytes, super: be_class_bytes) {
     .def, var
     copy, func(be_ctypes_copy)
     init, func(be_ctypes_init)
@@ -337,5 +335,3 @@ class be_class_lv_ctypes (scope: global, name: ctypes_bytes, super: be_class_byt
     setmember, func(be_ctypes_setmember)
 }
 @const_object_info_end */
-
-#endif // USE_LVGL
