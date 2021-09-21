@@ -215,7 +215,21 @@ ctypes.print_types = def ()
   print("    be_pop(vm, 1);")
   print("}")
   print()
+
+  print("// Define a sub-class of ctypes with only one member which points to the ctypes defintion")
+  print("#define be_define_ctypes_class(_c_name, _def, _super, _name)                \\")
+  print("  be_local_class(_c_name,                                                   \\")
+  print("      0,                                                                    \\")
+  print("      _super,                                                               \\")
+  print("      be_nested_map(1,                                                      \\")
+  print("      ( (struct bmapnode*) &(const bmapnode[]) {                            \\")
+  print("          { be_nested_key(\"_def\", 1985022181, 4, -1), be_const_comptr(_def) },\\")
+  print("      })),                                                                  \\")
+  print("      (be_nested_const_str(_name, 0, sizeof(_name)-1))                      \\")
+  print("  )")
+  print()
   print("/********************************************************************/")
+  print()
 end
 
 global_classes = []   # track the list of all classes and
@@ -256,13 +270,17 @@ ctypes.print_classes = def ()
   print("@const_object_info_end */")
   print()
 
+  for elt:global_classes
+    print(string.format("static be_define_ctypes_class(%s, &be_%s, &be_class_ctypes, \"%s\");", elt, elt, elt))
+  end
+
+  print()
   print("void be_load_ctypes_definitions_lib(bvm *vm) {")
   print("  be_pushcomptr(vm, (void*) be_ctypes_classes);")
   print("  be_setglobal(vm, \".ctypes_classes\");")
   print("  be_pop(vm, 1);")
   print()
   for elt:global_classes
-    print(string.format("  static be_define_const_empty_class(be_class_%s, &be_class_ctypes, %s);", elt, elt))
     print(string.format("  ctypes_register_class(vm, &be_class_%s, &be_%s);", elt, elt))
   end
   print("}")
