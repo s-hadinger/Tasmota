@@ -324,7 +324,7 @@ extern "C" {
  * - be_int -> int32_t
  * - be_bool -> int32_t with value 0/1
  * - be_string -> const char *
- * - be_instance -> gets the member ".p" and pushes as void*
+ * - be_instance -> gets the member "_p" and pushes as void*
  * 
  * This works because C silently ignores any unwanted arguments.
  * There is a strong requirements that all ints and pointers are 32 bits.
@@ -357,7 +357,7 @@ extern "C" {
 #define LVBE_LVGL_CB_GEN      "gen_cb"
 
 // read a single value at stack position idx, convert to int.
-// if object instance, get `.p` member and convert it recursively
+// if object instance, get `_p` member and convert it recursively
 int32_t be_convert_single_elt(bvm *vm, int32_t idx, const char * arg_type = nullptr, int32_t lv_obj_cb = 0) {
   int32_t ret = 0;
   char provided_type = 0;
@@ -423,7 +423,7 @@ int32_t be_convert_single_elt(bvm *vm, int32_t idx, const char * arg_type = null
       return ret;
     } else {
       be_pop(vm, 1);
-      be_getmember(vm, idx, ".p");
+      be_getmember(vm, idx, "_p");
       int32_t ret = be_convert_single_elt(vm, -1, nullptr);   // recurse
       be_pop(vm, 1);
 

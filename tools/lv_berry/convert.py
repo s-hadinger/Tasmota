@@ -470,7 +470,7 @@ for subtype, flv in lv.items():
   else:
     print(f"class be_class_lv_{subtype} (scope: global, name: lv_{subtype}) {{")
 
-  print(f"    .p, var")
+  print(f"    _p, var")
   if subtype == "style":
     print(f"    init, func(lvs_init)")
     print(f"    tostring, func(lvs_tostring)")

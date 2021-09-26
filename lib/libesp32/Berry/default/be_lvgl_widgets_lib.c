@@ -703,7 +703,7 @@ void be_load_lv_style_lib(bvm *vm) {
 
 /* @const_object_info_begin
 class be_class_lv_style (scope: global, name: lv_style) {
-    .p, var
+    _p, var
     init, func(lvs_init)
     tostring, func(lvs_tostring)
     member, func(lvx_member)
@@ -719,7 +719,7 @@ void be_load_lv_img_lib(bvm *vm) {
 
 /* @const_object_info_begin
 class be_class_lv_img (scope: global, name: lv_img, super: be_class_lv_obj) {
-    .p, var
+    _p, var
     _class, int(&lv_img_class)
     init, func(lvbe_img_create)
     tostring, func(lvx_tostring)
@@ -736,7 +736,7 @@ void be_load_lv_obj_lib(bvm *vm) {
 
 /* @const_object_info_begin
 class be_class_lv_obj (scope: global, name: lv_obj) {
-    .p, var
+    _p, var
     _class, int(&lv_obj_class)
     init, func(lvbe_obj_create)
     tostring, func(lvx_tostring)
@@ -753,7 +753,7 @@ void be_load_lv_group_lib(bvm *vm) {
 
 /* @const_object_info_begin
 class be_class_lv_group (scope: global, name: lv_group) {
-    .p, var
+    _p, var
     init, func(lvbe_group_create)
     tostring, func(lvx_tostring)
     member, func(lvx_member)
@@ -769,7 +769,7 @@ void be_load_lv_indev_lib(bvm *vm) {
 
 /* @const_object_info_begin
 class be_class_lv_indev (scope: global, name: lv_indev) {
-    .p, var
+    _p, var
     init, func(lv0_init)
     tostring, func(lvx_tostring)
     member, func(lvx_member)
@@ -785,7 +785,7 @@ void be_load_lv_arc_lib(bvm *vm) {
 
 /* @const_object_info_begin
 class be_class_lv_arc (scope: global, name: lv_arc, super: be_class_lv_obj) {
-    .p, var
+    _p, var
     _class, int(&lv_arc_class)
     init, func(lvbe_arc_create)
     tostring, func(lvx_tostring)
@@ -802,7 +802,7 @@ void be_load_lv_bar_lib(bvm *vm) {
 
 /* @const_object_info_begin
 class be_class_lv_bar (scope: global, name: lv_bar, super: be_class_lv_obj) {
-    .p, var
+    _p, var
     _class, int(&lv_bar_class)
     init, func(lvbe_bar_create)
     tostring, func(lvx_tostring)
@@ -819,7 +819,7 @@ void be_load_lv_btn_lib(bvm *vm) {
 
 /* @const_object_info_begin
 class be_class_lv_btn (scope: global, name: lv_btn, super: be_class_lv_obj) {
-    .p, var
+    _p, var
     _class, int(&lv_btn_class)
     init, func(lvbe_btn_create)
     tostring, func(lvx_tostring)
@@ -836,7 +836,7 @@ void be_load_lv_btnmatrix_lib(bvm *vm) {
 
 /* @const_object_info_begin
 class be_class_lv_btnmatrix (scope: global, name: lv_btnmatrix, super: be_class_lv_obj) {
-    .p, var
+    _p, var
     _class, int(&lv_btnmatrix_class)
     init, func(lvbe_btnmatrix_create)
     tostring, func(lvx_tostring)
@@ -853,7 +853,7 @@ void be_load_lv_canvas_lib(bvm *vm) {
 
 /* @const_object_info_begin
 class be_class_lv_canvas (scope: global, name: lv_canvas, super: be_class_lv_obj) {
-    .p, var
+    _p, var
     _class, int(&lv_canvas_class)
     init, func(lvbe_canvas_create)
     tostring, func(lvx_tostring)
@@ -870,7 +870,7 @@ void be_load_lv_checkbox_lib(bvm *vm) {
 
 /* @const_object_info_begin
 class be_class_lv_checkbox (scope: global, name: lv_checkbox, super: be_class_lv_obj) {
-    .p, var
+    _p, var
     _class, int(&lv_checkbox_class)
     init, func(lvbe_checkbox_create)
     tostring, func(lvx_tostring)
@@ -887,7 +887,7 @@ void be_load_lv_dropdown_lib(bvm *vm) {
 
 /* @const_object_info_begin
 class be_class_lv_dropdown (scope: global, name: lv_dropdown, super: be_class_lv_obj) {
-    .p, var
+    _p, var
     _class, int(&lv_dropdown_class)
     init, func(lvbe_dropdown_create)
     tostring, func(lvx_tostring)
@@ -904,7 +904,7 @@ void be_load_lv_label_lib(bvm *vm) {
 
 /* @const_object_info_begin
 class be_class_lv_label (scope: global, name: lv_label, super: be_class_lv_obj) {
-    .p, var
+    _p, var
     _class, int(&lv_label_class)
     init, func(lvbe_label_create)
     tostring, func(lvx_tostring)
@@ -921,7 +921,7 @@ void be_load_lv_line_lib(bvm *vm) {
 
 /* @const_object_info_begin
 class be_class_lv_line (scope: global, name: lv_line, super: be_class_lv_obj) {
-    .p, var
+    _p, var
     _class, int(&lv_line_class)
     init, func(lvbe_line_create)
     tostring, func(lvx_tostring)
@@ -938,7 +938,7 @@ void be_load_lv_roller_lib(bvm *vm) {
 
 /* @const_object_info_begin
 class be_class_lv_roller (scope: global, name: lv_roller, super: be_class_lv_obj) {
-    .p, var
+    _p, var
     _class, int(&lv_roller_class)
     init, func(lvbe_roller_create)
     tostring, func(lvx_tostring)
@@ -955,7 +955,7 @@ void be_load_lv_slider_lib(bvm *vm) {
 
 /* @const_object_info_begin
 class be_class_lv_slider (scope: global, name: lv_slider, super: be_class_lv_obj) {
-    .p, var
+    _p, var
     _class, int(&lv_slider_class)
     init, func(lvbe_slider_create)
     tostring, func(lvx_tostring)
@@ -972,7 +972,7 @@ void be_load_lv_switch_lib(bvm *vm) {
 
 /* @const_object_info_begin
 class be_class_lv_switch (scope: global, name: lv_switch, super: be_class_lv_obj) {
-    .p, var
+    _p, var
     _class, int(&lv_switch_class)
     init, func(lvbe_switch_create)
     tostring, func(lvx_tostring)
@@ -989,7 +989,7 @@ void be_load_lv_table_lib(bvm *vm) {
 
 /* @const_object_info_begin
 class be_class_lv_table (scope: global, name: lv_table, super: be_class_lv_obj) {
-    .p, var
+    _p, var
     _class, int(&lv_table_class)
     init, func(lvbe_table_create)
     tostring, func(lvx_tostring)
@@ -1006,7 +1006,7 @@ void be_load_lv_textarea_lib(bvm *vm) {
 
 /* @const_object_info_begin
 class be_class_lv_textarea (scope: global, name: lv_textarea, super: be_class_lv_obj) {
-    .p, var
+    _p, var
     _class, int(&lv_textarea_class)
     init, func(lvbe_textarea_create)
     tostring, func(lvx_tostring)

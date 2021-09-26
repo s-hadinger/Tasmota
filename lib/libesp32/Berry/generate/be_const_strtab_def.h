@@ -244,6 +244,7 @@ be_define_const_str(PWM1_INV, "PWM1_INV", 3939021030u, 0, 8, &be_const_str__clas
 be_define_const_str(_class, "_class", 2732146350u, 0, 6, &be_const_str_begin);
 be_define_const_str(begin, "begin", 1748273790u, 0, 5, NULL);
 be_define_const_str(A4988_MS1, "A4988_MS1", 1729976611u, 0, 9, NULL);
+be_define_const_str(_p, "_p", 1594591802u, 0, 2, &be_const_str_setrange);
 be_define_const_str(setrange, "setrange", 3794019032u, 0, 8, NULL);
 be_define_const_str(atan2, "atan2", 3173440503u, 0, 5, &be_const_str_read_bytes);
 be_define_const_str(read_bytes, "read_bytes", 3576733173u, 0, 10, NULL);
@@ -804,7 +805,7 @@ static const bstring* const m_string_table[] = {
     (const bstring *)&be_const_str_WE517_RX,
     (const bstring *)&be_const_str_PWM1_INV,
     (const bstring *)&be_const_str_A4988_MS1,
-    (const bstring *)&be_const_str_setrange,
+    (const bstring *)&be_const_str__p,
     (const bstring *)&be_const_str_atan2,
     (const bstring *)&be_const_str_FALLING,
     (const bstring *)&be_const_str_SYMBOL_BATTERY_FULL,
@@ -1016,6 +1017,6 @@ static const bstring* const m_string_table[] = {
 
 static const struct bconststrtab m_const_string_table = {
     .size = 330,
-    .count = 660,
+    .count = 661,
     .table = m_string_table
 };

@@ -20,7 +20,7 @@ void be_load_lvgl_font_lib(bvm *vm) {
 
 /* @const_object_info_begin
 class be_class_lv_font (scope: global, name: lv_font) {
-    .p, var
+    _p, var
     init, func(lvx_init)
     tostring, func(lvx_tostring)
 }

@@ -12,7 +12,7 @@ extern int be_call_c_func(bvm *vm, void * func, const char * return_type, const 
 int lv_cb_call_any(bvm *vm, const char * return_type, const char * arg_type) {
     int argc = be_top(vm);
     // get pointer to callback
-    be_getmember(vm, 1, ".p");
+    be_getmember(vm, 1, "_p");
     void * cb = be_tocomptr(vm, -1);
     be_pop(vm, 1);
     // remove first argument which is the instance `self`
@@ -66,7 +66,7 @@ int lv_gauge_format_cb_call(bvm *vm) {
 void be_load_lvgl_cb_lib(bvm *vm) {
 #if !BE_USE_PRECOMPILED_OBJECT
     static const bnfuncinfo members[] = {
-        { ".p", NULL },
+        { "_p", NULL },
         { "init", lv0_init },
         { "tostring", lvx_tostring },
         { "()", lv_cb_call },
@@ -87,7 +87,7 @@ void be_load_lvgl_cb_lib(bvm *vm) {
 /* @const_object_info_begin
 
 class be_lvgl_cb (scope: global, name: lv_cb) {
-    .p, var
+    _p, var
     init, func(lv0_init)
     tostring, func(lvx_tostring)
     call, func(lv_cb_call)

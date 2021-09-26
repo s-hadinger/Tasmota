@@ -244,6 +244,7 @@ extern const bcstring be_const_str_PWM1_INV;
 extern const bcstring be_const_str__class;
 extern const bcstring be_const_str_begin;
 extern const bcstring be_const_str_A4988_MS1;
+extern const bcstring be_const_str__p;
 extern const bcstring be_const_str_setrange;
 extern const bcstring be_const_str_atan2;
 extern const bcstring be_const_str_read_bytes;

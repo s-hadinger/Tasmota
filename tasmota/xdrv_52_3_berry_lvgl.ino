@@ -456,13 +456,13 @@ extern "C" {
       lv_color.full = be_toint(vm, 2);
     }
     be_pushint(vm, lv_color_to_uint32(lv_color));
-    be_setmember(vm, 1, ".p");
+    be_setmember(vm, 1, "_p");
     be_return_nil(vm);
   }
 
   int lco_tostring(bvm *vm) {
     lv_color_t lv_color = {};
-    be_getmember(vm, 1, ".p");
+    be_getmember(vm, 1, "_p");
     uint32_t ntv_color = be_toint(vm, -1);
     lv_color = lv_color_from_uint32(ntv_color);
     uint32_t color = lv_color_to32(lv_color) & 0xFFFFFF;
@@ -475,7 +475,7 @@ extern "C" {
 
   int lco_toint(bvm *vm) {
     lv_color_t lv_color = {};
-    be_getmember(vm, 1, ".p");
+    be_getmember(vm, 1, "_p");
     uint32_t ntv_color = be_toint(vm, -1);
     be_pushint(vm, ntv_color);
     be_return(vm);
@@ -485,24 +485,24 @@ extern "C" {
   /*********************************************************************************************\
    * Support for lv
   \*********************************************************************************************/
-  // Get the `.p` member of instance at `index`
+  // Get the `_p` member of instance at `index`
   void * lv_get_arg(bvm *vm, int index) {
     void * ret = nullptr;
     if (be_isinstance(vm, index)) {
-      be_getmember(vm, index, ".p");
+      be_getmember(vm, index, "_p");
       ret = be_tocomptr(vm, -1);
-      be_pop(vm, 1);  // remove .p attribute
+      be_pop(vm, 1);  // remove _p attribute
     }
     return ret;
   }
 
-  // called during init, set the `.p` member with the pointer
+  // called during init, set the `_p` member with the pointer
   void lv_init_set_member(bvm *vm, int index, void * ptr) {
     if (ptr == nullptr) {
         be_throw(vm, BE_MALLOC_FAIL);
     }
     be_pushcomptr(vm, ptr);
-    be_setmember(vm, index, ".p");
+    be_setmember(vm, index, "_p");
     be_pop(vm, 1);
   }
 
