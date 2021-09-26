@@ -102,53 +102,39 @@ const be_ctypes_structure_t be_lv_area = {
 }};
 
 const be_ctypes_structure_t be_lv_draw_rect_dsc = {
-  77,  /* size in bytes */
-  43,  /* number of elements */
+  50,  /* size in bytes */
+  29,  /* number of elements */
   be_ctypes_instance_mappings,
-  (const be_ctypes_structure_item_t[43]) {
-    { "bg_blend_mode", 12, 0, 0, 1, 0 },
-    { "bg_color", 2, 0, 0, 2, 1 },
-    { "bg_grad_color", 4, 0, 0, 2, 1 },
-    { "bg_grad_color_stop", 9, 0, 0, 12, 0 },
-    { "bg_grad_dir", 6, 0, 0, 1, 0 },
-    { "bg_main_color_stop", 7, 0, 0, 12, 0 },
-    { "bg_opa", 11, 0, 0, 1, 0 },
-    { "border_blend_mode", 20, 0, 0, 1, 0 },
-    { "border_color", 13, 0, 0, 2, 1 },
-    { "border_opa", 19, 0, 0, 1, 0 },
-    { "border_post", 21, 0, 1, 0, 0 },
-    { "border_side", 17, 0, 0, 12, 0 },
-    { "border_width", 15, 0, 0, 12, 0 },
-    { "outline_blend_mode", 29, 0, 0, 1, 0 },
-    { "outline_color", 22, 0, 0, 2, 1 },
-    { "outline_opa", 28, 0, 0, 1, 0 },
-    { "outline_pad", 26, 0, 0, 12, 0 },
-    { "outline_width", 24, 0, 0, 12, 0 },
-    { "pattern_blend_mode", 55, 0, 0, 1, 0 },
-    { "pattern_font", 46, 0, 0, 4, 0 },
-    { "pattern_image", 42, 0, 0, 4, 0 },
-    { "pattern_opa", 52, 0, 0, 1, 0 },
-    { "pattern_recolor", 50, 0, 0, 2, 1 },
-    { "pattern_recolor_opa", 53, 0, 0, 1, 0 },
-    { "pattern_repeat", 54, 0, 1, 0, 0 },
+  (const be_ctypes_structure_item_t[29]) {
+    { "bg_color", 3, 0, 0, 2, 1 },
+    { "bg_grad_color", 5, 0, 0, 2, 1 },
+    { "bg_grad_color_stop", 8, 0, 0, 1, 0 },
+    { "bg_grad_dir", 10, 0, 3, 0, 0 },
+    { "bg_img_opa", 22, 0, 0, 1, 0 },
+    { "bg_img_recolor", 20, 0, 0, 2, 1 },
+    { "bg_img_recolor_opa", 23, 0, 0, 1, 0 },
+    { "bg_img_src", 12, 0, 0, 4, 0 },
+    { "bg_img_symbol_font", 16, 0, 0, 4, 0 },
+    { "bg_img_tiled", 24, 0, 0, 1, 0 },
+    { "bg_main_color_stop", 7, 0, 0, 1, 0 },
+    { "bg_opa", 9, 0, 0, 1, 0 },
+    { "blend_mode", 2, 0, 0, 1, 0 },
+    { "border_color", 25, 0, 0, 2, 1 },
+    { "border_opa", 29, 0, 0, 1, 0 },
+    { "border_post", 30, 0, 1, 0, 0 },
+    { "border_side", 30, 1, 5, 0, 0 },
+    { "border_width", 27, 0, 0, 12, 0 },
+    { "outline_color", 32, 0, 0, 2, 1 },
+    { "outline_opa", 38, 0, 0, 1, 0 },
+    { "outline_pad", 36, 0, 0, 12, 0 },
+    { "outline_width", 34, 0, 0, 12, 0 },
     { "radius", 0, 0, 0, 12, 0 },
-    { "shadow_blend_mode", 41, 0, 0, 1, 0 },
-    { "shadow_color", 30, 0, 0, 2, 1 },
-    { "shadow_ofs_x", 34, 0, 0, 12, 0 },
-    { "shadow_ofs_y", 36, 0, 0, 12, 0 },
-    { "shadow_opa", 40, 0, 0, 1, 0 },
-    { "shadow_spread", 38, 0, 0, 12, 0 },
-    { "shadow_width", 32, 0, 0, 12, 0 },
-    { "value_align", 75, 0, 0, 1, 0 },
-    { "value_blend_mode", 76, 0, 0, 1, 0 },
-    { "value_color", 65, 0, 0, 2, 1 },
-    { "value_font", 60, 0, 0, 4, 0 },
-    { "value_letter_space", 71, 0, 0, 12, 0 },
-    { "value_line_space", 73, 0, 0, 12, 0 },
-    { "value_ofs_x", 67, 0, 0, 12, 0 },
-    { "value_ofs_y", 69, 0, 0, 12, 0 },
-    { "value_opa", 64, 0, 0, 1, 0 },
-    { "value_str", 56, 0, 0, 4, 0 },
+    { "shadow_color", 39, 0, 0, 2, 1 },
+    { "shadow_ofs_x", 43, 0, 0, 12, 0 },
+    { "shadow_ofs_y", 45, 0, 0, 12, 0 },
+    { "shadow_opa", 49, 0, 0, 1, 0 },
+    { "shadow_spread", 47, 0, 0, 12, 0 },
+    { "shadow_width", 41, 0, 0, 12, 0 },
 }};
 
 const be_ctypes_structure_t be_lv_draw_line_dsc = {
@@ -168,41 +154,20 @@ const be_ctypes_structure_t be_lv_draw_line_dsc = {
 }};
 
 const be_ctypes_structure_t be_lv_draw_img_dsc = {
-  14,  /* size in bytes */
-  9,  /* number of elements */
+  21,  /* size in bytes */
+  10,  /* number of elements */
   be_ctypes_instance_mappings,
-  (const be_ctypes_structure_item_t[9]) {
-    { "angle", 1, 0, 0, 2, 0 },
-    { "antialias", 13, 0, 1, 0, 0 },
-    { "blend_mode", 12, 0, 0, 1, 0 },
-    { "opa", 0, 0, 0, 1, 0 },
-    { "pivot_x", 3, 0, 0, 12, 0 },
-    { "pivot_y", 5, 0, 0, 12, 0 },
-    { "recolor", 10, 0, 0, 2, 1 },
-    { "recolor_opa", 9, 0, 0, 1, 0 },
-    { "zoom", 7, 0, 0, 2, 0 },
-}};
-
-const be_ctypes_structure_t be_lv_draw_label_dsc = {
-  31,  /* size in bytes */
-  15,  /* number of elements */
-  be_ctypes_instance_mappings,
-  (const be_ctypes_structure_item_t[15]) {
-    { "bidi_dir", 27, 0, 0, 1, 0 },
-    { "blend_mode", 30, 0, 0, 1, 0 },
-    { "color", 0, 0, 0, 2, 1 },
-    { "decor", 29, 0, 0, 1, 0 },
-    { "flag", 28, 0, 0, 1, 0 },
-    { "font", 6, 0, 0, 4, 0 },
-    { "letter_space", 13, 0, 0, 12, 0 },
-    { "line_space", 11, 0, 0, 12, 0 },
-    { "ofs_x", 23, 0, 0, 12, 0 },
-    { "ofs_y", 25, 0, 0, 12, 0 },
-    { "opa", 10, 0, 0, 1, 0 },
-    { "sel_bg_color", 4, 0, 0, 2, 1 },
-    { "sel_color", 2, 0, 0, 2, 1 },
-    { "sel_end", 19, 0, 0, 4, 0 },
-    { "sel_start", 15, 0, 0, 4, 0 },
+  (const be_ctypes_structure_item_t[10]) {
+    { "angle", 0, 0, 0, 2, 0 },
+    { "antialias", 20, 0, 1, 0, 0 },
+    { "blend_mode", 12, 0, 4, 0, 0 },
+    { "frame_id", 16, 0, 0, 14, 0 },
+    { "opa", 11, 0, 0, 1, 0 },
+    { "pivot_x", 4, 0, 0, 12, 0 },
+    { "pivot_y", 6, 0, 0, 12, 0 },
+    { "recolor", 8, 0, 0, 2, 1 },
+    { "recolor_opa", 10, 0, 0, 1, 0 },
+    { "zoom", 2, 0, 0, 2, 0 },
 }};
 
 const be_ctypes_structure_t be_lv_draw_mask_common_dsc = {
@@ -410,6 +375,37 @@ const be_ctypes_structure_t be_lv_draw_mask_saved = {
     { "param", 0, 0, 0, 4, 0 },
 }};
 
+const be_ctypes_structure_t be_lv_obj_class = {
+  27,  /* size in bytes */
+  10,  /* number of elements */
+  be_ctypes_instance_mappings,
+  (const be_ctypes_structure_item_t[10]) {
+    { "base_class", 0, 0, 0, 4, 0 },
+    { "constructor_cb", 4, 0, 0, 4, 0 },
+    { "destructor_cb", 8, 0, 0, 4, 0 },
+    { "editable", 24, 0, 2, 0, 0 },
+    { "event_cb", 16, 0, 0, 4, 0 },
+    { "group_def", 24, 2, 2, 0, 0 },
+    { "height_def", 22, 0, 0, 12, 0 },
+    { "instance_size", 24, 4, 16, 0, 0 },
+    { "user_data", 12, 0, 0, 4, 0 },
+    { "width_def", 20, 0, 0, 12, 0 },
+}};
+
+const be_ctypes_structure_t be_lv_event = {
+  25,  /* size in bytes */
+  7,  /* number of elements */
+  be_ctypes_instance_mappings,
+  (const be_ctypes_structure_item_t[7]) {
+    { "code", 8, 0, 0, 14, 0 },
+    { "current_target", 4, 0, 0, 4, 0 },
+    { "deleted", 24, 0, 1, 0, 0 },
+    { "param", 16, 0, 0, 4, 0 },
+    { "prev", 20, 0, 0, 4, 0 },
+    { "target", 0, 0, 0, 4, 0 },
+    { "user_data", 12, 0, 0, 4, 0 },
+}};
+
 static const char * be_ctypes_instance_mappings[] = {
   "lv_color",
   NULL
@@ -417,7 +413,6 @@ static const char * be_ctypes_instance_mappings[] = {
 
 static be_define_ctypes_class(lv_area, &be_lv_area, &be_class_ctypes, "lv_area");
 static be_define_ctypes_class(lv_draw_img_dsc, &be_lv_draw_img_dsc, &be_class_ctypes, "lv_draw_img_dsc");
-static be_define_ctypes_class(lv_draw_label_dsc, &be_lv_draw_label_dsc, &be_class_ctypes, "lv_draw_label_dsc");
 static be_define_ctypes_class(lv_draw_line_dsc, &be_lv_draw_line_dsc, &be_class_ctypes, "lv_draw_line_dsc");
 static be_define_ctypes_class(lv_draw_mask_angle_param, &be_lv_draw_mask_angle_param, &be_class_ctypes, "lv_draw_mask_angle_param");
 static be_define_ctypes_class(lv_draw_mask_angle_param_cfg, &be_lv_draw_mask_angle_param_cfg, &be_class_ctypes, "lv_draw_mask_angle_param_cfg");
@@ -432,13 +427,14 @@ static be_define_ctypes_class(lv_draw_mask_radius_param, &be_lv_draw_mask_radius
 static be_define_ctypes_class(lv_draw_mask_radius_param_cfg, &be_lv_draw_mask_radius_param_cfg, &be_class_ctypes, "lv_draw_mask_radius_param_cfg");
 static be_define_ctypes_class(lv_draw_mask_saved, &be_lv_draw_mask_saved, &be_class_ctypes, "lv_draw_mask_saved");
 static be_define_ctypes_class(lv_draw_rect_dsc, &be_lv_draw_rect_dsc, &be_class_ctypes, "lv_draw_rect_dsc");
+static be_define_ctypes_class(lv_event, &be_lv_event, &be_class_ctypes, "lv_event");
+static be_define_ctypes_class(lv_obj_class, &be_lv_obj_class, &be_class_ctypes, "lv_obj_class");
 static be_define_ctypes_class(lv_point, &be_lv_point, &be_class_ctypes, "lv_point");
 static be_define_ctypes_class(lv_sqrt_res, &be_lv_sqrt_res, &be_class_ctypes, "lv_sqrt_res");
 
 void be_load_ctypes_lvgl_definitions_lib(bvm *vm) {
   ctypes_register_class(vm, &be_class_lv_area, &be_lv_area);
   ctypes_register_class(vm, &be_class_lv_draw_img_dsc, &be_lv_draw_img_dsc);
-  ctypes_register_class(vm, &be_class_lv_draw_label_dsc, &be_lv_draw_label_dsc);
   ctypes_register_class(vm, &be_class_lv_draw_line_dsc, &be_lv_draw_line_dsc);
   ctypes_register_class(vm, &be_class_lv_draw_mask_angle_param, &be_lv_draw_mask_angle_param);
   ctypes_register_class(vm, &be_class_lv_draw_mask_angle_param_cfg, &be_lv_draw_mask_angle_param_cfg);
@@ -453,6 +449,8 @@ void be_load_ctypes_lvgl_definitions_lib(bvm *vm) {
   ctypes_register_class(vm, &be_class_lv_draw_mask_radius_param_cfg, &be_lv_draw_mask_radius_param_cfg);
   ctypes_register_class(vm, &be_class_lv_draw_mask_saved, &be_lv_draw_mask_saved);
   ctypes_register_class(vm, &be_class_lv_draw_rect_dsc, &be_lv_draw_rect_dsc);
+  ctypes_register_class(vm, &be_class_lv_event, &be_lv_event);
+  ctypes_register_class(vm, &be_class_lv_obj_class, &be_lv_obj_class);
   ctypes_register_class(vm, &be_class_lv_point, &be_lv_point);
   ctypes_register_class(vm, &be_class_lv_sqrt_res, &be_lv_sqrt_res);
 }
