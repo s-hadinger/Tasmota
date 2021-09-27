@@ -152,9 +152,13 @@ class lv_custom_widget : lv_obj
   end
 
   def widget_event(cl, e)
-    print("widget_event", cl, e)
     var res = lv.obj_event_base(cl, e)
-    print("widget_event res=", res)
+    if res != lv.RES_OK  return  end
+
+    var code = event.code
+    if code == lv.EVENT_DRAW_MAIN
+      print("widget_event DRAW")
+    end
   end
 end
 
