@@ -95,114 +95,6 @@ public:
 };
 LVBE_globals lvbe;
 
-/********************************************************************
- * Generated code, don't edit
- *******************************************************************/
- // Configuration
-#ifndef BE_LV_WIDGET_ARC
-#define BE_LV_WIDGET_ARC 1
-#endif
-#ifndef BE_LV_WIDGET_BAR
-#define BE_LV_WIDGET_BAR 1
-#endif
-#ifndef BE_LV_WIDGET_BTN
-#define BE_LV_WIDGET_BTN 1
-#endif
-#ifndef BE_LV_WIDGET_BTNMATRIX
-#define BE_LV_WIDGET_BTNMATRIX 1
-#endif
-#ifndef BE_LV_WIDGET_CALENDAR
-#define BE_LV_WIDGET_CALENDAR 1
-#endif
-#ifndef BE_LV_WIDGET_CANVAS
-#define BE_LV_WIDGET_CANVAS 1
-#endif
-#ifndef BE_LV_WIDGET_CHART
-#define BE_LV_WIDGET_CHART 1
-#endif
-#ifndef BE_LV_WIDGET_CHECKBOX
-#define BE_LV_WIDGET_CHECKBOX 1
-#endif
-#ifndef BE_LV_WIDGET_CONT
-#define BE_LV_WIDGET_CONT 1
-#endif
-#ifndef BE_LV_WIDGET_CPICKER
-#define BE_LV_WIDGET_CPICKER 1
-#endif
-#ifndef BE_LV_WIDGET_DROPDOWN
-#define BE_LV_WIDGET_DROPDOWN 1
-#endif
-#ifndef BE_LV_WIDGET_GAUGE
-#define BE_LV_WIDGET_GAUGE 1
-#endif
-#ifndef BE_LV_WIDGET_IMG
-#define BE_LV_WIDGET_IMG 1
-#endif
-#ifndef BE_LV_WIDGET_IMGBTN
-#define BE_LV_WIDGET_IMGBTN 1
-#endif
-#ifndef BE_LV_WIDGET_KEYBOARD
-#define BE_LV_WIDGET_KEYBOARD 1
-#endif
-#ifndef BE_LV_WIDGET_LABEL
-#define BE_LV_WIDGET_LABEL 1
-#endif
-#ifndef BE_LV_WIDGET_LED
-#define BE_LV_WIDGET_LED 1
-#endif
-#ifndef BE_LV_WIDGET_LINE
-#define BE_LV_WIDGET_LINE 1
-#endif
-#ifndef BE_LV_WIDGET_LINEMETER
-#define BE_LV_WIDGET_LINEMETER 1
-#endif
-#ifndef BE_LV_WIDGET_LIST
-#define BE_LV_WIDGET_LIST 1
-#endif
-#ifndef BE_LV_WIDGET_MSGBOX
-#define BE_LV_WIDGET_MSGBOX 1
-#endif
-#ifndef BE_LV_WIDGET_OBJMASK
-#define BE_LV_WIDGET_OBJMASK 1
-#endif
-#ifndef BE_LV_WIDGET_TEMPL
-#define BE_LV_WIDGET_TEMPL 1
-#endif
-#ifndef BE_LV_WIDGET_PAGE
-#define BE_LV_WIDGET_PAGE 1
-#endif
-#ifndef BE_LV_WIDGET_ROLLER
-#define BE_LV_WIDGET_ROLLER 1
-#endif
-#ifndef BE_LV_WIDGET_SLIDER
-#define BE_LV_WIDGET_SLIDER 1
-#endif
-#ifndef BE_LV_WIDGET_SPINBOX
-#define BE_LV_WIDGET_SPINBOX 1
-#endif
-#ifndef BE_LV_WIDGET_SPINNER
-#define BE_LV_WIDGET_SPINNER 1
-#endif
-#ifndef BE_LV_WIDGET_SWITCH
-#define BE_LV_WIDGET_SWITCH 1
-#endif
-#ifndef BE_LV_WIDGET_TABLE
-#define BE_LV_WIDGET_TABLE 1
-#endif
-#ifndef BE_LV_WIDGET_TABVIEW
-#define BE_LV_WIDGET_TABVIEW 1
-#endif
-#ifndef BE_LV_WIDGET_TEXTAREA
-#define BE_LV_WIDGET_TEXTAREA 1
-#endif
-#ifndef BE_LV_WIDGET_TILEVIEW
-#define BE_LV_WIDGET_TILEVIEW 1
-#endif
-#ifndef BE_LV_WIDGET_WIN
-#define BE_LV_WIDGET_WIN 1
-#endif
-/********************************************************************/
-
 extern void start_lvgl(const char * uconfig);
 extern void lv_ex_get_started_1(void);
 
@@ -302,7 +194,9 @@ extern "C" {
       // AddLog(LOG_LEVEL_INFO, "argc %d obj1 %p obj2 %p", argc, obj1, obj2);
       fn_any_callable f = (fn_any_callable) func;
       // AddLog(LOG_LEVEL_INFO, ">> be_call_c_func(%p) - %p,%p,%p,%p,%p", f, p[0], p[1], p[2], p[3], p[4]);
-      obj = (lv_obj_t*) (*f)((int32_t)obj1, 0, 0, 0, 0, 0, 0, 0);
+      if (f) {  // if f is null, just store 0x00000000
+        obj = (lv_obj_t*) (*f)((int32_t)obj1, 0, 0, 0, 0, 0, 0, 0);
+      }
     }
     lv_init_set_member(vm, 1, obj);
     be_return_nil(vm);
@@ -498,9 +392,6 @@ extern "C" {
 
   // called during init, set the `_p` member with the pointer
   void lv_init_set_member(bvm *vm, int index, void * ptr) {
-    if (ptr == nullptr) {
-        be_throw(vm, BE_MALLOC_FAIL);
-    }
     be_pushcomptr(vm, ptr);
     be_setmember(vm, index, "_p");
     be_pop(vm, 1);
@@ -935,25 +826,8 @@ extern "C" {
   }
 
   /*********************************************************************************************\
-   * Support for lv_obj
+   * Generalized tostring method, shows class and _p value
   \*********************************************************************************************/
-  int lvx_init(bvm *vm);
-  int lvx_init(bvm *vm) {
-    int argc = be_top(vm);
-    lv_obj_t * obj = nullptr;
-
-    if (argc > 1) {
-      obj = (lv_obj_t*) be_convert_single_elt(vm, 2);
-    }
-    // AddLog(LOG_LEVEL_INFO, "argc %d lv_obj %p", argc, obj);
-    if (obj == nullptr) {
-      obj = lv_obj_create(nullptr);
-    }
-    // AddLog(LOG_LEVEL_INFO, "lv_obj final %p", obj);
-    lv_init_set_member(vm, 1, obj);
-    be_return_nil(vm);
-  }
-
   int lvx_tostring(bvm *vm) {
     lv_obj_t * obj = (lv_obj_t*) lv_get_arg(vm, 1);
     const char * classname = be_classname(vm, 1);
@@ -975,6 +849,9 @@ extern "C" {
     }
     if (style == nullptr) {
       style = (lv_style_t*) be_malloc(vm, sizeof(lv_style_t));
+      if (style == nullptr) {
+          be_throw(vm, BE_MALLOC_FAIL);
+      }
       if (style != nullptr) {
         lv_style_init(style);
       }

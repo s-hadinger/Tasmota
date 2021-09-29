@@ -91,6 +91,11 @@ return_types = {
   "lv_bar_mode_t": "i",
   "lv_event_code_t": "i",
   "lv_obj_flag_t": "i",
+  "lv_slider_mode_t": "i",
+  "lv_scroll_snap_t": "i",
+  "lv_style_value_t": "i",
+  "lv_img_src_t": "i",
+  "lv_colorwheel_mode_t": "i",
 
   "_lv_event_dsc_t *": "i",
 
@@ -98,6 +103,12 @@ return_types = {
   # "lv_design_cb_t": "c",
   # "lv_event_cb_t": "c",
   # "lv_group_focus_cb_t": "c",
+
+  # ctypes objects
+  "lv_area_t *": "lv_area",
+  "lv_meter_scale_t *": "lv_meter_scale",
+  "lv_meter_indicator_t *": "lv_meter_indicator",
+  "lv_obj_class_t *": "lv_obj_class",
 
   "_lv_obj_t *": "lv_obj",
   "lv_obj_t *": "lv_obj",
@@ -128,10 +139,13 @@ lv_cb_types = ['lv_group_focus_cb', 'lv_event_cb',
 # For LVGL8, need to add synthetic lv_style
 lv['style'] = []
 
-lv_widgets = ['arc', 'bar', 'btn', 'btnmatrix', 'calendar', 'canvas', 'chart', 'checkbox',
-             'cont', 'cpicker', 'dropdown', 'gauge', 'img', 'imgbtn', 'keyboard', 'label', 'led', 'line',
-             'linemeter', 'list', 'msgbox', 'objmask', 'templ', 'page', 'roller', 'slider', 'spinbox',
-             'spinner', 'switch', 'table', 'tabview', 'textarea', 'tileview', 'win']
+# standard widgets
+lv_widgets = ['arc', 'bar', 'btn', 'btnmatrix', 'canvas', 'checkbox',
+              'dropdown', 'img', 'label', 'line', 'roller', 'slider',
+              'switch', 'table', 'textarea' ]
+# extra widgets
+
+lv_widgets = lv_widgets + [ 'chart', 'colorwheel', 'imgbtn', 'led', 'meter', 'msgbox', 'spinbox' ]
 lv_prefix = ['obj', 'group', 'style', 'indev', ] + lv_widgets
 
 def try_int(s):
@@ -292,24 +306,6 @@ with open(lv_module_file) as f:
       #print(g.group(3))
 
 
-sys.stdout = open(out_prefix + be_lv_defines, 'w')
-
-
-print("/********************************************************************")
-print(" * Generated code, don't edit")
-print(" *******************************************************************/")
-print(" // Configuration")
-
-for subtype in lv_widgets:
-  define = f"BE_LV_WIDGET_" + subtype.upper()
-  print(f"#ifndef {define}")
-  print(f"#define {define} 1")
-  print(f"#endif")
-
-print("/********************************************************************/")
-sys.stdout.close()
-
-
 sys.stdout = open(out_prefix + be_lv_c_mapping, 'w')
 print("""
 /********************************************************************
@@ -326,7 +322,7 @@ extern "C" {
 for subtype, flv in lv.items():
   print(f"/* `lv_{subtype}` methods */")
   if subtype in lv_widgets:
-    print(f"#if BE_LV_WIDGET_{subtype.upper()}")
+    print(f"#ifdef BE_LV_WIDGET_{subtype.upper()}")
   print(f"const lvbe_call_c_t lv_{subtype}_func[] = {{")
 
   func_out = {} # used to sort output
@@ -359,7 +355,7 @@ const lvbe_call_c_classes_t lv_classes[] = {{""")
 for subtype in sorted(lv):
 # for subtype, flv in lv.items():
   if subtype in lv_widgets:
-    print(f"#if BE_LV_WIDGET_{subtype.upper()}")
+    print(f"#ifdef BE_LV_WIDGET_{subtype.upper()}")
   print(f"  {{ \"lv_{subtype}\", lv_{subtype}_func, sizeof(lv_{subtype}_func) / sizeof(lv_{subtype}_func[0]) }},")
   if subtype in lv_widgets:
     print(f"#endif // BE_LV_WIDGET_{subtype.upper()}")
@@ -382,7 +378,7 @@ for subtype, flv in lv.items():
     if c_func_name.endswith("_create"):
       c_ret_type = f"+lv_{subtype}"
       if subtype in lv_widgets:
-        print(f"#if BE_LV_WIDGET_{subtype.upper()}")
+        print(f"#ifdef BE_LV_WIDGET_{subtype.upper()}")
       print(f"  int {c_func_name}(bvm *vm)       {{ return be_call_c_func(vm, (void*) &{orig_func_name}, \"{c_ret_type}\", { c_argc if c_argc else 'nullptr'}); }}")
       if subtype in lv_widgets:
         print(f"#endif // BE_LV_WIDGET_{subtype.upper()}")
@@ -397,7 +393,7 @@ print(f"  void be_load_lv_all_lib(bvm *vm) {{")
 for subtype in lv:
   define = f"BE_LV_WIDGET_" + subtype.upper()
   if subtype in lv_widgets:
-    print(f"#if {define}")
+    print(f"#ifdef {define}")
   print(f"    be_load_lv_{subtype}_lib(vm);")
   if subtype in lv_widgets:
     print(f"#endif")

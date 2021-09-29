@@ -14,25 +14,22 @@ scr.set_style_bg_color(lv_color(0x000066), lv.PART_MAIN | lv.STATE_DEFAULT)
 #- Upper state line -#
 stat_line = lv_label(scr)
 if f20 != nil stat_line.set_style_text_font(f20, lv.PART_MAIN | lv.STATE_DEFAULT) end
-
-stat_line.set_width(hres)                                                             # extend to far right of screen
-stat_line.set_align(lv.TEXT_ALIGN_LEFT)                                               # align text left
-stat_line.set_style_bg_color(lv_color(0x000022), lv.PART_MAIN | lv.STATE_DEFAULT)     # background #0x000022
-stat_line.set_style_bg_opa(lv.OPA_COVER, lv.PART_MAIN | lv.STATE_DEFAULT)             # 100% background opacity
-stat_line.set_style_text_color(lv_color(0xFFFFFF), lv.PART_MAIN | lv.STATE_DEFAULT)   # text color #FFFFFF (white)
-stat_line.set_text("Tasmota")                                                         # set default text
+stat_line.set_long_mode(lv.LABEL_LONG_SCROLL)                                                  # auto scrolling if text does not fit
+stat_line.set_width(hres)
+stat_line.set_align(lv.TEXT_ALIGN_LEFT)                                                      # align text left
+stat_line.set_style_bg_color(lv_color(0xD00000), lv.PART_MAIN | lv.STATE_DEFAULT)    # background #000088
+stat_line.set_style_bg_opa(lv.OPA_COVER, lv.PART_MAIN | lv.STATE_DEFAULT)            # 100% background opacity
+stat_line.set_style_text_color(lv_color(0xFFFFFF), lv.PART_MAIN | lv.STATE_DEFAULT)  # text color #FFFFFF
+stat_line.set_text("Tasmota")
+stat_line.refr_size()                                                                # new in LVGL8
+stat_line.refr_pos()                                                                 # new in LVGL8
 
 #- display wifi strength indicator icon (for professionals ;) -#
-# stat_line.set_style_local_pad_right(lv.OBJ_PART_MAIN, lv.STATE_DEFAULT, stat_line_height + 1)
-# wifi_bars = lv_wifi_bars(stat_line)
-# wifi_bars.set_style_local_bg_color(lv.OBJ_PART_MAIN, lv.STATE_DEFAULT, lv_color(lv.BLACK))
-# wifi_bars.set_height(stat_line_height)
-# wifi_bars.set_width(stat_line_height)
-# wifi_bars.set_x(stat_line.get_width() - stat_line_height)
+wifi_icon = lv_wifi_arcs_icon(stat_line)    # the widget takes care of positioning and driver stuff
+clock_icon = lv_clock_icon(stat_line)
 
 #- create a style for the buttons -#
 btn_style = lv_style()
-
 
 btn_style.set_radius(10)                        # radius of rounded corners
 btn_style.set_bg_opa(lv.OPA_COVER)              # 100% backgrond opacity

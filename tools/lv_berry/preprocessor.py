@@ -51,6 +51,14 @@ def clean_source(raw):
 lv_src_prefix = "../../lib/libesp32_lvgl/LVGL8/src/"
 lv_fun_globs = [ 
                   "widgets/*.h",   # all widgets
+                  # "extra/widgets/*/*.h",
+                  "extra/widgets/chart/*.h",
+                  "extra/widgets/colorwheel/*.h",
+                  "extra/widgets/imgbtn/*.h",
+                  "extra/widgets/led/*.h",
+                  "extra/widgets/meter/*.h",
+                  "extra/widgets/msgbox/*.h",
+                  "extra/widgets/spinbox/*.h",
                   "core/*.h",
                   "draw/*.h",
                   "misc/lv_style_gen.h",
@@ -142,6 +150,8 @@ for header_name in headers_names:
               "^lv_img_cf_",
               "^lv_img_buf_",
               "^lv_indev_scroll_",
+              "^lv_keyboard_def_event_cb",  # need to fix conditional include
+              "^lv_event_get_",            # event_getters not needed
             ]:
           if re.search(exclude_pattern, fun_name): exclude = True
         if exclude: continue

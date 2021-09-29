@@ -126,6 +126,9 @@ be_native_module_attr_table(introspect) {
 
     be_native_module_function("get", m_findmember),
     be_native_module_function("set", m_setmember),
+
+    be_native_module_function("toptr", m_toptr),
+    be_native_module_function("fromptr", m_fromptr),
 };
 
 be_define_native_module(introspect, NULL);

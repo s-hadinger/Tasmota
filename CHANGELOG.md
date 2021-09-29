@@ -3,7 +3,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased] - Development
 
-## [9.5.0.8]
+## [9.5.0.9]
+
+## [9.5.0.8] 20210927
 ### Added
 - Command ``WebGetConfig <url>`` if ``#define USE_WEBGETCONFIG`` is enabled to restore/init configuration from external webserver (#13034)
 - Berry class ``webclient`` for HTTP/HTTPS requests
@@ -15,6 +17,7 @@ All notable changes to this project will be documented in this file.
 - Support for Sensirion SCD40/SCD41 CO2 sensor (#13139)
 - Support for BL0939 energy monitor as used in ESP32 based Sonoff Dual R3 V2 Pow (#13195)
 - Command ``WebQuery <url> GET|POST|PUT|PATCH [<headers>] <body>`` to extent HTTP requests (#13209)
+- Berry print stack trace when exception, more detailed with line numbers if `#define USE_BERRY_DEBUG`
 
 ### Changed
 - M5 Stack Core2 uses UNIVERSAL_DISPLAY with enabled LVGL as default now

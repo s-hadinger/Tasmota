@@ -154,6 +154,7 @@ extern int lvbe_obj_get_user_data(bvm *vm);
 extern int lvbe_obj_allocate_spec_attr(bvm *vm);
 extern int lvbe_obj_check_type(bvm *vm);
 extern int lvbe_obj_has_class(bvm *vm);
+extern int lvbe_obj_get_class(bvm *vm);
 extern int lvbe_obj_is_valid(bvm *vm);
 extern int lvbe_obj_dpx(bvm *vm);
 extern int lvbe_obj_class_init_obj(bvm *vm);
@@ -212,6 +213,8 @@ extern int lvbe_obj_set_scroll_snap_x(bvm *vm);
 extern int lvbe_obj_set_scroll_snap_y(bvm *vm);
 extern int lvbe_obj_get_scrollbar_mode(bvm *vm);
 extern int lvbe_obj_get_scroll_dir(bvm *vm);
+extern int lvbe_obj_get_scroll_snap_x(bvm *vm);
+extern int lvbe_obj_get_scroll_snap_y(bvm *vm);
 extern int lvbe_obj_get_scroll_x(bvm *vm);
 extern int lvbe_obj_get_scroll_y(bvm *vm);
 extern int lvbe_obj_get_scroll_top(bvm *vm);
@@ -234,6 +237,7 @@ extern int lvbe_obj_add_style(bvm *vm);
 extern int lvbe_obj_remove_style(bvm *vm);
 extern int lvbe_obj_remove_style_all(bvm *vm);
 extern int lvbe_obj_refresh_style(bvm *vm);
+extern int lvbe_obj_get_style_prop(bvm *vm);
 extern int lvbe_obj_set_local_style_prop(bvm *vm);
 extern int lvbe_obj_get_local_style_prop(bvm *vm);
 extern int lvbe_obj_remove_local_style_prop(bvm *vm);
@@ -472,6 +476,101 @@ extern int lvbe_indev_get_vect(bvm *vm);
 extern int lvbe_indev_wait_release(bvm *vm);
 extern int lvbe_indev_search_obj(bvm *vm);
 
+/* `lv_chart` external functions definitions */
+extern int lvbe_chart_create(bvm *vm);
+extern int lvbe_chart_set_type(bvm *vm);
+extern int lvbe_chart_set_point_count(bvm *vm);
+extern int lvbe_chart_set_range(bvm *vm);
+extern int lvbe_chart_set_update_mode(bvm *vm);
+extern int lvbe_chart_set_div_line_count(bvm *vm);
+extern int lvbe_chart_set_zoom_x(bvm *vm);
+extern int lvbe_chart_set_zoom_y(bvm *vm);
+extern int lvbe_chart_get_zoom_x(bvm *vm);
+extern int lvbe_chart_get_zoom_y(bvm *vm);
+extern int lvbe_chart_set_axis_tick(bvm *vm);
+extern int lvbe_chart_get_type(bvm *vm);
+extern int lvbe_chart_get_point_count(bvm *vm);
+extern int lvbe_chart_get_x_start_point(bvm *vm);
+extern int lvbe_chart_get_point_pos_by_id(bvm *vm);
+extern int lvbe_chart_refresh(bvm *vm);
+extern int lvbe_chart_remove_series(bvm *vm);
+extern int lvbe_chart_hide_series(bvm *vm);
+extern int lvbe_chart_set_series_color(bvm *vm);
+extern int lvbe_chart_set_x_start_point(bvm *vm);
+extern int lvbe_chart_set_cursor_pos(bvm *vm);
+extern int lvbe_chart_set_cursor_point(bvm *vm);
+extern int lvbe_chart_get_cursor_point(bvm *vm);
+extern int lvbe_chart_set_all_value(bvm *vm);
+extern int lvbe_chart_set_next_value(bvm *vm);
+extern int lvbe_chart_set_next_value2(bvm *vm);
+extern int lvbe_chart_set_value_by_id(bvm *vm);
+extern int lvbe_chart_set_value_by_id2(bvm *vm);
+extern int lvbe_chart_set_ext_y_array(bvm *vm);
+extern int lvbe_chart_set_ext_x_array(bvm *vm);
+extern int lvbe_chart_get_pressed_point(bvm *vm);
+
+/* `lv_colorwheel` external functions definitions */
+extern int lvbe_colorwheel_create(bvm *vm);
+extern int lvbe_colorwheel_set_hsv(bvm *vm);
+extern int lvbe_colorwheel_set_rgb(bvm *vm);
+extern int lvbe_colorwheel_set_mode(bvm *vm);
+extern int lvbe_colorwheel_set_mode_fixed(bvm *vm);
+extern int lvbe_colorwheel_get_hsv(bvm *vm);
+extern int lvbe_colorwheel_get_rgb(bvm *vm);
+extern int lvbe_colorwheel_get_color_mode(bvm *vm);
+extern int lvbe_colorwheel_get_color_mode_fixed(bvm *vm);
+
+/* `lv_imgbtn` external functions definitions */
+extern int lvbe_imgbtn_create(bvm *vm);
+extern int lvbe_imgbtn_set_src(bvm *vm);
+
+/* `lv_led` external functions definitions */
+extern int lvbe_led_create(bvm *vm);
+extern int lvbe_led_set_color(bvm *vm);
+extern int lvbe_led_set_brightness(bvm *vm);
+extern int lvbe_led_on(bvm *vm);
+extern int lvbe_led_off(bvm *vm);
+extern int lvbe_led_toggle(bvm *vm);
+extern int lvbe_led_get_brightness(bvm *vm);
+
+/* `lv_meter` external functions definitions */
+extern int lvbe_meter_create(bvm *vm);
+extern int lvbe_meter_add_scale(bvm *vm);
+extern int lvbe_meter_set_scale_ticks(bvm *vm);
+extern int lvbe_meter_set_scale_major_ticks(bvm *vm);
+extern int lvbe_meter_set_scale_range(bvm *vm);
+extern int lvbe_meter_add_needle_line(bvm *vm);
+extern int lvbe_meter_add_needle_img(bvm *vm);
+extern int lvbe_meter_add_arc(bvm *vm);
+extern int lvbe_meter_add_scale_lines(bvm *vm);
+extern int lvbe_meter_set_indicator_value(bvm *vm);
+extern int lvbe_meter_set_indicator_start_value(bvm *vm);
+extern int lvbe_meter_set_indicator_end_value(bvm *vm);
+
+/* `lv_msgbox` external functions definitions */
+extern int lvbe_msgbox_create(bvm *vm);
+extern int lvbe_msgbox_get_title(bvm *vm);
+extern int lvbe_msgbox_get_close_btn(bvm *vm);
+extern int lvbe_msgbox_get_text(bvm *vm);
+extern int lvbe_msgbox_get_btns(bvm *vm);
+extern int lvbe_msgbox_get_active_btn_text(bvm *vm);
+extern int lvbe_msgbox_close(bvm *vm);
+
+/* `lv_spinbox` external functions definitions */
+extern int lvbe_spinbox_create(bvm *vm);
+extern int lvbe_spinbox_set_value(bvm *vm);
+extern int lvbe_spinbox_set_rollover(bvm *vm);
+extern int lvbe_spinbox_set_digit_format(bvm *vm);
+extern int lvbe_spinbox_set_step(bvm *vm);
+extern int lvbe_spinbox_set_range(bvm *vm);
+extern int lvbe_spinbox_get_rollover(bvm *vm);
+extern int lvbe_spinbox_get_value(bvm *vm);
+extern int lvbe_spinbox_get_step(bvm *vm);
+extern int lvbe_spinbox_step_next(bvm *vm);
+extern int lvbe_spinbox_step_prev(bvm *vm);
+extern int lvbe_spinbox_increment(bvm *vm);
+extern int lvbe_spinbox_decrement(bvm *vm);
+
 /* `lv_arc` external functions definitions */
 extern int lvbe_arc_create(bvm *vm);
 extern int lvbe_arc_set_start_angle(bvm *vm);
@@ -619,6 +718,7 @@ extern int lvbe_slider_get_left_value(bvm *vm);
 extern int lvbe_slider_get_min_value(bvm *vm);
 extern int lvbe_slider_get_max_value(bvm *vm);
 extern int lvbe_slider_is_dragged(bvm *vm);
+extern int lvbe_slider_get_mode(bvm *vm);
 
 /* `lv_switch` external functions definitions */
 extern int lvbe_switch_create(bvm *vm);
@@ -680,6 +780,13 @@ extern int lvbe_textarea_cursor_up(bvm *vm);
 #include "../generate/be_fixed_be_class_lv_obj.h"
 #include "../generate/be_fixed_be_class_lv_group.h"
 #include "../generate/be_fixed_be_class_lv_indev.h"
+#include "../generate/be_fixed_be_class_lv_chart.h"
+#include "../generate/be_fixed_be_class_lv_colorwheel.h"
+#include "../generate/be_fixed_be_class_lv_imgbtn.h"
+#include "../generate/be_fixed_be_class_lv_led.h"
+#include "../generate/be_fixed_be_class_lv_meter.h"
+#include "../generate/be_fixed_be_class_lv_msgbox.h"
+#include "../generate/be_fixed_be_class_lv_spinbox.h"
 #include "../generate/be_fixed_be_class_lv_arc.h"
 #include "../generate/be_fixed_be_class_lv_bar.h"
 #include "../generate/be_fixed_be_class_lv_btn.h"
@@ -771,6 +878,125 @@ void be_load_lv_indev_lib(bvm *vm) {
 class be_class_lv_indev (scope: global, name: lv_indev) {
     _p, var
     init, func(lv0_init)
+    tostring, func(lvx_tostring)
+    member, func(lvx_member)
+
+}
+@const_object_info_end */
+
+void be_load_lv_chart_lib(bvm *vm) {
+    be_pushntvclass(vm, &be_class_lv_chart);
+    be_setglobal(vm, "lv_chart");
+    be_pop(vm, 1);
+};
+
+/* @const_object_info_begin
+class be_class_lv_chart (scope: global, name: lv_chart, super: be_class_lv_obj) {
+    _p, var
+    _class, int(&lv_chart_class)
+    init, func(lvbe_chart_create)
+    tostring, func(lvx_tostring)
+    member, func(lvx_member)
+
+}
+@const_object_info_end */
+
+void be_load_lv_colorwheel_lib(bvm *vm) {
+    be_pushntvclass(vm, &be_class_lv_colorwheel);
+    be_setglobal(vm, "lv_colorwheel");
+    be_pop(vm, 1);
+};
+
+/* @const_object_info_begin
+class be_class_lv_colorwheel (scope: global, name: lv_colorwheel, super: be_class_lv_obj) {
+    _p, var
+    _class, int(&lv_colorwheel_class)
+    init, func(lvbe_colorwheel_create)
+    tostring, func(lvx_tostring)
+    member, func(lvx_member)
+
+}
+@const_object_info_end */
+
+void be_load_lv_imgbtn_lib(bvm *vm) {
+    be_pushntvclass(vm, &be_class_lv_imgbtn);
+    be_setglobal(vm, "lv_imgbtn");
+    be_pop(vm, 1);
+};
+
+/* @const_object_info_begin
+class be_class_lv_imgbtn (scope: global, name: lv_imgbtn, super: be_class_lv_obj) {
+    _p, var
+    _class, int(&lv_imgbtn_class)
+    init, func(lvbe_imgbtn_create)
+    tostring, func(lvx_tostring)
+    member, func(lvx_member)
+
+}
+@const_object_info_end */
+
+void be_load_lv_led_lib(bvm *vm) {
+    be_pushntvclass(vm, &be_class_lv_led);
+    be_setglobal(vm, "lv_led");
+    be_pop(vm, 1);
+};
+
+/* @const_object_info_begin
+class be_class_lv_led (scope: global, name: lv_led, super: be_class_lv_obj) {
+    _p, var
+    _class, int(&lv_led_class)
+    init, func(lvbe_led_create)
+    tostring, func(lvx_tostring)
+    member, func(lvx_member)
+
+}
+@const_object_info_end */
+
+void be_load_lv_meter_lib(bvm *vm) {
+    be_pushntvclass(vm, &be_class_lv_meter);
+    be_setglobal(vm, "lv_meter");
+    be_pop(vm, 1);
+};
+
+/* @const_object_info_begin
+class be_class_lv_meter (scope: global, name: lv_meter, super: be_class_lv_obj) {
+    _p, var
+    _class, int(&lv_meter_class)
+    init, func(lvbe_meter_create)
+    tostring, func(lvx_tostring)
+    member, func(lvx_member)
+
+}
+@const_object_info_end */
+
+void be_load_lv_msgbox_lib(bvm *vm) {
+    be_pushntvclass(vm, &be_class_lv_msgbox);
+    be_setglobal(vm, "lv_msgbox");
+    be_pop(vm, 1);
+};
+
+/* @const_object_info_begin
+class be_class_lv_msgbox (scope: global, name: lv_msgbox, super: be_class_lv_obj) {
+    _p, var
+    _class, int(&lv_msgbox_class)
+    init, func(lvbe_msgbox_create)
+    tostring, func(lvx_tostring)
+    member, func(lvx_member)
+
+}
+@const_object_info_end */
+
+void be_load_lv_spinbox_lib(bvm *vm) {
+    be_pushntvclass(vm, &be_class_lv_spinbox);
+    be_setglobal(vm, "lv_spinbox");
+    be_pop(vm, 1);
+};
+
+/* @const_object_info_begin
+class be_class_lv_spinbox (scope: global, name: lv_spinbox, super: be_class_lv_obj) {
+    _p, var
+    _class, int(&lv_spinbox_class)
+    init, func(lvbe_spinbox_create)
     tostring, func(lvx_tostring)
     member, func(lvx_member)
 

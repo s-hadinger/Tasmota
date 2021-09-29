@@ -12,12 +12,12 @@
  *******************************************************************/
 
 enum {
-    ctypes_i32    = 14,
-    ctypes_i16    = 12,
-    ctypes_i8     = 11,
-    ctypes_u32    =  4,
-    ctypes_u16    =  2,
-    ctypes_u8     =  1,
+    ctypes_i32    =  14,
+    ctypes_i16    =  12,
+    ctypes_i8     =  11,
+    ctypes_u32    =   4,
+    ctypes_u16    =   2,
+    ctypes_u8     =   1,
 
     // big endian
     ctypes_be_i32 = -14,
@@ -27,7 +27,15 @@ enum {
     ctypes_be_u16 =  -2,
     ctypes_be_u8  =  -1,
 
-    ctypes_bf     = 0,    //bif-field
+    // floating point
+    ctypes_float  =   5,
+    ctypes_double =  10,
+
+    // pointer
+    ctypes_ptr32  =   9,
+    ctypes_ptr64  =  -9,
+
+    ctypes_bf     =   0,    //bif-field
 };
 
 typedef struct be_ctypes_structure_item_t {
@@ -113,8 +121,8 @@ const be_ctypes_structure_t be_lv_draw_rect_dsc = {
     { "bg_img_opa", 22, 0, 0, 1, 0 },
     { "bg_img_recolor", 20, 0, 0, 2, 1 },
     { "bg_img_recolor_opa", 23, 0, 0, 1, 0 },
-    { "bg_img_src", 12, 0, 0, 4, 0 },
-    { "bg_img_symbol_font", 16, 0, 0, 4, 0 },
+    { "bg_img_src", 12, 0, 0, 9, 0 },
+    { "bg_img_symbol_font", 16, 0, 0, 9, 0 },
     { "bg_img_tiled", 24, 0, 0, 1, 0 },
     { "bg_main_color_stop", 7, 0, 0, 1, 0 },
     { "bg_opa", 9, 0, 0, 1, 0 },
@@ -175,7 +183,7 @@ const be_ctypes_structure_t be_lv_draw_mask_common_dsc = {
   2,  /* number of elements */
   be_ctypes_instance_mappings,
   (const be_ctypes_structure_item_t[2]) {
-    { "cb", 0, 0, 0, 4, 0 },
+    { "cb", 0, 0, 0, 9, 0 },
     { "type", 4, 0, 0, 1, 0 },
 }};
 
@@ -201,7 +209,7 @@ const be_ctypes_structure_t be_lv_draw_mask_line_param = {
     { "cfg_p2_x", 9, 0, 0, 12, 0 },
     { "cfg_p2_y", 11, 0, 0, 12, 0 },
     { "cfg_side", 13, 0, 2, 0, 0 },
-    { "dsc_cb", 0, 0, 0, 4, 0 },
+    { "dsc_cb", 0, 0, 0, 9, 0 },
     { "dsc_type", 4, 0, 0, 1, 0 },
     { "flat", 34, 0, 1, 0, 0 },
     { "inv", 34, 1, 1, 0, 0 },
@@ -234,14 +242,14 @@ const be_ctypes_structure_t be_lv_draw_mask_angle_param = {
     { "cfg_vertex_p_x", 5, 0, 0, 12, 0 },
     { "cfg_vertex_p_y", 7, 0, 0, 12, 0 },
     { "delta_deg", 83, 0, 0, 2, 0 },
-    { "dsc_cb", 0, 0, 0, 4, 0 },
+    { "dsc_cb", 0, 0, 0, 9, 0 },
     { "dsc_type", 4, 0, 0, 1, 0 },
     { "end_line_cfg_p1_x", 53, 0, 0, 12, 0 },
     { "end_line_cfg_p1_y", 55, 0, 0, 12, 0 },
     { "end_line_cfg_p2_x", 57, 0, 0, 12, 0 },
     { "end_line_cfg_p2_y", 59, 0, 0, 12, 0 },
     { "end_line_cfg_side", 61, 0, 2, 0, 0 },
-    { "end_line_dsc_cb", 48, 0, 0, 4, 0 },
+    { "end_line_dsc_cb", 48, 0, 0, 9, 0 },
     { "end_line_dsc_type", 52, 0, 0, 1, 0 },
     { "end_line_flat", 82, 0, 1, 0, 0 },
     { "end_line_inv", 82, 1, 1, 0, 0 },
@@ -256,7 +264,7 @@ const be_ctypes_structure_t be_lv_draw_mask_angle_param = {
     { "start_line_cfg_p2_x", 22, 0, 0, 12, 0 },
     { "start_line_cfg_p2_y", 24, 0, 0, 12, 0 },
     { "start_line_cfg_side", 26, 0, 2, 0, 0 },
-    { "start_line_dsc_cb", 13, 0, 0, 4, 0 },
+    { "start_line_dsc_cb", 13, 0, 0, 9, 0 },
     { "start_line_dsc_type", 17, 0, 0, 1, 0 },
     { "start_line_flat", 47, 0, 1, 0, 0 },
     { "start_line_inv", 47, 1, 1, 0, 0 },
@@ -301,7 +309,7 @@ const be_ctypes_structure_t be_lv_draw_mask_radius_param = {
     { "cfg_rect_x2", 9, 0, 0, 12, 0 },
     { "cfg_rect_y1", 7, 0, 0, 12, 0 },
     { "cfg_rect_y2", 11, 0, 0, 12, 0 },
-    { "dsc_cb", 0, 0, 0, 4, 0 },
+    { "dsc_cb", 0, 0, 0, 9, 0 },
     { "dsc_type", 4, 0, 0, 1, 0 },
     { "y_prev", 16, 0, 0, 14, 0 },
     { "y_prev_x_f", 22, 0, 0, 2, 0 },
@@ -336,7 +344,7 @@ const be_ctypes_structure_t be_lv_draw_mask_fade_param = {
     { "cfg_opa_top", 17, 0, 0, 1, 0 },
     { "cfg_y_bottom", 15, 0, 0, 12, 0 },
     { "cfg_y_top", 13, 0, 0, 12, 0 },
-    { "dsc_cb", 0, 0, 0, 4, 0 },
+    { "dsc_cb", 0, 0, 0, 9, 0 },
     { "dsc_type", 4, 0, 0, 1, 0 },
 }};
 
@@ -349,7 +357,7 @@ const be_ctypes_structure_t be_lv_draw_mask_map_param_cfg = {
     { "coords_x2", 4, 0, 0, 12, 0 },
     { "coords_y1", 2, 0, 0, 12, 0 },
     { "coords_y2", 6, 0, 0, 12, 0 },
-    { "map", 8, 0, 0, 4, 0 },
+    { "map", 8, 0, 0, 9, 0 },
 }};
 
 const be_ctypes_structure_t be_lv_draw_mask_map_param = {
@@ -361,8 +369,8 @@ const be_ctypes_structure_t be_lv_draw_mask_map_param = {
     { "cfg_coords_x2", 9, 0, 0, 12, 0 },
     { "cfg_coords_y1", 7, 0, 0, 12, 0 },
     { "cfg_coords_y2", 11, 0, 0, 12, 0 },
-    { "cfg_map", 13, 0, 0, 4, 0 },
-    { "dsc_cb", 0, 0, 0, 4, 0 },
+    { "cfg_map", 13, 0, 0, 9, 0 },
+    { "dsc_cb", 0, 0, 0, 9, 0 },
     { "dsc_type", 4, 0, 0, 1, 0 },
 }};
 
@@ -371,8 +379,104 @@ const be_ctypes_structure_t be_lv_draw_mask_saved = {
   2,  /* number of elements */
   be_ctypes_instance_mappings,
   (const be_ctypes_structure_item_t[2]) {
-    { "custom_id", 4, 0, 0, 4, 0 },
-    { "param", 0, 0, 0, 4, 0 },
+    { "custom_id", 4, 0, 0, 9, 0 },
+    { "param", 0, 0, 0, 9, 0 },
+}};
+
+const be_ctypes_structure_t be_lv_meter_scale = {
+  34,  /* size in bytes */
+  15,  /* number of elements */
+  be_ctypes_instance_mappings,
+  (const be_ctypes_structure_item_t[15]) {
+    { "angle_range", 30, 0, 0, 2, 0 },
+    { "label_color", 18, 0, 0, 12, 0 },
+    { "label_gap", 16, 0, 0, 12, 0 },
+    { "max", 24, 0, 0, 14, 0 },
+    { "min", 20, 0, 0, 14, 0 },
+    { "r_mod", 28, 0, 0, 12, 0 },
+    { "rotation", 32, 0, 0, 12, 0 },
+    { "tick_cnt", 2, 0, 0, 2, 0 },
+    { "tick_color", 0, 0, 0, 2, 1 },
+    { "tick_length", 4, 0, 0, 2, 0 },
+    { "tick_major_color", 8, 0, 0, 2, 1 },
+    { "tick_major_length", 12, 0, 0, 2, 0 },
+    { "tick_major_nth", 10, 0, 0, 2, 0 },
+    { "tick_major_width", 14, 0, 0, 2, 0 },
+    { "tick_width", 6, 0, 0, 2, 0 },
+}};
+
+const be_ctypes_structure_t be_lv_meter_indicator = {
+  17,  /* size in bytes */
+  5,  /* number of elements */
+  be_ctypes_instance_mappings,
+  (const be_ctypes_structure_item_t[5]) {
+    { "end_value", 13, 0, 0, 14, 0 },
+    { "opa", 8, 0, 0, 1, 0 },
+    { "scale", 0, 0, 0, 9, 0 },
+    { "start_value", 9, 0, 0, 14, 0 },
+    { "type", 4, 0, 0, 14, 0 },
+}};
+
+const be_ctypes_structure_t be_lv_meter_indicator_needle_img = {
+  25,  /* size in bytes */
+  8,  /* number of elements */
+  be_ctypes_instance_mappings,
+  (const be_ctypes_structure_item_t[8]) {
+    { "end_value", 13, 0, 0, 14, 0 },
+    { "opa", 8, 0, 0, 1, 0 },
+    { "pivot_x", 21, 0, 0, 12, 0 },
+    { "pivot_y", 23, 0, 0, 12, 0 },
+    { "scale", 0, 0, 0, 9, 0 },
+    { "src", 17, 0, 0, 9, 0 },
+    { "start_value", 9, 0, 0, 14, 0 },
+    { "type", 4, 0, 0, 14, 0 },
+}};
+
+const be_ctypes_structure_t be_lv_meter_indicator_needle_line = {
+  23,  /* size in bytes */
+  8,  /* number of elements */
+  be_ctypes_instance_mappings,
+  (const be_ctypes_structure_item_t[8]) {
+    { "color", 21, 0, 0, 2, 1 },
+    { "end_value", 13, 0, 0, 14, 0 },
+    { "opa", 8, 0, 0, 1, 0 },
+    { "r_mod", 19, 0, 0, 12, 0 },
+    { "scale", 0, 0, 0, 9, 0 },
+    { "start_value", 9, 0, 0, 14, 0 },
+    { "type", 4, 0, 0, 14, 0 },
+    { "width", 17, 0, 0, 2, 0 },
+}};
+
+const be_ctypes_structure_t be_lv_meter_indicator_arc = {
+  27,  /* size in bytes */
+  9,  /* number of elements */
+  be_ctypes_instance_mappings,
+  (const be_ctypes_structure_item_t[9]) {
+    { "color", 23, 0, 0, 2, 1 },
+    { "end_value", 13, 0, 0, 14, 0 },
+    { "opa", 8, 0, 0, 1, 0 },
+    { "r_mod", 25, 0, 0, 12, 0 },
+    { "scale", 0, 0, 0, 9, 0 },
+    { "src", 19, 0, 0, 9, 0 },
+    { "start_value", 9, 0, 0, 14, 0 },
+    { "type", 4, 0, 0, 14, 0 },
+    { "width", 17, 0, 0, 2, 0 },
+}};
+
+const be_ctypes_structure_t be_lv_meter_indicator_scale_lines = {
+  24,  /* size in bytes */
+  9,  /* number of elements */
+  be_ctypes_instance_mappings,
+  (const be_ctypes_structure_item_t[9]) {
+    { "color_end", 21, 0, 0, 2, 1 },
+    { "color_start", 19, 0, 0, 2, 1 },
+    { "end_value", 13, 0, 0, 14, 0 },
+    { "local_grad", 23, 0, 1, 0, 0 },
+    { "opa", 8, 0, 0, 1, 0 },
+    { "scale", 0, 0, 0, 9, 0 },
+    { "start_value", 9, 0, 0, 14, 0 },
+    { "type", 4, 0, 0, 14, 0 },
+    { "width_mod", 17, 0, 0, 12, 0 },
 }};
 
 const be_ctypes_structure_t be_lv_obj_class = {
@@ -380,15 +484,15 @@ const be_ctypes_structure_t be_lv_obj_class = {
   10,  /* number of elements */
   be_ctypes_instance_mappings,
   (const be_ctypes_structure_item_t[10]) {
-    { "base_class", 0, 0, 0, 4, 0 },
-    { "constructor_cb", 4, 0, 0, 4, 0 },
-    { "destructor_cb", 8, 0, 0, 4, 0 },
+    { "base_class", 0, 0, 0, 9, 0 },
+    { "constructor_cb", 4, 0, 0, 9, 0 },
+    { "destructor_cb", 8, 0, 0, 9, 0 },
     { "editable", 24, 0, 2, 0, 0 },
-    { "event_cb", 16, 0, 0, 4, 0 },
+    { "event_cb", 16, 0, 0, 9, 0 },
     { "group_def", 24, 2, 2, 0, 0 },
     { "height_def", 22, 0, 0, 12, 0 },
     { "instance_size", 24, 4, 16, 0, 0 },
-    { "user_data", 12, 0, 0, 4, 0 },
+    { "user_data", 12, 0, 0, 9, 0 },
     { "width_def", 20, 0, 0, 12, 0 },
 }};
 
@@ -398,12 +502,12 @@ const be_ctypes_structure_t be_lv_event = {
   be_ctypes_instance_mappings,
   (const be_ctypes_structure_item_t[7]) {
     { "code", 8, 0, 0, 14, 0 },
-    { "current_target", 4, 0, 0, 4, 0 },
+    { "current_target", 4, 0, 0, 9, 0 },
     { "deleted", 24, 0, 1, 0, 0 },
-    { "param", 16, 0, 0, 4, 0 },
-    { "prev", 20, 0, 0, 4, 0 },
-    { "target", 0, 0, 0, 4, 0 },
-    { "user_data", 12, 0, 0, 4, 0 },
+    { "param", 16, 0, 0, 9, 0 },
+    { "prev", 20, 0, 0, 9, 0 },
+    { "target", 0, 0, 0, 9, 0 },
+    { "user_data", 12, 0, 0, 9, 0 },
 }};
 
 static const char * be_ctypes_instance_mappings[] = {
@@ -428,6 +532,12 @@ static be_define_ctypes_class(lv_draw_mask_radius_param_cfg, &be_lv_draw_mask_ra
 static be_define_ctypes_class(lv_draw_mask_saved, &be_lv_draw_mask_saved, &be_class_ctypes, "lv_draw_mask_saved");
 static be_define_ctypes_class(lv_draw_rect_dsc, &be_lv_draw_rect_dsc, &be_class_ctypes, "lv_draw_rect_dsc");
 static be_define_ctypes_class(lv_event, &be_lv_event, &be_class_ctypes, "lv_event");
+static be_define_ctypes_class(lv_meter_indicator, &be_lv_meter_indicator, &be_class_ctypes, "lv_meter_indicator");
+static be_define_ctypes_class(lv_meter_indicator_arc, &be_lv_meter_indicator_arc, &be_class_ctypes, "lv_meter_indicator_arc");
+static be_define_ctypes_class(lv_meter_indicator_needle_img, &be_lv_meter_indicator_needle_img, &be_class_ctypes, "lv_meter_indicator_needle_img");
+static be_define_ctypes_class(lv_meter_indicator_needle_line, &be_lv_meter_indicator_needle_line, &be_class_ctypes, "lv_meter_indicator_needle_line");
+static be_define_ctypes_class(lv_meter_indicator_scale_lines, &be_lv_meter_indicator_scale_lines, &be_class_ctypes, "lv_meter_indicator_scale_lines");
+static be_define_ctypes_class(lv_meter_scale, &be_lv_meter_scale, &be_class_ctypes, "lv_meter_scale");
 static be_define_ctypes_class(lv_obj_class, &be_lv_obj_class, &be_class_ctypes, "lv_obj_class");
 static be_define_ctypes_class(lv_point, &be_lv_point, &be_class_ctypes, "lv_point");
 static be_define_ctypes_class(lv_sqrt_res, &be_lv_sqrt_res, &be_class_ctypes, "lv_sqrt_res");
@@ -450,6 +560,12 @@ void be_load_ctypes_lvgl_definitions_lib(bvm *vm) {
   ctypes_register_class(vm, &be_class_lv_draw_mask_saved, &be_lv_draw_mask_saved);
   ctypes_register_class(vm, &be_class_lv_draw_rect_dsc, &be_lv_draw_rect_dsc);
   ctypes_register_class(vm, &be_class_lv_event, &be_lv_event);
+  ctypes_register_class(vm, &be_class_lv_meter_indicator, &be_lv_meter_indicator);
+  ctypes_register_class(vm, &be_class_lv_meter_indicator_arc, &be_lv_meter_indicator_arc);
+  ctypes_register_class(vm, &be_class_lv_meter_indicator_needle_img, &be_lv_meter_indicator_needle_img);
+  ctypes_register_class(vm, &be_class_lv_meter_indicator_needle_line, &be_lv_meter_indicator_needle_line);
+  ctypes_register_class(vm, &be_class_lv_meter_indicator_scale_lines, &be_lv_meter_indicator_scale_lines);
+  ctypes_register_class(vm, &be_class_lv_meter_scale, &be_lv_meter_scale);
   ctypes_register_class(vm, &be_class_lv_obj_class, &be_lv_obj_class);
   ctypes_register_class(vm, &be_class_lv_point, &be_lv_point);
   ctypes_register_class(vm, &be_class_lv_sqrt_res, &be_lv_sqrt_res);

@@ -13,6 +13,7 @@ ctypes.print_types()
 lv_style_int = ctypes.i16
 lv_color = [ctypes.u16, "lv_color"]        # cast to the class instance, constructor is called with 2 args: (nil, value)
 lv_grad_dir = ctypes.u8
+lv_meter_indicator_type_t = ctypes.i32     # probablu an anomaly that needs to be fixed
 lv_opa = ctypes.u8
 lv_blend_mode = ctypes.u8
 lv_align = ctypes.u8
@@ -29,11 +30,12 @@ uint8_t_3 = ctypes.bf_3
 uint8_t_4 = ctypes.bf_4
 uint8_t_5 = ctypes.bf_5
 uint8_t = ctypes.u8
+int16_t = ctypes.i16
 uint16_t = ctypes.u16
 uint16_t_16 = ctypes.bf_16
 uint32_t = ctypes.u32
 int32_t = ctypes.i32
-ptr = ctypes.u32
+ptr = ctypes.ptr32
 
 lv_point = [            # valid LVGL8
     [lv_coord, "x"],
@@ -244,6 +246,94 @@ lv_draw_mask_saved = [            # valid LVGL8
 ]
 lv_draw_mask_saved = ctypes.structure(lv_draw_mask_saved, "lv_draw_mask_saved")
 
+# lv_meter
+
+# lv_meter_scale_t
+lv_meter_scale = [            # valid LVGL8
+    [lv_color, "tick_color"],
+    [uint16_t, "tick_cnt"],
+    [uint16_t, "tick_length"],
+    [uint16_t, "tick_width"],
+
+    [lv_color, "tick_major_color"],
+    [uint16_t, "tick_major_nth"],
+    [uint16_t, "tick_major_length"],
+    [uint16_t, "tick_major_width"],
+
+    [int16_t, "label_gap"],
+    [int16_t, "label_color"],
+
+    [int32_t, "min"],
+    [int32_t, "max"],
+    [int16_t, "r_mod"],
+    [uint16_t, "angle_range"],
+    [int16_t, "rotation"],
+]
+lv_meter_scale = ctypes.structure(lv_meter_scale, "lv_meter_scale")
+
+# lv_meter_indicator_t
+lv_meter_indicator = [            # valid LVGL8
+    [ptr, "scale"],
+    [lv_meter_indicator_type_t, "type"],
+    [lv_opa, "opa"],
+    [int32_t, "start_value"],
+    [int32_t, "end_value"],
+]
+lv_meter_indicator = ctypes.structure(lv_meter_indicator, "lv_meter_indicator")
+
+# variants
+lv_meter_indicator_needle_img = [            # valid LVGL8
+    [ptr, "scale"],
+    [lv_meter_indicator_type_t, "type"],
+    [lv_opa, "opa"],
+    [int32_t, "start_value"],
+    [int32_t, "end_value"],
+    # specifc portion
+    [ptr, "src"],
+    [lv_point, "pivot"],
+]
+lv_meter_indicator_needle_img = ctypes.structure(lv_meter_indicator_needle_img, "lv_meter_indicator_needle_img")
+
+lv_meter_indicator_needle_line = [            # valid LVGL8
+    [ptr, "scale"],
+    [lv_meter_indicator_type_t, "type"],
+    [lv_opa, "opa"],
+    [int32_t, "start_value"],
+    [int32_t, "end_value"],
+    # specifc portion
+    [uint16_t, "width"],
+    [int16_t, "r_mod"],
+    [lv_color, "color"],
+]
+lv_meter_indicator_needle_line = ctypes.structure(lv_meter_indicator_needle_line, "lv_meter_indicator_needle_line")
+
+lv_meter_indicator_arc = [            # valid LVGL8
+    [ptr, "scale"],
+    [lv_meter_indicator_type_t, "type"],
+    [lv_opa, "opa"],
+    [int32_t, "start_value"],
+    [int32_t, "end_value"],
+    # specifc portion
+    [uint16_t, "width"],
+    [ptr, "src"],
+    [lv_color, "color"],
+    [int16_t, "r_mod"],
+]
+lv_meter_indicator_arc = ctypes.structure(lv_meter_indicator_arc, "lv_meter_indicator_arc")
+
+lv_meter_indicator_scale_lines = [            # valid LVGL8
+    [ptr, "scale"],
+    [lv_meter_indicator_type_t, "type"],
+    [lv_opa, "opa"],
+    [int32_t, "start_value"],
+    [int32_t, "end_value"],
+    # specifc portion
+    [int16_t, "width_mod"],
+    [lv_color, "color_start"],
+    [lv_color, "color_end"],
+    [uint8_t_1, "local_grad"],
+]
+lv_meter_indicator_scale_lines = ctypes.structure(lv_meter_indicator_scale_lines, "lv_meter_indicator_scale_lines")
 
 #- --------- class system --------- -#
 lv_obj_class_ptr = ptr

@@ -44,6 +44,10 @@ ctypes.be_u8  =  -1
 ctypes.float  = 5
 ctypes.double = 10
 
+# pointer
+ctypes.ptr32  =  9
+ctypes.ptr64  = -9
+
 ctypes.bf_x   = 0 # generic bitfield
 # bitfields (always unsigned)
 ctypes.bf_0   = 100 # serves as base
@@ -168,13 +172,13 @@ ctypes.print_types = def ()
   print(" *******************************************************************/")
   print()
   print("enum {")
-  print("    ctypes_i32    = 14,")
-  print("    ctypes_i16    = 12,")
-  print("    ctypes_i8     = 11,")
-  print("    ctypes_u32    =  4,")
-  print("    ctypes_u16    =  2,")
-  print("    ctypes_u8     =  1,")
-  print("")
+  print("    ctypes_i32    =  14,")
+  print("    ctypes_i16    =  12,")
+  print("    ctypes_i8     =  11,")
+  print("    ctypes_u32    =   4,")
+  print("    ctypes_u16    =   2,")
+  print("    ctypes_u8     =   1,")
+  print()
   print("    // big endian")
   print("    ctypes_be_i32 = -14,")
   print("    ctypes_be_i16 = -12,")
@@ -183,7 +187,15 @@ ctypes.print_types = def ()
   print("    ctypes_be_u16 =  -2,")
   print("    ctypes_be_u8  =  -1,")
   print()
-  print("    ctypes_bf     = 0,    //bif-field")
+  print("    // floating point")
+  print("    ctypes_float  =   5,")
+  print("    ctypes_double =  10,")
+  print()
+  print("    // pointer")
+  print("    ctypes_ptr32  =   9,")
+  print("    ctypes_ptr64  =  -9,")
+  print()
+  print("    ctypes_bf     =   0,    //bif-field")
   print("};")
   print()
   print("typedef struct be_ctypes_structure_item_t {")
@@ -370,6 +382,9 @@ class structure
       if type_obj > ctypes.bf_0
         # bit field
         self.get_bitfield_closure(name, type_obj - ctypes.bf_0, mapping_idx)
+      elif (type_obj == ctypes.ptr32) || (type_obj == ctypes.ptr64)
+        # pointer
+        self.get_ptr_closure(name, type_obj, mapping_idx)
       elif (type_obj == ctypes.float) || (type_obj == ctypes.double)
         # multi-bytes
         self.get_float_closure(name, type_obj, mapping_idx)
@@ -445,8 +460,30 @@ class structure
     self.cur_offset += size_in_bytes    # next offset
   end
 
+  def get_ptr_closure(name, type, instance_mapping)  # can be 1/2/4
+    #- actual size -#
+    import introspect
+    var size_in_bytes = (type == ctypes.ptr32) ? 4 : 8
+
+    self.align(size_in_bytes)       # force alignment
+    var offset = self.cur_offset    # prepare variable for capture in closure
+    
+    self.mapping[name] = [offset, 0, 0, type, instance_mapping]
+
+    #- add closures -#
+    # TODO no closure yet, anyways need to rethink closures, they are too heavy
+    # if signed
+    #   self.get_closures[name] = def (b, p) return b.geti(offset + p, size_in_bytes_le_be) end
+    # else
+    #   self.get_closures[name] = def (b, p) return b.get(offset + p, size_in_bytes_le_be) end
+    # end
+    # self.set_closures[name] = def (b, p, v) return b.set(offset+ p, v, size_in_bytes_le_be) end
+    
+    self.cur_offset += size_in_bytes    # next offset
+  end
+
   def get_float_closure(name, type, instance_mapping)  # can be 1/2/4
-    #- abs size -#
+    #- actual size -#
     var size_in_bytes = (type == ctypes.float) ? 4 : 8
 
     self.align(size_in_bytes)       # force alignment
