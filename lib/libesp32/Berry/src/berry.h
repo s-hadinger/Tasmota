@@ -271,7 +271,7 @@ typedef struct bntvmodule {
         .marked = GC_CONST,                   \
         .extra = 0,                           \
         .slen = _len,                         \
-        .hash = 0,                            \
+        .hash = _hash,                        \
         .s = _s                               \
     }
 
