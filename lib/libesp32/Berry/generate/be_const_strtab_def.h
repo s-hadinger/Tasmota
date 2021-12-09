@@ -399,7 +399,7 @@ be_define_const_str(get_temp, "get_temp", 3370919486u, 0, 8, NULL);
 be_define_const_str(get_vbus_current, "get_vbus_current", 1205347942u, 0, 16, &be_const_str_tele);
 be_define_const_str(get_vbus_voltage, "get_vbus_voltage", 2398210401u, 0, 16, &be_const_str_toupper);
 be_define_const_str(get_warning_level, "get_warning_level", 1737834441u, 0, 17, NULL);
-be_define_const_str(get_width, "get_width", 3293417300u, 0, 9, NULL);
+be_define_const_str(get_width, "get_width", 3293417300u, 0, 9, &be_const_str_readbytes);
 be_define_const_str(getbits, "getbits", 3094168979u, 0, 7, &be_const_str_has_arg);
 be_define_const_str(geti, "geti", 2381006490u, 0, 4, NULL);
 be_define_const_str(global, "global", 503252654u, 0, 6, NULL);
@@ -543,6 +543,7 @@ be_define_const_str(read32, "read32", 1741276240u, 0, 6, NULL);
 be_define_const_str(read8, "read8", 2802788167u, 0, 5, NULL);
 be_define_const_str(read_bytes, "read_bytes", 3576733173u, 0, 10, NULL);
 be_define_const_str(read_sensors, "read_sensors", 892689201u, 0, 12, &be_const_str_round_end);
+be_define_const_str(readbytes, "readbytes", 2716426756u, 0, 9, NULL);
 be_define_const_str(readline, "readline", 1212709927u, 0, 8, NULL);
 be_define_const_str(real, "real", 3604983901u, 0, 4, NULL);
 be_define_const_str(reapply, "reapply", 3778939332u, 0, 7, NULL);
@@ -1104,6 +1105,6 @@ static const bstring* const m_string_table[] = {
 
 static const struct bconststrtab m_const_string_table = {
     .size = 359,
-    .count = 741,
+    .count = 742,
     .table = m_string_table
 };

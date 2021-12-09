@@ -306,6 +306,57 @@ extern "C" {
     be_return(vm);  /* return code */
   }
 
+  // tcp.write(bytes | string) -> int
+  int32_t wc_tcp_write(struct bvm *vm);
+  int32_t wc_tcp_write(struct bvm *vm) {
+    int32_t argc = be_top(vm);
+    if (argc >= 2 && (be_isstring(vm, 2) || be_isbytes(vm, 2))) {
+      WiFiClient * tcp = wc_getwificlient(vm);
+      const char * buf = nullptr;
+      size_t buf_len = 0;
+      if (be_isstring(vm, 2)) {  // string
+        buf = be_tostring(vm, 2);
+        buf_len = strlen(buf);
+      } else { // bytes
+        buf = (const char*) be_tobytes(vm, 2, &buf_len);
+      }
+      size_t bw = tcp->write(buf, buf_len);
+      be_pushint(vm, bw);
+      be_return(vm);  /* return code */
+    }
+    be_raise(vm, kTypeError, nullptr);
+  }
+
+  // tcp.read() -> string
+  int32_t wc_tcp_read(struct bvm *vm);
+  int32_t wc_tcp_read(struct bvm *vm) {
+    WiFiClient * tcp = wc_getwificlient(vm);
+    int32_t btr = tcp->available();
+    if (btr <= 0) {
+      be_pushstring(vm, "");
+    } else {
+      char * buf = (char*) be_pushbuffer(vm, btr);
+      int32_t btr2 = tcp->read((uint8_t*) buf, btr);
+      be_pushnstring(vm, buf, btr2);
+    }
+    be_return(vm);  /* return code */
+  }
+
+  // tcp.readbytes() -> bytes
+  int32_t wc_tcp_readbytes(struct bvm *vm);
+  int32_t wc_tcp_readbytes(struct bvm *vm) {
+    WiFiClient * tcp = wc_getwificlient(vm);
+    int32_t btr = tcp->available();
+    if (btr <= 0) {
+      be_pushbytes(vm, nullptr, 0);
+    } else {
+      uint8_t * buf = (uint8_t*) be_pushbuffer(vm, btr);
+      int32_t btr2 = tcp->read(buf, btr);
+      be_pushbytes(vm, buf, btr2);
+    }
+    be_return(vm);  /* return code */
+  }
+
   void wc_errorCodeMessage(int32_t httpCode, uint32_t http_connect_time) {
     if (httpCode < 0) {
       if (httpCode <= -1000) {

@@ -551,6 +551,7 @@ extern const bcstring be_const_str_read32;
 extern const bcstring be_const_str_read8;
 extern const bcstring be_const_str_read_bytes;
 extern const bcstring be_const_str_read_sensors;
+extern const bcstring be_const_str_readbytes;
 extern const bcstring be_const_str_readline;
 extern const bcstring be_const_str_real;
 extern const bcstring be_const_str_reapply;
