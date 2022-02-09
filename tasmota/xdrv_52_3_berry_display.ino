@@ -71,9 +71,8 @@ int be_ntv_display_dimmer(struct bvm *vm) {
   be_return(vm);
 }
 
-void be_ntv_display_touch_update(int32_t touched, int32_t raw_x, int32_t raw_y) {
-  // void Touch_SetStatus(bool touched, uint16_t raw_x, uint16_t raw_y) {
-  Touch_SetStatus((bool)touched, raw_x, raw_y);
+void be_ntv_display_touch_update(int32_t touches, int32_t raw_x, int32_t raw_y, int32_t gesture) {
+  Touch_SetStatus(touches, raw_x, raw_y, gesture);
 }
 
 #endif // USE_DISPLAY
