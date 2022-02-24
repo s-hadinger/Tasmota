@@ -625,6 +625,7 @@ be_define_const_str(point_arr, "point_arr", 1140859857u, 0, 9, &be_const_str_web
 be_define_const_str(pop, "pop", 1362321360u, 0, 3, NULL);
 be_define_const_str(pop_path, "pop_path", 2403243998u, 0, 8, NULL);
 be_define_const_str(pow, "pow", 1479764693u, 0, 3, &be_const_str_register_obj);
+be_define_const_str(power_off, "power_off", 3568741752u, 0, 9, NULL);
 be_define_const_str(preinit, "preinit", 2722007100u, 0, 7, &be_const_str_widget_ctor_cb);
 be_define_const_str(print, "print", 372738696u, 0, 5, &be_const_str__X7Bs_X7DVBus_X20Voltage_X7Bm_X7D_X25_X2E3f_X20V_X7Be_X7D);
 be_define_const_str(public_key, "public_key", 4169142980u, 0, 10, &be_const_str_reset_search);
@@ -1313,7 +1314,7 @@ static const bstring* const m_string_table[] = {
     (const bstring *)&be_const_str_module,
     (const bstring *)&be_const_str_AudioFileSource,
     (const bstring *)&be_const_str_copy,
-    NULL,
+    (const bstring *)&be_const_str_power_off,
     (const bstring *)&be_const_str_check_privileged_access,
     (const bstring *)&be_const_str__X2Ew,
     (const bstring *)&be_const_str_CFG_X3A_X20downloading_X20_X27_X25s_X27,
@@ -1350,6 +1351,6 @@ static const bstring* const m_string_table[] = {
 
 static const struct bconststrtab m_const_string_table = {
     .size = 441,
-    .count = 905,
+    .count = 906,
     .table = m_string_table
 };
