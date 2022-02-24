@@ -33,8 +33,10 @@ def init(lv_tasmota)
   lv.wifi_bars_icon = lv_wifi_bars_icon
   lv.wifi_bars = lv_wifi_bars
 
-  # try to start lvgl
-  lv.splash_init()
+  # display splash screen unless `SetOption135 1` is set
+  if tasmota.get_option(135) == 0
+    lv.splash_init()
+  end
 
   return nil
 end
