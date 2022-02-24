@@ -111,6 +111,9 @@ def splash()
     disp.set_text(driver_name)
   end
 
+  # force full refresh now and not at next tick
+  lv.refr_now(0)
+
   tasmota.set_timer(5000, /-> bg.del())    # delete the object in the future
 end
 lv_tasmota.splash = splash

@@ -186,7 +186,7 @@ be_local_closure(lv_tasmota_splash,   /* name */
       ),
     }),
     1,                          /* has constants */
-    ( &(const bvalue[36]) {     /* constants */
+    ( &(const bvalue[37]) {     /* constants */
     /* K0   */  be_nested_str(display),
     /* K1   */  be_nested_str(started),
     /* K2   */  be_nested_str(lv),
@@ -221,12 +221,13 @@ be_local_closure(lv_tasmota_splash,   /* name */
     /* K31  */  be_nested_str(driver_name),
     /* K32  */  be_nested_str(ALIGN_BOTTOM_MID),
     /* K33  */  be_const_int(16777215),
-    /* K34  */  be_nested_str(tasmota),
-    /* K35  */  be_nested_str(set_timer),
+    /* K34  */  be_nested_str(refr_now),
+    /* K35  */  be_nested_str(tasmota),
+    /* K36  */  be_nested_str(set_timer),
     }),
     &be_const_str_splash,
     &be_const_str_solidified,
-    ( &(const binstruction[139]) {  /* code */
+    ( &(const binstruction[143]) {  /* code */
       0xA4020000,  //  0000  IMPORT	R0	K0
       0x8C040101,  //  0001  GETMET	R1	R0	K1
       0x7C040200,  //  0002  CALL	R1	1
@@ -359,13 +360,17 @@ be_local_closure(lv_tasmota_splash,   /* name */
       0x8C200F1C,  //  0081  GETMET	R8	R7	K28
       0x5C280C00,  //  0082  MOVE	R10	R6
       0x7C200400,  //  0083  CALL	R8	2
-      0xB8224400,  //  0084  GETNGBL	R8	K34
-      0x8C201123,  //  0085  GETMET	R8	R8	K35
-      0x542A1387,  //  0086  LDINT	R10	5000
-      0x842C0000,  //  0087  CLOSURE	R11	P0
-      0x7C200600,  //  0088  CALL	R8	3
-      0xA0000000,  //  0089  CLOSE	R0
-      0x80000000,  //  008A  RET	0
+      0xB8220400,  //  0084  GETNGBL	R8	K2
+      0x8C201122,  //  0085  GETMET	R8	R8	K34
+      0x5828000A,  //  0086  LDCONST	R10	K10
+      0x7C200400,  //  0087  CALL	R8	2
+      0xB8224600,  //  0088  GETNGBL	R8	K35
+      0x8C201124,  //  0089  GETMET	R8	R8	K36
+      0x542A1387,  //  008A  LDINT	R10	5000
+      0x842C0000,  //  008B  CLOSURE	R11	P0
+      0x7C200600,  //  008C  CALL	R8	3
+      0xA0000000,  //  008D  CLOSE	R0
+      0x80000000,  //  008E  RET	0
     })
   )
 );

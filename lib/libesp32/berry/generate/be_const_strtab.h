@@ -657,6 +657,7 @@ extern const bcstring be_const_str_readline;
 extern const bcstring be_const_str_real;
 extern const bcstring be_const_str_reapply;
 extern const bcstring be_const_str_redirect;
+extern const bcstring be_const_str_refr_now;
 extern const bcstring be_const_str_refr_pos;
 extern const bcstring be_const_str_refr_size;
 extern const bcstring be_const_str_register_button_encoder;
