@@ -11,7 +11,7 @@ class MPU6886 : I2C_Driver
   var accel, gyro
 
   def init()
-    super(self, I2C_Driver).init(self.detect_mpu, 0x68, 58)
+    super(self, I2C_Driver).init(self.detect_mpu, 0x68)   # not disabled by I2C 58 so we can take the place of the native driver
 
     if self.wire
       var v = self.wire.read(0x68,0x75,1)
@@ -49,7 +49,13 @@ class MPU6886 : I2C_Driver
 
       self.gres = 2000.0/32768.0
       self.ares = 8.0/32678.0
+
+      tasmota.add_driver(self)
     end
+  end
+
+  def deinit()
+    tasmota.remove_driver(self)
   end
 
   #- detect the MPU model type -#
@@ -133,5 +139,6 @@ class MPU6886 : I2C_Driver
 
 end
 
-mpu_accel = MPU6886()
-tasmota.add_driver(mpu_accel)
+# mpu_accel = MPU6886()
+
+return MPU6886

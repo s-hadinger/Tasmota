@@ -1,4 +1,6 @@
 #- start LVGL and init environment -#
+import global
+
 lv.start()
 
 hres = lv.get_hor_res()       # should be 320
@@ -80,7 +82,6 @@ prev_btn.add_event_cb(btn_clicked_cb, lv.EVENT_CLICKED, 0)
 next_btn.add_event_cb(btn_clicked_cb, lv.EVENT_CLICKED, 0)
 home_btn.add_event_cb(btn_clicked_cb, lv.EVENT_CLICKED, 0)
 
-
 import lv_wifi_graph
 ws_h = 40
 ws_w = 80
@@ -102,6 +103,14 @@ var lg = lv_tasmota_log_roboto(scr, 6)
 lg.set_size(hres, 90)
 lg.set_pos(0, stat_line.get_height() + 40 - 1)
 tasmota.add_driver(lg)
+
+# 3D cube
+if global.accelerator
+  import lv_3D_cube_widget
+  var c = lv_3D_cube_widget(scr, global.accelerator)
+  c.set_pos(0,150)
+end
+
 
 #-
 sb120 = lv.load_freetype_font("sketchbook.ttf", 120, 0)
