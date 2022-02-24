@@ -8,7 +8,9 @@ def init(lv_tasmota)
   import lv
   lv.start = lv_tasmota.start
   lv.splash_init = lv_tasmota.splash_init
+  lv.splash_remove = lv_tasmota.splash_remove
   lv.splash = lv_tasmota.splash
+  lv._splash = nil                            # store a reference for the current splash screen parent
 
   lv.font_montserrat = lv_tasmota.font_montserrat
   lv.montserrat_font = lv_tasmota.font_montserrat
@@ -66,6 +68,16 @@ def splash_init()
 end
 lv_tasmota.splash_init = splash_init
 
+# remove splash
+def splash_remove()
+  var _splash = lv._splash
+  if _splash
+    lv._splash = nil
+    _splash.del()
+  end
+end
+lv_tasmota.splash_remove = splash_remove
+
 def splash()
   import display
 
@@ -74,7 +86,8 @@ def splash()
   lv.start()                        # just in case it was not already started
 
   var bg = lv.obj(lv.scr_act())     # create a parent object for splash screen
-  var f28 = lv.montserrat_font(28)  # load embedded Montserrat 20
+  var f28 = lv.montserrat_font(28)  # load embedded Montserrat 28
+  var f20 = lv.montserrat_font(20)  # load embedded Montserrat 20
   var white = lv.color(lv.COLOR_WHITE)
 
   bg.set_style_bg_color(lv.color(0x000066), 0) # lv.PART_MAIN | lv.STATE_DEFAULT
@@ -84,6 +97,8 @@ def splash()
   bg.set_size(lv.pct(100), lv.pct(100))
   bg.refr_pos()
   bg.refr_size()
+  # 0x53706C68 = 'Splh' indicating the screen is Splash screen
+  bg.set_user_data(0x53706C68)
 
   var tas_logo = lv.img(bg)
   tas_logo.set_tasmota_logo()
@@ -97,7 +112,11 @@ def splash()
   # tas.set_style_bg_opa(lv.OPA_TRANSP, lv.PART_MAIN | lv.STATE_DEFAULT)
   tas.set_style_text_color(white, 0)          # lv.PART_MAIN | lv.STATE_DEFAULT
   tas.set_text("TASMOTA")
-  if f28 != nil tas.set_style_text_font(f28, 0) end
+  if lv.get_hor_res() >= 200
+    if f28 != nil tas.set_style_text_font(f28, 0) end
+  else
+    if f20 != nil tas.set_style_text_font(f20, 0) end
+  end
   tas.set_align(lv.ALIGN_LEFT_MID)
   tas.set_x(42)
 
@@ -114,7 +133,9 @@ def splash()
   # force full refresh now and not at next tick
   lv.refr_now(0)
 
-  tasmota.set_timer(5000, /-> bg.del())    # delete the object in the future
+  lv._splash = bg                          # keep a reference to the splash screen
+
+  tasmota.set_timer(5000, lv.splash_remove)    # delete the object in the future
 end
 lv_tasmota.splash = splash
 
