@@ -32,10 +32,7 @@ def init(lv_tasmota)
   lv.wifi_bars = lv_wifi_bars
 
   # try to start lvgl
-  import display
-  if display.started()
-    lv.splash_init()
-  end
+  lv.splash_init()
 
   return nil
 end
@@ -74,25 +71,21 @@ def splash()
 
   if !display.started() return end
 
-  lv.start()
+  lv.start()                        # just in case it was not already started
 
-  var scr = lv.obj(lv.scr_act())    # create a parent object for splash screen
+  var bg = lv.obj(lv.scr_act())     # create a parent object for splash screen
   var f28 = lv.montserrat_font(28)  # load embedded Montserrat 20
   var white = lv.color(lv.COLOR_WHITE)
 
-  scr.set_style_bg_color(lv.color(0x000066), 0) # lv.PART_MAIN | lv.STATE_DEFAULT
+  bg.set_style_bg_color(lv.color(0x000066), 0) # lv.PART_MAIN | lv.STATE_DEFAULT
+  bg.set_style_radius(0, 0)
+  bg.set_style_pad_all(0, 0)
+  bg.set_style_border_width(0, 0)
+  bg.set_size(lv.pct(100), lv.pct(100))
+  bg.refr_pos()
+  bg.refr_size()
 
-  # scr.set_style_border_opa(255, lv.PART_MAIN | lv.STATE_DEFAULT)
-  scr.set_style_radius(0, 0)
-  scr.set_style_pad_all(0, 0)
-  scr.set_style_border_width(0, 0)
-  scr.set_size(lv.pct(100), lv.pct(100))
-  scr.refr_pos()
-  scr.refr_size()
-  # # 0x53706C68 = 'Splh' indicating the screen is Splash screen
-  # scr.set_user_data(0x53706C68)
-
-  var tas_logo = lv.img(scr)
+  var tas_logo = lv.img(bg)
   tas_logo.set_tasmota_logo()
   tas_logo.set_zoom(150)
   tas_logo.set_style_img_recolor_opa(255, 0)  # lv.PART_MAIN | lv.STATE_DEFAULT
@@ -100,7 +93,7 @@ def splash()
   tas_logo.set_align(lv.ALIGN_LEFT_MID)
   tas_logo.set_x(-12)
 
-  var tas = lv.label(scr)
+  var tas = lv.label(bg)
   # tas.set_style_bg_opa(lv.OPA_TRANSP, lv.PART_MAIN | lv.STATE_DEFAULT)
   tas.set_style_text_color(white, 0)          # lv.PART_MAIN | lv.STATE_DEFAULT
   tas.set_text("TASMOTA")
@@ -111,14 +104,14 @@ def splash()
   var driver_name = display.driver_name()
   var disp
   if size(driver_name) > 0
-    disp = lv.label(scr)
+    disp = lv.label(bg)
     disp.set_align(lv.ALIGN_BOTTOM_MID)
     # disp.set_style_bg_opa(lv.OPA_TRANSP, lv.PART_MAIN | lv.STATE_DEFAULT)
     disp.set_style_text_color(lv.color(0xFFFFFF), 0)    # lv.PART_MAIN | lv.STATE_DEFAULT
     disp.set_text(driver_name)
   end
 
-  tasmota.set_timer(5000, /-> scr.del())    # delete the object in the future
+  tasmota.set_timer(5000, /-> bg.del())    # delete the object in the future
 end
 lv_tasmota.splash = splash
 
