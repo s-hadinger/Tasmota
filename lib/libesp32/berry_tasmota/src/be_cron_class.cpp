@@ -60,18 +60,13 @@ BE_FUNC_CTYPE_DECLARE(ccronexpr_now, "i", "")
 
 #include "be_fixed_be_class_ccronexpr.h"
 
-extern "C" void be_load_ccronexpr_class(bvm *vm) {
-    be_pushntvclass(vm, &be_class_ccronexpr);
-    be_setglobal(vm, "ccronexpr");
-    be_pop(vm, 1);
-}
 /* @const_object_info_begin
 
 class be_class_ccronexpr (scope: global, name: ccronexpr) {
   .p, var       // pointer to cron_expr*
 
   init, ctype_func(ccronexpr_init)
-  deinit, ctype_func(ccronexpr_init)
+  // deinit, ctype_func(ccronexpr_deinit)
 
   next, ctype_func(ccronexpr_next)
   time_reached, static_ctype_func(ccronexpr_time_reached)
