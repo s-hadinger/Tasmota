@@ -209,10 +209,12 @@ const char HTTP_SCRIPT_INFO_END[] PROGMEM =
 
 #ifdef USE_UNISHOX_COMPRESSION
   #include "./html_compressed/HTTP_HEAD_LAST_SCRIPT.h"
+  #include "./html_compressed/HTTP_HEAD_LAST_SCRIPT32.h"
   #include "./html_compressed/HTTP_HEAD_STYLE1.h"
   #include "./html_compressed/HTTP_HEAD_STYLE2.h"
 #else
   #include "./html_uncompressed/HTTP_HEAD_LAST_SCRIPT.h"
+  #include "./html_uncompressed/HTTP_HEAD_LAST_SCRIPT32.h"
   #include "./html_uncompressed/HTTP_HEAD_STYLE1.h"
   #include "./html_uncompressed/HTTP_HEAD_STYLE2.h"
 #endif
@@ -855,7 +857,11 @@ void WSContentSendStyle_P(const char* formatP, ...) {
       WSContentSend_P(HTTP_SCRIPT_COUNTER);
     }
   }
+#ifdef ESP32
+  WSContentSend_P(HTTP_HEAD_LAST_SCRIPT32);
+#else
   WSContentSend_P(HTTP_HEAD_LAST_SCRIPT);
+#endif
 
   WSContentSend_P(HTTP_HEAD_STYLE1, WebColor(COL_FORM), WebColor(COL_INPUT), WebColor(COL_INPUT_TEXT), WebColor(COL_INPUT),
                   WebColor(COL_INPUT_TEXT), WebColor(COL_CONSOLE), WebColor(COL_CONSOLE_TEXT), WebColor(COL_BACKGROUND));
@@ -2297,11 +2303,15 @@ void HandleRestoreConfiguration(void)
   WSContentStart_P(PSTR(D_RESTORE_CONFIGURATION));
   WSContentSendStyle();
   WSContentSend_P(HTTP_FORM_RST);
+#ifdef ESP32
   if (EspSingleOtaPartition() && !EspRunningFactoryPartition()) {
     WSContentSend_P(HTTP_FORM_RST_UPG_FCT, PSTR(D_RESTORE));
   } else {
     WSContentSend_P(HTTP_FORM_RST_UPG, PSTR(D_RESTORE));
   }
+#else
+  WSContentSend_P(HTTP_FORM_RST_UPG, PSTR(D_RESTORE));
+#endif
   if (WifiIsInManagerMode()) {
     WSContentSpaceButton(BUTTON_MAIN);
   } else {
@@ -2526,11 +2536,15 @@ void HandleUpgradeFirmware(void) {
   WSContentStart_P(PSTR(D_FIRMWARE_UPGRADE));
   WSContentSendStyle();
   WSContentSend_P(HTTP_FORM_UPG, SettingsText(SET_OTAURL));
+#ifdef ESP32
   if (EspSingleOtaPartition() && !EspRunningFactoryPartition()) {
     WSContentSend_P(HTTP_FORM_RST_UPG_FCT, PSTR(D_UPGRADE));
   } else {
     WSContentSend_P(HTTP_FORM_RST_UPG, PSTR(D_UPGRADE));
   }
+#else
+  WSContentSend_P(HTTP_FORM_RST_UPG, PSTR(D_UPGRADE));
+#endif
   WSContentSpaceButton(BUTTON_MAIN);
   WSContentStop();
 
@@ -2976,7 +2990,7 @@ void HandleSwitchFactory(void)
   }
   Web.upload_file_type = UPL_TASMOTA;
 }
-#endif
+#endif // ESP32
 
 /*-------------------------------------------------------------------------------------------*/
 
