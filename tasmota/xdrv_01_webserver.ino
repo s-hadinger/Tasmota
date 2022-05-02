@@ -354,6 +354,17 @@ const char HTTP_FORM_RST_UPG[] PROGMEM =
   "</div>"
   "<div id='f2' style='display:none;text-align:center;'><b>" D_UPLOAD_STARTED " ...</b></div>";
 
+// upload via factory partition
+const char HTTP_FORM_RST_UPG_FCT[] PROGMEM =
+  "<form method='post' action='u2' enctype='multipart/form-data'>"
+  "<br><input type='file' name='u2'><br>"
+  "<br><button type='submit' onclick='eb(\"f1\").style.display=\"none\";eb(\"f3\").style.display=\"block\";factory(this);return false;'>" D_START " %s</button></form>"
+  // "<br><button type='submit' onclick='eb(\"f1\").style.display=\"none\";eb(\"f2\").style.display=\"block\";this.form.submit();'>" D_START " %s</button></form>"
+  "</fieldset>"
+  "</div>"
+  "<div id='f3' style='display:none;text-align:center;'><b>" "Switching to safeboot partition" " ...</b></div>"
+  "<div id='f2' style='display:none;text-align:center;'><b>" D_UPLOAD_STARTED " ...</b></div>";
+
 const char HTTP_FORM_CMND[] PROGMEM =
   "<br><textarea readonly id='t1' cols='340' wrap='off'></textarea><br><br>"
   "<form method='get' onsubmit='return l(1);'>"
@@ -2286,7 +2297,11 @@ void HandleRestoreConfiguration(void)
   WSContentStart_P(PSTR(D_RESTORE_CONFIGURATION));
   WSContentSendStyle();
   WSContentSend_P(HTTP_FORM_RST);
-  WSContentSend_P(HTTP_FORM_RST_UPG, PSTR(D_RESTORE));
+  if (EspSingleOtaPartition() && !EspRunningFactoryPartition()) {
+    WSContentSend_P(HTTP_FORM_RST_UPG_FCT, PSTR(D_RESTORE));
+  } else {
+    WSContentSend_P(HTTP_FORM_RST_UPG, PSTR(D_RESTORE));
+  }
   if (WifiIsInManagerMode()) {
     WSContentSpaceButton(BUTTON_MAIN);
   } else {
@@ -2511,7 +2526,11 @@ void HandleUpgradeFirmware(void) {
   WSContentStart_P(PSTR(D_FIRMWARE_UPGRADE));
   WSContentSendStyle();
   WSContentSend_P(HTTP_FORM_UPG, SettingsText(SET_OTAURL));
-  WSContentSend_P(HTTP_FORM_RST_UPG, PSTR(D_UPGRADE));
+  if (EspSingleOtaPartition() && !EspRunningFactoryPartition()) {
+    WSContentSend_P(HTTP_FORM_RST_UPG_FCT, PSTR(D_UPGRADE));
+  } else {
+    WSContentSend_P(HTTP_FORM_RST_UPG, PSTR(D_UPGRADE));
+  }
   WSContentSpaceButton(BUTTON_MAIN);
   WSContentStop();
 
@@ -2955,6 +2974,7 @@ void HandleSwitchFactory(void)
       Webserver->send(302, "text/plain", "");
     }
   }
+  Web.upload_file_type = UPL_TASMOTA;
 }
 #endif
 

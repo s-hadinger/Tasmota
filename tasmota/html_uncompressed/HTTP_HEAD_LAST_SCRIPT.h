@@ -18,4 +18,36 @@ const char HTTP_HEAD_LAST_SCRIPT[] PROGMEM =
     "}"
   "}"
   "wl(jd);"                               // Add name='' to any id='' in input,button,textarea,select
+  // experimental
+  "function start_upload(t){"
+    "console.log('start_upload()');"
+    "eb('f3').style.display='none';"
+    "eb('f2').style.display='block';"
+    "t.form.submit();"
+  "}"
+  "function factory(t){"
+    "console.log('running factory');"
+    "console.log(t);"
+    // "setTimeout(()=>{t.form.submit()}, 500);"
+    // "return false;"
+    "var x=new XMLHttpRequest();"
+    "x.open('GET','/u4?u4=fct&api=',true);"
+    "x.onreadystatechange=()=>{"
+      "console.log('x.readyState=%%i x.status=%%i',x.readyState,x.status);"
+      "if(x.readyState==4&&x.status==200){"
+        "var s=x.responseText;"
+        "console.log('responseText:'+s);"
+        "if(s=='false')setTimeout(()=>{factory(t);},6000);"
+        "if(s=='true')start_upload(t);"
+
+        // "clearTimeout(ft);clearTimeout(lt);"
+        // "lt=setTimeout(la,%d);"               // Settings.web_refresh
+      "}else if(x.readyState==4&&x.status==0){"
+        "setTimeout(()=>{factory(t);},2000);"             // retry in 2 seconds
+      "};"
+    "};"
+    "x.send();"
+    "console.log('after send');"
+    "return false;"
+  "}"
   "</script>";
