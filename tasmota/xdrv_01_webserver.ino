@@ -360,8 +360,7 @@ const char HTTP_FORM_RST_UPG[] PROGMEM =
 const char HTTP_FORM_RST_UPG_FCT[] PROGMEM =
   "<form method='post' action='u2' enctype='multipart/form-data'>"
   "<br><input type='file' name='u2'><br>"
-  "<br><button type='submit' onclick='eb(\"f1\").style.display=\"none\";eb(\"f3\").style.display=\"block\";factory(this);return false;'>" D_START " %s</button></form>"
-  // "<br><button type='submit' onclick='eb(\"f1\").style.display=\"none\";eb(\"f2\").style.display=\"block\";this.form.submit();'>" D_START " %s</button></form>"
+  "<br><button type='submit' onclick='eb(\"f1\").style.display=\"none\";eb(\"f3\").style.display=\"block\";return fct(this);'>" D_START " %s</button></form>"
   "</fieldset>"
   "</div>"
   "<div id='f3' style='display:none;text-align:center;'><b>" "Switching to safeboot partition" " ...</b></div>"
