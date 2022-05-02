@@ -363,7 +363,7 @@ const char HTTP_FORM_RST_UPG_FCT[] PROGMEM =
   "<br><button type='submit' onclick='eb(\"f1\").style.display=\"none\";eb(\"f3\").style.display=\"block\";return fct(this);'>" D_START " %s</button></form>"
   "</fieldset>"
   "</div>"
-  "<div id='f3' style='display:none;text-align:center;'><b>" "Switching to safeboot partition" " ...</b></div>"
+  "<div id='f3' style='display:none;text-align:center;'><b>" D_UPLOAD_FACTORY " ...</b></div>"
   "<div id='f2' style='display:none;text-align:center;'><b>" D_UPLOAD_STARTED " ...</b></div>";
 
 const char HTTP_FORM_CMND[] PROGMEM =
