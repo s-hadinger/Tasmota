@@ -443,15 +443,9 @@ int be_call_c_func(bvm *vm, const void * func, const char * return_type, const c
   // check if we call a constructor, in this case we store the return type into the new object
   // check if we call a constructor with a comptr as first arg
   if (return_type && (return_type[0] == '+' || return_type[0] == '=')) {
-    if (argc > 1 && be_iscomptr(vm, 2)) {
-      void * obj = be_tocomptr(vm, 2);
-      be_set_ctor_ptr(vm, obj, return_type);
-      be_return_nil(vm);
-    } else {
-      // we need to discard the first arg
-      arg_start++;
-      arg_count--;
-    }
+    // we need to discard the first arg
+    arg_start++;
+    arg_count--;
   }
 
   fn_any_callable f = (fn_any_callable) func;
@@ -462,6 +456,7 @@ int be_call_c_func(bvm *vm, const void * func, const char * return_type, const c
   }
   intptr_t ret = 0;
   if (f) ret = (*f)(p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]);
+  else   ret = p[0];          // if `f` is NULL, we pass the first argument as result (identity function)
   // berry_log_C("be_call_c_func '%s' -> '%s': (%i,%i,%i,%i,%i,%i) -> %i", return_type, arg_type, p[0], p[1], p[2], p[3], p[4], p[5], ret);
 
   if ((return_type == NULL) || (strlen(return_type) == 0))       { be_return_nil(vm); }  // does not return
