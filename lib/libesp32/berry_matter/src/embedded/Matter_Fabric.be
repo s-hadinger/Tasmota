@@ -313,7 +313,8 @@ class Matter_Fabric : Matter_Expirable
     end
 
     self.persist_post()
-    return "{" + r.concat(",") + "}"
+    var r1 = "{" + r.concat(",") + "}"
+    return r1
   end
 
   #############################################################
