@@ -25,7 +25,7 @@
 #define XDRV_68             68
 
 
-#if !enabled(ESP32) || (ESP_IDF_VERSION_MAJOR < 5)      // temporarily disable for IDF 5.0
+#if !defined(ESP32) || (ESP_IDF_VERSION_MAJOR < 5)      // temporarily disable for IDF 5.0
 
 static const uint8_t TRIGGER_PERIOD = 75;
 
