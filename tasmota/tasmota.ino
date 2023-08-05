@@ -406,15 +406,15 @@ void setup(void) {
 
 #ifdef CONFIG_IDF_TARGET_ESP32
   // restore GPIO16/17 if no PSRAM is found
-  if (!FoundPSRAM()) {
-    // test if the CPU is not pico
-    uint32_t chip_ver = REG_GET_FIELD(EFUSE_BLK0_RDATA3_REG, EFUSE_RD_CHIP_VER_PKG);
-    uint32_t pkg_version = chip_ver & 0x7;
-    if (pkg_version <= 3) {   // D0WD, S0WD, D2WD
-      gpio_reset_pin(GPIO_NUM_16);
-      gpio_reset_pin(GPIO_NUM_17);
-    }
-  }
+  // if (!FoundPSRAM()) {
+  //   // test if the CPU is not pico
+  //   uint32_t chip_ver = REG_GET_FIELD(EFUSE_BLK0_RDATA3_REG, EFUSE_RD_CHIP_VER_PKG);
+  //   uint32_t pkg_version = chip_ver & 0x7;
+  //   if (pkg_version <= 3) {   // D0WD, S0WD, D2WD
+  //     gpio_reset_pin(GPIO_NUM_16);
+  //     gpio_reset_pin(GPIO_NUM_17);
+  //   }
+  // }
 #endif  // CONFIG_IDF_TARGET_ESP32
 #endif  // ESP32
 

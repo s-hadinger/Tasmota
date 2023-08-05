@@ -217,6 +217,7 @@ String GetCodeCores(void) {
 #include "bootloader_flash.h"
 #include "soc/soc.h"
 #include "soc/spi_reg.h"
+
 // ESP32_ARCH contains the name of the architecture (used by autoconf)
 #if CONFIG_IDF_TARGET_ESP32
   #ifdef CORE32SOLO1
@@ -253,6 +254,10 @@ String GetCodeCores(void) {
   #endif
 #else // ESP32 Before IDF 4.0
   #include "rom/rtc.h"
+#endif
+
+#if ESP_IDF_VERSION_MAJOR >= 5
+  #include "esp_chip_info.h"
 #endif
 
 // Set the Stacksize for Arduino core. Default is 8192, some builds may need a bigger one

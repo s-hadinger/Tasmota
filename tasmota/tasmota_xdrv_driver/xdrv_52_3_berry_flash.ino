@@ -24,6 +24,7 @@
 #include "esp_spi_flash.h"
 
 size_t FlashWriteSubSector(uint32_t address_start, const uint8_t *data, size_t size) {
+#if ESP_IDF_VERSION_MAJOR < 5
     uint32_t addr = address_start;
     size_t size_left = size;
     size_t current_offset = 0;
@@ -59,6 +60,9 @@ size_t FlashWriteSubSector(uint32_t address_start, const uint8_t *data, size_t s
     }
 
     return current_offset;
+#else
+    // TODO ESPIDF 5
+#endif
 }
 
 /*********************************************************************************************\
