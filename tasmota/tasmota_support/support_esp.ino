@@ -428,6 +428,9 @@ extern "C" {
   #include "rom/spi_flash.h"
   #define ESP_FLASH_IMAGE_BASE 0x1000
 #endif
+#if ESP_IDF_VERSION_MAJOR >= 5
+  #include "bootloader_common.h"
+#endif
 
 uint32_t EspProgramSize(const char *label) {
   const esp_partition_t *part = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_ANY, label);
