@@ -398,7 +398,12 @@ void NvsInfo(void) {
 
 // See Esp.cpp
 #include "Esp.h"
-#include "esp_spi_flash.h"
+#if ESP_IDF_VERSION_MAJOR >= 5
+  // esp_spi_flash.h is deprecated, please use spi_flash_mmap.h instead
+  #include "spi_flash_mmap.h"
+#else
+  #include "esp_spi_flash.h"
+#endif
 #include <memory>
 #include <soc/soc.h>
 #include <soc/efuse_reg.h>
