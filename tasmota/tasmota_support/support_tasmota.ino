@@ -1921,6 +1921,9 @@ void TasConsoleInput(void) {
 //
 // This patched version of pinMode forces a full GPIO reset before setting new mode
 //
+#if ESP_IDF_VERSION_MAJOR >= 5
+  #include "driver/gpio.h"
+#endif
 extern "C" void ARDUINO_ISR_ATTR __pinMode(uint8_t pin, uint8_t mode);
 
 extern "C" void ARDUINO_ISR_ATTR pinMode(uint8_t pin, uint8_t mode) {

@@ -16,12 +16,9 @@
 #ifdef ESP32
 
 #include "Arduino.h"
+#include "esp_idf_version.h"
 #include "esp8266toEsp32.h"
 #include "driver/ledc.h"
-
-#if ESP_IDF_VERSION_MAJOR >= 5
-#include "soc/soc_caps.h"     // needed for SOC_LEDC_TIMER_BIT_WIDE_NUM
-#endif
 
 // Tasmota Logging
 extern void AddLog(uint32_t loglevel, PGM_P formatP, ...);
@@ -37,7 +34,11 @@ enum LoggingLevels {LOG_LEVEL_NONE, LOG_LEVEL_ERROR, LOG_LEVEL_INFO, LOG_LEVEL_D
 #else
 #define LEDC_DEFAULT_CLK        LEDC_AUTO_CLK
 #endif
-#define LEDC_MAX_BIT_WIDTH      SOC_LEDC_TIMER_BIT_WIDE_NUM
+#if (ESP_IDF_VERSION_MAJOR >= 5)
+  #define LEDC_MAX_BIT_WIDTH      SOC_LEDC_TIMER_BIT_WIDTH
+#else
+  #define LEDC_MAX_BIT_WIDTH      SOC_LEDC_TIMER_BIT_WIDE_NUM
+#endif
 
 // define our limits to ease any change from esp-idf
 #define MAX_TIMERS              LEDC_TIMER_MAX            // 4 timers for all ESP32 variants
