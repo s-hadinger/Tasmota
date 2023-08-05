@@ -21,7 +21,14 @@
 #ifdef USE_BERRY
 
 #include <berry.h>
-#include "esp_spi_flash.h"
+
+#include "esp_idf_version.h"
+#if ESP_IDF_VERSION_MAJOR >= 5
+  // esp_spi_flash.h is deprecated, please use spi_flash_mmap.h instead
+  #include "spi_flash_mmap.h"
+#else
+  #include "esp_spi_flash.h"
+#endif
 
 size_t FlashWriteSubSector(uint32_t address_start, const uint8_t *data, size_t size) {
 #if ESP_IDF_VERSION_MAJOR < 5
