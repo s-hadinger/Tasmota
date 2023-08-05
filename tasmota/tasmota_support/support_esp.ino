@@ -241,6 +241,7 @@ String GetCodeCores(void) {
 
 // See libraries\ESP32\examples\ResetReason.ino
 #if ESP_IDF_VERSION_MAJOR > 3      // IDF 4+
+  #include "esp_chip_info.h"
   #if CONFIG_IDF_TARGET_ESP32      // ESP32/PICO-D4
     #include "esp32/rom/rtc.h"
   #elif CONFIG_IDF_TARGET_ESP32S2  // ESP32-S2
@@ -887,9 +888,9 @@ typedef struct {
         pkg_version += ((word3 >> 2) & 0x1) << 3
         return pkg_version
 */
-#if ESP_IDF_VERSION_MAJOR >= 5
+#if (ESP_IDF_VERSION_MAJOR >= 5)
     uint32_t pkg_version = bootloader_common_get_chip_ver_pkg();
-#elif
+#else
     uint32_t chip_ver = REG_GET_FIELD(EFUSE_BLK0_RDATA3_REG, EFUSE_RD_CHIP_VER_PKG);
     uint32_t pkg_version = chip_ver & 0x7;
 #endif
