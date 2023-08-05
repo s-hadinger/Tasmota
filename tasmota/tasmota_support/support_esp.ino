@@ -879,8 +879,12 @@ typedef struct {
         pkg_version += ((word3 >> 2) & 0x1) << 3
         return pkg_version
 */
+#if ESP_IDF_VERSION_MAJOR >= 5
+    uint32_t pkg_version = bootloader_common_get_chip_ver_pkg();
+#elif
     uint32_t chip_ver = REG_GET_FIELD(EFUSE_BLK0_RDATA3_REG, EFUSE_RD_CHIP_VER_PKG);
     uint32_t pkg_version = chip_ver & 0x7;
+#endif
 
 //    AddLog(LOG_LEVEL_DEBUG_MORE, PSTR("HDW: ESP32 Model %d, Revision %d, Core %d, Package %d"), chip_info.model, chip_revision, chip_info.cores, chip_ver);
 

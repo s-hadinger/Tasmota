@@ -189,7 +189,7 @@ bool RtcRebootValid(void) {
 
 extern "C" {
 #include "spi_flash.h"
-#if (ARDUINO >=300)
+#if ESP_IDF_VERSION_MAJOR >= 5
   #include "spi_flash_mmap.h"
 #endif
 }

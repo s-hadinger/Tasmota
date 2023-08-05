@@ -48,6 +48,9 @@ Esp32-hal-rmt.c
 extern "C"
 {
 #include <driver/rmt.h>
+#if ESP_IDF_VERSION_MAJOR >= 5
+    #include "gpio.h"
+#endif
 }
 
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 3, 0)

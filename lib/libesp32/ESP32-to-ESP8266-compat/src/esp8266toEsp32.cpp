@@ -19,6 +19,10 @@
 #include "esp8266toEsp32.h"
 #include "driver/ledc.h"
 
+#if ESP_IDF_VERSION_MAJOR >= 5
+#include "soc/soc_caps.h"     // needed for SOC_LEDC_TIMER_BIT_WIDE_NUM
+#endif
+
 // Tasmota Logging
 extern void AddLog(uint32_t loglevel, PGM_P formatP, ...);
 enum LoggingLevels {LOG_LEVEL_NONE, LOG_LEVEL_ERROR, LOG_LEVEL_INFO, LOG_LEVEL_DEBUG, LOG_LEVEL_DEBUG_MORE};

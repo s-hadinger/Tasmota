@@ -39,7 +39,9 @@
 */
 #if defined(ESP32) || defined(ESP8266)
 
+
 #include <Arduino.h>
+#if (ARDUINO < 300)
 #if defined(ESP32)
   #include "driver/i2s.h"
   #include "soc/rtc.h"
@@ -291,5 +293,7 @@ bool AudioOutputSPDIF::stop()
   frame_num = 0;
   return true;
 }
+
+#endif // (ARDUINO < 300)     TODO
 
 #endif
