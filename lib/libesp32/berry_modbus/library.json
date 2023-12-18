@@ -1,0 +1,17 @@
+{
+  "name": "Berry Modbus protocol implementation",
+  "version": "0.0",
+  "description": "Whatever makes sense",
+  "license": "MIT",
+  "homepage": "https://github.com/arendst/Tasmota",
+  "frameworks": "arduino",
+  "platforms": "espressif32",
+  "authors":
+  {
+    "name": "Your name",
+    "maintainer": true
+  },
+  "build": {
+    "flags": [ "-I$PROJECT_DIR/include", "-includetasmota_options.h" ]
+  }
+}

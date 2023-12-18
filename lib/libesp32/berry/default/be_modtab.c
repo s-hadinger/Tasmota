@@ -72,6 +72,10 @@ be_extern_native_module(matter);
 
 /* user-defined modules declare start */
 
+// berry-modbus
+be_extern_native_module(utils);
+be_extern_native_module(protocol);
+
 /* user-defined modules declare end */
 
 /* module list declaration */
@@ -190,6 +194,10 @@ BERRY_LOCAL const bntvmodule_t* const be_module_table[] = {
 #endif // USE_MATTER_DEVICE
 #endif // TASMOTA
     /* user-defined modules register end */
+
+    &be_native_module(utils),
+    &be_native_module(protocol),
+
     NULL /* do not remove */
 };
 
