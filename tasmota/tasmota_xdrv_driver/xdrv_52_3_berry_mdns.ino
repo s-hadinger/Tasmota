@@ -337,7 +337,7 @@ extern "C" {
   #else
           uint32_t ip_addr = a->addr.u_addr.ip4.addr;
   #endif
-          be_pushstring(vm, IPAddress(&ip_addr).toString().c_str());
+          be_pushstring(vm, IPAddress(&ip_addr).toString(true).c_str());
           be_data_push(vm, -2);
           be_pop(vm, 1);
         }

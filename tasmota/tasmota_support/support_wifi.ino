@@ -546,9 +546,7 @@ String EthernetGetIPv4Str(void)
 
 #ifdef USE_IPV6
 bool IPv6isLocal(const IPAddress & ip) {
-  ip_addr_t ipaddr;
-  ip.to_ip_addr_t(&ipaddr);
-  return ip_addr_islinklocal(&ipaddr);
+  return ((IPAddress&)ip).addr_type() == ESP_IP6_ADDR_IS_LINK_LOCAL;    // TODO
 }
 
 #include "lwip/netif.h"
@@ -586,7 +584,7 @@ bool WifiHasIPv6(void)
 String WifiGetIPv6Str(void)
 {
   IPAddress ip;
-  return WifiGetIPv6(&ip) ? ip.toString() : String();
+  return WifiGetIPv6(&ip) ? ip.toString(true) : String();
 }
 
 bool WifiGetIPv6LinkLocal(IPAddress *ip)
@@ -596,7 +594,7 @@ bool WifiGetIPv6LinkLocal(IPAddress *ip)
 String WifiGetIPv6LinkLocalStr(void)
 {
   IPAddress ip;
-  return WifiGetIPv6LinkLocal(&ip) ? ip.toString() : String();
+  return WifiGetIPv6LinkLocal(&ip) ? ip.toString(true) : String();
 }
 
 
@@ -612,7 +610,7 @@ bool EthernetHasIPv6(void)
 String EthernetGetIPv6Str(void)
 {
   IPAddress ip;
-  return EthernetGetIPv6(&ip) ? ip.toString() : String();
+  return EthernetGetIPv6(&ip) ? ip.toString(true) : String();
 }
 
 bool EthernetGetIPv6LinkLocal(IPAddress *ip)
@@ -626,7 +624,7 @@ bool EthernetHasIPv6LinkLocal(void)
 String EthernetGetIPv6LinkLocalStr(void)
 {
   IPAddress ip;
-  return EthernetGetIPv6LinkLocal(&ip) ? ip.toString() : String();
+  return EthernetGetIPv6LinkLocal(&ip) ? ip.toString(true) : String();
 }
 
 bool DNSGetIP(IPAddress *ip, uint32_t idx)
@@ -645,7 +643,7 @@ bool DNSGetIP(IPAddress *ip, uint32_t idx)
 String DNSGetIPStr(uint32_t idx)
 {
   IPAddress ip;
-  return DNSGetIP(&ip, idx) ? ip.toString() : String(F("0.0.0.0"));
+  return DNSGetIP(&ip, idx) ? ip.toString(true) : String(F("0.0.0.0"));
 }
 
 //
@@ -653,15 +651,15 @@ String DNSGetIPStr(uint32_t idx)
 void WifiDumpAddressesIPv6(void)
 {
   for (netif* intf = netif_list; intf != nullptr; intf = intf->next) {
-    if (!ip_addr_isany_val(intf->ip_addr)) AddLog(LOG_LEVEL_DEBUG, "WIF: '%c%c%i' IPv4 %s", intf->name[0], intf->name[1], intf->num, IPAddress(&intf->ip_addr).toString().c_str());
+    if (!ip_addr_isany_val(intf->ip_addr)) AddLog(LOG_LEVEL_DEBUG, "WIF: '%c%c%i' IPv4 %s", intf->name[0], intf->name[1], intf->num, IPAddress(&intf->ip_addr).toString(true).c_str());
     for (uint32_t i = 0; i < LWIP_IPV6_NUM_ADDRESSES; i++) {
       if (!ip_addr_isany_val(intf->ip6_addr[i]))
         AddLog(LOG_LEVEL_DEBUG, "IP : '%c%c%i' IPv6 %s %s", intf->name[0], intf->name[1], intf->num,
-                                IPAddress(&intf->ip6_addr[i]).toString().c_str(),
+                                IPAddress(&intf->ip6_addr[i]).toString(true).c_str(),
                                 ip_addr_islinklocal(&intf->ip6_addr[i]) ? "local" : "");
     }
   }
-  AddLog(LOG_LEVEL_DEBUG, "IP : DNS: %s %s", IPAddress(dns_getserver(0)).toString().c_str(),  IPAddress(dns_getserver(1)).toString().c_str());
+  AddLog(LOG_LEVEL_DEBUG, "IP : DNS: %s %s", IPAddress(dns_getserver(0)).toString().c_str(),  IPAddress(dns_getserver(1)).toString(true).c_str());
   AddLog(LOG_LEVEL_DEBUG, "WIF: v4IP: %_I v6IP: %s mainIP: %s", (uint32_t) WiFi.localIP(), WifiGetIPv6Str().c_str(), WifiGetIPStr().c_str());
 #if defined(ESP32) && CONFIG_IDF_TARGET_ESP32 && defined(USE_ETHERNET)
   AddLog(LOG_LEVEL_DEBUG, "ETH: v4IP %_I v6IP: %s mainIP: %s", (uint32_t) EthernetLocalIP(), EthernetGetIPv6Str().c_str(), EthernetGetIPStr().c_str());
@@ -715,7 +713,7 @@ String IPGetListeningAddressStr(void)
 {
   IPAddress ip;
   if (IPGetListeningAddress(&ip)) {
-    return ip.toString();
+    return ip.toString(true);
   } else {
     return String();
   }
@@ -743,7 +741,7 @@ String IPForUrl(const IPAddress & ip)
     return ip.toString().c_str();
   } else {
     String s('[');
-    s += ip.toString().c_str();
+    s += ip.toString(true).c_str();
     s += ']';
     return s;
   }
@@ -796,7 +794,7 @@ bool WifiHasIP(void) {
 String WifiGetIPStr(void)
 {
   IPAddress ip;
-  return WifiGetIP(&ip) ? ip.toString() : String();
+  return WifiGetIP(&ip) ? ip.toString(true) : String();
 }
 
 // Has a routable IP, whether IPv4 or IPv6, Wifi or Ethernet
@@ -1471,13 +1469,10 @@ void WifiEvents(arduino_event_t *event) {
     case ARDUINO_EVENT_WIFI_STA_GOT_IP6:
     {
 // Serial.printf(">>> event ARDUINO_EVENT_WIFI_STA_GOT_IP6 \n");
-      ip_addr_t ip_addr6;
-      ip_addr_copy_from_ip6(ip_addr6, event->event_info.got_ip6.ip6_info.ip);
-      IPAddress addr;
-      addr.from_ip_addr_t(&ip_addr6);
+      IPAddress addr(IPv6, (const uint8_t*)event->event_info.got_ip6.ip6_info.ip.addr, event->event_info.got_ip6.ip6_info.ip.zone);
       AddLog(LOG_LEVEL_DEBUG, PSTR("%s: IPv6 %s %s"),
              event->event_id == ARDUINO_EVENT_ETH_GOT_IP6 ? "ETH" : "WIF",
-             IPv6isLocal(addr) ? PSTR("Local") : PSTR("Global"), addr.toString().c_str());
+             IPv6isLocal(addr) ? PSTR("Local") : PSTR("Global"), addr.toString(true).c_str());
     }
     break;
 #endif // USE_IPV6
