@@ -209,7 +209,7 @@ void WifiBegin(uint8_t flag, uint8_t channel) {
 
   WiFi.persistent(false);   // Solve possible wifi init errors (re-add at 6.2.1.16 #4044, #4083)
 #if defined(USE_IPV6) && defined(ESP32)
-  WiFi.IPv6(true);
+  WiFi.enableIPv6(true);
 #endif
 
 #ifdef USE_WIFI_RANGE_EXTENDER
@@ -545,6 +545,13 @@ String EthernetGetIPv4Str(void)
 }
 
 #ifdef USE_IPV6
+bool IPv6isLocal(const IPAddress & ip) {
+  ip_addr_t ipaddr;
+  ip.to_ip_addr_t(&ipaddr);
+  return ip_addr_islinklocal(&ipaddr);
+}
+
+#include "lwip/netif.h"
 //
 // Scan through all interfaces to find a global or local IPv6 address
 // Arg:
@@ -557,7 +564,7 @@ bool WifiFindIPv6(IPAddress *ip, bool is_local, const char * if_type = "st") {
       for (uint32_t i = 0; i < LWIP_IPV6_NUM_ADDRESSES; i++) {
         ip_addr_t *ipv6 = &intf->ip6_addr[i];
         if (IP_IS_V6_VAL(*ipv6) && !ip_addr_isloopback(ipv6) && !ip_addr_isany(ipv6) && ((bool)ip_addr_islinklocal(ipv6) == is_local)) {
-          if (ip != nullptr) { *ip = *ipv6; }
+          if (ip != nullptr) { ip->from_ip_addr_t(ipv6); }
           return true;
         }
       }
@@ -629,10 +636,10 @@ bool DNSGetIP(IPAddress *ip, uint32_t idx)
 #endif
   const ip_addr_t *ip_dns = dns_getserver(idx);
   if (!ip_addr_isany(ip_dns)) {
-    if (ip != nullptr) { *ip = *ip_dns; }
+    if (ip != nullptr) { ip->from_ip_addr_t((ip_addr_t*)ip_dns); }
     return true;
   }
-  if (ip != nullptr) { *ip = *IP4_ADDR_ANY; }
+  if (ip != nullptr) { ip->from_ip_addr_t((ip_addr_t*)IP4_ADDR_ANY); }
   return false;
 }
 String DNSGetIPStr(uint32_t idx)
@@ -646,11 +653,11 @@ String DNSGetIPStr(uint32_t idx)
 void WifiDumpAddressesIPv6(void)
 {
   for (netif* intf = netif_list; intf != nullptr; intf = intf->next) {
-    if (!ip_addr_isany_val(intf->ip_addr)) AddLog(LOG_LEVEL_DEBUG, "WIF: '%c%c%i' IPv4 %s", intf->name[0], intf->name[1], intf->num, IPAddress(intf->ip_addr).toString().c_str());
+    if (!ip_addr_isany_val(intf->ip_addr)) AddLog(LOG_LEVEL_DEBUG, "WIF: '%c%c%i' IPv4 %s", intf->name[0], intf->name[1], intf->num, IPAddress(&intf->ip_addr).toString().c_str());
     for (uint32_t i = 0; i < LWIP_IPV6_NUM_ADDRESSES; i++) {
       if (!ip_addr_isany_val(intf->ip6_addr[i]))
         AddLog(LOG_LEVEL_DEBUG, "IP : '%c%c%i' IPv6 %s %s", intf->name[0], intf->name[1], intf->num,
-                                IPAddress(intf->ip6_addr[i]).toString().c_str(),
+                                IPAddress(&intf->ip6_addr[i]).toString().c_str(),
                                 ip_addr_islinklocal(&intf->ip6_addr[i]) ? "local" : "");
     }
   }
@@ -680,8 +687,8 @@ bool IPGetListeningAddress(IPAddress * ip)
   IPAddress ip_eth;
   bool has_eth = EthernetGetIP(&ip_eth);
   if (has_wifi && has_eth) {
-    if (ip_eth.isV4()) { *ip = ip_eth; return true; }
-    if (ip_wifi.isV4()) { *ip = ip_wifi; return true; }
+    if (ip_eth.type() == IPv4) { *ip = ip_eth; return true; }
+    if (ip_wifi.type() == IPv4) { *ip = ip_wifi; return true; }
     // both addresses are v6, return ETH
     *ip = ip_eth;
     return true;
@@ -732,7 +739,7 @@ inline bool IPIsValid(const IPAddress & ip)
 String IPForUrl(const IPAddress & ip)
 {
 #ifdef USE_IPV6
-  if (ip.isV4()) {
+  if (ip.type() == IPv4) {
     return ip.toString().c_str();
   } else {
     String s('[');
@@ -809,9 +816,9 @@ void WifiCheckIp(void) {
   if (WL_CONNECTED == WiFi.status()) {
 #ifdef ESP32
     if (!Wifi.ipv6_local_link_called) {
-      WiFi.enableIpV6();
+      WiFi.enableIPv6(true);   // TODO
       Wifi.ipv6_local_link_called = true;
-      // AddLog(LOG_LEVEL_DEBUG, PSTR("WIF: calling enableIpV6"));
+      // AddLog(LOG_LEVEL_DEBUG, PSTR("WIF: calling enableIPV6"));
     }
 #endif
   }
@@ -1287,7 +1294,7 @@ bool WifiHostByName(const char* aHostname, IPAddress& aResult) {
     while (*s && *s != '%') { s++; }
     if (*s == '%') {
         // we have a zone id
-        aResult.setZone(netif_name_to_index(s + 1));
+        // aResult.setZone(netif_name_to_index(s + 1));   // TODO
     }
 #endif
 #endif // USE_IPV6
@@ -1454,6 +1461,8 @@ uint64_t WifiGetNtp(void) {
 // Respond to some Arduino/esp-idf events for better IPv6 support
 // --------------------------------------------------------------------------------
 #ifdef ESP32
+extern esp_netif_t* get_esp_interface_netif(esp_interface_t interface);
+
 // typedef void (*WiFiEventSysCb)(arduino_event_t *event);
 void WifiEvents(arduino_event_t *event) {
   switch (event->event_id) {
@@ -1461,17 +1470,20 @@ void WifiEvents(arduino_event_t *event) {
 #ifdef USE_IPV6
     case ARDUINO_EVENT_WIFI_STA_GOT_IP6:
     {
+// Serial.printf(">>> event ARDUINO_EVENT_WIFI_STA_GOT_IP6 \n");
       ip_addr_t ip_addr6;
       ip_addr_copy_from_ip6(ip_addr6, event->event_info.got_ip6.ip6_info.ip);
-      IPAddress addr(ip_addr6);
+      IPAddress addr;
+      addr.from_ip_addr_t(&ip_addr6);
       AddLog(LOG_LEVEL_DEBUG, PSTR("%s: IPv6 %s %s"),
              event->event_id == ARDUINO_EVENT_ETH_GOT_IP6 ? "ETH" : "WIF",
-             addr.isLocal() ? PSTR("Local") : PSTR("Global"), addr.toString().c_str());
+             IPv6isLocal(addr) ? PSTR("Local") : PSTR("Global"), addr.toString().c_str());
     }
     break;
 #endif // USE_IPV6
     case ARDUINO_EVENT_WIFI_STA_GOT_IP:
     {
+// Serial.printf(">>> event ARDUINO_EVENT_WIFI_STA_GOT_IP \n");
       ip_addr_t ip_addr4;
       ip_addr_copy_from_ip4(ip_addr4, event->event_info.got_ip.ip_info.ip);
       AddLog(LOG_LEVEL_DEBUG, PSTR("WIF: IPv4 %_I, mask %_I, gateway %_I"),
@@ -1482,6 +1494,18 @@ void WifiEvents(arduino_event_t *event) {
     break;
 
     case ARDUINO_EVENT_WIFI_STA_CONNECTED:
+// Serial.printf(">>> event ARDUINO_EVENT_WIFI_STA_CONNECTED \n");
+      {
+        uint32_t i = 5;   // try 5 times only
+        while (esp_netif_create_ip6_linklocal(get_esp_interface_netif(ESP_IF_WIFI_STA)) != ESP_OK) {
+          delay(1);
+          if (i-- == 0) {
+            break;
+          }
+        }
+      }
+
+      // WiFi.enableIPv6();
       // AddLog(LOG_LEVEL_DEBUG, PSTR("WIF: Received ARDUINO_EVENT_WIFI_STA_CONNECTED"));
       Wifi.ipv6_local_link_called = false;    // not sure if this is needed, make sure link-local is restored at each reconnect
       break;
