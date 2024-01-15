@@ -1369,7 +1369,11 @@ uint64_t WifiGetNtp(void) {
   uint32_t attempts = 3;
   while (attempts > 0) {
     uint32_t port = random(1025, 65535);   // Create a random port for the UDP connection.
+#ifdef USE_IPV6
+    if (udp.begin(IPAddress(IPv6), port) != 0) {
+#else
     if (udp.begin(port) != 0) {
+#endif
       break;
     }
     attempts--;
