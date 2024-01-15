@@ -92,7 +92,7 @@ void WiFiClass32::scrubDNS(void) {
       if (ip_dns.type() == IPv4 && has_v4) {
         ip_dns.to_ip_addr_t(&dns_save4[i]);
         // dns_save4[i] = (ip_addr_t) ip_dns;    // dns entry is populated, save it in v4 slot
-      } else if (ip_dns.type() == IPv6 && has_v6) {
+      } else if (has_v6) {
         ip_dns.to_ip_addr_t(&dns_save6[i]);
         // dns_save6[i] = (ip_addr_t) ip_dns;    // dns entry is populated, save it in v6 slot
       }
