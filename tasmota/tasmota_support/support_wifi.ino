@@ -546,7 +546,7 @@ String EthernetGetIPv4Str(void)
 
 #ifdef USE_IPV6
 bool IPv6isLocal(const IPAddress & ip) {
-  return ((IPAddress&)ip).addr_type() == ESP_IP6_ADDR_IS_LINK_LOCAL;    // TODO
+  return ip.addr_type() == ESP_IP6_ADDR_IS_LINK_LOCAL;    // TODO
 }
 
 #include "lwip/netif.h"
