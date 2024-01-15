@@ -85,6 +85,8 @@
 char eth_hostname[sizeof(TasmotaGlobal.hostname)];
 uint8_t eth_config_change;
 
+extern esp_netif_t* get_esp_interface_netif(esp_interface_t interface);
+
 void EthernetEvent(arduino_event_t *event);
 void EthernetEvent(arduino_event_t *event) {
   switch (event->event_id) {
@@ -95,8 +97,21 @@ void EthernetEvent(arduino_event_t *event) {
 
     case ARDUINO_EVENT_ETH_CONNECTED:
 #ifdef USE_IPV6
-      ETH.enableIPv6();   // enable Link-Local 
+      ETH.enableIPv6();   // enable Link-Local
+      // workaround for the race condition in LWIP, see https://github.com/espressif/arduino-esp32/pull/9016#discussion_r1451774885
+      {
+        uint32_t i = 5;   // try 5 times only
+        while (esp_netif_create_ip6_linklocal(get_esp_interface_netif(ESP_IF_ETH)) != ESP_OK) {
+          delay(1);
+          if (i-- == 0) {
+            AddLog(LOG_LEVEL_INFO, ">>>> HELP");
+            break;
+          }
+        }
+        AddLog(LOG_LEVEL_INFO, ">>>> ESP_IF_ETH i=%i", i);
+      }
 #endif // USE_IPV6
+      
       AddLog(LOG_LEVEL_INFO, PSTR(D_LOG_ETH D_CONNECTED " at %dMbps%s, Mac %s, Hostname %s"),
         ETH.linkSpeed(), (ETH.fullDuplex()) ? " Full Duplex" : "",
         ETH.macAddress().c_str(), eth_hostname
