@@ -135,7 +135,7 @@ extern "C" {
 
       // set remotet ip
       IPAddress remote_ip = udp->remoteIP();
-      be_pushstring(vm, remote_ip.toString().c_str());
+      be_pushstring(vm, remote_ip.toString(true).c_str());
       be_setmember(vm, 1, "remote_ip");
       be_pop(vm, 1);
 
