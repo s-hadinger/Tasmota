@@ -1170,7 +1170,7 @@ void HandleRoot(void)
     return;
   }
 
-  AddLog(LOG_LEVEL_DEBUG, PSTR(D_LOG_HTTP D_MAIN_MENU));
+  AddLog(LOG_LEVEL_DEBUG, PSTR(D_LOG_HTTP D_MAIN_MENU " from " "%s"), Webserver->client().remoteIP().toString(true).c_str());
 
   char stemp[33];
 
