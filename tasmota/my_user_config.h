@@ -1281,6 +1281,8 @@ https://rya.nc/tasmota-fingerprint.html"
 //#define FIRMWARE_IR                              // Create tasmota-ir with IR full protocols activated, and many sensors disabled
 //#define FIRMWARE_MINIMAL                         // Create tasmota-minimal as intermediate firmware for OTA-MAGIC
 
+#define USE_SPL06_007
+
 /*********************************************************************************************\
  * Safe guard when needed defines are not done in Platformio                                                         *
 \*********************************************************************************************/
