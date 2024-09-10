@@ -36,7 +36,7 @@ const char kTasmotaCommands[] PROGMEM = "|"  // No prefix
   D_CMND_WIFIPOWER "|" D_CMND_TEMPOFFSET "|" D_CMND_HUMOFFSET "|" D_CMND_SPEEDUNIT "|" D_CMND_GLOBAL_TEMP "|" D_CMND_GLOBAL_HUM"|" D_CMND_GLOBAL_PRESS "|" D_CMND_SWITCHTEXT "|" D_CMND_WIFISCAN "|" D_CMND_WIFITEST "|"
   D_CMND_ZIGBEE_BATTPERCENT "|"
 #ifdef USE_I2C
-  D_CMND_I2CSCAN "|" D_CMND_I2CDRIVER "|"
+  D_CMND_I2CSCAN "|" D_CMND_I2CDRIVER "|" D_CMND_I2CRESET "|"
 #endif
 #ifdef USE_DEVICE_GROUPS
   D_CMND_DEVGROUP_NAME "|"
@@ -76,7 +76,7 @@ void (* const TasmotaCommand[])(void) PROGMEM = {
   &CmndWifiPower, &CmndTempOffset, &CmndHumOffset, &CmndSpeedUnit, &CmndGlobalTemp, &CmndGlobalHum, &CmndGlobalPress, &CmndSwitchText, &CmndWifiScan, &CmndWifiTest,
   &CmndBatteryPercent,
 #ifdef USE_I2C
-  &CmndI2cScan, &CmndI2cDriver,
+  &CmndI2cScan, &CmndI2cDriver, &CmndI2cReset,
 #endif
 #ifdef USE_DEVICE_GROUPS
   &CmndDevGroupName,
@@ -2771,6 +2771,25 @@ void CmndI2cDriver(void)
   Response_P(PSTR("{\"" D_CMND_I2CDRIVER "\":"));
   I2cDriverState();
   ResponseJsonEnd();
+}
+
+void CmndI2cReset(void) {
+  // I2CReset0  - Reset bus1 and bus2
+  // I2CReset   - Reset bus1
+  // I2CReset2  - Reset bus2
+  if (TasmotaGlobal.i2c_enabled) {
+    if ((0 == XdrvMailbox.index) || (1 == XdrvMailbox.index)) {
+      I2cReset();
+    }
+  }
+#ifdef ESP32
+  if (TasmotaGlobal.i2c_enabled_2) {
+    if ((0 == XdrvMailbox.index) || (2 == XdrvMailbox.index)) {
+      I2c2Reset();
+    }
+  }
+#endif
+  ResponseCmndDone();
 }
 #endif  // USE_I2C
 

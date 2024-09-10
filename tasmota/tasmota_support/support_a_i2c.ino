@@ -11,6 +11,20 @@
  * Basic I2C routines supporting two busses
 \*********************************************************************************************/
 
+// I2C_BUS_COUNT contains the number of I2C buses that are supported
+#ifdef ESP32
+  #define I2C_BUS_COUNT   2
+#else
+  #define I2C_BUS_COUNT   1
+#endif
+
+// Settings are saved so we can reset the bus
+struct {
+  uint8_t sda[I2C_BUS_COUNT];
+  uint8_t scl[I2C_BUS_COUNT];
+  uint32_t frequency[I2C_BUS_COUNT];
+} I2cSettings = { 0 };
+
 const uint8_t I2C_RETRY_COUNTER = 3;
 
 #ifdef ESP8266
@@ -22,6 +36,10 @@ uint32_t i2c_buffer = 0;
 
 bool I2cBegin(int sda, int scl, uint32_t frequency = 100000);
 bool I2cBegin(int sda, int scl, uint32_t frequency) {
+  I2cSettings.sda[0] = sda;
+  I2cSettings.scl[0] = scl;
+  I2cSettings.frequency[0] = frequency;
+
   bool result = true;
 #ifdef ESP8266
   Wire.begin(sda, scl);
@@ -39,6 +57,10 @@ bool I2cBegin(int sda, int scl, uint32_t frequency) {
 #ifdef ESP32
 bool I2c2Begin(int sda, int scl, uint32_t frequency = 100000);
 bool I2c2Begin(int sda, int scl, uint32_t frequency) {
+  I2cSettings.sda[1] = sda;
+  I2cSettings.scl[1] = scl;
+  I2cSettings.frequency[1] = frequency;
+
   bool result = Wire1.begin(sda, scl, frequency);
 //  AddLog(LOG_LEVEL_DEBUG, PSTR("I2C: Bus2 %d"), result);
   return result;
@@ -57,6 +79,41 @@ TwoWire& I2cGetWire(uint8_t bus = 0) {
     return *(TwoWire*)nullptr;
   }
 }
+
+// reset bus 1
+void I2cReset(void) {
+  if (I2cSettings.sda[0] && I2cSettings.scl[0]) {
+    Wire.end();                                           // release bus
+
+    Wire.begin(I2cSettings.scl[0], I2cSettings.sda[0]);   // initialize with swapped gpios
+    Wire.beginTransmission(0x01);                         // do something
+    Wire.endTransmission();
+    Wire.end();                                           // release faulty bus
+
+    I2cBegin(I2cSettings.sda[0], I2cSettings.scl[0], I2cSettings.frequency[0]);
+    AddLog(LOG_LEVEL_DEBUG, PSTR("I2C: Bus1 reset sda %i scl %i freq %i KHz"), I2cSettings.sda[0], I2cSettings.scl[0], I2cSettings.frequency[0] / 1000);
+  }
+}
+
+#if I2C_BUS_COUNT > 1
+void I2c2Reset(void) {
+  if (I2cSettings.sda[1] && I2cSettings.scl[1]) {
+    Wire1.end();                                           // release bus
+
+    delay(10);
+    Wire1.begin(I2cSettings.scl[1], I2cSettings.sda[1]);   // initialize with swapped gpios
+    Wire1.beginTransmission(0x01);                         // do something
+    Wire1.endTransmission();
+    Wire1.beginTransmission(0x41);                         // do something
+    Wire1.endTransmission();
+    Wire1.end();                                           // release faulty bus
+    delay(10);
+
+    I2c2Begin(I2cSettings.sda[1], I2cSettings.scl[1], I2cSettings.frequency[1]);
+    AddLog(LOG_LEVEL_DEBUG, PSTR("I2C: Bus2 reset sda %i scl %i freq %i KHz"), I2cSettings.sda[1], I2cSettings.scl[1], I2cSettings.frequency[1] / 1000);
+  }
+}
+#endif  // I2C_BUS_COUNT > 1
 
 /*-------------------------------------------------------------------------------------------*\
  * Return code: 0 = Error, 1 = OK
