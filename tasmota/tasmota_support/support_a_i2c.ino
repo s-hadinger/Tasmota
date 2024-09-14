@@ -97,7 +97,7 @@ void I2cReset(void) {
       digitalWrite(I2cSettings.scl[0], 1);
     }
 
-    // I2cBegin(I2cSettings.sda[0], I2cSettings.scl[0], I2cSettings.frequency[0]);
+    I2cBegin(I2cSettings.sda[0], I2cSettings.scl[0], I2cSettings.frequency[0]);
     AddLog(LOG_LEVEL_DEBUG, PSTR("I2C: Bus1 reset sda %i scl %i freq %i KHz"), I2cSettings.sda[0], I2cSettings.scl[0], I2cSettings.frequency[0] / 1000);
   }
 }
