@@ -8,6 +8,9 @@ All notable changes to this project will be documented in this file.
 - HX711 optional calibration precision option on command ``Sensor34 2 <weight in gram> <precision>`` where `<precision>` is 1 to 20 (#13983)
 - Matter support for Zigbee Occupancy and Light 0/1/2 (OnOff / Dimmer / White Color Temperature) (#22110)
 - KNX additional KnxTx functions and define KNX_USE_DPT9 (#22071)
+- Support for I2C M5Unit (Mini)Scales using HX711 driver
+- Berry virtual Energy driver (#22134)
+- Support for RX8010 RTC as used in IOTTIMER (#21376)
 
 ### Breaking Changed
 
@@ -20,6 +23,7 @@ All notable changes to this project will be documented in this file.
 - Zigbee flashing CC2562P with latest firmware (#22117)
 - SML trx pin error (#22119)
 - Shutter remaining issues on shutterinvert (#22120)
+- Berry I2C to prepare M5Stack I2C STM32 based devices (#22143)
 
 ### Removed
 

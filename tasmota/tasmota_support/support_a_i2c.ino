@@ -119,7 +119,7 @@ void I2c2Reset(void) {
  * Return code: 0 = Error, 1 = OK
 \*-------------------------------------------------------------------------------------------*/
 
-bool I2cValidRead(uint8_t addr, uint8_t reg, uint8_t size, uint8_t bus = 0) {
+bool I2cValidRead(uint8_t addr, uint8_t reg, uint8_t size, uint8_t bus = 0, bool sendStop = false) {
   i2c_buffer = 0;
 
   TwoWire& myWire = I2cGetWire(bus);
@@ -130,7 +130,7 @@ bool I2cValidRead(uint8_t addr, uint8_t reg, uint8_t size, uint8_t bus = 0) {
   while (!status && retry) {
     myWire.beginTransmission(addr);                       // start transmission to device
     myWire.write(reg);                                    // sends register address to read from
-    if (0 == myWire.endTransmission(false)) {             // Try to become I2C Master, send data and collect bytes, keep master status for next request...
+    if (0 == myWire.endTransmission(sendStop)) {          // Try to become I2C Master, send data and collect bytes, keep master status for next request...
       myWire.requestFrom((int)addr, (int)size);           // send data n-bytes read
       if (myWire.available() == size) {
         for (uint32_t i = 0; i < size; i++) {
