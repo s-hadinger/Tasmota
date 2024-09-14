@@ -85,12 +85,19 @@ void I2cReset(void) {
   if (I2cSettings.sda[0] && I2cSettings.scl[0]) {
     Wire.end();                                           // release bus
 
-    Wire.begin(I2cSettings.scl[0], I2cSettings.sda[0]);   // initialize with swapped gpios
-    Wire.beginTransmission(0x01);                         // do something
-    Wire.endTransmission();
-    Wire.end();                                           // release faulty bus
+    pinMode(I2cSettings.scl[0], OUTPUT_OPEN_DRAIN);
+    digitalWrite(I2cSettings.scl[0], 1);
+    pinMode(I2cSettings.sda[0], OUTPUT_OPEN_DRAIN);
+    digitalWrite(I2cSettings.sda[0], 1);
 
-    I2cBegin(I2cSettings.sda[0], I2cSettings.scl[0], I2cSettings.frequency[0]);
+    for (uint32_t i = 0; i < 10; ++i) {
+      delayMicroseconds(10);
+      digitalWrite(I2cSettings.scl[0], 0);
+      delayMicroseconds(10);
+      digitalWrite(I2cSettings.scl[0], 1);
+    }
+
+    // I2cBegin(I2cSettings.sda[0], I2cSettings.scl[0], I2cSettings.frequency[0]);
     AddLog(LOG_LEVEL_DEBUG, PSTR("I2C: Bus1 reset sda %i scl %i freq %i KHz"), I2cSettings.sda[0], I2cSettings.scl[0], I2cSettings.frequency[0] / 1000);
   }
 }
@@ -98,16 +105,19 @@ void I2cReset(void) {
 #if I2C_BUS_COUNT > 1
 void I2c2Reset(void) {
   if (I2cSettings.sda[1] && I2cSettings.scl[1]) {
-    Wire1.end();                                           // release bus
+    Wire1.end();           
 
-    delay(10);
-    Wire1.begin(I2cSettings.scl[1], I2cSettings.sda[1]);   // initialize with swapped gpios
-    Wire1.beginTransmission(0x01);                         // do something
-    Wire1.endTransmission();
-    Wire1.beginTransmission(0x41);                         // do something
-    Wire1.endTransmission();
-    Wire1.end();                                           // release faulty bus
-    delay(10);
+    pinMode(I2cSettings.scl[1], OUTPUT_OPEN_DRAIN);
+    digitalWrite(I2cSettings.scl[1], 1);
+    pinMode(I2cSettings.sda[1], OUTPUT_OPEN_DRAIN);
+    digitalWrite(I2cSettings.sda[1], 1);
+
+    for (uint32_t i = 0; i < 10; ++i) {
+      delayMicroseconds(10);
+      digitalWrite(I2cSettings.scl[1], 0);
+      delayMicroseconds(10);
+      digitalWrite(I2cSettings.scl[1], 1);
+    }
 
     I2c2Begin(I2cSettings.sda[1], I2cSettings.scl[1], I2cSettings.frequency[1]);
     AddLog(LOG_LEVEL_DEBUG, PSTR("I2C: Bus2 reset sda %i scl %i freq %i KHz"), I2cSettings.sda[1], I2cSettings.scl[1], I2cSettings.frequency[1] / 1000);
