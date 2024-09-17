@@ -112,12 +112,22 @@ void I2c2Reset(void) {
     pinMode(I2cSettings.sda[1], OUTPUT_OPEN_DRAIN);
     digitalWrite(I2cSettings.sda[1], 1);
 
-    for (uint32_t i = 0; i < 10; ++i) {
+    for (uint32_t i = 0; i < 16; ++i) {
       delayMicroseconds(10);
       digitalWrite(I2cSettings.scl[1], 0);
       delayMicroseconds(10);
       digitalWrite(I2cSettings.scl[1], 1);
     }
+    digitalWrite(I2cSettings.scl[1], 0);
+    delayMicroseconds(10);
+    // generate a stop condition
+    digitalWrite(I2cSettings.sda[1], 0);
+    delayMicroseconds(10);
+    digitalWrite(I2cSettings.scl[1], 0);
+    delayMicroseconds(10);
+    digitalWrite(I2cSettings.sda[1], 1);
+    delayMicroseconds(10);
+    digitalWrite(I2cSettings.scl[1], 1);
 
     I2c2Begin(I2cSettings.sda[1], I2cSettings.scl[1], I2cSettings.frequency[1]);
     AddLog(LOG_LEVEL_DEBUG, PSTR("I2C: Bus2 reset sda %i scl %i freq %i KHz"), I2cSettings.sda[1], I2cSettings.scl[1], I2cSettings.frequency[1] / 1000);
