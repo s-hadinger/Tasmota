@@ -12,7 +12,9 @@ All notable changes to this project will be documented in this file.
 - Berry support for `sortedmap` (#23441)
 - Berry `introspect.module` option to not cache module entry (#23451)
 - Berry `webserver.remove_route` to revert `webserver.on` (#23452)
-- Berry `compile` and `tasmota.compile` option to compile in local context
+- Berry `compile` and `tasmota.compile` option to compile in local context (#23457)
+- Support for AP33772S USB PD Sink Controller as used in CentyLab RotoPD
+- Berry mqtt publish rule processing
 
 ### Breaking Changed
 
@@ -20,11 +22,18 @@ All notable changes to this project will be documented in this file.
 - ESP32 Platform from 2025.04.30 to 2025.05.40, Framework (Arduino Core) from v3.1.3.250411 to v3.2.0.250504 and IDF from v5.3.2.250403 to v5.4.1.250501 (#23397)
 - ESP32 Platform from 2025.05.40 to 2025.05.30, Framework (Arduino Core) from v3.2.0.250504 to v3.1.3.250504 and IDF from v5.4.1.250501 to v5.3.3.250501 (#23404)
 - ESP8266 platform update from 2024.09.00 to 2025.05.00 (#23448)
+- Increase number of supported LoRaWan nodes from 4 to 16
+- Berry change number parser for json to reuse same parser as lexer (#23505)
+- Berry increase web hooks from 16 to 32 (#23507)
+- ESP32 LVGL library from v9.2.2 to v9.3.0
 
 ### Fixed
 - Haspmota `haspmota.parse()` page parsing (#23403)
 - ESP32-S3 display stability regression from #23397 (#23404)
 - DNS setting with `IPAddress4/5` not persisted (#23426)
+- Berry avoid json parsing for unmatched commands (#23494)
+- Berry integer and real parser to handle overflows (#23495)
+- Berry potential pointer underflow with `string.endswith` (#23496)
 
 ### Removed
 
