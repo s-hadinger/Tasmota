@@ -58,6 +58,10 @@ const char be_berry_init_code[] =
   "do import autoconf end "
 #endif // USE_AUTOCONF
 
+#ifdef USE_EXTENSIONS_MANAGER
+  "do import extensions end "
+#endif
+
 #ifdef USE_LVGL
   "import lv "
   "import lv_tasmota "

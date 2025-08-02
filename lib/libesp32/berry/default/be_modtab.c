@@ -34,6 +34,7 @@ be_extern_native_module(re);
 be_extern_native_module(mqtt);
 be_extern_native_module(persist);
 be_extern_native_module(autoconf);
+be_extern_native_module(extensions);
 be_extern_native_module(tapp);
 be_extern_native_module(light);
 be_extern_native_module(gpio);
@@ -150,6 +151,9 @@ BERRY_LOCAL const bntvmodule_t* const be_module_table[] = {
 #ifdef USE_AUTOCONF
     &be_native_module(autoconf),
 #endif // USE_AUTOCONF
+#ifdef USE_EXTENSIONS_MANAGER
+    &be_native_module(extensions),
+#endif // USE_EXTENSIONS_MANAGER
     &be_native_module(tapp),
     &be_native_module(gpio),
 #ifdef USE_DISPLAY
