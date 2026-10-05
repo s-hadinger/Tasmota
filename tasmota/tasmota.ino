@@ -531,6 +531,11 @@ void setup(void) {
   } else {
 #if SOC_USB_SERIAL_JTAG_SUPPORTED  // Not S2
     HWCDCSerial.~HWCDC();       // not needed, deinit CDC
+    // HWCDC::deinit() leaves USB D-/D+ as OUTPUT_OPEN_DRAIN driven LOW (forces host re-enumeration)
+    // Restore push-pull so GPIO matrix peripherals (LEDC, RMT...) can drive these pins
+    // gpio_set_direction(GPIO_MODE_OUTPUT) clears open-drain and input enable, output stays LOW
+    gpio_set_direction((gpio_num_t)USB_INT_PHY0_DM_GPIO_NUM, GPIO_MODE_OUTPUT);
+    gpio_set_direction((gpio_num_t)USB_INT_PHY0_DP_GPIO_NUM, GPIO_MODE_OUTPUT);
 #endif  // SOC_USB_SERIAL_JTAG_SUPPORTED
     // Init command serial console preparing for AddLog use
     Serial.begin(TasmotaGlobal.baudrate);
