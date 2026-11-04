@@ -22,6 +22,7 @@
 #define USE_MQTT_NEW_PUBSUBCLIENT
 
 // #define DEBUG_DUMP_TLS    // allow dumping of TLS Flash keys
+#define USE_MQTT_DEBUG_ARP   // debugging ARP requests
 
 #ifdef USE_MQTT_TLS
   #include "WiFiClientSecureLightBearSSL.h"
@@ -1364,6 +1365,172 @@ bool MqttTLSEnabled(void) {
   return Mqtt.mqtt_tls;
 }
 
+#if defined(ESP8266) && defined(USE_MQTT_DEBUG_ARP)
+/*********************************************************************************************\
+ * Temporary diagnostics for https://github.com/arendst/Tasmota/issues/25206
+ *
+ * Wraps the station netif input() and linkoutput() to record, for the broker IP only:
+ *   rxARPreq / rxARPreply : ARP from the broker IP, with the sender MAC
+ *   rxRST                 : TCP RST with the broker as source IP, with the source MAC
+ *   txARPreq              : ARP request for the broker IP, with the destination MAC (ff:.. = broadcast)
+ *   txSYN                 : TCP SYN to the broker IP, with the destination MAC and linkoutput result
+ * The wrappers run inside lwIP and only record into a ring buffer. Events are logged from the
+ * main loop, with the ESP ARP table, when the connection is lost, an attempt fails, or it connects.
+\*********************************************************************************************/
+extern "C" {
+#include "lwip/etharp.h"
+#include "lwip/netif.h"
+}
+
+typedef struct {
+  uint32_t ms;
+  uint8_t mac[6];
+  uint8_t kind;
+  int8_t err;
+} MqttDbgEvent_t;
+
+enum MqttDbgKind { MQTT_DBG_NONE, MQTT_DBG_RX_ARP_REQ, MQTT_DBG_RX_ARP_REPLY, MQTT_DBG_RX_RST, MQTT_DBG_TX_ARP_REQ, MQTT_DBG_TX_SYN };
+static const char* const kMqttDbgKind[] = { "", "rxARPreq", "rxARPreply", "rxRST", "txARPreq", "txSYN" };
+
+const uint32_t MQTT_DBG_EVENTS = 32;
+static MqttDbgEvent_t mqtt_dbg_ev[MQTT_DBG_EVENTS];
+static uint32_t mqtt_dbg_ev_head = 0;                     // Events recorded
+static uint32_t mqtt_dbg_ev_shown = 0;                    // Events logged
+static uint32_t mqtt_dbg_broker = 0;                      // Broker IPv4, network byte order
+static netif_input_fn mqtt_dbg_input = nullptr;
+static netif_linkoutput_fn mqtt_dbg_linkoutput = nullptr;
+
+static void MqttDbgRecord(uint8_t kind, const uint8_t *mac, int8_t err) {
+  MqttDbgEvent_t *e = &mqtt_dbg_ev[mqtt_dbg_ev_head % MQTT_DBG_EVENTS];
+  e->ms = millis();
+  memcpy(e->mac, mac, 6);
+  e->kind = kind;
+  e->err = err;
+  mqtt_dbg_ev_head++;
+}
+
+// Classify an Ethernet frame, return the MAC of interest in *mac
+static uint8_t MqttDbgClassify(const uint8_t *f, uint32_t len, bool tx, const uint8_t **mac) {
+  if (!mqtt_dbg_broker || (len < 42)) { return MQTT_DBG_NONE; }
+  uint16_t type = (f[12] << 8) | f[13];
+  if (0x0806 == type) {                                   // ARP
+    uint16_t oper = (f[20] << 8) | f[21];
+    uint32_t spa, tpa;
+    memcpy(&spa, f + 28, 4);
+    memcpy(&tpa, f + 38, 4);
+    if (!tx && (spa == mqtt_dbg_broker)) {
+      *mac = f + 22;                                      // Sender hardware address
+      return (2 == oper) ? MQTT_DBG_RX_ARP_REPLY : MQTT_DBG_RX_ARP_REQ;
+    }
+    if (tx && (1 == oper) && (tpa == mqtt_dbg_broker)) {
+      *mac = f;                                           // Ethernet destination
+      return MQTT_DBG_TX_ARP_REQ;
+    }
+  } else if (0x0800 == type) {                            // IPv4
+    uint32_t ihl = (f[14] & 0x0F) * 4;
+    if ((f[23] != 6) || (len < 14 + ihl + 14)) { return MQTT_DBG_NONE; }  // TCP with flags byte
+    uint32_t src, dst;
+    memcpy(&src, f + 26, 4);
+    memcpy(&dst, f + 30, 4);
+    uint8_t flags = f[14 + ihl + 13];
+    if (!tx && (src == mqtt_dbg_broker) && (flags & 0x04)) {
+      *mac = f + 6;                                       // Ethernet source
+      return MQTT_DBG_RX_RST;
+    }
+    if (tx && (dst == mqtt_dbg_broker) && ((flags & 0x12) == 0x02)) {
+      *mac = f;                                           // Ethernet destination
+      return MQTT_DBG_TX_SYN;
+    }
+  }
+  return MQTT_DBG_NONE;
+}
+
+// Lambdas instead of functions: the .ino prototype generator would otherwise declare them
+// at the top of tasmota.ino, before lwIP headers, where err_t is not yet known
+static const netif_input_fn MqttDbgInput = [](struct pbuf *p, struct netif *netif) -> err_t {
+  const uint8_t *mac;
+  uint8_t kind = MqttDbgClassify((const uint8_t*)p->payload, p->len, false, &mac);
+  if (kind) { MqttDbgRecord(kind, mac, 0); }             // Before input(), which may free p
+  return mqtt_dbg_input(p, netif);
+};
+
+static const netif_linkoutput_fn MqttDbgLinkoutput = [](struct netif *netif, struct pbuf *p) -> err_t {
+  const uint8_t *mac;
+  uint8_t mac_copy[6];
+  uint8_t kind = MqttDbgClassify((const uint8_t*)p->payload, p->len, true, &mac);
+  if (kind) { memcpy(mac_copy, mac, 6); }
+  err_t err = mqtt_dbg_linkoutput(netif, p);
+  if (kind) { MqttDbgRecord(kind, mac_copy, (int8_t)err); }
+  return err;
+};
+
+void MqttDebugInstall(uint32_t broker) {
+  mqtt_dbg_broker = broker;
+  for (netif* n = netif_list; n != nullptr; n = n->next) {
+    if (STATION_IF != n->num) { continue; }
+    if (n->input != MqttDbgInput) {
+      mqtt_dbg_input = n->input;
+      n->input = MqttDbgInput;
+    }
+    if (n->linkoutput != MqttDbgLinkoutput) {
+      mqtt_dbg_linkoutput = n->linkoutput;
+      n->linkoutput = MqttDbgLinkoutput;
+    }
+  }
+}
+
+// Log events recorded since the last call; returns the number logged
+uint32_t MqttDebugEvents(void) {
+  uint32_t head = mqtt_dbg_ev_head;
+  uint32_t count = head - mqtt_dbg_ev_shown;
+  if (count > MQTT_DBG_EVENTS) {
+    AddLog(LOG_LEVEL_INFO, PSTR(D_LOG_MQTT "DBG %u older events dropped"), count - MQTT_DBG_EVENTS);
+    mqtt_dbg_ev_shown = head - MQTT_DBG_EVENTS;
+  }
+  uint32_t now = millis();
+  for (; mqtt_dbg_ev_shown < head; mqtt_dbg_ev_shown++) {
+    MqttDbgEvent_t e = mqtt_dbg_ev[mqtt_dbg_ev_shown % MQTT_DBG_EVENTS];   // Copy, the wrappers may write meanwhile
+    AddLog(LOG_LEVEL_INFO, PSTR(D_LOG_MQTT "DBG %u ms ago %s %02X:%02X:%02X:%02X:%02X:%02X err %d"),
+      now - e.ms, kMqttDbgKind[e.kind], e.mac[0], e.mac[1], e.mac[2], e.mac[3], e.mac[4], e.mac[5], e.err);
+  }
+  return count;
+}
+
+// Log the broker ARP entry, or its absence
+void MqttDebugBrokerArp(void) {
+  for (uint32_t i = 0; i < ARP_TABLE_SIZE; i++) {
+    ip4_addr_t *ip;
+    struct netif *netif;
+    struct eth_addr *eth;
+    if (etharp_get_entry(i, &ip, &netif, &eth) && (ip->addr == mqtt_dbg_broker)) {
+      AddLog(LOG_LEVEL_INFO, PSTR(D_LOG_MQTT "DBG ok, broker ARP %_I %02X:%02X:%02X:%02X:%02X:%02X"),
+        ip->addr, eth->addr[0], eth->addr[1], eth->addr[2], eth->addr[3], eth->addr[4], eth->addr[5]);
+      return;
+    }
+  }
+  AddLog(LOG_LEVEL_INFO, PSTR(D_LOG_MQTT "DBG ok, no broker ARP entry"));
+}
+
+// Called every second while MQTT is connected: log ARP/RST activity of a healthy connection
+void MqttDebugEverySecond(void) {
+  if (MqttDebugEvents()) { MqttDebugBrokerArp(); }
+}
+
+void MqttDebugDump(const char* reason) {
+  AddLog(LOG_LEVEL_INFO, PSTR(D_LOG_MQTT "DBG %s, state %d, heap %u"), reason, MqttClient.state(), ESP_getFreeHeap());
+  for (uint32_t i = 0; i < ARP_TABLE_SIZE; i++) {
+    ip4_addr_t *ip;
+    struct netif *netif;
+    struct eth_addr *eth;
+    if (etharp_get_entry(i, &ip, &netif, &eth)) {
+      AddLog(LOG_LEVEL_INFO, PSTR(D_LOG_MQTT "DBG ARP[%u] %_I %02X:%02X:%02X:%02X:%02X:%02X"),
+        i, ip->addr, eth->addr[0], eth->addr[1], eth->addr[2], eth->addr[3], eth->addr[4], eth->addr[5]);
+    }
+  }
+  MqttDebugEvents();
+}
+#endif  // ESP8266 && USE_MQTT_DEBUG_ARP
+
 void MqttDisconnected(int state) {
   /*
   // Possible values for state - PubSubClient.h
@@ -1392,6 +1559,9 @@ void MqttDisconnected(int state) {
 
   AddLog(LOG_LEVEL_INFO, PSTR(D_LOG_MQTT D_CONNECT_FAILED_TO " %s:%d, rc %d. " D_RETRY_IN " %d " D_UNIT_SECOND),
     SettingsText(SET_MQTT_HOST), Settings->mqtt_port, state, Mqtt.retry_counter);
+#if defined(ESP8266) && defined(USE_MQTT_DEBUG_ARP)
+  MqttDebugDump("fail");
+#endif  // ESP8266 && USE_MQTT_DEBUG_ARP
   TasmotaGlobal.rules_flag.mqtt_disconnected = 1;
 }
 
@@ -1406,6 +1576,9 @@ void MqttConnected(void) {
     AddLog(LOG_LEVEL_INFO, PSTR(D_LOG_MQTT D_CONNECTED));
 #endif
     Mqtt.connected = true;
+#if defined(ESP8266) && defined(USE_MQTT_DEBUG_ARP)
+    MqttDebugDump("connected");
+#endif  // ESP8266 && USE_MQTT_DEBUG_ARP
     Mqtt.retry_counter = 0;
     Mqtt.retry_counter_multiplier = 1;
     Mqtt.connect_count++;
@@ -1556,6 +1729,9 @@ void MqttReconnect(void) {
     MqttDisconnected(-5);  // MQTT_DNS_DISCONNECTED
     return;
   }
+#if defined(ESP8266) && defined(USE_MQTT_DEBUG_ARP)
+  MqttDebugInstall((uint32_t)ip);
+#endif  // ESP8266 && USE_MQTT_DEBUG_ARP
   MqttClient.setServer(ip, Settings->mqtt_port);
 
   if (2 == Mqtt.initial_connection_state) {  // Executed once just after power on and wifi is connected
@@ -1825,6 +2001,11 @@ void MqttReconnect(void) {
 void MqttCheck(void) {
   if (Settings->flag.mqtt_enabled) {  // SetOption3 - Enable MQTT
     if (!MqttIsConnected()) {
+#if defined(ESP8266) && defined(USE_MQTT_DEBUG_ARP)
+      if (Mqtt.connected) {                               // First detection of a lost connection
+        MqttDebugDump("lost");
+      }
+#endif  // ESP8266 && USE_MQTT_DEBUG_ARP
       TasmotaGlobal.global_state.mqtt_down = 1;
       if (!Mqtt.retry_counter) {
         MqttReconnect();
@@ -1833,6 +2014,9 @@ void MqttCheck(void) {
       }
     } else {
       TasmotaGlobal.global_state.mqtt_down = 0;
+#if defined(ESP8266) && defined(USE_MQTT_DEBUG_ARP)
+      MqttDebugEverySecond();
+#endif  // ESP8266 && USE_MQTT_DEBUG_ARP
     }
   } else {
     TasmotaGlobal.global_state.mqtt_down = 0;
